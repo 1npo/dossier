@@ -1,0 +1,68 @@
+---
+name: dossier
+description: Build a cited HTML dossier that explains a git repository (capabilities, architecture, data model, code tour, delivery, risks, contributors). Use for /dossier home, /dossier build, /dossier version, /dossier correct, /dossier confirm.
+argument-hint: home [dir] | build [repo-path] [--ref branch-or-sha] | version | correct ... | confirm [ids] [--answer|--wrong|--note ...]
+disable-model-invocation: true
+allowed-tools: Bash(python3 *), Read, Grep, Glob, Write, Agent
+---
+
+# dossier
+
+Builds a codebase dossier: a single self-contained HTML file of short, cited reports that give a lead engineer a working mental model of a repository at one pinned commit.
+
+Python does the counting and the drawing. You do the reading and the writing. Never count what `facts.json` already counts, and never write HTML.
+
+Arguments the user typed: `$ARGUMENTS`
+
+The CLI is `python3 ${CLAUDE_SKILL_DIR}/scripts/dossier.py`. Call it `DOSSIER` below.
+
+## Commands
+
+### `/dossier version`
+Run `DOSSIER version` and show the output.
+
+### `/dossier home [dir]`
+Run `DOSSIER home [dir]`. With no directory it shows the current home. Dossiers are saved under `<home>/<repo-name>/`.
+
+### `/dossier build [repo-path] [--ref <branch-or-sha>]`
+The repository defaults to the current directory. The ref defaults to the checked-out commit. Follow these steps in order.
+
+1. **Prepare.** Run `DOSSIER prepare <repo> [--ref R]`. If it says no home is set, ask the user for a directory and run `DOSSIER home`. Read the JSON it prints. Show the user one line: repo, branch, short commit, size.
+2. **Size check.** Look at `reading.advice`. If it describes a large or very large repository, tell the user the token count and chunk count in plain words, recommend a model with a larger context window (and re-running prepare with a bigger `--chunk-tokens`), and ask whether to continue before reading any code. For anything smaller, carry on without asking. Relay any `warnings` (shallow clone, uncommitted changes).
+3. **Learn the rules.** Read `${CLAUDE_SKILL_DIR}/prompts/method.md` and `${CLAUDE_SKILL_DIR}/prompts/reports.md`. Read `state.json` for user corrections and for `user_decisions` (what the user has confirmed, answered or disputed; `prepare` prints them), and `facts.json` (use Read with a limit if it is large; start with `repo`, `git`, `files`, `manifests`, `inventory`, `areas`, `chunks`).
+4. **Read the code.** Follow "Reading the repository" in `method.md`. In `single` mode, read the files yourself. In `chunked` mode, write a note for every chunk that is not cached, using subagents in parallel batches of about five when the Agent tool is available. Do not skip chunks and do not truncate files.
+5. **Write the reports.** Write all eleven files to `reports_dir`: overview, capabilities, interfaces, architecture, data, code-tour, failures, delivery, risks, contributors, gaps. For a large repository, give each report to its own subagent with the report name, the paths to `method.md`, `reports.md`, `facts.json`, the notes, and the repository. If this is an update and reports already exist, update them as `method.md` describes.
+6. **Render.** Run `DOSSIER render <repo>`. If it prints errors (unresolved citations, missing columns, bad diagrams), fix the report files and run it again until it succeeds. Warnings are worth fixing but do not block.
+7. **Check the diagrams.** Mermaid syntax errors only show when the page is opened. If a browser tool is available, open the HTML and confirm each diagram draws; the page shows a banner when one does not. Otherwise re-read each diagram against the rules in `method.md`.
+8. **Finish.** Tell the user the path of the HTML file and, in a few plain sentences, the headline findings: what the project is, the top risks, and the number of unknowns and inferences. Do not list every step you took.
+
+### `/dossier confirm`
+For giving the dossier your answers on its open items: inferences, unknowns, assumptions and coverage notes. Every open item has an ID (G001, G002, …) shown in the page's Tracker and beside the statement itself. The ID stays the same across rebuilds.
+
+- List what is open: `DOSSIER confirm <repo>` (add `--kind unknown|inference|assumption|coverage`, `--report <id>`, `--all` to include decided ones, `--json` for machine-readable output). Show the user the list in plain words, grouped by report, when they have not named IDs.
+- Confirm an inference or assumption: `DOSSIER confirm <repo> --ids G006 G007 --note "why it is right"`.
+- Answer an unknown (or any item): `DOSSIER confirm <repo> --ids G003 --answer "what is true"`.
+- Dispute an item: `DOSSIER confirm <repo> --ids G006 --wrong "what is true"`. This also records a correction, so follow the `/dossier correct` steps for it.
+- Take a decision back: `DOSSIER confirm <repo> --undo G006`.
+
+Then run `DOSSIER render <repo>` to refresh the page. That only redraws from the existing reports, so it takes seconds and needs no re-reading. The item then shows "confirmed by you" in green, drops out of the open counts, and the sidebar dot turns green when nothing is left open.
+
+If the user names an item by describing it rather than by ID, list the items, match it yourself, and say which ID you chose. If a match is unclear, ask.
+
+Decisions are saved in `state.json` next to the reports. They are never discarded: they survive rebuilds, new commits, reworded reports and skill upgrades (the old state file is also copied to `state.backup-v<old version>.json` when the skill version changes). If a statement is reworded a lot, the page still matches it by its label and wording; a decision that matches nothing stays on file and shows under Corrections.
+
+### `/dossier correct`
+When the user says the dossier is wrong or gives missing facts:
+
+1. Record it: `DOSSIER correct <repo> --report <id|other> --said "what the dossier claimed" --text "what is true"`. To change how a person is classified: `DOSSIER correct <repo> --contributor <email> --type human|agent|bot`, then re-run `prepare`.
+2. Update the affected report files so they reflect the correction. Mark the corrected statement `confirmed` and cite the user's correction by adding the correction ID to the report text, for example "(correction C001)".
+3. Run `DOSSIER correct <repo> --apply C001`, then `DOSSIER render <repo>`.
+
+Corrections always win over inference. Read them before writing any report.
+
+## Rules that always apply
+
+- Everything is pinned to the commit SHA that `prepare` resolved. Never read the working tree for facts; read files at that commit when they differ (`git show <sha>:<path>`).
+- Every file reference is a citation. Every statement is `confirmed`, `inferred` or `unknown`. Details are in `method.md`.
+- Plain language, full sentences, short summaries.
+- Do not print secret values found in the repository, in the dossier or in chat.

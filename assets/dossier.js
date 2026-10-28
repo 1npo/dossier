@@ -1,0 +1,163 @@
+(function () {
+  var doc = document, root = doc.documentElement;
+  function $(s, r) { return (r || doc).querySelector(s); }
+  function $$(s, r) { return Array.prototype.slice.call((r || doc).querySelectorAll(s)); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function escRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+
+  function alertHtml(title, text) {
+    return '<div class="alert" data-variant="destructive"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg><h2>' + esc(title) + "</h2><section>" + text + "</section></div>";
+  }
+
+  // ---- theme
+  var theme = null;
+  try { theme = localStorage.getItem("dossier-theme"); } catch (e) {}
+  if (!theme) theme = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  function applyTheme() {
+    root.classList.toggle("dark", theme === "dark");
+    $("#theme-toggle").setAttribute("aria-checked", String(theme === "dark"));
+    initMermaid();
+  }
+
+  // ---- diagrams
+  var seq = 0, failures = window.__dossierDiagramFailures = [];
+  function initMermaid() {
+    if (!window.mermaid) return;
+    mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: theme === "dark" ? "dark" : "neutral",
+      fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif", fontSize: 15, flowchart: { useMaxWidth: true, htmlLabels: true },
+      er: { useMaxWidth: true }, sequence: { useMaxWidth: true } });
+  }
+  function drawIn(section) {
+    if (!window.mermaid) return;
+    $$(".mermaid-host", section).forEach(function (host) {
+      if (host.dataset.done === theme) return;
+      var id = "dm" + (++seq);
+      mermaid.render(id, host.dataset.src).then(function (out) {
+        host.innerHTML = out.svg; host.dataset.done = theme; host.classList.remove("failed");
+      }).catch(function (err) {
+        var stray = doc.getElementById("d" + id); if (stray) stray.remove();
+        host.classList.add("failed"); host.dataset.done = theme;
+        var cap = host.closest(".diagram").querySelector("h3");
+        failures.push((cap && cap.textContent || "Diagram") + ": " + (err && err.message || err));
+        host.innerHTML = alertHtml("Diagram could not be drawn", 'Its source is under "Diagram source" below. ' + esc(err && err.message || err));
+        var b = $("#diagram-banner"); b.hidden = false; b.innerHTML = alertHtml(failures.length + " diagram(s) could not be drawn", "The source of each is still available under the diagram.");
+      });
+    });
+  }
+
+  // ---- navigation: one report visible at a time
+  function show() {
+    var firstRep = $(".report"), id = decodeURIComponent(location.hash.slice(1)) || firstRep.id;
+    var target = doc.getElementById(id) || firstRep;
+    var section = target.closest(".report") || target;
+    $$(".report").forEach(function (s) { s.hidden = s !== section; });
+    $$("[data-nav]").forEach(function (a) { if (a.dataset.nav === section.id) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+    drawIn(section);
+    if (target !== section) {
+      target.scrollIntoView();
+      target.classList.remove("flash"); void target.offsetWidth; target.classList.add("flash");
+    } else window.scrollTo(0, 0);
+  }
+  window.addEventListener("hashchange", show);
+  function go(id) { if (location.hash === "#" + id) show(); else location.hash = id; }
+
+  // ---- search
+  var input = $("#search"), results = $("#search-results"), navGroups = $("#nav-groups"), index = null, shown = [], active = -1;
+  function textOf(el, dropTables) {
+    var c = el.cloneNode(true);
+    $$("details, sup.cite, .mermaid-host svg, button" + (dropTables ? ", .badge, table, .table-container" : ""), c).forEach(function (n) { n.remove(); });
+    return c.textContent.replace(/\s+/g, " ").trim();
+  }
+  function buildIndex() {
+    index = []; var n = 0;
+    $$(".report").forEach(function (rep) {
+      var rtitle = $("h1", rep).textContent.trim();
+      $$(".card", rep).forEach(function (card) {
+        if (card.classList.contains("refs-card")) return;
+        var h = $("header h2, header h3", card), title = h ? textOf(h) : rtitle;
+        if (!card.id) card.id = "s-" + rep.id + "-" + (++n);
+        index.push({ id: card.id, report: rtitle, section: title, text: textOf(card, true), row: false });
+        $$("tbody tr", card).forEach(function (tr) {
+          if (!tr.id) tr.id = "r-" + rep.id + "-" + (++n);
+          var cells = $$("td", tr).map(function (td) { return textOf(td); });
+          index.push({ id: tr.id, report: rtitle, section: title, label: cells.filter(Boolean).slice(0, 2).join(" · "), text: cells.join(" | "), row: true });
+        });
+      });
+    });
+    index.forEach(function (e) { e.lower = (e.section + " " + e.text).toLowerCase(); });
+  }
+  function highlight(text, terms) {
+    var re = new RegExp("(" + terms.map(escRe).join("|") + ")", "gi");
+    return text.split(re).map(function (p, i) { return i % 2 ? "<mark>" + esc(p) + "</mark>" : esc(p); }).join("");
+  }
+  function snippet(text, terms) {
+    var low = text.toLowerCase(), at = -1;
+    terms.forEach(function (t) { var i = low.indexOf(t); if (i >= 0 && (at < 0 || i < at)) at = i; });
+    var start = Math.max(0, at - 40), s = text.slice(start, start + 140);
+    return (start > 0 ? "…" : "") + s + (start + 140 < text.length ? "…" : "");
+  }
+  function runSearch() {
+    var q = input.value.trim().toLowerCase();
+    if (!q) { results.hidden = true; navGroups.hidden = false; shown = []; return; }
+    if (!index) buildIndex();
+    var terms = q.split(/\s+/);
+    shown = index.filter(function (e) { return terms.every(function (t) { return e.lower.indexOf(t) >= 0; }); })
+      .map(function (e, i) { return { e: e, score: (terms.every(function (t) { return e.section.toLowerCase().indexOf(t) >= 0; }) ? 2 : 0) + (e.row ? 1 : 0), i: i }; })
+      .sort(function (a, b) { return b.score - a.score || a.i - b.i; }).slice(0, 15).map(function (x) { return x.e; });
+    navGroups.hidden = true; results.hidden = false; active = shown.length ? 0 : -1;
+    results.innerHTML = shown.length ? shown.map(function (e, i) {
+      var what = e.row ? e.label : e.section;
+      return '<button type="button" class="result" role="option" data-i="' + i + '" aria-selected="' + (i === active) + '"><span class="where">' + esc(e.report) + (e.row ? " › " + esc(e.section) : "") +
+        '</span><span class="what">' + highlight(what, terms) + '</span><span class="snip">' + highlight(snippet(e.row ? e.text : e.text, terms), terms) + "</span></button>";
+    }).join("") : '<div class="no-results">No matches for "' + esc(input.value.trim()) + '".</div>';
+  }
+  function select(i) {
+    active = Math.max(0, Math.min(shown.length - 1, i));
+    $$(".result", results).forEach(function (b, k) { b.setAttribute("aria-selected", String(k === active)); if (k === active) b.scrollIntoView({ block: "nearest" }); });
+  }
+  function open(i) {
+    var e = shown[i]; if (!e) return;
+    input.value = ""; runSearch(); input.blur(); go(e.id);
+  }
+  input.addEventListener("input", runSearch);
+  input.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowDown") { e.preventDefault(); select(active + 1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); select(active - 1); }
+    else if (e.key === "Enter") { e.preventDefault(); open(Math.max(active, 0)); }
+    else if (e.key === "Escape") { input.value = ""; runSearch(); input.blur(); }
+  });
+  results.addEventListener("click", function (e) { var b = e.target.closest(".result"); if (b) open(+b.dataset.i); });
+  doc.addEventListener("keydown", function (e) {
+    var t = e.target, typing = t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable);
+    if ((e.key === "/" && !typing && !e.ctrlKey && !e.metaKey && !e.altKey) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k")) {
+      e.preventDefault(); var sb = $(".sidebar"); if (sb && sb.open) sb.open(); input.focus(); input.select();
+    }
+  });
+  var hint = $("#search-hint");
+  input.addEventListener("focus", function () { hint.hidden = true; }); input.addEventListener("blur", function () { hint.hidden = false; });
+
+  // ---- table filter, diagram expand
+  doc.addEventListener("input", function (e) {
+    var t = e.target; if (!t.classList || !t.classList.contains("tbl-filter")) return;
+    var q = t.value.toLowerCase();
+    $$("#" + t.dataset.target + " tbody tr").forEach(function (tr) { tr.hidden = q && tr.textContent.toLowerCase().indexOf(q) < 0; });
+  });
+  doc.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest("[data-expand]");
+    if (b) { var fig = b.closest(".diagram"); var on = fig.classList.toggle("expanded"); b.textContent = on ? "Close" : "Expand"; }
+  });
+  doc.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") $$(".diagram.expanded").forEach(function (f) { f.classList.remove("expanded"); $("[data-expand]", f).textContent = "Expand"; });
+  });
+  $("#theme-toggle").addEventListener("click", function () {
+    theme = theme === "dark" ? "light" : "dark";
+    try { localStorage.setItem("dossier-theme", theme); } catch (e) {}
+    applyTheme(); drawIn($(".report:not([hidden])"));
+  });
+  $("#menu-toggle").addEventListener("click", function () { var sb = $(".sidebar"); if (sb && sb.toggle) sb.toggle(); });
+
+  // keep the sticky header height in sync so anchors land below it
+  function syncHeader() { var h = $(".masthead"); if (h) root.style.setProperty("--header-h", (h.offsetHeight + 12) + "px"); }
+  window.addEventListener("resize", syncHeader); syncHeader();
+  applyTheme(); show();
+})();
