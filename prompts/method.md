@@ -34,6 +34,7 @@ Rules:
 - Paths are relative to the repository root, exactly as git lists them. Line numbers refer to the pinned commit.
 - A sentence that depends on a file ends with its citation, `[[path:12-30]]`. The page shows it as a numbered marker. Do not start the citation with "See": the marker is the pointer. A source cited inline is never repeated by the page, so also listing it in `cite` is harmless.
 - When a sentence is *about* one specific file (a reading order, an entry point, "the bootstrap is install.sh"), name the file in the sentence with the labelled form `[[path:12-30|name]]`. The page shows `name` in code style followed by the numbered marker. Use `|name` for the file the sentence is about, and the plain form for evidence at the end of a sentence. Never write a bare or backticked path for a tracked file.
+- A citation is evidence, never a name. Do not start a sentence with `[[path]]`, and do not put one where a file name belongs ("sets no strict mode" after a bare citation, or "defined in" followed by one). Wrong: `[[install.sh:33-84]] sets no strict mode.` Right: `[[install.sh:33-84|install.sh]] sets no strict mode.` or `The bootstrap sets no strict mode [[install.sh:33-84]].` The page adds the path as a label when it finds a bare citation in a name position, but write the label yourself.
 - Cite each source once per statement. Do not write the same citation inline and again as a trailing "See ...".
 - In a table cell that holds only a file, directory or glob (a Name column, for example), write it in backticks: `scripts/lib`, `scripts/targets/*.sh`. The page also does this for any such cell that exists at the pinned commit.
 - Cite the narrowest range that proves the point. Do not cite a whole large file when ten lines will do.
@@ -44,12 +45,14 @@ Rules:
 One JSON file per report in `reports/`. All have `headline` (one sentence), `summary` (the executive summary) and `blocks`. Block types:
 
 ```json
-{"type": "text", "heading": "optional", "text": "paragraphs, - bullets, `code`, **bold**, [[path:1-9]]", "conf": "confirmed", "cite": [], "note": ""}
-{"type": "list", "heading": "optional", "items": [{"text": "...", "conf": "confirmed", "cite": ["path:3"], "note": ""}]}
-{"type": "table", "heading": "optional", "caption": "optional", "columns": ["A", "B"],
+{"type": "text", "heading": "required", "text": "paragraphs, - bullets, `code`, **bold**, [[path:1-9]]", "conf": "confirmed", "cite": [], "note": ""}
+{"type": "list", "heading": "required", "items": [{"text": "...", "conf": "confirmed", "cite": ["path:3"], "note": ""}]}
+{"type": "table", "heading": "required", "caption": "optional", "columns": ["A", "B"],
  "rows": [{"cells": ["a1", "b1"], "conf": "confirmed", "cite": ["path:3"], "note": ""}]}
-{"type": "diagram", "heading": "optional", "title": "what it shows", "mermaid": "flowchart LR\n ...", "conf": "confirmed", "cite": ["path:3"], "note": ""}
+{"type": "diagram", "heading": "required", "title": "what it shows", "mermaid": "flowchart LR\n ...", "conf": "confirmed", "cite": ["path:3"], "note": ""}
 ```
+
+Every block is shown as a card, and the page lists the cards by name in a contents list under the executive summary. So every block needs a short `heading` (2 to 6 words) that says what the card holds. A block without one gets a name made up by the page, which reads worse.
 
 Table rows must have exactly as many `cells` as `columns`. The page adds Basis and Sources columns itself. Do not add a "Where", "Where defined" or "Where read" column: the Sources column is the only place table citations are linked. Inline `[[...]]` citations inside cells also count.
 

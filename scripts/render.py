@@ -198,14 +198,29 @@ def code_files(s):
 SEE_TAIL = re.compile(r"\bSee (\[\[[^\]]+\]\](?:(?:,| and|, and) \[\[[^\]]+\]\])*)\.?\s*$")
 
 
+SENTENCE_START = re.compile(r"(^|[.!?:]\s+|\n\s*(?:[-*]\s+)?|^\s*[-*]\s+)$")
+AFTER_PREP = re.compile(r"\b(?:in|at|from|to|into|of|by|via|see|under|inside|within|on|with|using|uses?|calls?|reads?|runs?|sources?|loads?|edits?|defined|set|handled|implemented|lives?|found)\s+$", re.I)
+CLAUSE_WORD = re.compile(r"\s+(?!(?:and|or|but|which|while|so|then|because|where|when|as|if)\b)[A-Za-z0-9(`*]")
+
+
+def stands_for_name(before, after):
+    """True when a marker is used as the subject of a sentence ("[1] sets no strict mode") instead of ending a statement."""
+    return bool(SENTENCE_START.search(before) or AFTER_PREP.search(before) or CLAUSE_WORD.match(after))
+
+
 def inline(s, refs):
-    """Escape and format one run of prose. [[path:1-9]] becomes a numbered source marker; [[path:1-9|name]] shows `name` first."""
+    """Escape and format one run of prose. [[path:1-9]] becomes a numbered source marker; [[path:1-9|name]] shows `name` first.
+    A single file citation that stands where a file name belongs gets its path as the label, so a bare [3] never replaces a name."""
     s = SEE_TAIL.sub(r"\1", html.escape(str(s or ""), quote=False))  # a trailing "See [1]." is just the marker
 
     def cite_sub(m):
         raw, _, label = html.unescape(m.group(1)).partition("|")
-        mark = refs.mark([x.strip() for x in raw.split(", ") if x.strip()])
-        return f"<code>{E(label.strip())}</code>{mark}" if label.strip() else mark
+        raws = [x.strip() for x in raw.split(", ") if x.strip()]
+        label = label.strip()
+        if not label and len(raws) == 1 and parse_cite(raws[0])["kind"] == "file" and stands_for_name(m.string[:m.start()], m.string[m.end():]):
+            label = parse_cite(raws[0])["text"]
+        mark = refs.mark(raws)
+        return f"<code>{E(label)}</code>{mark}" if label else mark
     s = INLINE_CITE.sub(cite_sub, s)
     s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
     return code_files(re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s))
@@ -274,9 +289,11 @@ def user_note(u):
     return f'<div class="muted by-user">You said this is wrong on {when}:{text} The next build will rewrite it.</div>'
 
 
+SEV_TONE = {"critical": "destructive", "high": "destructive", "medium": "primary", "low": "secondary", "info": "outline"}
+
+
 def sev_badge(v):
-    key = str(v).strip().lower()
-    return badge(v, "", {"critical": "destructive", "high": "destructive", "medium": "primary", "low": "secondary"}.get(key, "outline"))
+    return badge(v, "", SEV_TONE.get(str(v).strip().lower(), "outline"))
 
 
 STATUS_STYLE = {"implemented": ("basis-confirmed", "secondary"), "partial": ("basis-inferred", "outline"), "dead code": ("basis-unknown", "destructive")}
@@ -362,6 +379,8 @@ def validate(reports, facts, cites, partial=False):
             continue
         for i, b in enumerate(rep.get("blocks", [])):
             tag = f"Report '{rid}', block {i + 1}"
+            if b.get("type") in BLOCKS and not str(b.get("heading") or "").strip():
+                warnings.append(f"{tag}: add a 'heading'. The contents list names each card by it (the page will call this one '{block_title(b)}').")
             if b.get("type") not in BLOCKS:
                 errors.append(f"{tag}: 'type' must be one of {', '.join(BLOCKS)}.")
             elif b["type"] == "table":
@@ -478,23 +497,38 @@ EXPAND_ICONS = ('<svg class="ic-max" xmlns="http://www.w3.org/2000/svg" width="1
                 '<svg class="ic-min" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14 10 7-7"/><path d="M20 10h-6V4"/><path d="m3 21 7-7"/><path d="M4 14h6v6"/></svg>')
 
 
+def block_title(b):
+    """The name a block's card goes by in the contents list: its heading, or one made from what it holds."""
+    if b.get("heading"):
+        return b["heading"]
+    t = b.get("type")
+    if t == "diagram":
+        return b.get("title") or "Diagram"
+    if t == "table":
+        return ", ".join(str(c) for c in b.get("columns", [])[:3]) or "Table"
+    if t == "list":
+        return "Key points"
+    plain = re.sub(r"\[\[[^\]]*\]\]|[`*]", "", str(b.get("text", "")))
+    words = plain.split()
+    return " ".join(words[:7]) + ("..." if len(words) > 7 else "") if words else "Details"
+
+
 def render_block(b, refs, rid, idx, notes=None):
     t = b["type"]
     prov = provenance(b, refs, b.get("text", ""), "Diagram" if notes else "") if t in ("text", "diagram") else ""
     if t == "text":
-        return block_card(b.get("heading"), md(b["text"], refs), prov)
+        return block_card(block_title(b), md(b["text"], refs), prov)
     if t == "list":
         lis = "".join(f'<li>{inline(i["text"], refs)} {basis_for(i) if (i["conf"] != "confirmed" or i.get("user")) else ""}{gid_tag(i)}{refs.mark(new_cites(i.get("cite"), i["text"]))}'
                       + (f'<div class="muted">{inline(i.get("note"), refs)}</div>' if i.get("note") and i["conf"] != "confirmed" else "") + user_note(i.get("user")) + "</li>"
                       for i in b["items"])
-        return f'<div class="card block"><header><h3>{E(b.get("heading") or "")}</h3></header><section><ul class="claims">{lis}</ul></section></div>' if b.get("heading") else \
-            f'<div class="card block"><section><ul class="claims">{lis}</ul></section></div>'
+        return f'<div class="card block"><header><h3>{E(block_title(b))}</h3></header><section><ul class="claims">{lis}</ul></section></div>'
     if t == "table":
         cap = f'<p class="muted">{inline(b["caption"], refs)}</p>' if b.get("caption") else ""
-        h = f'<header><h3>{E(b["heading"])}</h3></header>' if b.get("heading") else ""
+        h = f'<header><h3>{E(block_title(b))}</h3></header>'
         return f'<div class="card block">{h}<section>{cap}{render_table(b["columns"], b["rows"], refs, f"t-{rid}-{idx}")}</section></div>'
     src = b["mermaid"].strip()
-    title = b.get("heading") or b.get("title") or "Diagram"
+    title = block_title(b)
     sub_ = f'<p>{E(b["title"])}</p>' if b.get("heading") and b.get("title") else ""
     return (f'<div class="card block diagram"><header><h3>{E(title)}</h3>{sub_}<div class="card-action"><button class="btn" data-variant="ghost" data-size="sm" type="button" data-expand title="Expand" aria-label="Expand diagram">{EXPAND_ICONS}</button></div></header>'
             f'<section><div class="mermaid-host" data-src="{E(src)}"><pre class="muted">Diagram loads when this report is opened.</pre></div>'
@@ -534,15 +568,14 @@ def path_cell(path, refs, line=None):
     return f"<code>{E(ref).replace('/', '/<wbr>')}</code>{refs.mark([ref])}"
 
 
+class Raw(str):
+    """Markup that is already safe to place in the page."""
+
+
 def stats_html(items):
     cols = 3 if len(items) == 6 else min(len(items), 5)
     return f'<div class="stats" style="grid-template-columns:repeat({cols},minmax(0,1fr))">' + "".join(
-        f'<div class="stat {extra[0] if extra else ""}"><div class="k">{E(k)}</div><div class="v">{E(v)}</div><div class="s">{E(s)}</div></div>' for k, v, s, *extra in items) + "</div>"
-
-
-def stack(parts):
-    total = sum(parts.values()) or 1
-    return '<span class="stack">' + "".join(f'<i class="{k}" style="width:{100 * v / total:.1f}%" title="{k}: {v}"></i>' for k, v in parts.items() if v) + "</span>"
+        f'<div class="stat {extra[0] if extra else ""}"><div class="k">{k if isinstance(k, Raw) else E(k)}</div><div class="v">{E(v)}</div><div class="s">{E(s)}</div></div>' for k, v, s, *extra in items) + "</div>"
 
 
 def panel_git(f, refs):
@@ -662,20 +695,96 @@ def own_bar(parts, total, cls_of, label):
     return '<span class="own-bar">' + "".join(segs) + "</span>"
 
 
-def ownership_matrix(areas, top, cls_of):
-    """Areas down the side, the biggest owners across the top, each cell the share of that area's lines. Shows one person's reach across areas."""
-    def level(pct):
-        return 0 if pct <= 0 else 1 if pct < 10 else 2 if pct < 35 else 3 if pct < 70 else 4
-    cols = "".join(f'<span class="mxh" title="{E(p["name"])}"><b class="own-dot {cls_of[p["id"]]}"></b>{E(p["name"])}</span>' for p in top) + '<span class="mxh">Everyone else</span>'
-    body = []
-    for a in areas:
-        mine = {x["id"]: x["lines"] for x in a["owners"]}
-        shares = [100 * mine.get(p["id"], 0) / a["lines"] for p in top] if a["lines"] else [0] * len(top)
-        shares.append(max(0.0, 100 - sum(shares)))
-        names = [p["name"] for p in top] + ["everyone else"]
-        cells = "".join(f'<span class="hm l{level(v)}" title="{E(n)} wrote {v:.0f}% of {E(a["name"])}">{f"{v:.0f}%" if v >= 0.5 else ""}</span>' for v, n in zip(shares, names))
-        body.append(f'<span class="mxa"><code>{E(a["name"])}</code> <span class="muted">{fmt(a["lines"])} lines</span></span>{cells}')
-    return f'<div class="own-matrix" style="--cols:{len(top) + 1}"><span></span>{cols}{"".join(body)}</div><p class="muted">Each cell is the share of that area\'s lines written by that person. Darker means a larger share.</p>'
+PALETTE = 6  # people who get their own colour; everyone else shares grey
+
+
+def owner_palette(f):
+    """{id or name: colour class} for the biggest owners of today's code, so every graphic colours a person the same way."""
+    o = f.get("ownership")
+    people = o["people"] if o else f["contributors"]["people"]
+    pal = {}
+    for i, p in enumerate(people[:PALETTE]):
+        cls = f"lang-{i + 1}"
+        pal[p["name"]] = cls
+        if p.get("id"):
+            pal[p["id"]] = cls
+    return pal
+
+
+def squarify(items, w, h):
+    """Treemap layout: items are (key, value), largest first. Returns (key, x, y, w, h) rectangles that fill w x h."""
+    total = sum(v for _, v in items) or 1
+    todo = [(k, v * w * h / total) for k, v in items]
+    out, x, y = [], 0.0, 0.0
+
+    def worst(row, side):
+        t = sum(row)
+        return max(max(side * side * r / (t * t), t * t / (side * side * r)) for r in row)
+    while todo:
+        side = min(w, h)
+        row = [todo[0]]
+        while len(row) < len(todo) and worst([a for _, a in row + [todo[len(row)]]], side) <= worst([a for _, a in row], side):
+            row.append(todo[len(row)])
+        todo = todo[len(row):]
+        t = sum(a for _, a in row)
+        if w >= h:
+            cw, yy = t / h, y
+            for k, a in row:
+                out.append((k, x, yy, cw, a / cw))
+                yy += a / cw
+            x, w = x + cw, w - cw
+        else:
+            rh, xx = t / w, x
+            for k, a in row:
+                out.append((k, xx, y, a / rh, rh))
+                xx += a / rh
+            y, h = y + rh, h - rh
+    return out
+
+
+def area_treemap(f, pal):
+    """One tile per area. Size is how much code the area holds, colour is who wrote most of it, stripes mean it is shared."""
+    o = f.get("ownership")
+    if o:
+        areas = [(a["name"], a["lines"], [(x["id"], x["name"], x["lines"] / a["lines"]) for x in a["owners"]]) for a in o["areas"] if a["lines"]]
+        unit, basis_ = "lines", "Tile size is the lines of code in the area today and colour is who wrote most of them."
+    else:
+        areas = [(a["name"], a["files"], [(x["name"], x["name"], x["share_pct"] / 100) for x in a["top"]]) for a in f["areas"] if a["exists"] and a["files"]]
+        unit, basis_ = "files", "Tile size is the number of files in the area and colour is who made most of its commits."
+    if not areas:
+        return ""
+    areas.sort(key=lambda a: -a[1])
+    keep, tail = areas[:20], areas[20:]
+    W, H = 100.0, 38.0
+    weight = lambda v: v ** 0.5  # square root, so a huge area does not squeeze the rest into slivers
+    items = [(i, weight(a[1])) for i, a in enumerate(keep)] + ([("tail", weight(sum(a[1] for a in tail)))] if tail else [])
+    items.sort(key=lambda it: -it[1])
+    tiles = []
+    for key, x, y, w, h in squarify(items, W, H):
+        pos = f"left:{100 * x / W:.2f}%;top:{100 * y / H:.2f}%;width:{100 * w / W:.2f}%;height:{100 * h / H:.2f}%"
+        if key == "tail":
+            n, tot = len(tail), sum(a[1] for a in tail)
+            tiles.append(f'<div class="tm" style="{pos}"><div class="tm-in tm-tail" tabindex="0" data-tip="{n} smaller areas, {fmt(tot)} {unit} in all. See the table below.">'
+                         + (f'<b>{n} smaller areas</b>' if w > 12 and h > 7 else "") + "</div></div>")
+            continue
+        name, size, owners = keep[key]
+        owners = sorted(owners, key=lambda x: -x[2])
+        colour = lambda x: f"var(--l{pal[x[0]][5:]})" if x[0] in pal else f"var(--l{pal[x[1]][5:]})" if x[1] in pal else "var(--l8)"
+        top, second = owners[0], owners[1] if len(owners) > 1 else None
+        shared = top[2] < 0.6 and second is not None
+        style = f"{pos};--c:{colour(top)};" + (f"--c2:{colour(second)};" if shared else "")
+        tip = f"{name}: {fmt(size)} {unit}. " + ", ".join(f"{x[1]} {100 * x[2]:.0f}%" for x in owners[:4])
+        label = ""
+        if w > 11 and h > 7:
+            label = f'<b>{E(name)}</b>' + (f'<span>{E(top[1])} {100 * top[2]:.0f}%</span>' if h > 12 else "")
+        tiles.append(f'<div class="tm" style="{style}"><div class="tm-in{" tm-shared" if shared else ""}" tabindex="0" data-tip="{E(tip)}">{label}</div></div>')
+    named = {}
+    for name_, cls_ in pal.items():
+        named.setdefault(cls_, name_)  # owner_palette lists the display name before the id
+    legend = "".join(f'<li><b class="{c}"></b>{E(n)}</li>' for c, n in sorted(named.items()))
+    legend += '<li><b class="own-other"></b>Everyone else</li><li><b class="tm-swatch"></b>Striped: no one wrote 60% of it, so two people share it</li>'
+    return (f'<div class="treemap" role="img" aria-label="Map of areas by size and main owner">{"".join(tiles)}</div><ul class="llegend">{legend}</ul>'
+            f'<p class="muted">{basis_} Sizes use a square-root scale so small areas stay visible. Hover or focus a tile for the numbers.</p>')
 
 
 def panel_ownership(f, refs):
@@ -702,9 +811,8 @@ def panel_ownership(f, refs):
         where = ", ".join(f'<code>{E(a["area"])}</code> <span class="muted">{100 * a["lines"] / p["lines"]:.0f}%</span>' for a in p["top_areas"][:3])
         rows.append([f'<b class="own-dot {cls_of.get(p["id"], "own-other")}"></b>{E(p["name"])}', type_badge(p["type"]), fmt(p["lines"]), (meter, p["share_pct"]), where])
     table = render_table(["Contributor", "Type", "Lines", "Share of the codebase", "Where their code lives"], rows, refs, "t-own", False, True)
-    matrix = ownership_matrix(o["areas"][:12], top, cls_of)
     body = (tiles + f'<h3>Share of all code lines</h3>{own_bar(parts, total, cls_of, "of the codebase")}<ul class="llegend">{legend}</ul>'
-            + "<h3>By contributor</h3>" + table + "<h3>By area: how much of each area each person wrote</h3>" + matrix
+            + "<h3>By contributor</h3>" + table
             + f'<p class="muted">{E(o["note"])}</p>')
     return card("Who wrote the code today", body, "facts-ownership", "Share of the lines in the codebase at this commit that each contributor wrote, as opposed to how many commits they made.", refs, "facts:ownership")
 
@@ -717,7 +825,7 @@ def panel_contributors(f, refs):
     assisted = ""
     if g["agent_assisted_commits"]:
         by = ", ".join(f"{k}: {v}" for k, v in g["agent_assisted_by"].items())
-        assisted = f'<p>{fmt(g["agent_assisted_commits"])} commits carry an AI-assistant marker ({E(by)}). They are counted under "agent" in the area map below.</p>'
+        assisted = f'<p>{fmt(g["agent_assisted_commits"])} commits carry an AI-assistant marker ({E(by)}). They are counted under "agent" in the area table below.</p>'
     rows = []
     for p in f["contributors"]["people"][:40]:
         areas = ", ".join(E(a["area"]) for a in p["top_areas"][:3])
@@ -726,15 +834,22 @@ def panel_contributors(f, refs):
     more = f'<p class="muted">{f["contributors"]["not_listed"]} more contributors are in the profiler data but not shown. Table shows the top 40.</p>' if f["contributors"]["not_listed"] or len(f["contributors"]["people"]) > 40 else ""
     t1 = card("Contributors", cards + assisted + render_table(["Name", "Type", "Commits", "Share", "Active", "Last 12 months", "Lines +/-", "Agent-assisted", "Main areas"], rows, refs, "t-people", True, True)
               + more + f'<p class="muted">{E(f["contributors"]["classification_note"])}</p>', "facts-contributors", refs=refs, cite="facts:contributors")
+    pal = owner_palette(f)
+    blame = {a["name"]: a for a in (f.get("ownership") or {}).get("areas", [])}
+    dot = lambda x: f'<b class="own-dot {pal.get(x.get("id")) or pal.get(x["name"]) or "own-other"}"></b>'
     arows = []
     for a in f["areas"]:
         who = "<br>".join(f'{E(x["name"])} <span class="muted">({x["share_pct"]}%{", " + x["type"] if x["type"] != "human" else ""})</span>' for x in a["top"][:3])
-        bt = {k: v["commits"] for k, v in a["by_type"].items()}
-        state = "removed" if not a["exists"] else ("dormant" if not a["recent_commits_12m"] else "active")
-        arows.append([f"<code>{E(a['name'])}</code>", state, fmt(a["files"]), fmt(a["commits"]), (stack(bt), bt.get("human", 0)), who, str(a["humans_for_80pct"]), E(a["last_active"])])
-    t2 = card("Who knows which area", render_table(["Area", "State", "Files", "Commits", "Human / agent / bot", "Top contributors", "People for 80%", "Last active"], arows, refs, "t-areas", True, True)
+        bl = blame.get(a["name"])
+        owners = "<br>".join(f'{dot(x)}{E(x["name"])} <span class="muted">({100 * x["lines"] / bl["lines"]:.0f}%)</span>' for x in bl["owners"][:3]) if bl else '<span class="muted">no surviving code</span>'
+        mix = " · ".join(f"{100 * v['commits'] / a['commits']:.0f}% {k}" for k, v in a["by_type"].items() if v["commits"]) if a["commits"] else ""
+        state = "removed" if not a["exists"] else ("dormant" if not a["recent_commits_12m"] else "")
+        name = f"<code>{E(a['name'])}</code>" + (f'<div class="muted">{state}</div>' if state else "")
+        arows.append([(name, a["name"]), (fmt(bl["lines"]) if bl else "0", bl["lines"] if bl else 0), owners, who,
+                      (f'{fmt(a["commits"])}<div class="muted">{E(mix)}</div>', a["commits"]), str(a["humans_for_80pct"]), E(a["last_active"])])
+    t2 = card("Who knows which area", area_treemap(f, pal) + "<h3>Every area</h3>" + render_table(["Area", "Lines today", "Wrote most of today's code", "Made most of the commits", "Commits", "People for 80%", "Last active"], arows, refs, "t-areas", True, True)
               + '<p class="muted">"People for 80%" is how many human contributors account for 80% of the human commits in that area. A low number means knowledge is concentrated. '
-                '"Removed" areas no longer exist at this commit but their history is kept.</p>', "facts-areas", "Large directories are split one or two levels deeper so the map stays useful.", refs, "facts:areas")
+                '"Removed" areas no longer exist at this commit but their history is kept, and "dormant" ones have had no commits in the last 12 months. The percentages under Commits show who made them: humans, agents or bots.</p>', "facts-areas", "Large directories are split one or two levels deeper so the map stays useful.", refs, "facts:areas")
     return t1 + t2
 
 
@@ -832,7 +947,7 @@ def panel_risk_counts(rep):
                 if v in counts:
                     counts[v] += 1
     inferred = sum(1 for c in claims_of("risks", rep) if c["conf"] == "inferred")
-    tiles = [(s.capitalize(), counts[s], "", f"sev-{s}" if counts[s] and s in ("critical", "high") else "") for s in SEVERITIES[:4]]
+    tiles = [(Raw(sev_badge(s.capitalize())), counts[s], "", f"sev-{SEV_TONE[s]}" + ("" if counts[s] else " zero")) for s in SEVERITIES[:4]]
     return stats_html(tiles + [("Based on inference", inferred, "risks without direct evidence")])
 
 
@@ -888,6 +1003,24 @@ def flags_html(rid, reports, state, ctx=None):
     return f'<span class="flags">{out}</span>' if out else ok
 
 
+CARD_HEAD = re.compile(r'<div class="card (panel|block)([^"]*)"( id="[^"]*")?><header><h([23])>(.*?)</h\4>')
+
+
+def with_contents(rid, body):
+    """Give every named card an anchor and return (body, contents card) listing the cards in page order."""
+    entries = []
+
+    def sub(m):
+        kind, extra, idattr, lvl, inner = m.groups()
+        cid = idattr[5:-1] if idattr else f"{rid}-c{len(entries) + 1}"
+        entries.append((cid, re.sub(r"\s*<sup.*$", "", inner).strip()))
+        return f'<div class="card {kind}{extra}" id="{cid}"><header><h{lvl}>{inner}</h{lvl}>'
+    body = CARD_HEAD.sub(sub, body)
+    entries.append((f"{rid}-refs", "References"))
+    items = "".join(f'<li><a href="#{cid}">{title}</a></li>' for cid, title in entries)
+    return body, f'<div class="card toc-card" id="{rid}-toc"><header><h2>Contents</h2></header><section><ol class="toc">{items}</ol></section></div>'
+
+
 def build_page(rid, reports, facts, state, ctx):
     refs = Refs(rid, ctx["cites"])
     title = TITLES[rid]
@@ -901,6 +1034,7 @@ def build_page(rid, reports, facts, state, ctx):
                         f"It holds {fmt(len(allc))} statements: {n['confirmed']} confirmed in the code or history, {n['inferred']} inferred from context and {n['unknown']} for which nothing was found.</p>"
                         f"<p>Built {E(ctx['built'])} with dossier {E(ctx['version'])}. {len(ctx['history'])} build{'' if len(ctx['history']) == 1 else 's'} recorded so far.</p>")
         parts.append(panel_dossier(facts, reports, state, ctx, refs))
+        parts.append(panel_chunks(facts, refs))
         idx, tot = [], {k: 0 for k in CONF}
         for r, t, authored in REPORTS[1:]:
             rr = reports.get(r) or {}
@@ -914,7 +1048,6 @@ def build_page(rid, reports, facts, state, ctx):
                      group=[("", 2), ("Statements by basis", 3)],
                      foot=["<strong>Total</strong>", f'<span class="muted">{sum(tot.values())} statements in all</span>', *[count_pill(tot[k], k) for k in CONF]]), "report-index",
                      "Each count is a number of statements. Confirmed ones are stated in the code or history, inferred ones are reasoned from context, and unknown ones were not found."))
-        parts.append(panel_chunks(facts, refs))
         parts.append(panel_history(ctx["history"], refs))
     elif rid == "corrections":
         headline = "Everything the user has corrected, and whether the correction has been applied."
@@ -936,9 +1069,10 @@ def build_page(rid, reports, facts, state, ctx):
             parts.append(panel_gaps(ctx["gaps"], refs))
         if rid in PANELS_AFTER:
             parts.append(PANELS_AFTER[rid](facts, refs, ctx))
+    body, toc = with_contents(rid, "".join(parts))
     return (f'<section class="report" id="{rid}" hidden><header class="report-head"><h1>{E(title)}</h1><p class="headline">{inline(headline, refs)}</p></header>{pre}'
             f'<div class="card summary"><header><h2>Executive summary</h2></header><section>{summary_html}</section></div>'
-            + "".join(parts) + f'<div class="card refs-card"><header><h2>References</h2><p>Links open the source at the pinned commit.</p></header><section>{refs.listing()}</section></div></section>')
+            + toc + body + f'<div class="card refs-card" id="{rid}-refs"><header><h2>References</h2><p>Links open the source at the pinned commit.</p></header><section>{refs.listing()}</section></div></section>')
 
 
 NAV_GROUPS = [("Orientation", ["dossier", "overview", "capabilities", "interfaces"]), ("Design", ["architecture", "domain-logic", "data", "code-tour"]),

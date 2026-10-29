@@ -99,8 +99,6 @@ tr.flash, .card.flash { animation: flash 1.8s ease-out; } @keyframes flash { fro
 .stat .v { font-size: 1.375rem; font-weight: 600; margin: .1rem 0; } .stat .s { color: var(--muted-foreground); font-size: .8125rem; }
 .bar { display: inline-block; width: 6rem; height: .5rem; background: var(--muted); border-radius: 99px; vertical-align: middle; overflow: hidden; }
 .bar i { display: block; height: 100%; background: var(--primary); }
-.stack { display: inline-flex; width: 7rem; height: .6rem; background: var(--muted); border-radius: 99px; overflow: hidden; vertical-align: middle; }
-.stack i { display: block; height: 100%; } .stack .human { background: var(--primary); } .stack .agent { background: var(--chart-2); } .stack .bot { background: var(--muted-foreground); opacity: .5; }
 
 .mermaid-host { overflow: auto; text-align: center; padding: .5rem; } .mermaid-host svg { max-width: 100%; height: auto; }
 .diagram details { margin-top: .75rem; } .diagram summary { cursor: pointer; }
@@ -193,12 +191,6 @@ details.deps { margin: .5rem 0; } details.deps summary { cursor: pointer; overfl
 .own-bar { display: flex; height: 1.6rem; border-radius: var(--radius); overflow: hidden; gap: 2px; background: var(--muted); } .own-bar i { display: block; height: 100%; min-width: 2px; }
 .own-dot { display: inline-block; width: .65rem; height: .65rem; border-radius: 50%; margin-right: .5rem; vertical-align: baseline; }
 .meter { display: inline-block; width: 7rem; height: .6rem; background: var(--muted); border-radius: 99px; overflow: hidden; vertical-align: middle; } .meter i { display: block; height: 100%; }
-.own-matrix { display: grid; grid-template-columns: minmax(9rem, 16rem) repeat(var(--cols), minmax(3.5rem, 1fr)); gap: 3px; align-items: center; font-size: .875rem; }
-.own-matrix .mxh { font-size: .75rem; color: var(--muted-foreground); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.own-matrix .mxa { overflow-wrap: anywhere; padding-right: .5rem; } .own-matrix .mxa .muted { display: block; font-size: .75rem; }
-.own-matrix .hm { height: 2rem; }
-@media (max-width: 767px) { .own-matrix { grid-template-columns: minmax(6rem, 9rem) repeat(var(--cols), minmax(2.6rem, 1fr)); } }
-
 /* diagrams: edge labels sit on a light chip in both themes, so dark text is always legible */
 .mermaid-host .edgeLabel, .mermaid-host .edgeLabel p, .mermaid-host .edgeLabel span, .mermaid-host .edgeLabel div { color: #111827 !important; }
 .mermaid-host .edgeLabel, .mermaid-host .edgeLabel rect, .mermaid-host .labelBkg { background-color: #f3f4f6 !important; opacity: 1 !important; }
@@ -209,12 +201,12 @@ details.deps { margin: .5rem 0; } details.deps summary { cursor: pointer; overfl
 .mermaid-host foreignObject p { display: inline !important; margin: 0 !important; }
 .panel section > h3 { margin: 1.25rem 0 .6rem; } .panel section > h3:first-child { margin-top: 0; }
 
-/* severity tiles: critical and high stand out when there are any */
-:root { --sev-high: oklch(.62 .17 50); } .dark { --sev-high: oklch(.78 .15 60); }
-.stat.sev-critical { border-color: var(--destructive); background: color-mix(in oklab, var(--destructive) 12%, var(--card)); }
-.stat.sev-critical .k, .stat.sev-critical .v { color: var(--destructive); }
-.stat.sev-high { border-color: var(--sev-high); background: color-mix(in oklab, var(--sev-high) 12%, var(--card)); }
-.stat.sev-high .k, .stat.sev-high .v { color: var(--sev-high); }
+/* severity tiles: the label is the same pill the register table uses, and a tile with rows takes the pill's colour */
+.stat .k .badge { text-transform: none; letter-spacing: 0; font-size: .8125rem; }
+.stat.sev-destructive { --sev: var(--destructive); } .stat.sev-primary { --sev: var(--primary); } .stat.sev-secondary { --sev: var(--muted-foreground); }
+.stat[class*="sev-"]:not(.zero) { border-color: var(--sev); background: color-mix(in oklab, var(--sev) 10%, var(--card)); }
+.stat.sev-destructive:not(.zero) .v { color: var(--destructive); }
+.stat.zero .v { color: var(--muted-foreground); }
 
 /* provenance rows: a diagram and its notes each get a labelled row */
 .card.block footer { flex-direction: column; align-items: stretch; gap: .5rem; }
@@ -231,3 +223,19 @@ details.deps { margin: .5rem 0; } details.deps summary { cursor: pointer; overfl
 /* table toolbar: filter and reset-order button */
 .tbl-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-bottom: .6rem; } .tbl-bar:not(:has(> :not([hidden]))) { display: none; }
 .tbl-bar .tbl-filter { margin-bottom: 0; }
+
+/* contents list under the executive summary */
+.toc { columns: 2 18rem; column-gap: 2rem; margin: 0 !important; padding-left: 1.6rem !important; }
+.toc li { break-inside: avoid; margin: .2rem 0; }
+
+/* area treemap: size is how much code, colour is who wrote most of it, stripes are shared */
+.treemap { position: relative; width: 100%; aspect-ratio: 100 / 38; margin: .25rem 0 .5rem; }
+.tm { position: absolute; padding: 2px; box-sizing: border-box; }
+.tm-in { height: 100%; box-sizing: border-box; overflow: hidden; border-radius: .4rem; border-top: 4px solid var(--c, var(--l8)); padding: .3rem .5rem; font-size: .75rem; line-height: 1.3;
+  background: color-mix(in oklab, var(--c, var(--l8)) 30%, var(--card)); color: var(--foreground); }
+.tm-in.tm-shared { background: repeating-linear-gradient(135deg, color-mix(in oklab, var(--c) 30%, var(--card)) 0 10px, color-mix(in oklab, var(--c2) 30%, var(--card)) 10px 20px); }
+.tm-in.tm-tail { --c: var(--l8); }
+.tm-in b { display: block; font-weight: 600; overflow-wrap: anywhere; } .tm-in span { display: block; opacity: .8; }
+.tm-in:hover, .tm-in:focus-visible { outline: 2px solid var(--foreground); outline-offset: -2px; }
+.tm-swatch { background: repeating-linear-gradient(135deg, var(--l1) 0 3px, var(--l2) 3px 6px); }
+@media (max-width: 767px) { .treemap { aspect-ratio: 1 / 1; } }

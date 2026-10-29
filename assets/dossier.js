@@ -87,7 +87,7 @@
     $$(".report").forEach(function (rep) {
       var rtitle = $("h1", rep).textContent.trim();
       $$(".card", rep).forEach(function (card) {
-        if (card.classList.contains("refs-card")) return;
+        if (card.classList.contains("refs-card") || card.classList.contains("toc-card")) return;
         var h = $("header h2, header h3", card), title = h ? textOf(h) : rtitle;
         if (!card.id) card.id = "s-" + rep.id + "-" + (++n);
         index.push({ id: card.id, report: rtitle, section: title, text: textOf(card, true), row: false });

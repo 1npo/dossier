@@ -1,6 +1,6 @@
 # Report specifications
 
-Write one file per report to `reports/<id>.json`, following `method.md`. Every report needs `headline`, `summary` and `blocks`. Aim for the smallest report that fully serves a lead engineer. A short report is fine when the topic is small.
+Write one file per report to `reports/<id>.json`, following `method.md`. Every report needs `headline`, `summary` and `blocks`, and every block needs a `heading`, because the page builds a contents list from the card names. Aim for the smallest report that fully serves a lead engineer. A short report is fine when the topic is small.
 
 **Executive summaries are short and plain.** Write `summary` as 3 to 5 bullets (`- ` lines), each one sentence of about 20 words or fewer, in everyday words. Lead with the answer. No filler, no restating the headline, no jargon the reader has to look up.
 
@@ -97,7 +97,7 @@ Rules: every row has citations. A row based on inference is `inferred` with a no
 
 ## contributors
 
-Who knows what. The page already shows contributor and area tables. Write interpretation: who the key people are by area, where knowledge is concentrated or has left (people with no recent commits), how much work comes from agents and bots and in which areas, and who to ask about which subsystem. The page opens with a dashboard of who wrote the code today (`facts:ownership`, from git blame), so do not restate the shares. Interpret them instead: where ownership differs from commit share, where bulk imports or reformats moved ownership, and which areas are owned by one person. Name areas by what they do, not just by directory. Discuss classification doubts (a person who looks like a bot, shared accounts, unmerged identities). Use `facts:contributors` and `facts:areas` as citations. If the user has given overrides, they appear in `state.json`.
+Who knows what. The page already shows contributor and area tables. Write interpretation: who the key people are by area, where knowledge is concentrated or has left (people with no recent commits), how much work comes from agents and bots and in which areas, and who to ask about which subsystem. The page opens with a dashboard of who wrote the code today (`facts:ownership`, from git blame), then shows a map of every area (sized by code, coloured by main owner, striped where two people share it) above one table of all areas, so do not restate the shares or the table rows. Interpret them instead: where ownership differs from commit share, where bulk imports or reformats moved ownership, and which areas are owned by one person. Name areas by what they do, not just by directory. Discuss classification doubts (a person who looks like a bot, shared accounts, unmerged identities). Use `facts:contributors` and `facts:areas` as citations. If the user has given overrides, they appear in `state.json`.
 
 ## gaps
 
