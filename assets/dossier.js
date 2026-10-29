@@ -151,19 +151,20 @@
   input.addEventListener("focus", function () { hint.hidden = true; }); input.addEventListener("blur", function () { hint.hidden = false; });
 
 
-  // ---- citation tooltip: appears the moment the pointer is over a [n] marker
+  // ---- tooltips: appear the moment the pointer is over a source marker [n] or a note such as a gap ID
   var tip = doc.createElement("div"); tip.id = "cite-tip"; tip.hidden = true; tip.setAttribute("role", "tooltip"); doc.body.appendChild(tip);
   function tipFor(a) {
     var r = a.getBoundingClientRect();
+    tip.className = a.dataset.tipKind === "note" ? "note" : "";
     tip.textContent = a.dataset.tip; tip.hidden = false;
     var w = tip.offsetWidth, h = tip.offsetHeight;
     var left = Math.max(8, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 8));
     var top = r.top - h - 6 < 8 ? r.bottom + 6 : r.top - h - 6;
     tip.style.left = left + "px"; tip.style.top = top + "px";
   }
-  doc.addEventListener("mouseover", function (e) { var a = e.target.closest && e.target.closest(".cite a[data-tip]"); if (a) tipFor(a); });
-  doc.addEventListener("mouseout", function (e) { if (e.target.closest && e.target.closest(".cite a[data-tip]")) tip.hidden = true; });
-  doc.addEventListener("focusin", function (e) { var a = e.target.closest && e.target.closest(".cite a[data-tip]"); if (a) tipFor(a); });
+  doc.addEventListener("mouseover", function (e) { var a = e.target.closest && e.target.closest("[data-tip]"); if (a) tipFor(a); });
+  doc.addEventListener("mouseout", function (e) { if (e.target.closest && e.target.closest("[data-tip]")) tip.hidden = true; });
+  doc.addEventListener("focusin", function (e) { var a = e.target.closest && e.target.closest("[data-tip]"); if (a) tipFor(a); });
   doc.addEventListener("focusout", function () { tip.hidden = true; });
   window.addEventListener("scroll", function () { tip.hidden = true; }, true);
 
@@ -177,29 +178,43 @@
     var m = /^[+\-]?\d[\d,]*(\.\d+)?/.exec(t);
     return m && !/^\d{4}-\d{2}/.test(t) && !/^[a-z]/.test(t) ? parseFloat(m[0].replace(/,/g, "")) : t;
   }
+  // numeric collation puts R2 before R10 and G002 before G010
+  var collate = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
   function sortBy(table, col, dir) {
-    var body = table.tBodies[0], rows = $$("tr", body).map(function (tr, i) { return { tr: tr, i: i, k: sortKey(tr.cells[col] || tr.cells[0]) }; });
+    var body = table.tBodies[0], rows = $$("tr", body).map(function (tr) { return { tr: tr, i: +tr.dataset.row, k: dir ? sortKey(tr.cells[col] || tr.cells[0]) : 0 }; });
     rows.sort(function (a, b) {
+      if (!dir) return a.i - b.i;
       var x = a.k, y = b.k, r;
       if (typeof x === "number" && typeof y === "number") r = x - y;
       else if (typeof x === "number") r = -1; else if (typeof y === "number") r = 1;
-      else r = x < y ? -1 : x > y ? 1 : 0;
+      else r = collate.compare(x, y);
       return (r * dir) || a.i - b.i;
     });
     rows.forEach(function (r) { body.appendChild(r.tr); });
   }
   function makeSortable(table) {
-    if (!table.tHead || !table.tBodies[0] || table.dataset.sortable) return;
+    if (!table.tHead || !table.tBodies[0] || table.dataset.sortable || table.hasAttribute("data-nosort")) return;
     table.dataset.sortable = "1";
+    $$("tr", table.tBodies[0]).forEach(function (tr, i) { tr.dataset.row = i; });
     var hr = table.tHead.rows[table.tHead.rows.length - 1];
+    var wrap = table.closest(".table-container") || table, bar = doc.createElement("div"), reset = doc.createElement("button");
+    bar.className = "tbl-bar"; reset.type = "button"; reset.className = "btn"; reset.hidden = true; reset.textContent = "Reset order";
+    reset.setAttribute("data-variant", "outline"); reset.setAttribute("data-size", "sm"); reset.title = "Put the rows back in the order they were written";
+    var filter = wrap.previousElementSibling;
+    wrap.before(bar); if (filter && filter.classList.contains("tbl-filter")) bar.appendChild(filter); bar.appendChild(reset);
+    function clear() { $$("th", hr).forEach(function (o) { o.removeAttribute("aria-sort"); }); reset.hidden = true; sortBy(table, 0, 0); }
+    reset.addEventListener("click", clear);
     $$("th", hr).forEach(function (th, col) {
-      var b = doc.createElement("button"); b.type = "button"; b.title = "Sort by this column";
+      var b = doc.createElement("button"); b.type = "button"; b.title = "Sort by this column; a third click restores the original order";
       while (th.firstChild) b.appendChild(th.firstChild);
       th.appendChild(b); th.classList.add("sortable");
       b.addEventListener("click", function () {
-        var dir = th.getAttribute("aria-sort") === "ascending" ? -1 : 1;
+        var cur = th.getAttribute("aria-sort");
+        if (cur === "descending") return clear();
+        var dir = cur === "ascending" ? -1 : 1;
         $$("th", hr).forEach(function (o) { o.removeAttribute("aria-sort"); });
         th.setAttribute("aria-sort", dir === 1 ? "ascending" : "descending");
+        reset.hidden = false;
         sortBy(table, col, dir);
       });
     });
@@ -214,10 +229,14 @@
   });
   doc.addEventListener("click", function (e) {
     var b = e.target.closest && e.target.closest("[data-expand]");
-    if (b) { var fig = b.closest(".diagram"); var on = fig.classList.toggle("expanded"); b.textContent = on ? "Close" : "Expand"; }
+    if (b) setExpanded(b.closest(".diagram"), !b.closest(".diagram").classList.contains("expanded"));
   });
+  function setExpanded(fig, on) {
+    var b = $("[data-expand]", fig), label = on ? "Close" : "Expand";
+    fig.classList.toggle("expanded", on); b.title = label; b.setAttribute("aria-label", label + " diagram");
+  }
   doc.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") $$(".diagram.expanded").forEach(function (f) { f.classList.remove("expanded"); $("[data-expand]", f).textContent = "Expand"; });
+    if (e.key === "Escape") $$(".diagram.expanded").forEach(function (f) { setExpanded(f, false); });
   });
   $("#theme-toggle").addEventListener("click", function () {
     theme = theme === "dark" ? "light" : "dark";

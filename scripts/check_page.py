@@ -124,13 +124,20 @@ def check_theme(browser, path, scheme, shots):
             if shots:
                 host.screenshot(path=str(Path(shots) / f"{scheme}-{rid}-{i}.png"))
         # sortable tables
-        for t in page.query_selector_all(f"#{rid} table.table"):
+        for t in page.query_selector_all(f"#{rid} table.table:not([data-nosort])"):
             missing = t.evaluate("t => { const hr = t.tHead && t.tHead.rows[t.tHead.rows.length - 1]; return hr ? Array.from(hr.cells).filter(c => !c.querySelector('button')).map(c => c.textContent.trim()) : []; }")
             if missing and scheme == "light":
                 problems.append(f"{rid} / table {t.get_attribute('id')}: columns not sortable: {', '.join(missing)}")
         # citation tooltip
         if scheme == "light":
             a = page.query_selector(f"#{rid} .cite a[data-tip]")
+            g = page.query_selector(f"#{rid} .gid[data-tip]")
+            if g:
+                g.scroll_into_view_if_needed()
+                g.hover()
+                if not page.evaluate("() => { const t = document.getElementById('cite-tip'); return !!t && !t.hidden && t.classList.contains('note'); }"):
+                    problems.append(f"{rid}: the gap ID tooltip did not appear on hover")
+                page.mouse.move(0, 0)
             if a:
                 a.scroll_into_view_if_needed()
                 a.hover()

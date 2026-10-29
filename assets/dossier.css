@@ -71,7 +71,7 @@ mark { background: color-mix(in oklab, var(--warn) 30%, transparent); color: inh
 .prov { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
 .cite a:hover { background: var(--primary); color: var(--primary-foreground); }
 ol.refs { margin: 0; padding-left: 1.8rem; } ol.refs li { overflow-wrap: break-word; }
-dl.facts { display: grid; grid-template-columns: 11rem 1fr; gap: .35rem 1rem; margin: 0; } dl.facts dt { color: var(--muted-foreground); } dl.facts dd { margin: 0; overflow-wrap: break-word; }
+dl.facts { display: grid; grid-template-columns: minmax(7rem, 10rem) minmax(0, 1fr); gap: .35rem 1rem; margin: 0; } dl.facts dt { color: var(--muted-foreground); } dl.facts dd { margin: 0; overflow-wrap: anywhere; }
 
 /* pills: confirmed is green, inferred amber, unknown red */
 .badge.basis-confirmed { background: var(--ok-bg); color: var(--ok); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ok) 45%, transparent); }
@@ -178,13 +178,11 @@ sup.cite { vertical-align: baseline !important; position: static !important; top
 .table tfoot td { border-top: 2px solid var(--border); font-weight: 600; background: var(--muted); }
 #t-index tfoot td:nth-child(n+3) { text-align: center; }
 
-/* about this build: project facts stand out from dossier facts */
-.facts-groups { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 1rem; align-items: stretch; }
-.facts-group h3 { margin-bottom: .6rem; } .facts-group h3 .muted { font-weight: 400; font-size: .8125rem; margin-left: .4rem; }
-.facts-group.project { border: 1px solid var(--primary); border-left-width: 5px; border-radius: var(--radius); padding: .8rem 1rem; background: color-mix(in oklab, var(--primary) 7%, var(--card)); }
-.facts-group.project dl.facts dd { font-weight: 600; } .facts-group.project dl.facts dt { color: var(--foreground); }
-.facts-group.build { border: 1px dashed var(--border); border-radius: var(--radius); padding: .8rem 1rem; }
-.facts-group.build h3, .facts-group.build dl.facts { color: var(--muted-foreground); font-size: .875rem; }
+/* about this build: the same tile look as the other stat tiles */
+.facts-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; align-items: stretch; }
+.facts-group { border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem .9rem; }
+.facts-group h3 { margin-bottom: .6rem; color: var(--muted-foreground); font-size: .75rem; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; }
+.facts-group h3 span { text-transform: none; letter-spacing: 0; margin-left: .4rem; }
 @media (max-width: 767px) { .facts-groups { grid-template-columns: 1fr; } }
 
 /* project manifests: dependency lists */
@@ -195,9 +193,11 @@ details.deps { margin: .5rem 0; } details.deps summary { cursor: pointer; overfl
 .own-bar { display: flex; height: 1.6rem; border-radius: var(--radius); overflow: hidden; gap: 2px; background: var(--muted); } .own-bar i { display: block; height: 100%; min-width: 2px; }
 .own-dot { display: inline-block; width: .65rem; height: .65rem; border-radius: 50%; margin-right: .5rem; vertical-align: baseline; }
 .meter { display: inline-block; width: 7rem; height: .6rem; background: var(--muted); border-radius: 99px; overflow: hidden; vertical-align: middle; } .meter i { display: block; height: 100%; }
-.own-areas { display: grid; gap: .55rem; } .own-area { display: grid; grid-template-columns: minmax(8rem, 14rem) minmax(0, 1fr) minmax(9rem, 14rem); gap: .75rem; align-items: center; font-size: .875rem; }
-.own-area .own-bar { height: 1rem; } .own-area code { overflow-wrap: anywhere; justify-self: start; }
-@media (max-width: 767px) { .own-area { grid-template-columns: 1fr; gap: .2rem; } }
+.own-matrix { display: grid; grid-template-columns: minmax(9rem, 16rem) repeat(var(--cols), minmax(3.5rem, 1fr)); gap: 3px; align-items: center; font-size: .875rem; }
+.own-matrix .mxh { font-size: .75rem; color: var(--muted-foreground); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.own-matrix .mxa { overflow-wrap: anywhere; padding-right: .5rem; } .own-matrix .mxa .muted { display: block; font-size: .75rem; }
+.own-matrix .hm { height: 2rem; }
+@media (max-width: 767px) { .own-matrix { grid-template-columns: minmax(6rem, 9rem) repeat(var(--cols), minmax(2.6rem, 1fr)); } }
 
 /* diagrams: edge labels sit on a light chip in both themes, so dark text is always legible */
 .mermaid-host .edgeLabel, .mermaid-host .edgeLabel p, .mermaid-host .edgeLabel span, .mermaid-host .edgeLabel div { color: #111827 !important; }
@@ -208,3 +208,26 @@ details.deps { margin: .5rem 0; } details.deps summary { cursor: pointer; overfl
 /* the page styles <p> as a block with margins; inside a diagram label that pushes the text out of its clipping box */
 .mermaid-host foreignObject p { display: inline !important; margin: 0 !important; }
 .panel section > h3 { margin: 1.25rem 0 .6rem; } .panel section > h3:first-child { margin-top: 0; }
+
+/* severity tiles: critical and high stand out when there are any */
+:root { --sev-high: oklch(.62 .17 50); } .dark { --sev-high: oklch(.78 .15 60); }
+.stat.sev-critical { border-color: var(--destructive); background: color-mix(in oklab, var(--destructive) 12%, var(--card)); }
+.stat.sev-critical .k, .stat.sev-critical .v { color: var(--destructive); }
+.stat.sev-high { border-color: var(--sev-high); background: color-mix(in oklab, var(--sev-high) 12%, var(--card)); }
+.stat.sev-high .k, .stat.sev-high .v { color: var(--sev-high); }
+
+/* provenance rows: a diagram and its notes each get a labelled row */
+.card.block footer { flex-direction: column; align-items: stretch; gap: .5rem; }
+.prov-label { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted-foreground); min-width: 4.2rem; }
+
+/* diagram expand icon */
+[data-expand] { padding: .35rem; }
+.diagram .ic-min, .diagram.expanded .ic-max { display: none; } .diagram.expanded .ic-min { display: block; }
+
+/* tooltips: sources are dark, notes (such as what a gap ID is for) are blue */
+#cite-tip.note { background: var(--pend); color: var(--background); }
+.gid[data-tip] { cursor: help; }
+
+/* table toolbar: filter and reset-order button */
+.tbl-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-bottom: .6rem; } .tbl-bar:not(:has(> :not([hidden]))) { display: none; }
+.tbl-bar .tbl-filter { margin-bottom: 0; }

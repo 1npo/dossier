@@ -195,11 +195,17 @@ def code_files(s):
     return "".join(p if i % 2 else BARE_FILE.sub(r"<code>\1</code>", p) for i, p in enumerate(parts))
 
 
+SEE_TAIL = re.compile(r"\bSee (\[\[[^\]]+\]\](?:(?:,| and|, and) \[\[[^\]]+\]\])*)\.?\s*$")
+
+
 def inline(s, refs):
-    s = html.escape(str(s or ""), quote=False)
+    """Escape and format one run of prose. [[path:1-9]] becomes a numbered source marker; [[path:1-9|name]] shows `name` first."""
+    s = SEE_TAIL.sub(r"\1", html.escape(str(s or ""), quote=False))  # a trailing "See [1]." is just the marker
 
     def cite_sub(m):
-        return refs.mark([x.strip() for x in html.unescape(m.group(1)).split(", ") if x.strip()])
+        raw, _, label = html.unescape(m.group(1)).partition("|")
+        mark = refs.mark([x.strip() for x in raw.split(", ") if x.strip()])
+        return f"<code>{E(label.strip())}</code>{mark}" if label.strip() else mark
     s = INLINE_CITE.sub(cite_sub, s)
     s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
     return code_files(re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s))
@@ -222,8 +228,14 @@ def inline_cites(*texts):
     found = []
     for t in texts:
         for m in INLINE_CITE.finditer(str(t or "")):
-            found += [x.strip() for x in m.group(1).split(", ") if x.strip()]
+            found += [x.strip() for x in m.group(1).partition("|")[0].split(", ") if x.strip()]
     return found
+
+
+def new_cites(cite, *texts):
+    """The sources in `cite` that the texts do not already mark inline, so a statement never shows one source twice."""
+    seen = {parse_cite(x)["key"] for x in inline_cites(*texts)}
+    return [x for x in dict.fromkeys(cite or []) if parse_cite(x)["key"] not in seen]
 
 
 def badge(label, cls="", variant="outline"):
@@ -246,7 +258,7 @@ def basis_for(node):
 
 def gid_tag(node):
     if node.get("gid") and (node.get("was") or node.get("user")):
-        return f'<code class="gid" title="Use this ID with /dossier confirm">{E(node["gid"])}</code>'
+        return f'<code class="gid" tabindex="0" data-tip="Use this ID with /dossier confirm" data-tip-kind="note">{E(node["gid"])}</code>'
     return ""
 
 
@@ -265,6 +277,15 @@ def user_note(u):
 def sev_badge(v):
     key = str(v).strip().lower()
     return badge(v, "", {"critical": "destructive", "high": "destructive", "medium": "primary", "low": "secondary"}.get(key, "outline"))
+
+
+STATUS_STYLE = {"implemented": ("basis-confirmed", "secondary"), "partial": ("basis-inferred", "outline"), "dead code": ("basis-unknown", "destructive")}
+STATUSES = ("Implemented", "Partial", "Stubbed", "Planned", "Documented only", "Dead code")
+
+
+def status_badge(v):
+    cls, variant = STATUS_STYLE.get(str(v).strip().lower(), ("", "outline"))
+    return badge(v, cls, variant)
 
 
 def type_badge(t):
@@ -348,6 +369,8 @@ def validate(reports, facts, cites, partial=False):
                 if not isinstance(cols, list) or not cols:
                     errors.append(f"{tag}: a table needs 'columns'.")
                     continue
+                if rid == "capabilities" and "Status" not in cols:
+                    warnings.append(f"{tag}: add a 'Status' column ({', '.join(STATUSES)}) instead of ending the description with the status.")
                 if rid == "risks":
                     missing = [c for c in RISK_COLUMNS if c not in cols]
                     if missing and any(c in cols for c in ("Risk", "Severity")):
@@ -400,11 +423,13 @@ def validate(reports, facts, cites, partial=False):
 # --------------------------------------------------------------------------- block rendering
 
 
-def provenance(node, refs):
+def provenance(node, refs, text="", label=""):
+    """The basis pill, sources and note under a block. `text` is what the block says: sources it marks inline are not repeated."""
     conf = node.get("conf")
     note = node.get("note")
     note_html = f'<span class="muted"> {inline(note, refs)}</span>' if note and conf != "confirmed" else ""
-    return f'<div class="prov">{basis_for(node)}{gid_tag(node)}{refs.mark(list(node.get("cite") or []))}{note_html}</div>{user_note(node.get("user"))}'
+    lbl = f'<span class="prov-label">{E(label)}</span>' if label else ""
+    return f'<div class="prov">{lbl}{basis_for(node)}{gid_tag(node)}{refs.mark(new_cites(node.get("cite"), text))}{note_html}</div>{user_note(node.get("user"))}'
 
 
 _NW = re.compile(r"\d{4}-\d{2}-\d{2}|[\w.]+(?:-[\w.]+)*\[bot\]|\b[A-Za-z]+-\d\w*")
@@ -421,7 +446,7 @@ def cell_html(cell, refs):
     return keep_whole(inline(cell, refs))
 
 
-def render_table(columns, rows, refs, tid, filterable=True, plain=False, group=None, foot=None):
+def render_table(columns, rows, refs, tid, filterable=True, plain=False, group=None, foot=None, sort=True):
     """rows are dicts with cells/conf/cite/note (authored) or plain lists of ready HTML (measured)."""
     head = "".join(f"<th>{E(c)}</th>" for c in columns)
     if not plain:
@@ -433,14 +458,15 @@ def render_table(columns, rows, refs, tid, filterable=True, plain=False, group=N
             continue
         tds = []
         for col, cell in zip(columns, r["cells"]):
-            tds.append(f"<td>{sev_badge(cell)}</td>" if col.strip().lower() == "severity" else f"<td>{cell_html(cell, refs)}</td>")
+            kind = col.strip().lower()
+            tds.append(f"<td>{sev_badge(cell)}</td>" if kind == "severity" else f"<td>{status_badge(cell)}</td>" if kind == "status" else f"<td>{cell_html(cell, refs)}</td>")
         note = f'<div class="muted">{inline(r.get("note"), refs)}</div>' if r.get("note") and r.get("conf") != "confirmed" else ""
-        cites_ = list(r.get("cite") or []) + inline_cites(*r["cells"])
+        cites_ = new_cites(r.get("cite"), *r["cells"])
         body.append("<tr>" + "".join(tds) + f'<td class="basis-cell">{basis_for(r)}{gid_tag(r)}{note}{user_note(r.get("user"))}</td><td>{refs.mark(cites_)}</td></tr>')
     flt = f'<input class="input tbl-filter" type="search" data-target="{tid}" placeholder="Filter rows" aria-label="Filter rows">' if filterable and len(rows) > 6 else ""
     top = ("<tr class=\"group-row\">" + "".join(f'<th colspan="{n}"{" class=\"grp\"" if lbl else ""}>{E(lbl)}</th>' for lbl, n in group) + "</tr>") if group else ""
     tf = f'<tfoot><tr class="total-row">{"".join(f"<td>{c}</td>" for c in foot)}</tr></tfoot>' if foot else ""
-    return f'{flt}<div class="table-container"><table class="table" id="{tid}"><thead>{top}<tr>{head}</tr></thead><tbody>{"".join(body)}</tbody>{tf}</table></div>'
+    return f'{flt}<div class="table-container"><table class="table" id="{tid}"{"" if sort else " data-nosort"}><thead>{top}<tr>{head}</tr></thead><tbody>{"".join(body)}</tbody>{tf}</table></div>'
 
 
 def block_card(head, body, prov, extra="", action=""):
@@ -448,13 +474,17 @@ def block_card(head, body, prov, extra="", action=""):
     return f'<div class="card block {extra}">{h}<section>{body}</section><footer>{prov}</footer></div>'
 
 
+EXPAND_ICONS = ('<svg class="ic-max" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/></svg>'
+                '<svg class="ic-min" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14 10 7-7"/><path d="M20 10h-6V4"/><path d="m3 21 7-7"/><path d="M4 14h6v6"/></svg>')
+
+
 def render_block(b, refs, rid, idx, notes=None):
     t = b["type"]
-    prov = provenance(b, refs) if t in ("text", "diagram") else ""
+    prov = provenance(b, refs, b.get("text", ""), "Diagram" if notes else "") if t in ("text", "diagram") else ""
     if t == "text":
         return block_card(b.get("heading"), md(b["text"], refs), prov)
     if t == "list":
-        lis = "".join(f'<li>{inline(i["text"], refs)} {basis_for(i) if (i["conf"] != "confirmed" or i.get("user")) else ""}{gid_tag(i)}{refs.mark(list(i.get("cite") or []))}'
+        lis = "".join(f'<li>{inline(i["text"], refs)} {basis_for(i) if (i["conf"] != "confirmed" or i.get("user")) else ""}{gid_tag(i)}{refs.mark(new_cites(i.get("cite"), i["text"]))}'
                       + (f'<div class="muted">{inline(i.get("note"), refs)}</div>' if i.get("note") and i["conf"] != "confirmed" else "") + user_note(i.get("user")) + "</li>"
                       for i in b["items"])
         return f'<div class="card block"><header><h3>{E(b.get("heading") or "")}</h3></header><section><ul class="claims">{lis}</ul></section></div>' if b.get("heading") else \
@@ -466,7 +496,7 @@ def render_block(b, refs, rid, idx, notes=None):
     src = b["mermaid"].strip()
     title = b.get("heading") or b.get("title") or "Diagram"
     sub_ = f'<p>{E(b["title"])}</p>' if b.get("heading") and b.get("title") else ""
-    return (f'<div class="card block diagram"><header><h3>{E(title)}</h3>{sub_}<div class="card-action"><button class="btn" data-variant="ghost" data-size="sm" type="button" data-expand>Expand</button></div></header>'
+    return (f'<div class="card block diagram"><header><h3>{E(title)}</h3>{sub_}<div class="card-action"><button class="btn" data-variant="ghost" data-size="sm" type="button" data-expand title="Expand" aria-label="Expand diagram">{EXPAND_ICONS}</button></div></header>'
             f'<section><div class="mermaid-host" data-src="{E(src)}"><pre class="muted">Diagram loads when this report is opened.</pre></div>'
             f'{notes[0] if notes else ""}<details><summary class="muted">Diagram source</summary><pre>{E(src)}</pre></details></section><footer>{prov}{notes[1] if notes else ""}</footer></div>')
 
@@ -480,7 +510,7 @@ def render_blocks(blocks, refs, rid):
     while i < len(blocks):
         b, nxt = blocks[i], blocks[i + 1] if i + 1 < len(blocks) else None
         if b["type"] == "diagram" and nxt and nxt["type"] == "text" and NOTES_HEAD.match(nxt.get("heading") or ""):
-            notes = (f'<div class="diagram-notes"><h4>{E(nxt["heading"])}</h4>{md(nxt["text"], refs)}</div>', provenance(nxt, refs))
+            notes = (f'<div class="diagram-notes"><h4>{E(nxt["heading"])}</h4>{md(nxt["text"], refs)}</div>', provenance(nxt, refs, nxt["text"], "Notes"))
             out.append(render_block(b, refs, rid, i, notes))
             i += 2
             continue
@@ -507,7 +537,7 @@ def path_cell(path, refs, line=None):
 def stats_html(items):
     cols = 3 if len(items) == 6 else min(len(items), 5)
     return f'<div class="stats" style="grid-template-columns:repeat({cols},minmax(0,1fr))">' + "".join(
-        f'<div class="stat"><div class="k">{E(k)}</div><div class="v">{E(v)}</div><div class="s">{E(s)}</div></div>' for k, v, s in items) + "</div>"
+        f'<div class="stat {extra[0] if extra else ""}"><div class="k">{E(k)}</div><div class="v">{E(v)}</div><div class="s">{E(s)}</div></div>' for k, v, s, *extra in items) + "</div>"
 
 
 def stack(parts):
@@ -593,11 +623,14 @@ def panel_manifests(f, refs):
 
 def panel_chunks(f, refs):
     c = f["chunks"]
-    adv = "".join(f"<li>{E(a)}</li>" for a in c["advice"])
-    return card("Reading coverage", f'<p>{fmt(c["files"])} files, about {fmt(c["total_tokens"])} tokens. Reading mode: <strong>{E(c["mode"])}</strong>'
-                f' ({c["chunk_count"]} chunk{"s" if c["chunk_count"] != 1 else ""} of up to {fmt(c["budget"])} tokens).</p><ul>{adv}</ul>'
-                '<p class="muted">Every analyzable file was assigned to a chunk and none were skipped. Files that were not counted are listed under Repository at a glance.</p>',
-                "facts-chunks", refs=refs, cite="facts:chunks")
+    skipped = sum(f["files"]["excluded"].values())
+    single = c["mode"] == "single"
+    rows = [["Files analyzed", fmt(c["files"]), "Every analyzable file was assigned to a chunk, and none were skipped."],
+            ["Files not counted", fmt(skipped), "Files the profiler excluded from the analysis. They are listed under Repository at a glance." if skipped else "Nothing was left out."],
+            ["Size", f"about {fmt(c['total_tokens'])} tokens", "Estimated as the file size in bytes divided by 3.5."],
+            ["Reading mode", E(c["mode"].capitalize()), "Everything fit in one context window and was read in one pass." if single else "Too large for one context window, so it was split into chunks and each chunk was read and noted separately."],
+            ["Chunks", fmt(c["chunk_count"]), f"Each holds up to {fmt(c['budget'])} tokens."]]
+    return card("Reading coverage", render_table(["Measure", "Value", "What it means"], rows, refs, "t-chunks", False, True, sort=False), "facts-chunks", refs=refs, cite="facts:chunks")
 
 
 def panel_env(f, refs):
@@ -629,6 +662,22 @@ def own_bar(parts, total, cls_of, label):
     return '<span class="own-bar">' + "".join(segs) + "</span>"
 
 
+def ownership_matrix(areas, top, cls_of):
+    """Areas down the side, the biggest owners across the top, each cell the share of that area's lines. Shows one person's reach across areas."""
+    def level(pct):
+        return 0 if pct <= 0 else 1 if pct < 10 else 2 if pct < 35 else 3 if pct < 70 else 4
+    cols = "".join(f'<span class="mxh" title="{E(p["name"])}"><b class="own-dot {cls_of[p["id"]]}"></b>{E(p["name"])}</span>' for p in top) + '<span class="mxh">Everyone else</span>'
+    body = []
+    for a in areas:
+        mine = {x["id"]: x["lines"] for x in a["owners"]}
+        shares = [100 * mine.get(p["id"], 0) / a["lines"] for p in top] if a["lines"] else [0] * len(top)
+        shares.append(max(0.0, 100 - sum(shares)))
+        names = [p["name"] for p in top] + ["everyone else"]
+        cells = "".join(f'<span class="hm l{level(v)}" title="{E(n)} wrote {v:.0f}% of {E(a["name"])}">{f"{v:.0f}%" if v >= 0.5 else ""}</span>' for v, n in zip(shares, names))
+        body.append(f'<span class="mxa"><code>{E(a["name"])}</code> <span class="muted">{fmt(a["lines"])} lines</span></span>{cells}')
+    return f'<div class="own-matrix" style="--cols:{len(top) + 1}"><span></span>{cols}{"".join(body)}</div><p class="muted">Each cell is the share of that area\'s lines written by that person. Darker means a larger share.</p>'
+
+
 def panel_ownership(f, refs):
     o = f.get("ownership")
     if not o:
@@ -653,10 +702,9 @@ def panel_ownership(f, refs):
         where = ", ".join(f'<code>{E(a["area"])}</code> <span class="muted">{100 * a["lines"] / p["lines"]:.0f}%</span>' for a in p["top_areas"][:3])
         rows.append([f'<b class="own-dot {cls_of.get(p["id"], "own-other")}"></b>{E(p["name"])}', type_badge(p["type"]), fmt(p["lines"]), (meter, p["share_pct"]), where])
     table = render_table(["Contributor", "Type", "Lines", "Share of the codebase", "Where their code lives"], rows, refs, "t-own", False, True)
-    arows = "".join(f'<div class="own-area"><code>{E(a["name"])}</code>{own_bar([(x["id"], x["name"], x["lines"]) for x in a["owners"]] + [("", "Others", a["lines"] - sum(x["lines"] for x in a["owners"]))], a["lines"], cls_of, "in " + a["name"])}'
-                    f'<span class="muted">{fmt(a["lines"])} lines · {E(a["owners"][0]["name"])} {a["owners"][0]["share_pct"]:.0f}%</span></div>' for a in o["areas"][:12])
+    matrix = ownership_matrix(o["areas"][:12], top, cls_of)
     body = (tiles + f'<h3>Share of all code lines</h3>{own_bar(parts, total, cls_of, "of the codebase")}<ul class="llegend">{legend}</ul>'
-            + "<h3>By contributor</h3>" + table + "<h3>By area: who owns each part of the codebase</h3>" + f'<div class="own-areas">{arows}</div>'
+            + "<h3>By contributor</h3>" + table + "<h3>By area: how much of each area each person wrote</h3>" + matrix
             + f'<p class="muted">{E(o["note"])}</p>')
     return card("Who wrote the code today", body, "facts-ownership", "Share of the lines in the codebase at this commit that each contributor wrote, as opposed to how many commits they made.", refs, "facts:ownership")
 
@@ -736,7 +784,7 @@ def panel_gaps(gaps, refs):
     cards = stats_html([("Unknowns", counts["unknown"], "could not be found or inferred"), ("Inferences", counts["inference"], "reasoned from context, not stated"),
                         ("Assumptions", counts["assumption"], "taken as true to proceed"), ("Resolved by you", done, "confirmed or answered"), ("Coverage notes", counts["coverage"], "what was and was not read")])
     rows = [[f'<code class="gid">{E(g.get("id") or "")}</code>', gap_badge(g["kind"]), f'<a href="#{g["report"]}">{E(TITLES.get(g["report"], g["report"]))}</a>', inline(g["statement"], refs),
-             decision_cell(g), inline(g["confirm"], refs) or '<span class="muted">not stated</span>', refs.mark(g["cites"])] for g in gaps]
+             decision_cell(g), inline(g["confirm"], refs) or '<span class="muted">not stated</span>', refs.mark(new_cites(g["cites"], g["statement"], g["confirm"]))] for g in gaps]
     hint = '<p class="muted">To confirm an item or give the answer to an unknown, ask Claude to run <code>/dossier confirm</code> with the ID. Your decisions are kept across rebuilds.</p>'
     return card("Tracker", cards + hint + (render_table(["ID", "Type", "Report", "Statement", "Status", "What would confirm it", "Evidence"], rows, refs, "t-gaps", True, True) if rows else '<p>Nothing is outstanding.</p>'), "tracker")
 
@@ -784,7 +832,8 @@ def panel_risk_counts(rep):
                 if v in counts:
                     counts[v] += 1
     inferred = sum(1 for c in claims_of("risks", rep) if c["conf"] == "inferred")
-    return stats_html([(s.capitalize(), counts[s], "") for s in SEVERITIES[:4]] + [("Based on inference", inferred, "risks without direct evidence")])
+    tiles = [(s.capitalize(), counts[s], "", f"sev-{s}" if counts[s] and s in ("critical", "high") else "") for s in SEVERITIES[:4]]
+    return stats_html(tiles + [("Based on inference", inferred, "risks without direct evidence")])
 
 
 # --------------------------------------------------------------------------- page assembly
@@ -816,9 +865,9 @@ def panel_dossier(facts, reports, state, ctx, refs):
                         ("Citations", fmt(len(st)), f"{sum(1 for v in st.values() if not v['ok'])} unresolved")])
     link = ctx["cites"].url({"kind": "commit", "sha": r["sha"]})
     sha = f'<a href="{E(link)}" target="_blank" rel="noopener noreferrer">{E(r["sha"])}</a>' if link else E(r["sha"])
-    proj = ('<div class="facts-group project"><h3>The project <span class="muted">pinned for every citation</span></h3><dl class="facts"><dt>Pinned commit</dt><dd>' + sha + refs.mark(["commit:" + r["sha"]])
+    proj = ('<div class="facts-group"><h3>The project <span>pinned for every citation</span></h3><dl class="facts"><dt>Pinned commit</dt><dd>' + sha + refs.mark(["commit:" + r["sha"]])
             + '</dd><dt>Branch or ref</dt><dd>' + E(r["branch"] or r["ref"]) + '</dd><dt>Commit date</dt><dd>' + E(r["commit_date"]) + "</dd></dl></div>")
-    this = ('<div class="facts-group build"><h3>This dossier</h3><dl class="facts"><dt>Built</dt><dd>' + E(ctx["built"]) + '</dd><dt>Skill version</dt><dd>dossier ' + E(ctx["version"]) + "</dd></dl></div>")
+    this = ('<div class="facts-group"><h3>This dossier</h3><dl class="facts"><dt>Built</dt><dd>' + E(ctx["built"]) + '</dd><dt>Skill version</dt><dd>dossier ' + E(ctx["version"]) + "</dd></dl></div>")
     dl = f'<div class="facts-groups">{proj}{this}</div>'
     return card("About this build", tiles + dl, "dossier-build", "Everything is pinned to one commit, so every citation stays valid.")
 

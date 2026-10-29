@@ -32,7 +32,9 @@ Write citations inline as `[[path]]`, `[[path:12]]` or `[[path:12-30]]`, or list
 Rules:
 
 - Paths are relative to the repository root, exactly as git lists them. Line numbers refer to the pinned commit.
-- Every mention of a file or directory in prose must be a citation. Do not write bare paths or backticked paths.
+- A sentence that depends on a file ends with its citation, `[[path:12-30]]`. The page shows it as a numbered marker. Do not start the citation with "See": the marker is the pointer. A source cited inline is never repeated by the page, so also listing it in `cite` is harmless.
+- When a sentence is *about* one specific file (a reading order, an entry point, "the bootstrap is install.sh"), name the file in the sentence with the labelled form `[[path:12-30|name]]`. The page shows `name` in code style followed by the numbered marker. Use `|name` for the file the sentence is about, and the plain form for evidence at the end of a sentence. Never write a bare or backticked path for a tracked file.
+- Cite each source once per statement. Do not write the same citation inline and again as a trailing "See ...".
 - In a table cell that holds only a file, directory or glob (a Name column, for example), write it in backticks: `scripts/lib`, `scripts/targets/*.sh`. The page also does this for any such cell that exists at the pinned commit.
 - Cite the narrowest range that proves the point. Do not cite a whole large file when ten lines will do.
 - `render` fails if a citation does not resolve. Check line numbers before you write them.

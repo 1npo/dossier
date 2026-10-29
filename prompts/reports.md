@@ -12,7 +12,7 @@ The one-page answer to "what is this?". Summary: what the project is, who it ser
 
 ## capabilities
 
-What the application can do, in user terms. One table: Capability, What it does. Group related items. Separate what is implemented from what is only stubbed, planned or dead code, and say which. Features seen only in docs, not code, are `inferred` or `unknown`.
+What the application can do, in user terms. One table with the columns `Capability`, `What it does` and `Status`. Group related items. `Status` is exactly one of Implemented, Partial, Stubbed, Planned, Documented only or Dead code; never put the status at the end of `What it does`. Features seen only in docs, not code, are `inferred` or `unknown`.
 
 ## interfaces
 
@@ -62,7 +62,7 @@ What data the system holds and moves.
 If there is no persistent data, say so and describe the in-memory or message shapes instead, still with a detailed flow diagram of how values move through the code.
 ## code-tour
 
-How to read the code. Required: a numbered reading order (which module first and why; name each file with its filename and extension, such as `app.py`, and put its citations at the end of the line, not in the middle), a table of entry points, and one sequence or flow diagram per main execution path (for example a request, a job run, a CLI command), each listing the modules it passes through in order. Put the notes for a path in a text block headed "Notes on path N" directly after that path's diagram; the page folds it into the diagram's card. Include where to find configuration, tests and the build. Pick paths that teach the most, usually three or fewer. Point out the hardest-to-read or most-changed areas.
+How to read the code. Required: a reading order, written as a table with the columns `Step` (1, 2, 3), `Read` (one file, directory or glob in backticks, for example `scripts/main.sh`) and `What you learn` (one sentence of about 15 words saying what that file teaches, with no history or detail; the step's citations go in `cite`). Keep it to 5 to 9 steps. Also required: a table of entry points, and one sequence or flow diagram per main execution path (for example a request, a job run, a CLI command), each listing the modules it passes through in order. Put the notes for a path in a text block headed "Notes on path N" directly after that path's diagram; the page folds it into the diagram's card. Include where to find configuration, tests and the build. Pick paths that teach the most, usually three or fewer. Point out the hardest-to-read or most-changed areas.
 
 
 ## failures
@@ -91,7 +91,7 @@ Anything you cannot see (for example cloud settings outside the repo) is `unknow
 
 ## risks
 
-A register of everything risky or doubtful. Use one or more tables with exactly these columns: `ID`, `Risk`, `Category`, `Severity`, `Impact`, `Recommendation`. IDs are R1, R2, and so on. Severity is Critical, High, Medium, Low or Info. Categories include security, reliability, data, performance, maintainability, testing, dependencies, delivery, knowledge concentration, compliance.
+A register of everything risky or doubtful. Use one or more tables with exactly these columns: `ID`, `Risk`, `Category`, `Severity`, `Impact`, `Recommendation`. IDs are R1, R2, and so on. Order by severity; the page counts Critical and High rows and highlights those tiles. Severity is Critical, High, Medium, Low or Info. Categories include security, reliability, data, performance, maintainability, testing, dependencies, delivery, knowledge concentration, compliance.
 
 Rules: every row has citations. A row based on inference is `inferred` with a note, and still goes in the register. Order by severity. Include risks from the scan in `facts.json` (secrets, unpinned or abandoned dependencies, no tests for important areas, single-person areas from `facts:areas`, very large or very hot files). Do not pad with generic advice. Summary: the top three risks in plain words and the overall picture.
 
