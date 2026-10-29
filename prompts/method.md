@@ -90,7 +90,7 @@ Chunk note shape (`notes/<fingerprint>.json`):
  "unclear": ["things you could not work out and why"]}
 ```
 
-If the user's model has a large context window, the user may have re-run `prepare` with a bigger `--chunk-tokens`, giving fewer chunks. The same process applies.
+By default, large repositories are read with Sonnet subagents on many smaller chunks, which costs less than Opus on fewer, larger chunks. If the user chose Opus, they will have re-run `prepare` with a bigger `--chunk-tokens`, giving fewer chunks. The same process applies.
 
 ## Corrections and updates
 

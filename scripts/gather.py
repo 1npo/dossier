@@ -734,11 +734,11 @@ def profile(repo_path, ref="HEAD", chunk_tokens=80_000, contributor_types=None):
     else:
         mode = "chunked"
         advice.append(f"The repository is about {total_tokens:,} tokens. Review it in {len(chunks)} chunks of at most {chunk_tokens:,} tokens each.")
-    if total_tokens > 1_500_000:
-        advice.append("This is a very large repository. Ask the user to confirm before continuing, and recommend a model with a 1M-token context window, "
-                      "re-running prepare with a larger --chunk-tokens (for example 400000) so there are fewer, richer chunks.")
-    elif total_tokens > 400_000:
-        advice.append("This is a large repository. A model with a 1M-token context window would allow bigger chunks (--chunk-tokens 400000) and fewer hand-offs.")
+    if total_tokens > 400_000:
+        size = "very large" if total_tokens > 1_500_000 else "large"
+        advice.append(f"This is a {size} repository. Default: Sonnet with many smaller chunks, run by parallel subagents. "
+                      "This is cheaper than Opus with fewer, larger chunks (--chunk-tokens 400000), which costs more for the same result. "
+                      "Ask the user to confirm, and use Opus with larger chunks only if they choose it.")
 
     facts = {
         "schema": 1,

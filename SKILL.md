@@ -3,7 +3,7 @@ name: dossier
 description: Build a cited HTML dossier that explains a git repository (capabilities, architecture, data model, code tour, delivery, risks, contributors). Use for /dossier home, /dossier build, /dossier version, /dossier correct, /dossier confirm.
 argument-hint: home [dir] | build [repo-path] [--ref branch-or-sha] | version | correct ... | confirm [ids] [--answer|--wrong|--note ...]
 disable-model-invocation: true
-allowed-tools: Bash(python3 *), Read, Grep, Glob, Write, Agent
+allowed-tools: Bash(uv run *), Read, Grep, Glob, Write, Agent
 ---
 
 # dossier
@@ -14,7 +14,7 @@ Python does the counting and the drawing. You do the reading and the writing. Ne
 
 Arguments the user typed: `$ARGUMENTS`
 
-The CLI is `python3 ${CLAUDE_SKILL_DIR}/scripts/dossier.py`. Call it `DOSSIER` below.
+The CLI is `uv run ${CLAUDE_SKILL_DIR}/scripts/dossier.py`. Call it `DOSSIER` below.
 
 ## Commands
 
@@ -28,7 +28,7 @@ Run `DOSSIER home [dir]`. With no directory it shows the current home. Dossiers 
 The repository defaults to the current directory. The ref defaults to the checked-out commit. Follow these steps in order.
 
 1. **Prepare.** Run `DOSSIER prepare <repo> [--ref R]`. If it says no home is set, ask the user for a directory and run `DOSSIER home`. Read the JSON it prints. Show the user one line: repo, branch, short commit, size.
-2. **Size check.** Look at `reading.advice`. If it describes a large or very large repository, tell the user the token count and chunk count in plain words, recommend a model with a larger context window (and re-running prepare with a bigger `--chunk-tokens`), and ask whether to continue before reading any code. For anything smaller, carry on without asking. Relay any `warnings` (shallow clone, uncommitted changes).
+2. **Size check.** Look at `reading.advice`. If it describes a large or very large repository, tell the user the token count and chunk count in plain words, then ask whether to continue before reading any code. Make the choice clear: **Sonnet with many smaller chunks, processed by parallel subagents, is cheaper than Opus with fewer, larger chunks, so Sonnet is the default.** Offer Opus with a bigger `--chunk-tokens` (for example 400000) only as an alternative, and use it only if the user explicitly picks it. If they do not choose, use Sonnet (pass `model: "sonnet"` to the subagents) with the default chunk size. For anything smaller, carry on without asking. Relay any `warnings` (shallow clone, uncommitted changes).
 3. **Learn the rules.** Read `${CLAUDE_SKILL_DIR}/prompts/method.md` and `${CLAUDE_SKILL_DIR}/prompts/reports.md`. Read `state.json` for user corrections and for `user_decisions` (what the user has confirmed, answered or disputed; `prepare` prints them), and `facts.json` (use Read with a limit if it is large; start with `repo`, `git`, `files`, `manifests`, `inventory`, `areas`, `chunks`).
 4. **Read the code.** Follow "Reading the repository" in `method.md`. In `single` mode, read the files yourself. In `chunked` mode, write a note for every chunk that is not cached, using subagents in parallel batches of about five when the Agent tool is available. Do not skip chunks and do not truncate files.
 5. **Write the reports.** Write all eleven files to `reports_dir`: overview, capabilities, interfaces, architecture, data, code-tour, failures, delivery, risks, contributors, gaps. For a large repository, give each report to its own subagent with the report name, the paths to `method.md`, `reports.md`, `facts.json`, the notes, and the repository. If this is an update and reports already exist, update them as `method.md` describes.
