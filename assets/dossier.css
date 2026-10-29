@@ -49,7 +49,7 @@ mark { background: color-mix(in oklab, var(--warn) 30%, transparent); color: inh
 
 /* sticky header */
 .masthead { position: sticky; top: 0; z-index: 30; background: var(--background); border-bottom: 1px solid var(--border); }
-.masthead-inner { max-width: 62rem; margin: 0 auto; padding: .8rem 2rem .7rem; }
+.masthead-inner { max-width: 80rem; margin: 0 auto; padding: .8rem 2rem .7rem; }
 .mh-row { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem 1rem; }
 .mh-row h1 { font-size: 1.25rem; } .mh-row #menu-toggle { display: none; }
 .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: .75rem; color: var(--muted-foreground); }
@@ -59,9 +59,9 @@ mark { background: color-mix(in oklab, var(--warn) 30%, transparent); color: inh
 .badge { font-size: .75rem; }
 
 /* page */
-.page { max-width: 62rem; margin: 0 auto; padding: 1.5rem 2rem 4rem; }
+.page { max-width: 80rem; margin: 0 auto; padding: 1.5rem 2rem 4rem; }
 .report { display: flex; flex-direction: column; gap: 1.1rem; } .report[hidden] { display: none; }
-.report-head { margin: .25rem 0 0; } .headline { font-size: .9375rem; color: var(--muted-foreground); max-width: 62rem; }
+.report-head { margin: .25rem 0 0; } .headline { font-size: .9375rem; color: var(--muted-foreground); max-width: 80rem; }
 .part { margin-top: 1.25rem; padding: .25rem 0 .6rem; border-bottom: 2px solid var(--foreground); }
 .part h2 { font-size: .75rem; text-transform: uppercase; letter-spacing: .16em; } .part p { margin: .25rem 0 0; color: var(--muted-foreground); }
 .summary { border-left: 3px solid var(--primary); }
@@ -86,7 +86,8 @@ html.dark .badge.basis-inferred, html.dark .badge.gap-inference { background: va
 #t-index th:nth-child(n+3), #t-index td:nth-child(n+3) { text-align: center; width: 6.5rem; }
 
 .table { font-size: .875rem; }
-.table td, .table th { white-space: normal; vertical-align: top; overflow-wrap: break-word; padding-top: .6rem; padding-bottom: .6rem; }
+.table { min-width: 100%; }
+.table td, .table th { min-width: 7.5rem; white-space: normal; vertical-align: top; overflow-wrap: break-word; padding-top: .6rem; padding-bottom: .6rem; }
 .table th { color: var(--muted-foreground); font-weight: 500; }
 .tbl-filter { display: block; width: 100%; max-width: 20rem; margin-bottom: .6rem; }
 .alert { margin-bottom: .75rem; }
@@ -158,3 +159,7 @@ sup.cite { vertical-align: baseline !important; position: static !important; top
 
 .gid { font-size: .75rem; margin-left: .35rem; } .by-user { margin-top: .4rem; color: var(--ok); }
 .basis-cell .by-user { display: block; }
+
+.diagram-notes { margin-top: 1rem; padding-top: .9rem; border-top: 1px solid var(--border); }
+.diagram-notes h4 { font-size: .9375rem; font-weight: 600; margin: 0 0 .4rem; }
+.activity-side td, .activity-side th { min-width: 0; }

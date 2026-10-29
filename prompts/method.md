@@ -9,7 +9,7 @@ Never count things yourself when `facts.json` has the number. Never write HTML. 
 - Plain language. Write as you would explain the system to a smart colleague on their first day.
 - No terse fragments ("Auth: JWT. Stores: PG."). No padding either. Full, short sentences.
 - Define a term the first time you use it if a newcomer would not know it.
-- Executive summaries are 60 to 150 words. A lead engineer should grasp the report from the summary alone.
+- Executive summaries are 3 to 5 bullets of about 20 words or fewer each, in plain everyday language. A lead engineer should grasp the report from the summary alone.
 - Prefer a table or list when the reader will scan. Prefer a sentence when explaining why.
 
 ## Evidence rules
@@ -52,6 +52,7 @@ Table rows must have exactly as many `cells` as `columns`. The page adds Basis a
 
 ## Diagrams (Mermaid)
 
+- Keep fills pastel and text dark. When you use `classDef`, always set an explicit dark `color` (for example `classDef ext fill:#fde8c8,stroke:#b7791f,color:#111`), because the page can be in light or dark mode.
 - Use `flowchart` for context, container, component and data-flow views, `sequenceDiagram` for execution paths, `erDiagram` for entities, `classDiagram` or `stateDiagram-v2` where they fit.
 - C4 style: use a flowchart. Label each box `Name<br/>[kind]<br/>short purpose`. Use `subgraph` for boundaries. Use `classDef person|system|container|ext` so kinds look different.
 - Keep each diagram to about 6 to 10 nodes. Each node is a real module, function, table or service name plus at most one short line (a few words). Put detail in the table next to the diagram, not in the boxes.
@@ -90,7 +91,7 @@ Chunk note shape (`notes/<fingerprint>.json`):
  "unclear": ["things you could not work out and why"]}
 ```
 
-By default, large repositories are read with Sonnet subagents on many smaller chunks, which costs less than Opus on fewer, larger chunks. If the user chose Opus, they will have re-run `prepare` with a bigger `--chunk-tokens`, giving fewer chunks. The same process applies.
+Large repositories are read with Sonnet subagents (1M context window) on chunks of the default size. No model switch is needed.
 
 ## Corrections and updates
 

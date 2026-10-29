@@ -2,6 +2,8 @@
 
 Write one file per report to `reports/<id>.json`, following `method.md`. Every report needs `headline`, `summary` and `blocks`. Aim for the smallest report that fully serves a lead engineer. A short report is fine when the topic is small.
 
+**Executive summaries are short and plain.** Write `summary` as 3 to 5 bullets (`- ` lines), each one sentence of about 20 words or fewer, in everyday words. Lead with the answer. No filler, no restating the headline, no jargon the reader has to look up.
+
 The page also shows measured tables from `facts.json` (languages, most changed files, manifests, file inventory, environment variables, secret scan, contributor and area tables). Do not repeat those tables. Refer to them with `[[facts:...]]` and add what only reading the code can tell.
 
 ## overview
@@ -48,7 +50,7 @@ What data the system holds and moves.
 If there is no persistent data, say so and describe the in-memory or message shapes instead, still with a detailed flow diagram of how values move through the code.
 ## code-tour
 
-How to read the code. Required: a numbered reading order (which module first and why; name each file with its filename and extension, such as `app.py`, and put its citations at the end of the line, not in the middle), a table of entry points, and one sequence or flow diagram per main execution path (for example a request, a job run, a CLI command), each listing the modules it passes through in order. Include where to find configuration, tests and the build. Pick paths that teach the most, usually three or fewer. Point out the hardest-to-read or most-changed areas.
+How to read the code. Required: a numbered reading order (which module first and why; name each file with its filename and extension, such as `app.py`, and put its citations at the end of the line, not in the middle), a table of entry points, and one sequence or flow diagram per main execution path (for example a request, a job run, a CLI command), each listing the modules it passes through in order. Put the notes for a path in a text block headed "Notes on path N" directly after that path's diagram; the page folds it into the diagram's card. Include where to find configuration, tests and the build. Pick paths that teach the most, usually three or fewer. Point out the hardest-to-read or most-changed areas.
 
 
 ## failures

@@ -344,7 +344,7 @@ def main():
     p = sub.add_parser("prepare")
     p.add_argument("repo", nargs="?")
     p.add_argument("--ref", default="HEAD")
-    p.add_argument("--chunk-tokens", type=int, default=80_000)
+    p.add_argument("--chunk-tokens", type=int, default=400_000)
     p.set_defaults(fn=cmd_prepare)
     p = sub.add_parser("render")
     p.add_argument("repo", nargs="?")

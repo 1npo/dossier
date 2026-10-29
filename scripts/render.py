@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote
 
+import gather
 from gather import Repo
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -65,7 +66,7 @@ class Cites:
         self.facts = facts
         self.sha = facts["repo"]["sha"]
         self.repo = Repo(facts["repo"]["path"])
-        self.remote = facts["repo"]["remote"] or {}
+        self.remote = gather.remote_info((facts["repo"]["remote"] or {}).get("url"))
         self.status = {}          # key -> {"ok": bool, "msg": str, "type": str}
         self._lines = {}
 
@@ -161,6 +162,15 @@ class Refs:
 # --------------------------------------------------------------------------- text helpers
 
 
+BARE_FILE = re.compile(r"(?<![\w/.\-])((?:[\w.\-]+/)*(?:[\w\-]+\.(?:sh|bash|zsh|py|js|mjs|ts|tsx|jsx|json|ya?ml|toml|ini|cfg|conf|md|go|rs|rb|java|kt|c|h|cpp|hpp|cs|php|sql|tf|html|css|txt|lock|mk|service|timer|socket|env|xml|gradle)|Makefile|Dockerfile|Justfile|Gemfile))(?![\w\-]|\.\w)")
+
+
+def code_files(s):
+    """Wrap bare file names in prose (install.sh, src/app.py) in <code>, leaving markup and existing code alone."""
+    parts = re.split(r"(<code>.*?</code>|<[^>]+>)", s)
+    return "".join(p if i % 2 else BARE_FILE.sub(r"<code>\1</code>", p) for i, p in enumerate(parts))
+
+
 def inline(s, refs):
     s = html.escape(str(s or ""), quote=False)
 
@@ -168,7 +178,7 @@ def inline(s, refs):
         return refs.mark([x.strip() for x in html.unescape(m.group(1)).split(", ") if x.strip()])
     s = INLINE_CITE.sub(cite_sub, s)
     s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
-    return re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
+    return code_files(re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s))
 
 
 def md(text, refs):
@@ -407,7 +417,7 @@ def block_card(head, body, prov, extra="", action=""):
     return f'<div class="card block {extra}">{h}<section>{body}</section><footer>{prov}</footer></div>'
 
 
-def render_block(b, refs, rid, idx):
+def render_block(b, refs, rid, idx, notes=None):
     t = b["type"]
     prov = provenance(b, refs) if t in ("text", "diagram") else ""
     if t == "text":
@@ -427,7 +437,25 @@ def render_block(b, refs, rid, idx):
     sub_ = f'<p>{E(b["title"])}</p>' if b.get("heading") and b.get("title") else ""
     return (f'<div class="card block diagram"><header><h3>{E(title)}</h3>{sub_}<div class="card-action"><button class="btn" data-variant="ghost" data-size="sm" type="button" data-expand>Expand</button></div></header>'
             f'<section><div class="mermaid-host" data-src="{E(src)}"><pre class="muted">Diagram loads when this report is opened.</pre></div>'
-            f'<details><summary class="muted">Diagram source</summary><pre>{E(src)}</pre></details></section><footer>{prov}</footer></div>')
+            f'{notes[0] if notes else ""}<details><summary class="muted">Diagram source</summary><pre>{E(src)}</pre></details></section><footer>{prov}{notes[1] if notes else ""}</footer></div>')
+
+
+NOTES_HEAD = re.compile(r"^\s*notes?\s+(on|for)\b", re.I)
+
+
+def render_blocks(blocks, refs, rid):
+    """Render report blocks. A text block headed "Notes on ..." right after a diagram goes inside that diagram's card."""
+    out, i = [], 0
+    while i < len(blocks):
+        b, nxt = blocks[i], blocks[i + 1] if i + 1 < len(blocks) else None
+        if b["type"] == "diagram" and nxt and nxt["type"] == "text" and NOTES_HEAD.match(nxt.get("heading") or ""):
+            notes = (f'<div class="diagram-notes"><h4>{E(nxt["heading"])}</h4>{md(nxt["text"], refs)}</div>', provenance(nxt, refs))
+            out.append(render_block(b, refs, rid, i, notes))
+            i += 2
+            continue
+        out.append(render_block(b, refs, rid, i))
+        i += 1
+    return "".join(out)
 
 
 # --------------------------------------------------------------------------- measured panels
@@ -705,9 +733,7 @@ PANELS_AFTER = {
     + inventory_panel(f, r, ["entry_points", "containers", "ci_cd", "infrastructure", "data_schema", "api_contracts", "config_secrets", "build_packaging", "tests", "docs"]),
     "interfaces": lambda f, r, ctx: inventory_panel(f, r, ["entry_points", "api_contracts"], "Interface files detected", "facts-inventory-interfaces"),
     "data": lambda f, r, ctx: inventory_panel(f, r, ["data_schema"], "Schema and migration files detected", "facts-inventory-data"),
-    "code-tour": lambda f, r, ctx: inventory_panel(f, r, ["entry_points"], "Entry point candidates", "facts-inventory-tour"),
     "delivery": lambda f, r, ctx: inventory_panel(f, r, ["containers", "ci_cd", "infrastructure", "build_packaging", "config_secrets"], "Delivery files detected", "facts-inventory-delivery") + panel_env(f, r) + panel_secrets(f, r),
-    "contributors": lambda f, r, ctx: panel_contributors(f, r),
 }
 
 
@@ -789,7 +815,9 @@ def build_page(rid, reports, facts, state, ctx):
             parts.append(panel_git(facts, refs))
         if rid == "risks" and rep:
             parts.append(panel_risk_counts(rep))
-        blocks = "".join(render_block(b, refs, rid, i) for i, b in enumerate(rep.get("blocks", [])))
+        if rid == "contributors":
+            parts.append(panel_contributors(facts, refs))
+        blocks = render_blocks(rep.get("blocks", []), refs, rid)
         if blocks:
             parts.append(f'<div class="findings">{blocks}</div>')
         if rid == "gaps":
@@ -805,13 +833,26 @@ NAV_GROUPS = [("Orientation", ["dossier", "overview", "capabilities", "interface
               ("Operations and risk", ["failures", "delivery", "risks", "contributors"]), ("Tracking", ["gaps", "corrections"])]
 
 
+PLACEHOLDER = re.compile(r"\{\{|\}\}|\$\{|<%|%>|\[\[|<[A-Za-z_ -]+>$|^(your|my)[ _-]")
+
+
+def real(v):
+    """A manifest value that is set and is not a template placeholder such as {{project_name}}."""
+    v = (v or "").strip()
+    return v if v and not PLACEHOLDER.search(v) else ""
+
+
 def masthead(facts, reports):
-    r, m = facts["repo"], (facts["manifests"][0] if facts["manifests"] else None)
-    name = (m or {}).get("name") or r["name"]
-    desc = (m or {}).get("description") or (facts.get("readme") or {}).get("excerpt") or ""
-    remote = r["remote"] or {}
+    r = facts["repo"]
+    ms = [m for m in facts["manifests"] if real(m.get("name")) and m["name"] != m["path"].rsplit("/", 1)[-1]]
+    ms.sort(key=lambda m: m["path"].count("/"))  # prefer the manifest nearest the root
+    m = ms[0] if ms else {}
+    name = real(m.get("name")) or r["name"]
+    desc = real(m.get("description")) or real((facts.get("readme") or {}).get("excerpt"))
+    remote = gather.remote_info((r["remote"] or {}).get("url"))
+    link = remote.get("web_base") or remote.get("url") or "no remote configured"
     return {"name": name, "description": desc, "ref": r["branch"] or r["ref"], "short": r["short"], "sha": r["sha"],
-            "remote": remote.get("url") or "no remote configured", "date": r["commit_date"]}
+            "remote": link, "date": r["commit_date"]}
 
 
 def render_html(facts, reports, state, history, version, cites):

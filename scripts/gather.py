@@ -415,7 +415,7 @@ def plan_chunks(files, budget):
 # --------------------------------------------------------------------------- main profile
 
 
-def profile(repo_path, ref="HEAD", chunk_tokens=80_000, contributor_types=None):
+def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None):
     repo = Repo(repo_path)
     top = repo.git("rev-parse", "--show-toplevel").strip()
     repo = Repo(top)
@@ -736,9 +736,8 @@ def profile(repo_path, ref="HEAD", chunk_tokens=80_000, contributor_types=None):
         advice.append(f"The repository is about {total_tokens:,} tokens. Review it in {len(chunks)} chunks of at most {chunk_tokens:,} tokens each.")
     if total_tokens > 400_000:
         size = "very large" if total_tokens > 1_500_000 else "large"
-        advice.append(f"This is a {size} repository. Default: Sonnet with many smaller chunks, run by parallel subagents. "
-                      "This is cheaper than Opus with fewer, larger chunks (--chunk-tokens 400000), which costs more for the same result. "
-                      "Ask the user to confirm, and use Opus with larger chunks only if they choose it.")
+        advice.append(f"This is a {size} repository. Process the chunks with parallel subagents on the default model (Sonnet, 1M context window). "
+                      "No model switch is needed.")
 
     facts = {
         "schema": 1,
@@ -791,6 +790,8 @@ def remote_info(url):
         return {"url": url, "web_base": None, "kind": None}
     host, path = m.groups()
     kind = "github" if "github" in host else "gitlab" if "gitlab" in host else "bitbucket" if "bitbucket" in host else None
+    if kind and "." not in host:  # an ssh config alias such as github-work, not a real host name
+        host = {"github": "github.com", "gitlab": "gitlab.com", "bitbucket": "bitbucket.org"}[kind]
     return {"url": url, "web_base": f"https://{host}/{path}" if kind else None, "kind": kind}
 
 

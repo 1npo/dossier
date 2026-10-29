@@ -23,7 +23,21 @@
   var seq = 0, failures = window.__dossierDiagramFailures = [];
   function initMermaid() {
     if (!window.mermaid) return;
-    mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: theme === "dark" ? "dark" : "neutral",
+    var dark = theme === "dark";
+    // Pastel node fills with dark text in both themes, so boxes stay readable whatever classDef colours the diagram sets.
+    mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: "base",
+      themeVariables: {
+        darkMode: dark, background: "transparent", fontSize: "15px",
+        primaryColor: "#dbe7ff", primaryTextColor: "#111827", primaryBorderColor: "#4b6cb7",
+        secondaryColor: "#e6f4ea", secondaryTextColor: "#111827", secondaryBorderColor: "#3f8f5a",
+        tertiaryColor: dark ? "#1f2937" : "#f3f4f6", tertiaryTextColor: dark ? "#f3f4f6" : "#111827", tertiaryBorderColor: dark ? "#6b7280" : "#9ca3af",
+        lineColor: dark ? "#cbd5e1" : "#374151", textColor: dark ? "#f3f4f6" : "#111827", titleColor: dark ? "#f3f4f6" : "#111827",
+        clusterBkg: dark ? "#1f2937" : "#f3f4f6", clusterBorder: dark ? "#6b7280" : "#9ca3af",
+        edgeLabelBackground: dark ? "#111827" : "#ffffff", noteBkgColor: "#fff4c2", noteTextColor: "#111827", noteBorderColor: "#b59b2f",
+        actorBkg: "#dbe7ff", actorTextColor: "#111827", actorBorder: "#4b6cb7", actorLineColor: dark ? "#cbd5e1" : "#374151",
+        signalColor: dark ? "#f3f4f6" : "#111827", signalTextColor: dark ? "#f3f4f6" : "#111827",
+        labelBoxBkgColor: "#dbe7ff", labelTextColor: "#111827", loopTextColor: dark ? "#f3f4f6" : "#111827"
+      },
       fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif", fontSize: 15, flowchart: { useMaxWidth: true, htmlLabels: true },
       er: { useMaxWidth: true }, sequence: { useMaxWidth: true } });
   }
