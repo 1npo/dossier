@@ -4,7 +4,7 @@ Write one file per report to `reports/<id>.json`, following `method.md`. Every r
 
 **Executive summaries are short and plain.** Write `summary` as 3 to 5 bullets (`- ` lines), each one sentence of about 20 words or fewer, in everyday words. Lead with the answer. No filler, no restating the headline, no jargon the reader has to look up.
 
-The page also shows measured tables from `facts.json` (languages, most changed files, manifests, file inventory, environment variables, secret scan, contributor and area tables). Do not repeat those tables. Refer to them with `[[facts:...]]` and add what only reading the code can tell.
+The page also shows measured tables from `facts.json` (languages, most changed files, manifests, environment variables, secret scan, code ownership, contributor and area tables). Do not repeat those tables. Refer to them with `[[facts:...]]` and add what only reading the code can tell.
 
 ## overview
 
@@ -16,7 +16,7 @@ What the application can do, in user terms. One table: Capability, What it does.
 
 ## interfaces
 
-Where the system meets the world: everything it offers, calls, takes in and sends out. Cover: interfaces it offers (HTTP routes, CLI commands, library exports, events, scheduled jobs, webhooks); interfaces it calls (external APIs, databases, queues, file systems); inputs (formats, validation, authentication) and outputs (responses, files, messages, logs, metrics). One table per direction, with columns such as Interface, Protocol or format, Inputs, Outputs, Authentication. Add a context diagram if there is more than one external party. Note where authentication and authorization are enforced and where they are not.
+Where the system meets the world: everything it offers, calls, takes in and sends out. Everything here must come from reading the code, never from file names alone: a file called `main.py` or `api.yaml` is evidence only once you have read it and can say what it does. Cover: interfaces it offers (HTTP routes, CLI commands, library exports, events, scheduled jobs, webhooks); interfaces it calls (external APIs, databases, queues, file systems); inputs (formats, validation, authentication) and outputs (responses, files, messages, logs, metrics). One table per direction, with columns such as Interface, Protocol or format, Inputs, Outputs, Authentication. Add a context diagram if there is more than one external party. Note where authentication and authorization are enforced and where they are not.
 
 ## architecture
 
@@ -32,11 +32,23 @@ Required diagrams (Mermaid flowcharts in C4 style, see `method.md`):
 Required tables:
 
 - **Containers:** Name, Kind, Technology, Responsibility, Runs as.
-- **Modules and components:** Name, Responsibility, Key public entry points, Depends on, Used by, Approximate size. Cover every top-level module, and go deeper for the important ones.
+- **Modules and components:** Name (write every file, directory or glob in backticks, for example `scripts/lib`, `scripts/targets/*.sh`), Responsibility, Key public entry points, Depends on, Used by, Approximate size. Cover every top-level module, and go deeper for the important ones.
 - **External dependencies and integrations:** Name, Kind (database, API, queue, cloud service, SaaS, library with a runtime role), Purpose, Direction, Protocol, Authentication, What happens if it is down. Include databases, caches, message brokers, third-party APIs, identity providers, cloud services and file stores. List only major libraries and frameworks separately as "Key libraries" with their role.
 - **Cross-cutting concerns:** how the system handles configuration, authentication and authorization, logging and tracing, error handling, caching, concurrency, feature flags and internationalization, each with where it lives.
 
 Also write short text on: the main design patterns and decisions you can see (each with evidence), the layering or dependency rules and any violations or cycles (these become risks), and the quality attributes the design favours (for example simplicity, throughput, extensibility). Records of decisions in the repository (ADRs, design docs) should be cited and summarised.
+## domain-logic
+
+The core business or domain logic of the application: the rules, calculations, decisions and workflows that make this program *this* program, as opposed to plumbing (HTTP, storage, CLI parsing, config). Write it by reading the code that implements those rules. Cover, where they apply:
+
+- **Domain concepts:** the central nouns and what each means in this domain (not the database schema; see `data`), with where each lives.
+- **Rules and decisions:** the business rules, validations, matching or scoring logic, state machines, pricing or eligibility calculations, scheduling or ordering rules, each with the file and lines that implement it and any edge cases the code handles. A table works well: Rule or decision, What it does, Where it is decided, Edge cases or caveats.
+- **Workflows:** the main sequences the domain goes through end to end (for example "a new item is detected, matched against subscriptions, then notified"), with a diagram when there are more than three steps.
+- **Boundaries:** where domain logic is cleanly separated from infrastructure and where it leaks into it (SQL in handlers, rules in templates).
+- **Invariants and assumptions** the code relies on but does not enforce.
+
+Skip anything that is generic. If the project has no real domain logic (a pure infrastructure or configuration repository, a thin wrapper, a library of utilities), still write the report: set the headline to say so, state it as `confirmed` with the evidence you used, and keep the blocks to that one statement.
+
 ## data
 
 What data the system holds and moves.
@@ -67,7 +79,15 @@ How the system fails and what it says when it does. This report owns every failu
 Things the code does not handle, such as no timeout on an outbound call, belong here as `inferred` or `confirmed` rows and also in `risks`.
 ## delivery
 
-How the application is built, packaged, released, deployed and configured, and how secrets are handled. Cover: build tooling; packaging (container image, package, binary, static bundle); CI and CD steps; environments and how config differs between them; infrastructure as code; how secrets are supplied, stored and rotated (never print a secret value); what the secret scan in `facts.json` found and whether each hit is real, a test fixture, or a false match. Anything you cannot see (for example cloud settings outside the repo) is `unknown`.
+How the application is built, packaged, released, deployed, configured, and how secrets are handled. Read the files; do not infer from names. Cover these as separate, headed sections:
+
+- **Build and packaging:** build tooling; packaging (container image, package, binary, static bundle).
+- **CI and CD:** the steps each pipeline runs, what triggers it, and what it publishes or deploys.
+- **Environments and infrastructure:** how environments differ and any infrastructure as code.
+- **Configuration** (its own table): every setting the application reads, whether from a file, an environment variable, a flag or a default. Columns: Setting, Purpose, Where it is read, Default, How it is overridden. Use the environment variable table in `facts.json` as a starting list, then add what only the code shows (config files and what loads them). A setting is configuration only if changing it changes behaviour and it is not sensitive.
+- **Secrets** (its own table, never any values): every credential, key, token or password the system needs. Columns: Secret, What it unlocks, How it is supplied, Where it is stored, How it is rotated. Include secrets that live outside the repository (for example in a password manager or a cloud secret store) and say `unknown` where the code does not show how they arrive. Then say what the secret scan and the sensitive-file contents in `facts.json` found, and whether each hit is real, a test fixture or a false match.
+
+Anything you cannot see (for example cloud settings outside the repo) is `unknown`.
 
 ## risks
 
@@ -77,7 +97,7 @@ Rules: every row has citations. A row based on inference is `inferred` with a no
 
 ## contributors
 
-Who knows what. The page already shows contributor and area tables. Write interpretation: who the key people are by area, where knowledge is concentrated or has left (people with no recent commits), how much work comes from agents and bots and in which areas, and who to ask about which subsystem. Name areas by what they do, not just by directory. Discuss classification doubts (a person who looks like a bot, shared accounts, unmerged identities). Use `facts:contributors` and `facts:areas` as citations. If the user has given overrides, they appear in `state.json`.
+Who knows what. The page already shows contributor and area tables. Write interpretation: who the key people are by area, where knowledge is concentrated or has left (people with no recent commits), how much work comes from agents and bots and in which areas, and who to ask about which subsystem. The page opens with a dashboard of who wrote the code today (`facts:ownership`, from git blame), so do not restate the shares. Interpret them instead: where ownership differs from commit share, where bulk imports or reformats moved ownership, and which areas are owned by one person. Name areas by what they do, not just by directory. Discuss classification doubts (a person who looks like a bot, shared accounts, unmerged identities). Use `facts:contributors` and `facts:areas` as citations. If the user has given overrides, they appear in `state.json`.
 
 ## gaps
 

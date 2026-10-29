@@ -11,7 +11,10 @@ import hashlib
 import json
 import math
 import re
+import os
 import subprocess
+import time
+from concurrent.futures import ThreadPoolExecutor
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import PurePosixPath
@@ -108,29 +111,6 @@ GENERATED_SEG = {"dist", "target", ".next", ".nuxt", "__pycache__", "coverage", 
 GENERATED_NAME = re.compile(r"(\.min\.(js|css)|\.map|\.pb\.go|\.pb\.gw\.go|_pb2(_grpc)?\.py|\.generated\.|\.g\.dart|\.designer\.cs)$")
 TEST_RE = re.compile(r"(^|/)(tests?|__tests__|specs?|e2e|cypress|playwright)/|(^|/)test_[^/]*\.py$|_test\.(go|py|rb|exs?)$|\.(test|spec)\.[jt]sx?$|Tests?\.(java|kt|cs)$")
 
-_INV = {
-    "entry_points": [r"(^|/)(main|app|server|index|cli|run|manage|__main__|wsgi|asgi|program|start)\.(py|js|mjs|cjs|ts|tsx|go|rs|java|kt|rb|php|cs|c|cc|cpp|swift|ex)$",
-                     r"(^|/)cmd/[^/]+/main\.go$", r"(^|/)bin/[^/]+$", r"(^|/)(Program|Main|Application|Startup)\.(cs|java|kt)$"],
-    "containers": [r"(^|/)(Dockerfile|Containerfile)[^/]*$", r"(^|/)(docker-)?compose[^/]*\.ya?ml$", r"\.dockerignore$"],
-    "ci_cd": [r"^\.github/workflows/", r"^\.gitlab-ci\.ya?ml$", r"(^|/)Jenkinsfile", r"^\.circleci/",
-              r"azure-pipelines[^/]*\.ya?ml$", r"^bitbucket-pipelines\.yml$", r"^\.travis\.yml$", r"^\.buildkite/",
-              r"cloudbuild\.ya?ml$", r"^\.drone\.yml$", r"^\.github/dependabot\.ya?ml$", r"^renovate\.json5?$"],
-    "infrastructure": [r"\.tf$", r"(^|/)Chart\.yaml$", r"(^|/)(k8s|kubernetes|manifests|helm|charts|infra|terraform|ansible|pulumi|cdk)/",
-                       r"(^|/)serverless\.ya?ml$", r"(^|/)(skaffold|kustomization)[^/]*\.ya?ml$", r"(^|/)(Procfile|app\.yaml|fly\.toml|vercel\.json|netlify\.toml|wrangler\.toml|render\.yaml)$"],
-    "data_schema": [r"(^|/)(migrations?|alembic|db/migrate)/", r"\.sql$", r"\.prisma$", r"(^|/)models?(\.py|/)",
-                    r"(^|/)(entities|entity|schemas?)/", r"\.avsc$"],
-    "api_contracts": [r"(^|/)(openapi|swagger|asyncapi)[^/]*\.(ya?ml|json)$", r"\.proto$", r"\.graphqls?$"],
-    "config_secrets": [r"(^|/)\.env[^/]*$", r"(^|/)(config|configs|settings|conf)(\.|/)", r"\.(pem|key|p12|pfx|jks|keystore)$",
-                       r"(^|/)(secrets?|credentials?)[^/]*", r"\.sops\.ya?ml$", r"(^|/)vault[^/]*", r"(^|/)\.(npmrc|pypirc)$", r"\.tfvars$"],
-    "build_packaging": [r"(^|/)Makefile$", r"(^|/)(setup\.py|setup\.cfg|MANIFEST\.in|tox\.ini|noxfile\.py|justfile|Taskfile\.ya?ml)$",
-                        r"(^|/)(webpack|vite|rollup|esbuild|tsup|babel|gulpfile|Gruntfile)[^/]*\.[cm]?[jt]s$",
-                        r"(^|/)(CMakeLists\.txt|BUILD(\.bazel)?|WORKSPACE|meson\.build|build\.gradle(\.kts)?|settings\.gradle(\.kts)?|pom\.xml|build\.sbt|Cargo\.toml|\.goreleaser\.ya?ml|flake\.nix)$",
-                        r"(^|/)debian/|\.nuspec$"],
-    "tests": [TEST_RE.pattern],
-    "docs": [r"(^|/)(README|CONTRIBUTING|ARCHITECTURE|DESIGN|SECURITY|CHANGELOG|CHANGES|HISTORY|LICENSE|NOTICE|CODEOWNERS)[^/]*$",
-             r"^docs?/", r"(^|/)(adr|decisions)/"],
-}
-INVENTORY = {k: re.compile("|".join(f"(?:{p})" for p in v)) for k, v in _INV.items()}
 SENSITIVE_FILE = re.compile(r"(^|/)(\.env(\.(?!example|sample|template|dist)[^/]+)?|id_rsa|id_dsa|id_ecdsa|id_ed25519|[^/]+\.(pem|key|p12|pfx|jks|keystore|kdbx)|credentials(\.json)?|\.netrc|\.npmrc|\.pypirc|[^/]+\.tfstate(\.backup)?|secrets?\.(ya?ml|json|toml|env))$")
 
 ENV_RE = re.compile(r"""(?:os\.environ(?:\.get)?\s*[\[(]\s*["']|os\.getenv\s*\(\s*["']|process\.env\.|process\.env\[\s*["']|os\.Getenv\(\s*"|System\.getenv\(\s*"|std::env::var\(\s*"|ENV\[\s*["']|ENV\.fetch\(\s*["']|[^\w.]getenv\(\s*["']|Environment\.GetEnvironmentVariable\(\s*")([A-Z][A-Z0-9_]{2,})""")
@@ -164,6 +144,54 @@ def lang_of(path):
         return NAMED["Dockerfile"]
     ext = base.rsplit(".", 1)[-1].lower() if "." in base else ""
     return EXT.get(ext)
+
+
+SHEBANG = re.compile(rb"^#!\s*(?:/usr/bin/env\s+(?:-\S+\s+)*|\S*/)([A-Za-z][\w.\-]*)")
+SHEBANG_EXT = {"sh": "sh", "bash": "sh", "zsh": "sh", "dash": "sh", "ksh": "sh", "fish": "sh", "python": "py", "python3": "py",
+               "node": "js", "nodejs": "js", "deno": "ts", "ruby": "rb", "perl": "pl", "php": "php", "lua": "lua", "bats": "sh"}
+TEST_CONTENT = re.compile(rb"^\s*(?:def test_\w+|async def test_\w+|class Test\w+|@test\b|@pytest\.|func Test\w+\(|fn test_\w+|#\[test\]|#\[tokio::test\]"
+                          rb"|@Test\b|\[(?:Test|TestMethod|Fact|Theory)\]|(?:describe|it|test)(?:\.\w+)?\(\s*['\"`])", re.M)
+
+
+def lang_of_content(path, data):
+    """Language of a file with no recognised name or extension, from its #! line."""
+    if data[:2] != b"#!":
+        return None
+    m = SHEBANG.match(data[:200])
+    ext = SHEBANG_EXT.get(m.group(1).decode().rstrip("0123456789.")) if m else None
+    return EXT.get(ext) if ext else None
+
+
+SECRET_NAME = re.compile(r"(key|secret|token|passw(or)?d|pwd|credential|auth|api[_-]?key|private)", re.I)
+PLACEHOLDER_VALUE = re.compile(r"^(|<.*>|\$\{.*\}|\$\(.*\)|\$[A-Za-z_]\w*|your[_-].*|change[_-]?me.*|x{3,}|\*{3,}|todo|none|null|false|true|example.*|placeholder.*|\.\.\.)$", re.I)
+ASSIGN = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][\w.\-]*)\s*[:=]\s*(.*?)\s*$")
+
+
+def sensitive_verdict(path, data):
+    """What a secret-prone file actually contains, judged from its contents. Never returns a value."""
+    if data is None:
+        return "Binary or oversized: contents not inspected."
+    if b"\0" in data[:8000]:
+        return "Binary file: contents not inspected."
+    text = data[:2_000_000].decode("utf-8", "replace")
+    if re.search(r"-----BEGIN [A-Z ]*PRIVATE KEY-----", text):
+        return "Contains private key material."
+    is_env = bool(re.search(r"(^|/)\.env", path))
+    total = real = 0
+    for line in text.splitlines():
+        if line.lstrip().startswith(("#", "//", ";")):
+            continue
+        m = ASSIGN.match(line)
+        if not m or not (is_env or SECRET_NAME.search(m.group(1))):
+            continue
+        total += 1
+        v = m.group(2).strip().strip("'\"")
+        real += not PLACEHOLDER_VALUE.match(v)
+    if real:
+        return f"{real} of {total} secret-looking assignment{'s' if total != 1 else ''} hold real-looking values."
+    if total:
+        return f"{total} assignment{'s' if total != 1 else ''}, all empty or placeholders."
+    return "No secret-looking assignments found."
 
 
 def noise_reason(path):
@@ -415,6 +443,82 @@ def plan_chunks(files, budget):
 # --------------------------------------------------------------------------- main profile
 
 
+
+BLAME_HEADER = re.compile(r"^([0-9a-f]{40}) \d+ \d+")
+BLAME_BUDGET_S = 150
+
+
+def blame_file(repo_path, sha, path, deadline):
+    """Non-blank lines per (name, email) that survive in one file at the pinned commit."""
+    if time.monotonic() > deadline:
+        return None
+    try:
+        out = subprocess.run(["git", "-C", repo_path, "blame", "--porcelain", "-w", sha, "--", path],
+                             capture_output=True, timeout=60).stdout.decode("utf-8", "replace")
+    except (subprocess.TimeoutExpired, OSError):
+        return None
+    info, counts, cur = {}, Counter(), None
+    for line in out.split("\n"):
+        if line.startswith("\t"):
+            if cur and line.strip():
+                counts[cur] += 1
+            continue
+        m = BLAME_HEADER.match(line)
+        if m:
+            cur = m.group(1)
+            info.setdefault(cur, ["", ""])
+        elif cur and line.startswith("author "):
+            info[cur][0] = line[7:]
+        elif cur and line.startswith("author-mail "):
+            info[cur][1] = line[12:].strip("<>")
+    per = Counter()
+    for c, n in counts.items():
+        per[tuple(info.get(c, ("", "")))] += n
+    return per
+
+
+def ownership(repo_path, sha, files, area_of, canon, display, ctype):
+    """Share of today's code lines written by each contributor, from git blame over every analysed text file."""
+    deadline = time.monotonic() + BLAME_BUDGET_S
+    paths = [f["path"] for f in files if f["lines"]]
+    by_person, by_area, done = Counter(), defaultdict(Counter), 0
+    with ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 4)) as pool:
+        futs = {pool.submit(blame_file, repo_path, sha, p, deadline): p for p in paths}
+        for fut, p in futs.items():
+            per = fut.result()
+            if per is None:
+                continue
+            done += 1
+            ar = area_of(p)
+            for (n, e), c in per.items():
+                cid = canon.get(ident_id(n, e)) or ident_id(n, e)
+                by_person[cid] += c
+                by_area[ar][cid] += c
+    total = sum(by_person.values())
+    if not total:
+        return None
+    name = lambda cid: display.get(cid, cid)
+    kind = lambda cid: ctype.get(cid, ident_type(name(cid), cid))
+    pct = lambda a, b: round(100 * a / b, 1) if b else 0.0
+    people = []
+    for cid, n in by_person.most_common(30):
+        mine = sorted(((a, c[cid]) for a, c in by_area.items() if c.get(cid)), key=lambda x: -x[1])[:4]
+        people.append({"id": cid, "name": name(cid), "type": kind(cid), "lines": n, "share_pct": pct(n, total),
+                       "top_areas": [{"area": a, "lines": c} for a, c in mine]})
+    areas = []
+    for a, c in sorted(by_area.items(), key=lambda kv: -sum(kv[1].values()))[:14]:
+        t = sum(c.values())
+        areas.append({"name": a, "lines": t, "owners": [{"id": cid, "name": name(cid), "type": kind(cid), "lines": n, "share_pct": pct(n, t)}
+                                                      for cid, n in c.most_common(6)]})
+    by_type = Counter()
+    for cid, n in by_person.items():
+        by_type[kind(cid)] += n
+    return {"total_lines": total, "files_blamed": done, "files_total": len(paths), "people": people, "areas": areas,
+            "by_type": {t: by_type.get(t, 0) for t in TYPES},
+            "note": "Lines are the non-blank lines that survive at the pinned commit, attributed to whoever last changed them (git blame, whitespace changes ignored). "
+                    "A reformat or a bulk import moves ownership to whoever ran it."}
+
+
 def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None):
     repo = Repo(repo_path)
     top = repo.git("rev-parse", "--show-toplevel").strip()
@@ -453,16 +557,18 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
     lang_stats = defaultdict(lambda: {"kind": "", "files": 0, "lines": 0, "bytes": 0})
     files = []                       # analyzable text files, for chunk planning
     env_refs, secret_hits, manifests, sensitive = {}, [], [], []
+    test_files = 0
     readme = None
     for path, typ, oid, size in entries:
         if typ != "blob":
             continue
-        if SENSITIVE_FILE.search(path) and not path.endswith(".pub"):
-            sensitive.append(path)
+        is_sensitive = bool(SENSITIVE_FILE.search(path)) and not path.endswith(".pub")
         wanted_manifest = bool(MANIFEST_NAMES.search(path)) and not VENDOR_SEG.intersection(path.split("/"))
         reason = noise_reason(path)
         if reason is None and size > MAX_READ:
             reason = "oversize"
+        if is_sensitive and (reason or size > MAX_READ):
+            sensitive.append({"path": path, "verdict": sensitive_verdict(path, None)})
         if reason and not (wanted_manifest and reason == "generated"):
             excluded[reason] += 1
             excluded_dirs["/".join(path.split("/")[:2]) if "/" in path else "(root)"] += 1
@@ -471,6 +577,8 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
         if not got:
             continue
         data = got[1]
+        if is_sensitive and not reason:
+            sensitive.append({"path": path, "verdict": sensitive_verdict(path, data)})
         if b"\0" in data[:8000]:
             excluded["binary"] += 1
             continue
@@ -482,7 +590,7 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
         text = data.decode("utf-8", "replace")
         lines = data.count(b"\n") + (1 if data and not data.endswith(b"\n") else 0)
         nonblank = len(re.findall(rb"^[ \t]*\S", data, re.M))
-        lang = lang_of(path)
+        lang = lang_of(path) or lang_of_content(path, data)
         if wanted_manifest:
             m = parse_manifest(path, text)
             if m:
@@ -497,7 +605,9 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
             ls["files"] += 1
             ls["lines"] += nonblank
             ls["bytes"] += len(data)
-        role = "test" if TEST_RE.search(path) else ("doc" if lang and lang[1] == "docs" else ("config" if lang and lang[1] == "data" else "code"))
+        has_tests = bool(TEST_CONTENT.search(data[:2_000_000])) and not (lang and lang[1] == "docs")
+        test_files += has_tests
+        role = "test" if (has_tests or TEST_RE.search(path)) else ("doc" if lang and lang[1] == "docs" else ("config" if lang and lang[1] == "data" else "code"))
         files.append({"path": path, "blob": oid, "bytes": len(data), "lines": lines, "tokens": tokens_for(len(data)), "role": role})
         if len(data) <= 2_000_000 and (not lang or lang[1] != "docs"):
             nl = None
@@ -712,16 +822,14 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
         if "\x1f" in line:
             tags.append(dict(zip(("name", "date"), line.split("\x1f"))))
 
-    # ---- languages, inventory
+    # ---- languages
     code_total = sum(v["lines"] for v in lang_stats.values() if v["kind"] == "code") or 1
     all_total = sum(v["lines"] for v in lang_stats.values()) or 1
     languages = [{"name": n, "kind": v["kind"], "files": v["files"], "lines": v["lines"], "bytes": v["bytes"],
                   "share_pct": pct(v["lines"], code_total if v["kind"] == "code" else all_total)}
                  for n, v in sorted(lang_stats.items(), key=lambda kv: -kv[1]["lines"])]
-    inventory = {}
-    for cat, rx in INVENTORY.items():
-        hits = sorted((p for p in area_paths if rx.search(p)), key=lambda p: (p.count("/"), p))
-        inventory[cat] = {"count": len(hits), "paths": hits[:40]}
+
+    own = ownership(repo.path, sha, files, area_of, canon, display, ctype)
 
     # ---- chunk plan
     plan_files = [f for f in files if f["bytes"] > 0]
@@ -753,14 +861,13 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
                 "tags": tags, "bulk_commits": bulk[:20], "bulk_commit_count": len(bulk),
                 "monthly": dict(sorted(monthly.items())), "yearly": dict(sorted(yearly.items()))},
         "files": {"tracked": len(tree_paths), "analyzed": len(files), "excluded": dict(excluded),
-                  "excluded_top_dirs": excluded_dirs.most_common(8), "tests": inventory["tests"]["count"],
+                  "excluded_top_dirs": excluded_dirs.most_common(8), "tests": test_files,
                   "total_code_lines": sum(v["lines"] for v in lang_stats.values() if v["kind"] == "code"),
                   "total_lines": sum(v["lines"] for v in lang_stats.values())},
         "languages": languages,
         "hot_files": hot,
         "manifests": manifests,
         "readme": readme,
-        "inventory": inventory,
         "env_vars": sorted(env_refs.values(), key=lambda e: (-e["count"], e["name"]))[:300],
         "secret_signals": {"note": "Pattern matches only; values are never stored. Each needs human review.",
                            "hits": secret_hits, "sensitive_files": sensitive[:50]},
@@ -768,6 +875,7 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
                          "classification_note": "Heuristic: bots and agents are recognised by name, email and commit-message markers. "
                                                 "Anything else is treated as human and is unverified."},
         "areas": areas,
+        "ownership": own,
         "chunks": {"mode": mode, "budget": chunk_tokens, "total_tokens": total_tokens, "files": len(plan_files),
                    "chunk_count": len(chunks), "advice": advice,
                    "estimate": f"tokens are estimated as bytes / {BYTES_PER_TOKEN}"},

@@ -33,7 +33,7 @@
         tertiaryColor: dark ? "#1f2937" : "#f3f4f6", tertiaryTextColor: dark ? "#f3f4f6" : "#111827", tertiaryBorderColor: dark ? "#6b7280" : "#9ca3af",
         lineColor: dark ? "#cbd5e1" : "#374151", textColor: dark ? "#f3f4f6" : "#111827", titleColor: dark ? "#f3f4f6" : "#111827",
         clusterBkg: dark ? "#1f2937" : "#f3f4f6", clusterBorder: dark ? "#6b7280" : "#9ca3af",
-        edgeLabelBackground: dark ? "#111827" : "#ffffff", noteBkgColor: "#fff4c2", noteTextColor: "#111827", noteBorderColor: "#b59b2f",
+        edgeLabelBackground: "#f3f4f6", noteBkgColor: "#fff4c2", noteTextColor: "#111827", noteBorderColor: "#b59b2f",
         actorBkg: "#dbe7ff", actorTextColor: "#111827", actorBorder: "#4b6cb7", actorLineColor: dark ? "#cbd5e1" : "#374151",
         signalColor: dark ? "#f3f4f6" : "#111827", signalTextColor: dark ? "#f3f4f6" : "#111827",
         labelBoxBkgColor: "#dbe7ff", labelTextColor: "#111827", loopTextColor: dark ? "#f3f4f6" : "#111827"
@@ -149,6 +149,62 @@
   });
   var hint = $("#search-hint");
   input.addEventListener("focus", function () { hint.hidden = true; }); input.addEventListener("blur", function () { hint.hidden = false; });
+
+
+  // ---- citation tooltip: appears the moment the pointer is over a [n] marker
+  var tip = doc.createElement("div"); tip.id = "cite-tip"; tip.hidden = true; tip.setAttribute("role", "tooltip"); doc.body.appendChild(tip);
+  function tipFor(a) {
+    var r = a.getBoundingClientRect();
+    tip.textContent = a.dataset.tip; tip.hidden = false;
+    var w = tip.offsetWidth, h = tip.offsetHeight;
+    var left = Math.max(8, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 8));
+    var top = r.top - h - 6 < 8 ? r.bottom + 6 : r.top - h - 6;
+    tip.style.left = left + "px"; tip.style.top = top + "px";
+  }
+  doc.addEventListener("mouseover", function (e) { var a = e.target.closest && e.target.closest(".cite a[data-tip]"); if (a) tipFor(a); });
+  doc.addEventListener("mouseout", function (e) { if (e.target.closest && e.target.closest(".cite a[data-tip]")) tip.hidden = true; });
+  doc.addEventListener("focusin", function (e) { var a = e.target.closest && e.target.closest(".cite a[data-tip]"); if (a) tipFor(a); });
+  doc.addEventListener("focusout", function () { tip.hidden = true; });
+  window.addEventListener("scroll", function () { tip.hidden = true; }, true);
+
+  // ---- sortable tables: every column header sorts its table
+  var SEV = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
+  function sortKey(td) {
+    if (td.dataset.sort !== undefined) { var d = parseFloat(td.dataset.sort); return isNaN(d) ? td.dataset.sort.toLowerCase() : d; }
+    var c = td.cloneNode(true); $$("sup.cite", c).forEach(function (n) { n.remove(); });
+    var t = c.textContent.replace(/\s+/g, " ").trim().toLowerCase();
+    if (t in SEV) return SEV[t];
+    var m = /^[+\-]?\d[\d,]*(\.\d+)?/.exec(t);
+    return m && !/^\d{4}-\d{2}/.test(t) && !/^[a-z]/.test(t) ? parseFloat(m[0].replace(/,/g, "")) : t;
+  }
+  function sortBy(table, col, dir) {
+    var body = table.tBodies[0], rows = $$("tr", body).map(function (tr, i) { return { tr: tr, i: i, k: sortKey(tr.cells[col] || tr.cells[0]) }; });
+    rows.sort(function (a, b) {
+      var x = a.k, y = b.k, r;
+      if (typeof x === "number" && typeof y === "number") r = x - y;
+      else if (typeof x === "number") r = -1; else if (typeof y === "number") r = 1;
+      else r = x < y ? -1 : x > y ? 1 : 0;
+      return (r * dir) || a.i - b.i;
+    });
+    rows.forEach(function (r) { body.appendChild(r.tr); });
+  }
+  function makeSortable(table) {
+    if (!table.tHead || !table.tBodies[0] || table.dataset.sortable) return;
+    table.dataset.sortable = "1";
+    var hr = table.tHead.rows[table.tHead.rows.length - 1];
+    $$("th", hr).forEach(function (th, col) {
+      var b = doc.createElement("button"); b.type = "button"; b.title = "Sort by this column";
+      while (th.firstChild) b.appendChild(th.firstChild);
+      th.appendChild(b); th.classList.add("sortable");
+      b.addEventListener("click", function () {
+        var dir = th.getAttribute("aria-sort") === "ascending" ? -1 : 1;
+        $$("th", hr).forEach(function (o) { o.removeAttribute("aria-sort"); });
+        th.setAttribute("aria-sort", dir === 1 ? "ascending" : "descending");
+        sortBy(table, col, dir);
+      });
+    });
+  }
+  $$("table.table").forEach(makeSortable);
 
   // ---- table filter, diagram expand
   doc.addEventListener("input", function (e) {

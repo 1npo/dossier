@@ -14,13 +14,13 @@ Inside Claude Code:
 /dossier version
 ```
 
-`build` pins the dossier to a commit, writes eleven reports (overview, capabilities, interfaces, architecture, data, code tour, failures, delivery, risks, contributors, gaps), and renders them to `<home>/<repo-name>/` as one self-contained HTML page.
+`build` pins the dossier to a commit, writes twelve reports (overview, capabilities, interfaces, architecture, domain logic, data, code tour, failures, delivery, risks, contributors, gaps), and renders them to `<home>/<repo-name>/` as one self-contained HTML page.
 
 Every claim is marked confirmed, inferred, or unknown, and cites the files it came from. Your confirmations and corrections survive rebuilds.
 
 ## Install
 
-Requires Claude Code and [uv](https://docs.astral.sh/uv/).
+Requires Claude Code and [uv](https://docs.astral.sh/uv/). The page check in `build` uses Playwright, which `uv` installs on demand; the first run also needs `uv run --with playwright python -m playwright install chromium`.
 
 ```sh
 git clone git@github-1npo:1npo/codebase-dossier.git

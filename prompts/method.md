@@ -20,19 +20,20 @@ Every statement has a basis, set in `conf`:
 - `inferred`: you reasoned to it from context (naming, structure, conventions, what is missing). Needs citations to the evidence, and a `note` saying what would confirm it.
 - `unknown`: you looked and could not find or infer it. Say what is missing in the text, and give a `note` saying where the answer probably lives. Citations are optional.
 
-Do not present an inference as confirmed. Do not leave a gap unstated. If a topic does not apply (a library has no database), say so as `confirmed` and cite the evidence you used (for example `facts:inventory`).
+Do not present an inference as confirmed. Do not leave a gap unstated. If a topic does not apply (a library has no database), say so as `confirmed` and cite the evidence you used (for example `facts:manifests`).
 
 ### Citation forms
 
 Write citations inline as `[[path]]`, `[[path:12]]` or `[[path:12-30]]`, or list them in a `cite` array. Other forms:
 
 - `commit:<sha>` for a commit in this history.
-- `facts:<key>` for a measured figure. Keys: `git`, `languages`, `hot_files`, `manifests`, `inventory`, `env_vars`, `secret_signals`, `contributors`, `areas`, `chunks`.
+- `facts:<key>` for a measured figure. Keys: `git`, `languages`, `hot_files`, `manifests`, `env_vars`, `secret_signals`, `contributors`, `ownership`, `areas`, `chunks`.
 
 Rules:
 
 - Paths are relative to the repository root, exactly as git lists them. Line numbers refer to the pinned commit.
 - Every mention of a file or directory in prose must be a citation. Do not write bare paths or backticked paths.
+- In a table cell that holds only a file, directory or glob (a Name column, for example), write it in backticks: `scripts/lib`, `scripts/targets/*.sh`. The page also does this for any such cell that exists at the pinned commit.
 - Cite the narrowest range that proves the point. Do not cite a whole large file when ten lines will do.
 - `render` fails if a citation does not resolve. Check line numbers before you write them.
 
@@ -62,6 +63,8 @@ Table rows must have exactly as many `cells` as `columns`. The page adds Basis a
 - Do not use `end` as a node id. Avoid `%` and `#` inside labels. Use `<br/>` for line breaks, not `\n`, inside labels.
 - Each diagram must be backed by citations in `cite`, and must not show components you did not see in the code. Mark guessed parts by setting `conf` to `inferred`.
 
+- **Colour and legibility are checked by a browser, not by eye.** The page draws diagrams in light and dark themes; text over an arrow sits on a light chip and must stay dark. Never set `linkStyle`, `edgeLabelBackground`, `color` on edges, or theme variables in a diagram: leave edge and subgraph styling to the page. Run `check_page.py` (see SKILL.md) after every render.
+
 ## Reading the repository: fitting inside your context window
 
 `chunks.json` splits every analyzable file into chunks that each fit in a context window. Nothing is skipped and files are never truncated. Very large files are split by line range, and a chunk entry with `start` and `end` means read only those lines.
@@ -86,7 +89,8 @@ Chunk note shape (`notes/<fingerprint>.json`):
  "data": [{"what": "entity, table, schema, file format, message", "fields": "key fields", "cite": "path:10-30"}],
  "flows": [{"what": "how a main operation moves through the code, in order of files and functions", "cite": "path:10-80"}],
  "external": [{"what": "database, API, queue, service, library with a role", "cite": "path:5"}],
- "config_and_secrets": [{"what": "setting or secret and how it is supplied", "cite": "path:5"}],
+ "config": [{"what": "setting, its default and how it is changed", "cite": "path:5"}],
+ "secrets": [{"what": "credential or key the code needs and how it is supplied (never the value)", "cite": "path:5"}],
  "risks": [{"what": "...", "conf": "confirmed|inferred", "cite": "path:5"}],
  "unclear": ["things you could not work out and why"]}
 ```

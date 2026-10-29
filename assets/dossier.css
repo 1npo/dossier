@@ -163,3 +163,48 @@ sup.cite { vertical-align: baseline !important; position: static !important; top
 .diagram-notes { margin-top: 1rem; padding-top: .9rem; border-top: 1px solid var(--border); }
 .diagram-notes h4 { font-size: .9375rem; font-weight: 600; margin: 0 0 .4rem; }
 .activity-side td, .activity-side th { min-width: 0; }
+
+/* citation tooltip: shown at once, positioned by JS so table scroll areas cannot clip it */
+#cite-tip { position: fixed; z-index: 90; max-width: min(34rem, 90vw); padding: .3rem .55rem; border-radius: calc(var(--radius) - 2px); background: var(--foreground); color: var(--background); font-size: .8125rem; line-height: 1.4; pointer-events: none; overflow-wrap: anywhere; box-shadow: 0 4px 14px rgb(0 0 0 / .25); }
+#cite-tip[hidden] { display: none; }
+
+/* sortable tables */
+.table th.sortable { padding: 0; }
+.table th.sortable button { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: .3rem; width: 100%; padding: .5rem .5rem; cursor: pointer; color: inherit; font: inherit; white-space: normal; }
+.table th.sortable button:hover, .table th.sortable button:focus-visible { color: var(--foreground); background: var(--muted); }
+.table th.sortable button::after { content: "\2195"; opacity: .35; font-size: .8em; flex: none; }
+.table th[aria-sort="ascending"] button::after { content: "\25B2"; opacity: 1; } .table th[aria-sort="descending"] button::after { content: "\25BC"; opacity: 1; }
+#t-index th.sortable button, #t-hist th.sortable button { justify-content: inherit; }
+.table tfoot td { border-top: 2px solid var(--border); font-weight: 600; background: var(--muted); }
+#t-index tfoot td:nth-child(n+3) { text-align: center; }
+
+/* about this build: project facts stand out from dossier facts */
+.facts-groups { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 1rem; align-items: stretch; }
+.facts-group h3 { margin-bottom: .6rem; } .facts-group h3 .muted { font-weight: 400; font-size: .8125rem; margin-left: .4rem; }
+.facts-group.project { border: 1px solid var(--primary); border-left-width: 5px; border-radius: var(--radius); padding: .8rem 1rem; background: color-mix(in oklab, var(--primary) 7%, var(--card)); }
+.facts-group.project dl.facts dd { font-weight: 600; } .facts-group.project dl.facts dt { color: var(--foreground); }
+.facts-group.build { border: 1px dashed var(--border); border-radius: var(--radius); padding: .8rem 1rem; }
+.facts-group.build h3, .facts-group.build dl.facts { color: var(--muted-foreground); font-size: .875rem; }
+@media (max-width: 767px) { .facts-groups { grid-template-columns: 1fr; } }
+
+/* project manifests: dependency lists */
+details.deps { margin: .5rem 0; } details.deps summary { cursor: pointer; overflow-wrap: anywhere; display: list-item; list-style: disclosure-closed inside; } details.deps[open] > summary { list-style-type: disclosure-open; } details.deps p { margin: .4rem 0 .4rem 1.1rem; line-height: 1.9; }
+
+/* who wrote the code */
+.own-other { background: var(--l8); }
+.own-bar { display: flex; height: 1.6rem; border-radius: var(--radius); overflow: hidden; gap: 2px; background: var(--muted); } .own-bar i { display: block; height: 100%; min-width: 2px; }
+.own-dot { display: inline-block; width: .65rem; height: .65rem; border-radius: 50%; margin-right: .5rem; vertical-align: baseline; }
+.meter { display: inline-block; width: 7rem; height: .6rem; background: var(--muted); border-radius: 99px; overflow: hidden; vertical-align: middle; } .meter i { display: block; height: 100%; }
+.own-areas { display: grid; gap: .55rem; } .own-area { display: grid; grid-template-columns: minmax(8rem, 14rem) minmax(0, 1fr) minmax(9rem, 14rem); gap: .75rem; align-items: center; font-size: .875rem; }
+.own-area .own-bar { height: 1rem; } .own-area code { overflow-wrap: anywhere; justify-self: start; }
+@media (max-width: 767px) { .own-area { grid-template-columns: 1fr; gap: .2rem; } }
+
+/* diagrams: edge labels sit on a light chip in both themes, so dark text is always legible */
+.mermaid-host .edgeLabel, .mermaid-host .edgeLabel p, .mermaid-host .edgeLabel span, .mermaid-host .edgeLabel div { color: #111827 !important; }
+.mermaid-host .edgeLabel, .mermaid-host .edgeLabel rect, .mermaid-host .labelBkg { background-color: #f3f4f6 !important; opacity: 1 !important; }
+.mermaid-host .edgeLabel rect { fill: #f3f4f6 !important; }
+.mermaid-host .edgeLabel .label text, .mermaid-host .edgeLabel text { fill: #111827 !important; }
+.mermaid-host .edgeLabel span { padding: 0; }
+/* the page styles <p> as a block with margins; inside a diagram label that pushes the text out of its clipping box */
+.mermaid-host foreignObject p { display: inline !important; margin: 0 !important; }
+.panel section > h3 { margin: 1.25rem 0 .6rem; } .panel section > h3:first-child { margin-top: 0; }
