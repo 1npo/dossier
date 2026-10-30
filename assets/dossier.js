@@ -221,6 +221,107 @@
   }
   $$("table.table").forEach(makeSortable);
 
+  // ---- code viewer: a source marker [n] opens the cited code in a panel on the right. The files are embedded in #code-data.
+  var panel = $("#code-panel"), codeTab = $("#code-tab"), codeBody = $("#cp-body"), code = {}, cur = null, pinned = false, isOpen = false;
+  try { code = JSON.parse($("#code-data").textContent); } catch (e) {}
+  try { pinned = localStorage.getItem("dossier-code-pin") === "1"; } catch (e) {}
+  function parseRef(h) { var m = /^#?ref-(.+)-(\d+)$/.exec(h || ""); return m && { rid: m[1], n: +m[2] }; }
+  function refLi(rid, n) { return doc.getElementById("ref-" + rid + "-" + n); }
+  function refList(rid) { return $$("#" + rid + "-refs .refs li[data-view]"); }
+  function syncWidth() {   // the page makes room for a pinned panel unless that would leave it too narrow to read
+    var w = isOpen && pinned && window.innerWidth - panel.offsetWidth >= 480 ? panel.offsetWidth : 0;
+    root.style.setProperty("--code-w-px", w + "px");
+  }
+  function setOpen(on) {
+    isOpen = on; panel.hidden = !on; codeTab.hidden = on || !cur;
+    doc.body.classList.toggle("code-pinned", on && pinned); syncWidth();
+  }
+  function setPin(on) {
+    pinned = on; $("#cp-pin").setAttribute("aria-pressed", String(on));
+    try { localStorage.setItem("dossier-code-pin", on ? "1" : "0"); } catch (e) {}
+    doc.body.classList.toggle("code-pinned", isOpen && on); syncWidth();
+  }
+  function showCode(li) {
+    var path = li.dataset.view, f = code[path], a = +li.dataset.a || 0, b = +li.dataset.b || a;
+    if (codeBody.dataset.path !== path) {
+      codeBody.innerHTML = f.lines.map(function (t, i) { return '<div class="cl" data-n="' + (f.start + i) + '">' + t + "</div>"; }).join("");
+      codeBody.dataset.path = path;
+    }
+    var rows = codeBody.children, first = null;
+    for (var i = 0; i < rows.length; i++) {
+      var hit = a > 0 && f.start + i >= a && f.start + i <= b;
+      rows[i].classList.toggle("hit", hit);
+      if (hit && !first) first = rows[i];
+    }
+    codeBody.scrollTop = first ? Math.max(0, first.offsetTop - codeBody.offsetTop - 3 * first.offsetHeight) : 0;
+    var last = f.start + f.lines.length - 1;
+    $(".cp-path", panel).textContent = path;
+    $(".cp-win", panel).textContent = f.start > 1 || last < f.total ? "lines " + f.start.toLocaleString() + "-" + last.toLocaleString() + " of " + f.total.toLocaleString() : "";
+  }
+  function showNav() {
+    var list = refList(cur.rid), i = list.indexOf(refLi(cur.rid, cur.n));
+    $("#cp-count").textContent = (i + 1) + " / " + list.length;
+    $("#cp-prev").disabled = i <= 0; $("#cp-next").disabled = i >= list.length - 1;
+    var sup = cur.sup || $('#' + cur.rid + ' sup.cite a[href="#ref-' + cur.rid + "-" + cur.n + '"]').parentElement;
+    var srcs = $$("a[data-view]", sup), row = $("#cp-sources");
+    row.hidden = srcs.length < 2;
+    row.innerHTML = srcs.length < 2 ? "" : "Sources for this statement: " + srcs.map(function (a) {
+      var r = parseRef(a.getAttribute("href"));
+      return '<button type="button" class="btn" data-variant="outline" data-size="sm" data-src="' + r.n + '"' + (r.n === cur.n ? ' aria-current="true"' : "") + ">" + esc(a.textContent + " " + a.dataset.tip) + "</button>";
+    }).join("");
+    cur.sup = sup;
+  }
+  function openRef(rid, n, sup) {
+    var li = refLi(rid, n); if (!li || !code[li.dataset.view]) return;
+    cur = { rid: rid, n: n, sup: sup || null };
+    setOpen(true); showCode(li); showNav();
+  }
+  function step(d) {
+    var list = refList(cur.rid), li = list[Math.max(0, Math.min(list.length - 1, list.indexOf(refLi(cur.rid, cur.n)) + d))];
+    if (li) openRef(cur.rid, parseRef("#" + li.id).n, null);
+  }
+  function toggleCode() {
+    if (isOpen) return setOpen(false);
+    if (cur) return setOpen(true);
+    var a = $(".report:not([hidden]) sup.cite a[data-view]"), r = a && parseRef(a.getAttribute("href"));
+    if (r) openRef(r.rid, r.n, a.parentElement);
+  }
+  function gotoRef() {
+    var id = "ref-" + cur.rid + "-" + cur.n;
+    if (!pinned) setOpen(false);
+    go(id);
+  }
+  doc.addEventListener("click", function (e) {
+    var t = e.target; if (!t.closest) return;
+    var a = t.closest("sup.cite a[data-view]");
+    if (a && !(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button)) {
+      var r = parseRef(a.getAttribute("href")); e.preventDefault(); openRef(r.rid, r.n, a.parentElement); return;
+    }
+    var open = t.closest("[data-open]");
+    if (open) { var k = open.dataset.open.lastIndexOf("-"); openRef(open.dataset.open.slice(0, k), +open.dataset.open.slice(k + 1), null); return; }
+    if (t.closest("#code-tab")) return toggleCode();
+    if (t.closest("#code-panel")) {
+      var id = t.closest("button") && t.closest("button").id, src = t.closest("[data-src]");
+      if (src) openRef(cur.rid, +src.dataset.src, cur.sup);
+      else if (id === "cp-prev") step(-1); else if (id === "cp-next") step(1);
+      else if (id === "cp-goto") gotoRef(); else if (id === "cp-pin") setPin(!pinned); else if (id === "cp-close") setOpen(false);
+      return;
+    }
+    if (isOpen && !pinned) setOpen(false);
+  });
+  // runs before the diagram handler below, so Esc closes an expanded diagram first
+  doc.addEventListener("keydown", function (e) {
+    var t = e.target, typing = t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable);
+    if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "v") toggleCode();
+    else if (e.key === "p") setPin(!pinned);
+    else if (e.key === "[" && isOpen) step(-1);
+    else if (e.key === "]" && isOpen) step(1);
+    else if (e.key === "Escape" && isOpen && !pinned && !$(".diagram.expanded")) setOpen(false);
+  });
+  window.addEventListener("resize", syncWidth);
+  $("#cp-pin").setAttribute("aria-pressed", String(pinned));
+
   // ---- table filter, diagram expand
   doc.addEventListener("input", function (e) {
     var t = e.target; if (!t.classList || !t.classList.contains("tbl-filter")) return;

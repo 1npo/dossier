@@ -91,7 +91,7 @@ html.dark .badge.basis-inferred, html.dark .badge.gap-inference { background: va
 .table th { color: var(--muted-foreground); font-weight: 500; }
 .tbl-filter { display: block; width: 100%; max-width: 20rem; margin-bottom: .6rem; }
 .alert { margin-bottom: .75rem; }
-tr.flash, .card.flash { animation: flash 1.8s ease-out; } @keyframes flash { from { background: color-mix(in oklab, var(--warn) 30%, transparent); } to { background: transparent; } }
+tr.flash, .card.flash, .refs li.flash { animation: flash 1.8s ease-out; } @keyframes flash { from { background: color-mix(in oklab, var(--warn) 30%, transparent); } to { background: transparent; } }
 
 .stats { display: grid; gap: .75rem; margin-bottom: 1rem; }
 .stat { border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem .9rem; }
@@ -239,3 +239,41 @@ details.deps { margin: .5rem 0; } details.deps summary { cursor: pointer; overfl
 .tm-in:hover, .tm-in:focus-visible { outline: 2px solid var(--foreground); outline-offset: -2px; }
 .tm-swatch { background: repeating-linear-gradient(135deg, var(--l1) 0 3px, var(--l2) 3px 6px); }
 @media (max-width: 767px) { .treemap { aspect-ratio: 1 / 1; } }
+
+/* code viewer: a panel on the right with the code behind a citation. Token colors reach 4.5:1 on the panel and on a cited line (check_page.py) */
+:root { --tk-c: oklch(.45 .02 260); --tk-k: oklch(.44 .18 300); --tk-s: oklch(.42 .12 155); --tk-m: oklch(.44 .14 50); --tk-nf: oklch(.43 .16 255); --tk-nb: oklch(.42 .1 200);
+  --tk-nt: oklch(.44 .18 20); --tk-na: oklch(.44 .1 85); --tk-no: oklch(.44 .16 330); --tk-gd: oklch(.44 .18 25); --tk-gi: oklch(.42 .12 155); --tk-gh: var(--foreground); }
+.dark { --tk-c: oklch(.74 .02 260); --tk-k: oklch(.8 .13 300); --tk-s: oklch(.8 .12 155); --tk-m: oklch(.82 .11 60); --tk-nf: oklch(.8 .11 255); --tk-nb: oklch(.8 .09 200);
+  --tk-nt: oklch(.8 .12 20); --tk-na: oklch(.82 .1 90); --tk-no: oklch(.8 .12 330); --tk-gd: oklch(.8 .13 25); --tk-gi: oklch(.8 .12 155); --tk-gh: var(--foreground); }
+.code-panel { position: fixed; top: 0; right: 0; bottom: 0; z-index: 55; width: min(90ch, 100vw); display: flex; flex-direction: column; background: var(--card); color: var(--card-foreground);
+  border-left: 1px solid var(--border); box-shadow: -8px 0 24px rgb(0 0 0 / .18); font-family: var(--font-mono, ui-monospace, Menlo, Consolas, monospace); font-size: .8125rem; }
+.code-panel[hidden] { display: none; }
+.code-pinned .code-panel { box-shadow: none; }
+.code-panel > header { padding: .7rem .9rem .6rem; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: .5rem; }
+.cp-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .75rem; min-width: 0; }
+.cp-path { background: none; padding: 0; font-size: .875rem; font-weight: 600; overflow-wrap: anywhere; }
+.cp-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; }
+.cp-nav { display: inline-flex; align-items: center; gap: .4rem; margin-right: auto; }
+.cp-count { min-width: 4.5ch; text-align: center; font-variant-numeric: tabular-nums; }
+.cp-sources { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; font-size: .75rem; }
+.cp-sources[hidden] { display: none; }
+.cp-sources .btn[aria-current="true"] { background: var(--primary); color: var(--primary-foreground); }
+.code-panel .btn { font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif); gap: .4rem; }
+.code-panel kbd, .code-tab kbd { font-family: var(--font-mono, ui-monospace, Menlo, Consolas, monospace); font-size: .6875rem; padding: 0 .35rem; border: 1px solid var(--border); border-radius: .3rem; background: var(--muted); color: var(--muted-foreground); }
+#cp-pin[aria-pressed="true"] { background: var(--primary); color: var(--primary-foreground); }
+.cp-body { flex: 1; min-height: 0; overflow: auto; padding: .4rem 0; line-height: 1.55; tab-size: 4; }
+.cl { white-space: pre; min-width: max-content; padding-right: 1rem; }
+.cl::before { content: attr(data-n); display: inline-block; width: 6ch; margin-right: 1.5ch; text-align: right; color: var(--muted-foreground); user-select: none; }
+.cl i { font-style: normal; }
+.cl .c { color: var(--tk-c); } .cl .k { color: var(--tk-k); } .cl .s { color: var(--tk-s); } .cl .m { color: var(--tk-m); } .cl .nf { color: var(--tk-nf); } .cl .nb { color: var(--tk-nb); }
+.cl .nt { color: var(--tk-nt); } .cl .na { color: var(--tk-na); } .cl .no { color: var(--tk-no); } .cl .gd { color: var(--tk-gd); } .cl .gi { color: var(--tk-gi); } .cl .gh { color: var(--tk-gh); font-weight: 600; }
+.cl.hit { background: color-mix(in oklab, var(--warn) 24%, transparent); }
+.cp-keys { padding: .45rem .9rem; border-top: 1px solid var(--border); font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif); font-size: .75rem; display: flex; flex-wrap: wrap; gap: .25rem .5rem; align-items: center; }
+.code-tab { position: fixed; right: 0; top: 50%; z-index: 54; transform: translateY(-50%); writing-mode: vertical-rl; padding: .7rem .35rem; border: 1px solid var(--border); border-right: 0; border-radius: var(--radius) 0 0 var(--radius);
+  background: var(--card); color: var(--foreground); font: inherit; font-size: .8125rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: .4rem; box-shadow: -2px 0 8px rgb(0 0 0 / .12); }
+.code-tab[hidden] { display: none; }
+.code-tab:hover, .code-tab:focus-visible { background: var(--accent); }
+.refs li [data-open] { margin-left: .5rem; }
+main { transition: margin-right .15s ease; }
+.code-pinned main { margin-right: var(--code-w-px, 0px); }
+@media print { .code-panel, .code-tab { display: none !important; } main { margin-right: 0 !important; } }

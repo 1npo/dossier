@@ -37,7 +37,8 @@ Rules:
 - A citation is evidence, never a name. Do not start a sentence with `[[path]]`, and do not put one where a file name belongs ("sets no strict mode" after a bare citation, or "defined in" followed by one). Wrong: `[[install.sh:33-84]] sets no strict mode.` Right: `[[install.sh:33-84|install.sh]] sets no strict mode.` or `The bootstrap sets no strict mode [[install.sh:33-84]].` The page adds the path as a label when it finds a bare citation in a name position, but write the label yourself.
 - Cite each source once per statement. Do not write the same citation inline and again as a trailing "See ...".
 - In a table cell that holds only a file, directory or glob (a Name column, for example), write it in backticks: `scripts/lib`, `scripts/targets/*.sh`. The page also does this for any such cell that exists at the pinned commit.
-- Cite the narrowest range that proves the point. Do not cite a whole large file when ten lines will do.
+- Cite the complete block that supports the claim: the whole function body or config stanza, not only the line that names it. A reader clicks a citation to read that code in a side panel, so a range that stops short of the evidence is a defect. Do not cite a whole large file when the block is thirty lines. If the evidence is in several places, use several citations.
+- A citation to a directory, a commit or a `facts:` key does not open the code panel, so prefer a file range wherever one proves the point.
 - `render` fails if a citation does not resolve. Check line numbers before you write them.
 
 ## Report file shape
