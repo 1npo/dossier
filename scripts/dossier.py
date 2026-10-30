@@ -204,6 +204,7 @@ def cmd_prepare(a):
     (out / "reports").mkdir(parents=True, exist_ok=True)
     (out / "notes").mkdir(parents=True, exist_ok=True)
     (out / "activity.json").write_text(json.dumps(facts.pop("file_activity", None), separators=(",", ":")))
+    (out / "knowledge.json").write_text(json.dumps(facts.pop("knowledge", None), separators=(",", ":")))
     save(out / "facts.json", facts)
     save(out / "chunks.json", chunks)
     save_state(out, state)
@@ -254,6 +255,7 @@ def cmd_render(a):
     if not facts:
         die("No facts.json found. Run prepare first.")
     facts["file_activity"] = load(out / "activity.json")
+    facts["knowledge"] = load(out / "knowledge.json")
     state = load_state(out)
     reports = {}
     for rid, _, authored in render.REPORTS:

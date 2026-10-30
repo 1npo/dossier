@@ -477,8 +477,9 @@ def blame_file(repo_path, sha, path, deadline):
     return per
 
 
-def ownership(repo_path, sha, files, area_of, canon, display, ctype):
-    """Share of today's code lines written by each contributor, from git blame over every analysed text file."""
+def ownership(repo_path, sha, files, area_of, canon, display, ctype, per_file=None):
+    """Share of today's code lines written by each contributor, from git blame over every analysed text file.
+    When `per_file` is a dict, it is filled with {path: {contributor id: lines}} for every file that was blamed."""
     deadline = time.monotonic() + BLAME_BUDGET_S
     paths = [f["path"] for f in files if f["lines"]]
     by_person, by_area, done = Counter(), defaultdict(Counter), 0
@@ -490,10 +491,14 @@ def ownership(repo_path, sha, files, area_of, canon, display, ctype):
                 continue
             done += 1
             ar = area_of(p)
+            mine = Counter()
             for (n, e), c in per.items():
                 cid = canon.get(ident_id(n, e)) or ident_id(n, e)
                 by_person[cid] += c
                 by_area[ar][cid] += c
+                mine[cid] += c
+            if per_file is not None:
+                per_file[p] = dict(mine)
     total = sum(by_person.values())
     if not total:
         return None
@@ -574,6 +579,206 @@ def pack_activity(file_days, top_ids, exists, cap=ACTIVITY_CAP):
             hi = mid - 1
     best["trimmed"] = len(ranked) - lo
     return best
+
+
+# ---- knowledge map
+KNOWLEDGE_PEOPLE = 6               # people who get their own colour and chip; everyone else is grouped as "Others"
+KNOWLEDGE_DEPARTED_MONTHS = 6      # no commit in this many months before HEAD's date: treated as departed (an inference)
+KNOWLEDGE_RECENT_DAYS = 365        # the "last 12 months" measure, counted back from HEAD's date and never from today
+KNOWLEDGE_SKIP = ("bot",)          # identity types left out of the map
+KNOWLEDGE_CAP = 1_500_000          # bytes of JSON the page may carry for the map
+KNOWLEDGE_BLEND = (0.5, 0.3, 0.2)  # weights of surviving lines, commits and recent commits in the blended measure
+
+
+def attribute_excluded(repo_path, sha, paths):
+    """Paths that .gitattributes at the pinned commit marks linguist-generated or linguist-vendored."""
+    if not paths:
+        return set()
+    p = subprocess.run(["git", "-C", repo_path, "check-attr", f"--source={sha}", "-z", "--stdin", "linguist-generated", "linguist-vendored"],
+                       input="\0".join(paths).encode("utf-8", "replace") + b"\0", capture_output=True)
+    if p.returncode:        # git older than 2.40 has no --source: the attributes are simply not applied
+        return set()
+    t = p.stdout.decode("utf-8", "replace").split("\0")
+    return {t[i] for i in range(0, len(t) - 2, 3) if t[i + 2] not in ("unspecified", "unset", "false")}
+
+
+def parse_commit(rec):
+    """One `git log -z --numstat` record: (sha, name, email, author date, [(added, deleted, old path or None, path)])."""
+    head, _, rest = rec.partition(b"\0")
+    meta = head.decode("utf-8", "replace").strip().split("\x1f")
+    if len(meta) < 4:
+        return None
+    toks, entries, i = rest.decode("utf-8", "replace").lstrip("\n").split("\0"), [], 0
+    while i < len(toks):
+        f = toks[i].split("\t", 2)
+        if len(f) < 3:
+            i += 1
+            continue
+        a, d = (int(x) if x.isdigit() else 0 for x in f[:2])
+        if f[2]:
+            entries.append((a, d, None, f[2]))
+            i += 1
+        elif i + 2 < len(toks):     # a rename: the two paths follow as separate fields
+            entries.append((a, d, toks[i + 1], toks[i + 2]))
+            i += 3
+        else:
+            break
+    return (*meta[:4], entries)
+
+
+def history_commits(repo_path, sha):
+    """Non-merge commits, newest first, with renames followed."""
+    proc = subprocess.Popen(["git", "-C", repo_path, "log", sha, "--no-merges", "-M", "-z", "--numstat", "--format=%x1e%H%x1f%aN%x1f%aE%x1f%aI"],
+                            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    buf = b""
+    while True:
+        blk = proc.stdout.read(1 << 20)
+        if not blk:
+            break
+        buf += blk
+        *recs, buf = buf.split(b"\x1e")
+        for r in recs:
+            c = parse_commit(r) if r.strip() else None
+            if c:
+                yield c
+    c = parse_commit(buf) if buf.strip() else None
+    if c:
+        yield c
+    proc.wait()
+
+
+def credit_history(commits, wanted, cid_of, as_of):
+    """Per file and person: [commits, commits in the year before `as_of`, lines added minus deleted]. A renamed file is credited at its current path.
+    Commits come newest first, so a rename seen now tells us where the file's older history belongs. Bulk commits (imports, reformatting) credit no file."""
+    recent_from = as_of - timedelta(days=KNOWLEDGE_RECENT_DAYS)
+    alias, per_file, last, people = {}, {}, {}, {}
+    for _, an, ae, ad, entries in commits:
+        cid = cid_of(an, ae)
+        if cid is None:
+            continue
+        dt = datetime.fromisoformat(ad).astimezone(timezone.utc)
+        who = people.setdefault(cid, [0, dt])
+        who[0] += 1
+        who[1] = max(who[1], dt)
+        bulk = len(entries) > BULK_FILES
+        for a, d, old, new in entries:
+            cur = alias.get(new, new)
+            if old is not None:
+                alias[old] = cur
+            if bulk or cur not in wanted:
+                continue
+            t = per_file.setdefault(cur, {}).setdefault(cid, [0, 0, 0])
+            t[0] += 1
+            t[1] += dt >= recent_from
+            t[2] += a - d
+            if cur not in last or dt > last[cur]:
+                last[cur] = dt
+    return per_file, people, last
+
+
+def blend(L, C, R):
+    """Familiarity per person from lines, commits and recent commits. A component whose total is zero is dropped and the weights renormalised."""
+    parts = [(v, w) for v, w in zip((L, C, R), KNOWLEDGE_BLEND) if sum(v)]
+    tw = sum(w for _, w in parts)
+    return [sum(w * v[i] / sum(v) for v, w in parts) / tw if tw else 0 for i in range(len(L))]
+
+
+def short_names(names):
+    """First names, made longer only where two people would share one."""
+    first = [n.split()[0] if n.split() else n for n in names]
+    out = []
+    for n, f in zip(names, first):
+        if first.count(f) > 1 and len(n.split()) > 1:
+            f = f"{f} {n.split()[-1][0]}."
+        out.append(f)
+    return out
+
+
+def fit_rows(rows, cap):
+    """The files that fit under `cap` bytes of JSON, dropping the smallest and least changed first. Returns (rows, number dropped)."""
+    size = lambda rs: len(json.dumps(rs, separators=(",", ":")))
+    if size(rows) <= cap:
+        return rows, 0
+    rank = sorted(range(len(rows)), key=lambda i: -(rows[i][1] + 20 * sum(t[2] for t in rows[i][3])))
+    lo, hi = 0, len(rank)
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if size([rows[i] for i in sorted(rank[:mid])]) <= cap:
+            lo = mid
+        else:
+            hi = mid - 1
+    return [rows[i] for i in sorted(rank[:lo])], len(rows) - lo
+
+
+def knowledge_scan(repo_path, sha, as_of, files, canon, display, ctype):
+    """The git-history half of the knowledge map. It needs no blame, so profile() runs it while the blame is still going."""
+    paths = [f["path"] for f in files if f["lines"]]
+    bad = attribute_excluded(repo_path, sha, paths)
+    kept = [f for f in files if f["lines"] and f["path"] not in bad]
+    if not kept:
+        return None
+    def cid_of(n, e):
+        cid = canon.get(ident_id(n, e)) or ident_id(n, e)
+        return None if ctype.get(cid, ident_type(display.get(cid, n), cid)) in KNOWLEDGE_SKIP else cid
+    per_file, people, last = credit_history(history_commits(repo_path, sha), {f["path"] for f in kept}, cid_of, as_of)
+    return {"kept": kept, "bad": bad, "per_file": per_file, "people": people, "last": last}
+
+
+def knowledge_map(scan, blamed, sha, as_of, display, ctype):
+    """Who knows which files: surviving lines (the blame already run for ownership), commits, and commits in the year before HEAD's date.
+    Files whose blame did not finish get their line shares estimated from lines added minus deleted. People are capped at KNOWLEDGE_PEOPLE; the rest become "Others"."""
+    if not scan:
+        return None
+    kept, bad, per_file, people, last = scan["kept"], scan["bad"], scan["per_file"], scan["people"], scan["last"]
+    kind = lambda cid: ctype.get(cid, ident_type(display.get(cid, cid), cid))
+    lines, loc, approx = {}, {}, 0
+    for f in kept:
+        p = f["path"]
+        if p in blamed:
+            lines[p] = {c: n for c, n in blamed[p].items() if kind(c) not in KNOWLEDGE_SKIP}
+            loc[p] = sum(blamed[p].values())
+        else:
+            net = {c: max(0, t[2]) for c, t in per_file.get(p, {}).items()}
+            tot = sum(net.values())
+            lines[p] = {c: round(f["lines"] * n / tot) for c, n in net.items() if n} if tot else {}
+            loc[p] = f["lines"]
+            approx += 1
+    tot = defaultdict(lambda: [0, 0, 0])
+    for f in kept:
+        p = f["path"]
+        for c, n in lines[p].items():
+            tot[c][0] += n
+        for c, t in per_file.get(p, {}).items():
+            tot[c][1] += t[0]
+            tot[c][2] += t[1]
+    ids = sorted(set(tot) | set(people))
+    score = dict(zip(ids, blend([tot[c][0] for c in ids], [tot[c][1] for c in ids], [tot[c][2] for c in ids])))
+    ranked = sorted(ids, key=lambda c: (-score[c], -(people.get(c) or [0])[0], c))
+    top, rest = ranked[:KNOWLEDGE_PEOPLE], ranked[KNOWLEDGE_PEOPLE:]
+    index = {c: i for i, c in enumerate(top)}
+    index.update({c: len(top) for c in rest})
+    gone_before = as_of - timedelta(days=round(KNOWLEDGE_DEPARTED_MONTHS * 30.4375))
+    names = [display.get(c, c) for c in top]
+    contributors = []
+    for c, short in zip(top, short_names(names)):
+        n, latest = people.get(c) or (0, None)
+        contributors.append({"id": c, "name": display.get(c, c), "short": short, "commits": n, "last": latest.strftime("%Y-%m") if latest else "",
+                             "departed": bool(latest and latest < gone_before), "type": kind(c)})
+    rows = []
+    for f in sorted(kept, key=lambda f: f["path"]):
+        p = f["path"]
+        cell = defaultdict(lambda: [0, 0, 0])
+        for c, n in lines[p].items():
+            cell[index[c]][0] += n
+        for c, t in per_file.get(p, {}).items():
+            cell[index[c]][1] += t[0]
+            cell[index[c]][2] += t[1]
+        rows.append([p, loc[p], last[p].strftime("%Y-%m") if p in last else "", [[i, *v] for i, v in sorted(cell.items()) if any(v)]])
+    rows, trimmed = fit_rows(rows, KNOWLEDGE_CAP)
+    return {"sha": sha, "date": iso_day(as_of), "departed_months": KNOWLEDGE_DEPARTED_MONTHS, "recent_days": KNOWLEDGE_RECENT_DAYS,
+            "contributors": contributors,
+            "others": {"people": len(rest), "commits": sum(people[c][0] for c in rest if c in people)} if rest else None,
+            "files": rows, "trimmed": trimmed, "approx_files": approx, "attribute_excluded": len(bad)}
 
 
 def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None):
@@ -907,7 +1112,11 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
                   "share_pct": pct(v["lines"], code_total if v["kind"] == "code" else all_total)}
                  for n, v in sorted(lang_stats.items(), key=lambda kv: -kv[1]["lines"])]
 
-    own = ownership(repo.path, sha, files, area_of, canon, display, ctype)
+    blamed = {}
+    with ThreadPoolExecutor(max_workers=1) as bg:     # the knowledge map's history pass runs alongside the blame
+        scan = bg.submit(knowledge_scan, repo.path, sha, as_of, files, canon, display, ctype)
+        own = ownership(repo.path, sha, files, area_of, canon, display, ctype, blamed)
+        knowledge = knowledge_map(scan.result(), blamed, sha, as_of, display, ctype)
 
     # ---- chunk plan
     plan_files = [f for f in files if f["bytes"] > 0]
@@ -960,6 +1169,7 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
                    "estimate": f"tokens are estimated as bytes / {BYTES_PER_TOKEN}"},
         "delta": None,
         "file_activity": file_activity,    # kept out of facts.json: dossier.py writes it to activity.json
+        "knowledge": knowledge,            # likewise written to knowledge.json
     }
     repo.close()
     return facts, {"budget": chunk_tokens, "total_tokens": total_tokens, "chunks": chunks}

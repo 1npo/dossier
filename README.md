@@ -37,6 +37,27 @@ The panel also has a row of the statement's other sources and a "Go to reference
 
 **Sharing.** The page now contains the source of every file it cites, up to 3 MB of text in total. Treat it like the repository: do not share it more widely than the code. Files that match secret patterns or are flagged by the profiler are never embedded.
 
+## Contributor knowledge map
+
+The Contributors report has a card that shows which parts of the repository each person knows best. It is a tree of directories and files with one row per path. Each row has a bar split by contributor, and the top contributor beside it. Four controls change what you see:
+
+- **Measure**: *Blend* (50% surviving lines, 30% commits, 20% commits in the last 12 months), *Lines* (surviving lines per `git blame`), *Commits*, or *Last 12 mo*. The 12 months are counted back from the pinned commit's date, so the page is the same whenever it is rebuilt.
+- **Show**: all paths, or only the paths the selected contributor has touched.
+- **Zoom**: how deep the tree is open, from *Top level* to *All files*. You can still open and close single folders.
+- **Contributor chips**: click one to see only that person's share on every row. Click it again to go back.
+
+Hover a row for the numbers. The minimap on the right shows the whole tree: click or drag it to scroll. The tree also works from the keyboard (arrow keys, Enter).
+
+How the figures are made (all in `gather.py`, under "knowledge map"):
+
+- **Lines** come from the `git blame` already run for code ownership, so they match the Contributors card. If blame runs out of time on a very large repository, the card says so, and the line shares of the remaining files are estimated from lines added minus deleted.
+- **Commits** and **recent commits** come from one `git log --no-merges -M` pass. A renamed file keeps its earlier history at its current path. Commits that touch more than 400 files (imports, reformatting) are not credited to any file.
+- **Who is shown**: identities are merged as elsewhere in the dossier (`.mailmap` is honoured by git). Bots are left out. The six people with the most familiarity get their own colour, the same colour they have in the other graphics, and everyone else is grouped as "Others".
+- **Files**: the text files tracked at the pinned commit, without vendored, generated, lock, binary and minified files, and without files that `.gitattributes` marks `linguist-generated` or `linguist-vendored`.
+- **Departed and "at risk" are inferences.** A person with no commit in the 6 months before the pinned commit (`KNOWLEDGE_DEPARTED_MONTHS`) is hatched as no longer active, and a directory is tagged "at risk" when its top contributor has left and holds 50% or more of it. The card labels both as inferred.
+
+Very large trees show only the rows near the viewport, so the page stays responsive. The per-file figures are kept in `knowledge.json` next to `facts.json`, at most 1.5 MB (`KNOWLEDGE_CAP`); beyond that the smallest, least changed files are left out and the card says how many.
+
 ## Calendars
 
 The commit calendars (on Overview and Contributors) open on days and zoom to months or to the last twelve months as month calendars. Each week is boxed. Hover a cell to see who committed that day or month, how many commits, and the lines added (green) and deleted (red), lined up in columns. Calendar data older than this version has no line counts until you run `prepare` again.
