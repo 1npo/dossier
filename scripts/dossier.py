@@ -7,7 +7,7 @@
 
   dossier.py version
   dossier.py home [DIR]
-  dossier.py prepare [REPO] [--ref REF] [--chunk-tokens N]    profile the repo, write facts and a reading plan
+  dossier.py prepare [REPO] [--ref REF] [--chunk-tokens N] [--full]   profile the repo, write facts, a reading plan and an update plan
   dossier.py render  [REPO] [--partial] [--allow-errors]      validate the reports and write the HTML
   dossier.py correct [REPO] ...                               record a user correction
   dossier.py confirm [REPO] [IDS] ...                         list open items, or confirm / answer / dispute them
@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import posixpath
 import re
 import subprocess
 import sys
@@ -25,6 +26,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import gather  # noqa: E402
+import incremental  # noqa: E402
 import render  # noqa: E402
 import resolve  # noqa: E402
 
@@ -125,15 +127,76 @@ def cmd_home(a):
     print(f"Dossier home set to {d}")
 
 
+def update_plan(top, out, state, facts, prev_version, full):
+    """Which reports an update must rewrite. Shifts the line numbers of citations the last commits did not touch."""
+    sha = facts["repo"]["sha"]
+    expected = [rid for rid, _, w in render.REPORTS if w]
+    paths = {rid: out / "reports" / f"{rid}.json" for rid in expected}
+    reports = {rid: load(p) for rid, p in paths.items() if p.exists()}
+    d, last, pending = facts["delta"], state.get("last_sha"), state.get("pending_update")
+    why_full = None
+    if full:
+        why_full = "a full rebuild was requested"
+    elif not last or not reports:
+        why_full = "there is no earlier build to update"
+    elif (prev_version or "").split(".")[:2] != VERSION.split(".")[:2]:
+        why_full = f"the skill changed from {prev_version} to {VERSION}"
+    elif d and "changed" not in d:
+        why_full = d.get("note") or "the previous commit is not an ancestor of this one"
+    elif d and d["files_changed"] > incremental.MAX_CHANGED:
+        why_full = f"{d['files_changed']} files changed"
+    if why_full:
+        state.pop("pending_update", None)
+        return {"mode": "full", "why": why_full, "stale": {rid: [why_full] for rid in expected}, "fresh": [], "read": [], "line_shifts": {}}
+
+    changed = {c["path"]: c["status"][0] for c in (d or {}).get("changed", [])}
+    corrections = {}
+    for c in state.get("corrections", []):
+        if c.get("status") != "applied":
+            corrections.setdefault(c["report"], []).append(c["id"])
+    resuming = bool(pending and pending["sha"] == sha)       # an earlier prepare for this commit was not rendered yet
+    if resuming:
+        stale = {rid: why for rid, why in pending["stale"].items()
+                 if rid not in paths or not paths[rid].exists() or paths[rid].stat().st_mtime <= pending["at"]}
+        for rid, ids in corrections.items():
+            if rid in paths:
+                stale.setdefault(rid, []).append("pending correction " + ", ".join(ids))
+        shifts = {}
+    else:
+        def hunks_of(path):
+            return incremental.parse_hunks(gather.Repo(top).git("diff", "-U0", "--no-renames", last, sha, "--", path))
+        deps_changed = bool((d or {}).get("dependencies_added") or (d or {}).get("dependencies_removed"))
+        res = incremental.plan(reports, expected, changed, hunks_of, deps_changed, corrections,
+                               (d or {}).get("commits_added", 0), allow_shift=not pending)
+        stale, shifts = res["stale"], res["shifts"]
+        for rid, moves in shifts.items():
+            save(paths[rid], incremental.apply_shifts(reports[rid], moves))
+    if stale or shifts or last != sha:
+        state["pending_update"] = {"sha": sha, "at": datetime.now().timestamp(), "stale": stale}
+    fresh = [rid for rid in expected if rid not in stale]
+    cited = {q for rid in stale if rid in reports for q in map(_cited_path, incremental.cites_in(reports[rid]))}
+    read = sorted(p for p, st in changed.items() if st != "D" and (p in cited or any(p.startswith(c + "/") for c in cited if c)
+                                                                 or posixpath.dirname(p) in {posixpath.dirname(c) for c in cited if c}))
+    return {"mode": "incremental" if stale else "render_only", "why": None, "stale": stale, "fresh": fresh, "read": read,
+            "line_shifts": {rid: len(m) for rid, m in shifts.items()}}
+
+
+def _cited_path(raw):
+    c = render.parse_cite(raw)
+    return c["path"].rstrip("/") if c["kind"] == "file" else ""
+
+
 def cmd_prepare(a):
     top = toplevel(a.repo)
     out, name, root = out_dir(top)
     state = load_state(out)
+    prev_version = state.get("skill_version")
     state["repo"] = {"name": name, "root_commit": root}
     facts, chunks = gather.profile(top, a.ref, a.chunk_tokens, state.get("contributor_types"))
     sha = facts["repo"]["sha"]
     if state.get("last_sha") and state["last_sha"] != sha:
         facts["delta"] = gather.delta(top, state["last_sha"], sha, state.get("snapshot"), facts)
+    plan = update_plan(top, out, state, facts, prev_version, a.full)
     cached = 0
     for c in chunks["chunks"]:
         c["cached"] = (out / "notes" / f"{c['fingerprint']}.json").exists()
@@ -154,6 +217,7 @@ def cmd_prepare(a):
         "previous_build": ({"sha": state["last_sha"], "same_commit": state["last_sha"] == sha,
                             "commits_added": (d or {}).get("commits_added"), "files_changed": (d or {}).get("files_changed"),
                             "note": (d or {}).get("note")} if state.get("last_sha") else None),
+        "update_plan": plan,
         "existing_reports": existing, "pending_corrections": pending,
         "user_decisions": [{"id": i, "decision": r["action"], "report": r.get("report"), "statement": r.get("statement"), "note": r.get("text")} for i, r in sorted(state["resolutions"].items())], "warnings": facts["repo"]["warnings"],
         "files": {"facts": str(out / "facts.json"), "chunks": str(out / "chunks.json"), "notes_dir": str(out / "notes"),
@@ -223,6 +287,7 @@ def cmd_render(a):
     name_out = f"dossier-{name}.html"
     (out / name_out).write_text(page, encoding="utf-8")
     state.update(history=history, last_sha=sha, snapshot=gather.snapshot(facts))
+    state.pop("pending_update", None)
     for c in state.get("corrections", []):
         if c.get("status") != "applied" and a.apply_corrections:
             c["status"] = "applied"
@@ -350,6 +415,7 @@ def main():
     p.add_argument("repo", nargs="?")
     p.add_argument("--ref", default="HEAD")
     p.add_argument("--chunk-tokens", type=int, default=400_000)
+    p.add_argument("--full", action="store_true", help="rebuild every report instead of only the stale ones")
     p.set_defaults(fn=cmd_prepare)
     p = sub.add_parser("render")
     p.add_argument("repo", nargs="?")
