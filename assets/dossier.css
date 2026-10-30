@@ -373,7 +373,7 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 
 .km-note { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem 1.25rem; margin-top: .75rem; font-size: .8125rem; color: var(--muted-foreground); }
 .km-hz { display: inline-block; width: 22px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: .4rem; background-color: var(--l7); }
-.km-counted, .km-infer { margin: .6rem 0 0; } .km-infer .badge { margin-right: .35rem; }
+.km-infer { margin: 1.5rem 0 0; } .km-infer .badge { margin-right: .35rem; }
 #cite-tip .tp-m { opacity: .8; margin-bottom: .35rem; font-size: .75rem; }
 
 @container km (max-width: 760px) {

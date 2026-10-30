@@ -578,6 +578,30 @@
       if (r[0] < win.a || r[1] > win.b) drawRows();
     }
 
+    // with more rows than pixels, rows are grouped into one-pixel bands and each band draws the average of its rows, instead of the last row painting over the others
+    function drawBands(ctx, cs, col, rp, W) {
+      var f = state.focus, bands = [], b, i, x, w, frac;
+      VIS.forEach(function (r, idx) {
+        var y = Math.floor(idx * rp), ind = 4 + (r.depth - 1) * 4, avail = W - ind - 4, sh = shares(r, state.metric);
+        if (r.type === "file") avail *= 0.35 + 0.65 * Math.min(1, r.loc / 300);
+        b = bands[y] || (bands[y] = { n: 0, ind: 0, avail: 0, seg: zeros() });
+        b.n++; b.ind += ind; b.avail += avail;
+        for (i = 0; i < K; i++) b.seg[i] += avail * sh[i];
+      });
+      bands.forEach(function (b, y) {
+        var ind = b.ind / b.n, avail = b.avail / b.n;
+        if (f === null) {
+          x = ind;
+          for (i = 0; i < K; i++) { frac = b.seg[i] / b.avail; if (frac < 0.02) continue; w = avail * frac; ctx.fillStyle = col(i); ctx.fillRect(x, y, w, 1); x += w; }
+        } else {
+          frac = b.seg[f] / b.avail;
+          if (frac < 0.02) { ctx.globalAlpha = 0.12; ctx.fillStyle = cs.getPropertyValue("--muted-foreground").trim(); }
+          else { ctx.globalAlpha = 0.25 + 0.75 * Math.min(1, frac / 0.7); ctx.fillStyle = col(f); }
+          ctx.fillRect(ind, y, avail, 1); ctx.globalAlpha = 1;
+        }
+      });
+    }
+
     // minimap: one bar per visible row, stacked by person, indented by depth; the box is the part of the tree in view
     function drawMini() {
       var W = cv.clientWidth, H = cv.clientHeight, dpr = window.devicePixelRatio || 1, ctx, cs, n, rp, gap, f = state.focus, mapped, ratio, vy, vh;
@@ -587,7 +611,8 @@
       cs = getComputedStyle(root);
       var col = function (i) { return cs.getPropertyValue("--l" + people[i].cls).trim(); };
       n = VIS.length || 1; rp = Math.min(6, H / n); gap = rp >= 3 ? 1 : 0;
-      VIS.forEach(function (r, idx) {
+      if (rp < 1) drawBands(ctx, cs, col, rp, W);
+      else VIS.forEach(function (r, idx) {
         var y = idx * rp, h = Math.max(1, rp - gap), ind = 4 + (r.depth - 1) * 4, avail = W - ind - 4, sh = shares(r, state.metric), x = ind, i, s;
         if (r.type === "file") avail *= 0.35 + 0.65 * Math.min(1, r.loc / 300);
         if (f === null) {
