@@ -20,7 +20,7 @@ Every claim is marked confirmed, inferred, or unknown, and cites the files it ca
 
 ## Reading the code behind a citation
 
-Hover a source marker `[n]` to see what it points to. Click it to open the cited code in a panel on the right, with the cited lines highlighted. The code is embedded in the page, so the panel works offline and without the repository.
+Hover a source marker `[n]` to see what it points to. Click it to open the cited code in a panel on the right, with the cited lines marked and the code syntax-highlighted (by Pygments, at build time; the colors meet a 4.5:1 contrast ratio in both themes). The code is embedded in the page, so the panel works offline and without the repository.
 
 | Key | Action |
 |---|---|
@@ -31,11 +31,11 @@ Hover a source marker `[n]` to see what it points to. Click it to open the cited
 
 The panel also has a row of the statement's other sources and a "Go to reference" button. Citations of directories, commits and profiler facts, and of files that are binary, minified or may hold secrets, do not open the panel; the click jumps to the reference list as before. A file longer than 1,500 lines is embedded as the 1,500-line window that holds the most cited ranges, and the panel says which lines it shows.
 
-**Sharing.** The page now contains the source of every file it cites, up to 4 MB in total. Treat it like the repository: do not share it more widely than the code. Files that match secret patterns or are flagged by the profiler are never embedded.
+**Sharing.** The page now contains the source of every file it cites, up to 3 MB of text in total. Treat it like the repository: do not share it more widely than the code. Files that match secret patterns or are flagged by the profiler are never embedded.
 
 ## Install
 
-Requires Claude Code and [uv](https://docs.astral.sh/uv/). The page check in `build` uses Playwright, which `uv` installs on demand; the first run also needs `uv run --with playwright python -m playwright install chromium`.
+Requires Claude Code and [uv](https://docs.astral.sh/uv/), which installs Pygments for `dossier.py` on demand. Without Pygments the code is shown without colors, and `build` prints a warning. The page check in `build` uses Playwright, which `uv` installs on demand; the first run also needs `uv run --with playwright python -m playwright install chromium`.
 
 ```sh
 git clone git@github-1npo:1npo/codebase-dossier.git
@@ -53,5 +53,5 @@ No license for the skill itself yet. Bundled third-party libraries in `dossier/v
 Run the unit tests from this directory:
 
 ```sh
-uv run --with pytest python -m pytest tests
+uv run --with pytest --with pygments python -m pytest tests
 ```

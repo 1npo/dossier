@@ -77,6 +77,8 @@ class Cites:
         self._src = {}            # path -> (lines or None, reason): what the viewer may embed
         self.ranges = {}          # path -> cited (a, b) ranges, or None for no line numbers; recorded while pages are built
         self.windows = None       # path -> (first, last) lines embedded; None until the pages have been built once
+        self.opens = {}           # citation key -> whether its marker opens the viewer, as of the latest page build
+        self.dropped = []         # files left out of the viewer to keep the page small
         self._secret = None
 
     def tree(self):
@@ -169,6 +171,11 @@ class Cites:
 
     def view_attrs(self, c):
         """Attributes that make a citation open the viewer, or "" when it does not. While the first pass runs, it records the range."""
+        attrs = self.view_markup(c)
+        self.opens[c["key"]] = bool(attrs)
+        return attrs
+
+    def view_markup(self, c):
         if not self.viewable(c)[0]:
             return ""
         r = (c["a"], c["b"]) if c["a"] else None
@@ -179,10 +186,16 @@ class Cites:
         a, b = viewer.clip(*r) if r else ("", "")
         return f' data-view="{E(c["path"])}" data-a="{a}" data-b="{b}"'
 
+    def view_counts(self):
+        """How many distinct citations open the viewer and how many do not, and how many files were left out for size."""
+        n = sum(self.opens.values())
+        return {"viewable": n, "not_viewable": len(self.opens) - n, "files_dropped_for_size": len(self.dropped)}
+
     def plan_view(self):
         """Pick the windows from the ranges the first pass recorded. Returns (dropped paths, whether any marker must be redrawn)."""
         files = {p: {"lines": self._src[p][0], "ranges": list(rs)} for p, rs in self.ranges.items()}
         self.windows, dropped = viewer.plan(files)
+        self.dropped = dropped
         stale = bool(dropped) or any(not viewer.covers(self.windows[p], r) for p, rs in self.ranges.items() if p in self.windows for r in rs)
         return dropped, stale
 

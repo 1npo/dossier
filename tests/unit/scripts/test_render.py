@@ -142,6 +142,15 @@ class TestNeverEmbedded:
 
         assert list(cites.windows) == ["src/app.py"]
 
+    def test_every_excluded_kind_is_counted_as_not_viewable(self, make_cites):
+        cites = self.build(make_cites)
+
+        cites.plan_view()
+        refs = render.Refs("overview", cites)
+        refs.mark([".env:1", "id_rsa", "logo.bin", "dist/app.min.js", "src/config.py:1", "src", "src/app.py:1"])
+
+        assert cites.view_counts() == {"viewable": 1, "not_viewable": 6, "files_dropped_for_size": 0}
+
     def test_planted_contents_do_not_reach_the_embedded_data(self, make_cites):
         cites = self.build(make_cites)
 
@@ -263,4 +272,4 @@ class TestPlanView:
 
         text = viewer.embed({p: {"lines": cites.source(p)[0]} for p in cites.windows}, cites.windows)
 
-        assert json.loads(text)["a.html"]["lines"] == ["<script>1</script>", "<!-- x -->"]
+        assert json.loads(text)["a.html"]["lines"] == ["&lt;<i class=nt>script</i>&gt;<i class=m>1</i>&lt;/<i class=nt>script</i>&gt;", "<i class=c>&lt;!-- x --&gt;</i>"]

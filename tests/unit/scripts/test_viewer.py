@@ -1,5 +1,7 @@
 import json
 
+from pygments.token import Comment, Generic, Keyword, Name, Number, Operator, String
+
 import viewer
 
 
@@ -148,6 +150,72 @@ class TestPlan:
         assert len(dropped) == 3
 
 
+class TestTokenClass:
+    def test_keyword_gets_its_short_class(self):
+        assert viewer.token_class(Keyword.Declaration) == "k"
+
+    def test_string_subtype_gets_the_string_class(self):
+        assert viewer.token_class(String.Double) == "s"
+
+    def test_plain_name_has_no_class(self):
+        assert viewer.token_class(Name) == ""
+
+    def test_every_class_is_one_the_stylesheet_colors(self):
+        tokens = [Comment.Single, Keyword, String, Number.Integer, Name.Function, Name.Builtin, Name.Tag,
+                  Name.Attribute, Name.Decorator, Name.Constant, Operator.Word, Generic.Deleted, Generic.Inserted, Generic.Heading]
+
+        classes = {viewer.token_class(t) for t in tokens}
+
+        assert classes <= set(viewer.TOKEN_CLASSES)
+
+
+class TestHighlight:
+    def test_known_type_wraps_tokens_in_classed_tags(self):
+        result = viewer.highlight("a.py", ["def f():", "    return 1"])
+
+        assert result[0].startswith("<i class=k>def</i> <i class=nf>f</i>")
+        assert "<i class=m>1</i>" in result[1]
+
+    def test_one_entry_per_line(self):
+        lines = ["x = 1", "", "y = 2"]
+
+        result = viewer.highlight("a.py", lines)
+
+        assert len(result) == 3
+        assert result[1] == ""
+
+    def test_multiline_string_keeps_its_class_on_every_line(self):
+        result = viewer.highlight("a.py", ['x = """one', "two", 'three"""'])
+
+        assert result[1] == "<i class=s>two</i>"
+
+    def test_window_starting_inside_a_string_is_still_colored_as_a_string(self):
+        lines = ['x = """one', "two", 'three"""', "y = 1"]
+
+        result = viewer.highlight("a.py", lines)[1:]
+
+        assert result[0] == "<i class=s>two</i>"
+
+    def test_markup_in_code_is_escaped(self):
+        result = viewer.highlight("a.html", ["<script>alert(1)</script>"])
+
+        assert "<script>" not in result[0]
+        assert "&lt;" in result[0]
+
+    def test_unknown_type_is_escaped_plain_text(self):
+        assert viewer.highlight("notes.zzz", ["a < b"]) == ["a &lt; b"]
+
+    def test_without_pygments_lines_are_escaped_and_one_warning_is_printed(self, monkeypatch, capsys):
+        monkeypatch.setattr(viewer, "lex", None)
+        monkeypatch.setattr(viewer, "_warned", False)
+
+        first = viewer.highlight("a.py", ["x < 1"])
+        viewer.highlight("a.py", ["y"])
+
+        assert first == ["x &lt; 1"]
+        assert capsys.readouterr().err.count("Pygments is not installed") == 1
+
+
 class TestEmbed:
     def test_script_end_tag_in_code_cannot_close_the_block(self):
         files = {"a.html": {"lines": ["<script>x</script>", "<!-- note -->"]}}
@@ -157,19 +225,19 @@ class TestEmbed:
         assert "</script" not in text
         assert "<!--" not in text
 
-    def test_escaped_text_round_trips(self):
+    def test_text_round_trips_as_escaped_html(self):
         lines = ["<script>x</script>", "<!-- note -->", 'quote " and \\ slash', "é"]
-        files = {"a.html": {"lines": lines}}
+        files = {"a.txt": {"lines": lines}}
 
-        data = json.loads(viewer.embed(files, {"a.html": (1, 4)}))
+        data = json.loads(viewer.embed(files, {"a.txt": (1, 4)}))
 
-        assert data["a.html"] == {"total": 4, "start": 1, "lines": lines}
+        assert data["a.txt"] == {"total": 4, "start": 1, "lines": ["&lt;script&gt;x&lt;/script&gt;", "&lt;!-- note --&gt;", 'quote " and \\ slash', "é"]}
 
     def test_window_records_its_first_line_and_the_file_total(self):
-        files = {"a.py": {"lines": numbered(10)}}
+        files = {"a.txt": {"lines": numbered(10)}}
 
-        data = json.loads(viewer.embed(files, {"a.py": (4, 6)}))
+        data = json.loads(viewer.embed(files, {"a.txt": (4, 6)}))
 
-        assert data["a.py"]["total"] == 10
-        assert data["a.py"]["start"] == 4
-        assert data["a.py"]["lines"] == numbered(10)[3:6]
+        assert data["a.txt"]["total"] == 10
+        assert data["a.txt"]["start"] == 4
+        assert data["a.txt"]["lines"] == numbered(10)[3:6]

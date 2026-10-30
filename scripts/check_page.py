@@ -13,7 +13,8 @@ Checks, in both the light and the dark theme:
     actually painted behind it (edge labels, node boxes, subgraph titles, sequence-diagram messages);
   - every table column header is sortable;
   - a citation tooltip appears at once on hover;
-  - the code viewer: a click on a citation opens the panel with the cited lines marked, the keys and buttons
+  - the code viewer: every highlight color has a contrast ratio of at least 4.5:1 on the panel and on a
+    cited line; a click on a citation opens the panel with the cited lines marked, the keys and buttons
     (]  [  p  v  Esc, other sources, Go to reference) work, and citations of directories, commits and
     secret-looking files do not open it.
 
@@ -28,6 +29,8 @@ import argparse
 import json
 import sys
 from pathlib import Path
+
+from viewer import TOKEN_CLASSES
 
 from playwright.sync_api import sync_playwright
 
@@ -105,6 +108,33 @@ WIDTH_JS = """() => { const p = document.getElementById('code-panel'), s = docum
 PIN_JS = "() => document.getElementById('cp-pin').getAttribute('aria-pressed') === 'true'"
 
 
+TOKEN_JS = """(classes) => {
+  const cv = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+  const rgba = c => { cv.clearRect(0, 0, 1, 1); cv.fillStyle = '#000'; cv.fillStyle = c; cv.fillRect(0, 0, 1, 1); return Array.from(cv.getImageData(0, 0, 1, 1).data); };
+  const lum = c => { const f = v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }; return .2126 * f(c[0]) + .7152 * f(c[1]) + .0722 * f(c[2]); };
+  const panel = document.getElementById('code-panel'), body = document.getElementById('cp-body'), out = [];
+  const paper = rgba(getComputedStyle(panel).backgroundColor);
+  for (const hit of [false, true]) {
+    const row = document.createElement('div'); row.className = 'cl' + (hit ? ' hit' : ''); body.appendChild(row);
+    let bg = paper;
+    if (hit) { const h = rgba(getComputedStyle(row).backgroundColor); bg = paper.map((v, i) => i < 3 ? Math.round((h[i] * h[3] + v * (255 - h[3])) / 255) : 255); }
+    for (const k of classes) {
+      const el = document.createElement('i'); el.className = k; el.textContent = 'x'; row.appendChild(el);
+      const fg = rgba(getComputedStyle(el).color), a = lum(fg), b = lum(bg);
+      out.push({ cls: k, hit, ratio: Math.round((Math.max(a, b) + .05) / (Math.min(a, b) + .05) * 100) / 100 });
+    }
+    row.remove();
+  }
+  return out;
+}"""
+
+
+def check_tokens(page, scheme):
+    """Every highlight color against the panel background, and against a cited line's."""
+    return [f"[{scheme}] code viewer: token class '{r['cls']}' has contrast {r['ratio']}:1{' on a cited line' if r['hit'] else ''}"
+            for r in page.evaluate(TOKEN_JS, list(TOKEN_CLASSES)) if r["ratio"] < MIN_CONTRAST]
+
+
 def check_viewer(page, scheme, shots):
     """Drive the code viewer in the open page. Returns the problems it found."""
     out = []
@@ -137,6 +167,7 @@ def check_viewer(page, scheme, shots):
         return out + [f"[{scheme}] code viewer: a click on a citation did not open the panel"]
     if not page.evaluate("() => document.querySelectorAll('#cp-body .cl.hit').length") and a.get_attribute("data-a"):
         bad("no line is marked as cited")
+    out += check_tokens(page, scheme)
     got, want = page.evaluate(WIDTH_JS)
     if abs(got - want) > 1.5:
         bad(f"the panel is {got:.0f}px wide, expected {want:.0f}px (90 characters)")

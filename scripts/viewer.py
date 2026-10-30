@@ -6,14 +6,26 @@ page small, do not open the viewer.
 """
 from __future__ import annotations
 
+import html
 import json
+import sys
 from bisect import bisect_right
 from itertools import accumulate
 
+try:
+    from pygments import lex
+    from pygments.lexers import get_lexer_for_filename
+    from pygments.token import Comment, Generic, Keyword, Name, Number, Operator, String
+    from pygments.util import ClassNotFound
+except ImportError:
+    lex = None
+
 MAX_LINES = 1500
 MAX_BYTES = 150_000
-BUDGET = 4_000_000       # bytes of embedded text per page
+BUDGET = 3_000_000       # bytes of embedded text per page, counted before highlighting (markup adds about 50%)
 MINIFIED_LINE = 1000     # a line this long means a minified or generated file
+TOKEN_CLASSES = ("c", "k", "s", "m", "nf", "nb", "nt", "na", "no", "gd", "gi", "gh")    # the span classes dossier.css colors
+_warned = False
 
 
 def split_lines(data):
@@ -82,8 +94,51 @@ def plan(files, budget=BUDGET):
     return windows, dropped
 
 
+def token_class(tt):
+    """The short class a token is drawn with, or "" for plain text. Few classes keep the markup small."""
+    for cls, family in (("c", Comment), ("k", Keyword), ("s", String), ("m", Number), ("nf", Name.Function), ("nf", Name.Class),
+                        ("nb", Name.Builtin), ("nt", Name.Tag), ("na", Name.Attribute), ("nt", Name.Decorator), ("no", Name.Constant),
+                        ("k", Operator.Word), ("gd", Generic.Deleted), ("gi", Generic.Inserted), ("gh", Generic.Heading)):
+        if tt in family:
+            return cls
+    return ""
+
+
+def highlight(path, lines):
+    """One HTML string per line: escaped text, with <i class=k> and the like around tokens.
+    The whole file is lexed, so a window that starts mid-file still opens in the right state.
+    Without Pygments, or for a file type it does not know, the lines are only escaped."""
+    global _warned
+    plain = [html.escape(l, quote=False) for l in lines]
+    if lex is None:
+        if not _warned:
+            print("warning: Pygments is not installed, so code in the viewer is not highlighted", file=sys.stderr)
+            _warned = True
+        return plain
+    try:
+        lexer = get_lexer_for_filename(path, stripnl=False)
+    except ClassNotFound:
+        return plain
+    out, cur = [], []    # cur: the [class, text] runs of the line being built; neighbors of one class become one span
+    def flush():
+        out.append("".join(f'<i class={c}>{html.escape(t, quote=False)}</i>' if c else html.escape(t, quote=False) for c, t in cur))
+        cur.clear()
+    for tt, text in lex("\n".join(lines) + "\n", lexer):
+        cls = token_class(tt) if text.strip() else ""
+        for i, part in enumerate(text.split("\n")):
+            if i:
+                flush()
+            if part:
+                if cur and cur[-1][0] == cls:
+                    cur[-1][1] += part
+                else:
+                    cur.append([cls, part])
+    flush()
+    return out[:len(lines)]
+
+
 def embed(files, windows):
-    """The JSON for the page's code-data block: per path, the file's line count, the window's first line and its lines."""
-    data = {p: {"total": len(files[p]["lines"]), "start": w[0], "lines": files[p]["lines"][w[0] - 1:w[1]]} for p, w in sorted(windows.items())}
+    """The JSON for the page's code-data block: per path, the file's line count, the window's first line and its lines as HTML."""
+    data = {p: {"total": len(files[p]["lines"]), "start": w[0], "lines": highlight(p, files[p]["lines"])[w[0] - 1:w[1]]} for p, w in sorted(windows.items())}
     text = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
     return text.replace("</", "<\\/").replace("<!--", "<\\u0021--")

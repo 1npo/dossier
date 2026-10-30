@@ -134,4 +134,23 @@ If the session runs long, cut the build message, then the large-repository measu
 
 ### Results
 
-(The session fills this in.)
+Done on branch `feat/code-viewer`. Not done: the `VERSION` bump, the merge and the release (see the last bullet). Nothing from the cut line was cut.
+
+- **Pygments.** `scripts/dossier.py` now has `uv run` script metadata (`dependencies = ["pygments"]`). `viewer.highlight` lexes each whole file once (lexer from the file name; an unknown type is escaped plain text), then the window is sliced out of the result, so a window that starts mid-file is not mis-tokenized. Tokens map to 12 short classes (`TOKEN_CLASSES`: `c k s m nf nb nt na no gd gi gh`), written as `<i class=k>`, with neighbors of one class merged. Without Pygments the lines are only escaped and one warning is printed.
+- **Embedded lines are now HTML**, escaped, and `dossier.js` inserts them as they are. The JSON escaping for `</` and `<!--` still applies on top.
+- **Theme.** `--tk-*` variables in `dossier.css`, one set for light and one for dark. `check_page.py` measures every class against the panel background and against a cited line's background (the translucent highlight composited over it), in both themes. Lowest ratios: 5.32:1 light, 4.52:1 dark.
+- **Size** (embedded JSON, plain escaped text in Phase 1 vs highlighted now; whole page after):
+
+  | Repo | Files | Phase 1 JSON | Highlighted JSON | Page |
+  |---|---|---|---|---|
+  | `cmg-util` (small) | 20 | 39 KB | 61 KB | 6.1 MB |
+  | `encamp` | 92 | 488 KB | 749 KB | 7.4 MB |
+  | `cannalerts` (largest) | 99 | 1,175 KB | 1,782 KB | 8.4 MB |
+
+  Highlighting adds about 50%. Mermaid and the CSS (about 5.9 MB) dominate every page. **Decision:** keep the markup in the page (no browser-side highlighting, no compression), keep the 1,500-line and 150 KB window caps, and lower the per-page budget from 4 MB to 3 MB of plain text, which is about 4.5 MB highlighted and 2.5 times the largest real dossier. The budget is counted before highlighting.
+- **Rendering.** The largest embedded file (1,500 lines of JSON) builds and scrolls in the panel in about 135 ms, so no row virtualization was built.
+- **Guards audit.** `TestNeverEmbedded` covers a `.env`, a key file, a binary, a minified bundle, a directory and a source file listed in the facts, and now also counts them as not viewable. A real run of `prepare` on a throwaway repo with a fake `ghp_` token in `config.py` listed the file in `secret_signals`, and `Cites.source` refused it. The profiler only flags known token formats, so an ordinary source file with some other secret is not excluded.
+- **Build message.** `render` prints `code_viewer`: `viewable`, `not_viewable` (distinct citations) and `files_dropped_for_size`. For `cannalerts`: 559, 64, 0.
+- **Tests.** 66 pass (`uv run --with pytest --with pygments python -m pytest tests`; without `--with pygments` the highlight tests fail). The Phase 1 tests for escaping now expect HTML-escaped lines.
+- **Page check.** `check_page.py` reports `"problems": 0` on `cannalerts`, `encamp` and `cmg-util`. Light and dark screenshots of the panel on `cannalerts` were looked at.
+- **Release.** The repo has no release workflow, and `VERSION` is a plain file with no bump tool in `py-projects`, so per `git-release` the bump (0.2.0 to 0.3.0, a minor bump) is left for the owner to confirm.

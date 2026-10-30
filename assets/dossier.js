@@ -244,7 +244,7 @@
   function showCode(li) {
     var path = li.dataset.view, f = code[path], a = +li.dataset.a || 0, b = +li.dataset.b || a;
     if (codeBody.dataset.path !== path) {
-      codeBody.innerHTML = f.lines.map(function (t, i) { return '<div class="cl" data-n="' + (f.start + i) + '">' + esc(t) + "</div>"; }).join("");
+      codeBody.innerHTML = f.lines.map(function (t, i) { return '<div class="cl" data-n="' + (f.start + i) + '">' + t + "</div>"; }).join("");
       codeBody.dataset.path = path;
     }
     var rows = codeBody.children, first = null;

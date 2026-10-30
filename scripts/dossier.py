@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["pygments"]
+# ///
 """dossier - command line behind the /dossier skill.
 
   dossier.py version
@@ -227,6 +231,7 @@ def cmd_render(a):
     print(json.dumps({"html": str(out / name_out), "size_mb": round(len(page.encode()) / 1e6, 1), "sha": sha,
                       "reports_rendered": len(reports), "citations_checked": len(cites.status),
                       "unresolved_citations": sum(1 for s in cites.status.values() if not s["ok"]),
+                      "code_viewer": cites.view_counts(),
                       "tracker": counts, "resolved_by_user": len(gaps) - sum(1 for g in gaps if render.is_open(g)), "warnings": len(warnings)}, indent=1))
 
 
