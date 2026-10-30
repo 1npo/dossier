@@ -144,7 +144,7 @@
   doc.addEventListener("keydown", function (e) {
     var t = e.target, typing = t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable);
     if ((e.key === "/" && !typing && !e.ctrlKey && !e.metaKey && !e.altKey) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k")) {
-      e.preventDefault(); var sb = $(".sidebar"); if (sb && sb.open) sb.open(); input.focus(); input.select();
+      e.preventDefault(); var sb = $(".sidebar"); if (sb && sb.open) sb.open(); setRail(false); input.focus(); input.select();
     }
   });
   var hint = $("#search-hint");
@@ -343,6 +343,32 @@
     theme = theme === "dark" ? "light" : "dark";
     try { localStorage.setItem("dossier-theme", theme); } catch (e) {}
     applyTheme(); drawIn($(".report:not([hidden])"));
+  });
+  // ---- sidebar: collapse to a rail of icons on wide screens
+  var railBtn = $("#rail-toggle");
+  function setRail(on) {
+    root.classList.toggle("rail", on);
+    railBtn.setAttribute("aria-expanded", String(!on));
+    var label = on ? "Expand the sidebar" : "Collapse the sidebar";
+    railBtn.title = label; railBtn.setAttribute("aria-label", label);
+    try { localStorage.setItem("dossier-rail", on ? "1" : "0"); } catch (e) {}
+  }
+  var railOn = false; try { railOn = localStorage.getItem("dossier-rail") === "1"; } catch (e) {}
+  setRail(railOn);
+  railBtn.addEventListener("click", function () { setRail(!root.classList.contains("rail")); });
+  $("#rail-search").addEventListener("click", function () { setRail(false); input.focus(); input.select(); });
+  $("#rail-theme").addEventListener("click", function () { $("#theme-toggle").click(); });
+
+  // ---- calendar zoom
+  $$("[data-zoom-root]").forEach(function (box) {
+    var lv = $$("[data-zoom-level]", box), name = $(".zoom-name", box), names = name.dataset.zoomNames.split("|"), at = 0;
+    var out = $('[data-zoom="-1"]', box), inn = $('[data-zoom="1"]', box);
+    function set(n) {
+      at = Math.max(0, Math.min(lv.length - 1, n));
+      lv.forEach(function (el, i) { el.hidden = i !== at; });
+      name.textContent = names[at]; out.disabled = at === 0; inn.disabled = at === lv.length - 1;
+    }
+    out.addEventListener("click", function () { set(at - 1); }); inn.addEventListener("click", function () { set(at + 1); });
   });
   $("#menu-toggle").addEventListener("click", function () { var sb = $(".sidebar"); if (sb && sb.toggle) sb.toggle(); });
 

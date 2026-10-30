@@ -188,7 +188,6 @@ details.deps { margin: .5rem 0; } details.deps summary { cursor: pointer; overfl
 
 /* who wrote the code */
 .own-other { background: var(--l8); }
-.own-bar { display: flex; height: 1.6rem; border-radius: var(--radius); overflow: hidden; gap: 2px; background: var(--muted); } .own-bar i { display: block; height: 100%; min-width: 2px; }
 .own-dot { display: inline-block; width: .65rem; height: .65rem; border-radius: 50%; margin-right: .5rem; vertical-align: baseline; }
 .meter { display: inline-block; width: 7rem; height: .6rem; background: var(--muted); border-radius: 99px; overflow: hidden; vertical-align: middle; } .meter i { display: block; height: 100%; }
 /* diagrams: edge labels sit on a light chip in both themes, so dark text is always legible */
@@ -225,20 +224,8 @@ details.deps { margin: .5rem 0; } details.deps summary { cursor: pointer; overfl
 .tbl-bar .tbl-filter { margin-bottom: 0; }
 
 /* contents list under the executive summary */
-.toc { columns: 2 18rem; column-gap: 2rem; margin: 0 !important; padding-left: 1.6rem !important; }
-.toc li { break-inside: avoid; margin: .2rem 0; }
-
-/* area treemap: size is how much code, colour is who wrote most of it, stripes are shared */
-.treemap { position: relative; width: 100%; aspect-ratio: 100 / 38; margin: .25rem 0 .5rem; }
-.tm { position: absolute; padding: 2px; box-sizing: border-box; }
-.tm-in { height: 100%; box-sizing: border-box; overflow: hidden; border-radius: .4rem; border-top: 4px solid var(--c, var(--l8)); padding: .3rem .5rem; font-size: .75rem; line-height: 1.3;
-  background: color-mix(in oklab, var(--c, var(--l8)) 30%, var(--card)); color: var(--foreground); }
-.tm-in.tm-shared { background: repeating-linear-gradient(135deg, color-mix(in oklab, var(--c) 30%, var(--card)) 0 10px, color-mix(in oklab, var(--c2) 30%, var(--card)) 10px 20px); }
-.tm-in.tm-tail { --c: var(--l8); }
-.tm-in b { display: block; font-weight: 600; overflow-wrap: anywhere; } .tm-in span { display: block; opacity: .8; }
-.tm-in:hover, .tm-in:focus-visible { outline: 2px solid var(--foreground); outline-offset: -2px; }
-.tm-swatch { background: repeating-linear-gradient(135deg, var(--l1) 0 3px, var(--l2) 3px 6px); }
-@media (max-width: 767px) { .treemap { aspect-ratio: 1 / 1; } }
+.toc { margin: 0 !important; padding-left: 1.6rem !important; }
+.toc li { margin: .2rem 0; }
 
 /* code viewer: a panel on the right with the code behind a citation. Token colors reach 4.5:1 on the panel and on a cited line (check_page.py) */
 :root { --tk-c: oklch(.45 .02 260); --tk-k: oklch(.44 .18 300); --tk-s: oklch(.42 .12 155); --tk-m: oklch(.44 .14 50); --tk-nf: oklch(.43 .16 255); --tk-nb: oklch(.42 .1 200);
@@ -277,3 +264,33 @@ details.deps { margin: .5rem 0; } details.deps summary { cursor: pointer; overfl
 main { transition: margin-right .15s ease; }
 .code-pinned main { margin-right: var(--code-w-px, 0px); }
 @media print { .code-panel, .code-tab { display: none !important; } main { margin-right: 0 !important; } }
+
+/* sidebar: the top row holds the collapse button; collapsed, the sidebar narrows to a rail of icons */
+.side-top { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .6rem; } .side-head .side-top .eyebrow { margin: 0; }
+.side-icon { flex: none; } #rail-toggle .chev { transition: transform .2s ease; transform-origin: 11.5px 12px; }
+.rail-only { display: none; }
+#rail-nums a { display: flex; align-items: center; justify-content: center; height: 2rem; border-radius: calc(var(--radius) - 2px); font-size: .8125rem; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--muted-foreground); text-decoration: none; }
+#rail-nums a:hover { background: var(--accent); color: var(--foreground); } #rail-nums a[aria-current="page"] { background: var(--accent); color: var(--foreground); font-weight: 700; }
+@media (min-width: 48rem) {
+  html.rail { --sidebar-width: 3.75rem; }
+  html.rail .sidebar .rail-hide, html.rail .sidebar .side-top .eyebrow, html.rail .sidebar #nav-groups, html.rail .sidebar #search-results { display: none !important; }
+  html.rail .sidebar .rail-only { display: flex; }
+  html.rail .side-head { padding: .75rem 0 .25rem; align-items: center; } html.rail .side-top { margin: 0 0 .25rem; justify-content: center; }
+  html.rail #rail-nums { flex-direction: column; gap: .15rem; padding: 0 .5rem; }
+  html.rail .sidebar nav > section { padding: .25rem 0 .5rem; }
+  html.rail .sidebar nav > footer { padding: .6rem 0; justify-content: center; }
+  html.rail #rail-toggle .chev { transform: scaleX(-1); }
+}
+
+/* commit calendar */
+.cc { display: block; border-radius: .2rem; background: var(--muted); min-width: 0; } .cc.mc { height: 1.6rem; border-radius: .25rem; }
+.zoom-bar { display: flex; align-items: center; gap: .4rem; margin-bottom: .7rem; } .zoom-name { font-weight: 600; margin-left: .4rem; }
+.zoom-lvl[hidden] { display: none; }
+.year-scroll { max-height: 26rem; overflow-y: auto; display: flex; flex-direction: column; gap: .9rem; padding-right: .5rem; }
+.yr { display: grid; grid-template-columns: 3rem minmax(0, 1fr); align-items: start; } .yr .hy { font-size: .8125rem; color: var(--muted-foreground); font-weight: 400; }
+.weeks { display: grid; grid-template-rows: repeat(7, auto); grid-auto-flow: column; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 2px; } .weeks .cc { aspect-ratio: 1; }
+.month-cals { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: 1rem 1.25rem; }
+.mcal > b { display: block; font-size: .8125rem; font-weight: 600; margin-bottom: .3rem; }
+.days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; } .days .cc { aspect-ratio: 1; border-radius: .25rem; }
+details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer; font-weight: 600; font-size: .9375rem; margin-bottom: .6rem; }
+.heat-key .cc.sw { width: 1.1rem; height: 1.1rem; flex: none; border-radius: .25rem; }

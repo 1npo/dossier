@@ -273,3 +273,32 @@ class TestPlanView:
         text = viewer.embed({p: {"lines": cites.source(p)[0]} for p in cites.windows}, cites.windows)
 
         assert json.loads(text)["a.html"]["lines"] == ["&lt;<i class=nt>script</i>&gt;<i class=m>1</i>&lt;/<i class=nt>script</i>&gt;", "<i class=c>&lt;!-- x --&gt;</i>"]
+
+
+class TestCommitCalendar:
+    PAL = {"a": "lang-1", "b": "lang-2"}
+
+    def facts(self, daily):
+        return {"daily": daily}
+
+    def test_single_contributor_day_is_one_solid_colour(self):
+        cell = render.day_cell({"a": 2}, 2, self.PAL, "day")
+        assert "linear-gradient" not in cell and "var(--l1)" in cell
+
+    def test_shared_day_is_striped_in_both_colours(self):
+        cell = render.day_cell({"a": 1, "b": 1}, 1, self.PAL, "day")
+        assert "linear-gradient" in cell and "var(--l1)" in cell and "var(--l2)" in cell
+
+    def test_unknown_contributor_gets_the_grey(self):
+        assert "var(--l8)" in render.day_cell({"zz": 1}, 1, self.PAL, "day")
+
+    def test_empty_day_has_no_colour(self):
+        assert "background" not in render.day_cell({}, 1, self.PAL, "day")
+
+    def test_calendar_has_three_zoom_levels_and_starts_on_the_coarsest(self):
+        html = render.calendar_html(self.facts({"2026-01-05": {"a": 1}, "2026-03-09": {"a": 2, "b": 1}}), {"a": "A", "b": "B"}, self.PAL)
+        assert html.count("data-zoom-level=") == 3
+        assert 'data-zoom-level="0">' in html and 'data-zoom-level="1" hidden' in html and 'data-zoom-level="2" hidden' in html
+
+    def test_calendar_without_daily_history_says_to_prepare_again(self):
+        assert "prepare again" in render.calendar_html({}, {}, self.PAL)

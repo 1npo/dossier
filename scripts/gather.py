@@ -683,6 +683,7 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
     file_commits, file_churn, file_last = Counter(), Counter(), {}
     file_who = defaultdict(Counter)
     monthly, yearly = Counter(), Counter()
+    daily = defaultdict(Counter)
     merges = total = assisted_total = 0
     assisted_by = Counter()
     bulk = []
@@ -728,6 +729,7 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
                     break
         monthly[dt.strftime("%Y-%m")] += 1
         yearly[dt.strftime("%Y")] += 1
+        daily[dt.strftime("%Y-%m-%d")][cid] += 1
         nums = []
         for line in stat.splitlines():
             f = line.split("\t")
@@ -790,6 +792,14 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
         "recent_commits_12m": p["recent"], "active_months": len(p["months"]),
         "top_areas": [{"area": a, "commits": c} for a, c in p["areas"].most_common(6)],
     } for p in ranked[:60]]
+
+    top_ids = {p["id"] for p in ranked[:30]}  # everyone else is grouped under "" so the calendar data stays small
+    daily_out = {}
+    for day, who in sorted(daily.items()):
+        row = Counter()
+        for cid, n in who.items():
+            row[cid if cid in top_ids else ""] += n
+        daily_out[day] = dict(row)
 
     areas = []
     for name, s in sorted(area_stat.items(), key=lambda kv: -kv[1]["commits"])[:60]:
@@ -859,7 +869,8 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
                 "commits_by_type": {t: commits_by_type.get(t, 0) for t in TYPES},
                 "agent_assisted_commits": assisted_total, "agent_assisted_by": dict(assisted_by),
                 "tags": tags, "bulk_commits": bulk[:20], "bulk_commit_count": len(bulk),
-                "monthly": dict(sorted(monthly.items())), "yearly": dict(sorted(yearly.items()))},
+                "monthly": dict(sorted(monthly.items())), "yearly": dict(sorted(yearly.items())),
+                "daily": daily_out},
         "files": {"tracked": len(tree_paths), "analyzed": len(files), "excluded": dict(excluded),
                   "excluded_top_dirs": excluded_dirs.most_common(8), "tests": test_files,
                   "total_code_lines": sum(v["lines"] for v in lang_stats.values() if v["kind"] == "code"),
