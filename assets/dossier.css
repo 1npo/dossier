@@ -310,7 +310,8 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 #cite-tip .tp-n { overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 16rem; text-align: left; }
 #cite-tip .tp-num { font-family: var(--font-mono, ui-monospace, Menlo, Consolas, monospace); font-size: .78rem; text-align: right; }
 #cite-tip .tp-dot { width: .6rem; height: .6rem; border-radius: 50%; box-shadow: 0 0 0 1px color-mix(in oklab, var(--background) 60%, transparent); }
-#cite-tip .tp-add { color: var(--tip-add); font-weight: 600; } #cite-tip .tp-del { color: var(--tip-del); font-weight: 600; }
+#cite-tip .tp-add, #cite-tip .tp-del { font-family: var(--font-mono, ui-monospace, Menlo, Consolas, monospace); font-size: .78rem; font-weight: 600; text-align: right; min-width: 8ch; }
+#cite-tip .tp-add { color: var(--tip-add); } #cite-tip .tp-del { color: var(--tip-del); }
 #cite-tip .tp-g .tp-rule { grid-column: 1 / -1; height: 0; margin: .2rem 0; border-top: 1px solid color-mix(in oklab, var(--background) 35%, transparent); }
 #cite-tip .tp-t { margin-top: .2rem; padding-top: .2rem; border-top: 1px solid color-mix(in oklab, var(--background) 35%, transparent); }
 
@@ -333,12 +334,13 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 /* what each contributor changed */
 .fa-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin-bottom: .6rem; }
 .fa-presets { display: inline-flex; gap: .3rem; flex-wrap: wrap; } .fa-presets .btn[aria-pressed="true"] { background: var(--accent); border-color: var(--foreground); }
-.fa-date { display: inline-flex; align-items: center; gap: .4rem; font-size: .8125rem; } .fa-date .input { width: auto; }
+.fa-date { display: inline-flex; align-items: center; gap: .4rem; font-size: .8125rem; } .fa-date .input, .fa-date .select { width: auto; } .fa-date[hidden] { display: none; }
 .fa-filter { max-width: 16rem; margin-left: auto; }
 .fa-person { border-top: 1px solid var(--border); } .fa-person:last-of-type { border-bottom: 1px solid var(--border); }
 .fa-person > summary { display: flex; align-items: center; gap: .7rem; padding: .6rem .2rem; cursor: pointer; font-size: .9rem; } .fa-person > summary b { font-weight: 600; margin-right: auto; }
 .fa-dot { width: .7rem; height: .7rem; border-radius: 50%; flex: none; }
 .fa-body { padding: 0 0 .8rem; }
+.fa-group { margin: .3rem 0 .5rem .6rem; } .fa-group > summary { display: flex; align-items: center; gap: .7rem; padding: .35rem .2rem; cursor: pointer; font-size: .8125rem; background: var(--muted); border-radius: .3rem; } .fa-group > summary b { font-weight: 600; margin-right: auto; }
 .fa-n { font-family: var(--font-mono, ui-monospace, Menlo, Consolas, monospace); font-size: .8125rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .fa-add { color: var(--tip-add-ink, oklch(.45 .14 155)); } .fa-del { color: var(--tip-del-ink, oklch(.5 .18 25)); }
 .dark .fa-add { --tip-add-ink: oklch(.8 .16 155); } .dark .fa-del { --tip-del-ink: oklch(.75 .15 25); }

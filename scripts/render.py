@@ -982,6 +982,8 @@ def files_card(f, pal):
     presets = "".join(f'<button type="button" class="btn" data-variant="outline" data-size="sm" data-fa-range="{v}">{E(t)}</button>' for v, t in (("30", "30 days"), ("90", "90 days"), ("365", "12 months"), ("all", "All time")))
     bar = (f'<div class="fa-bar"><span class="kg">Period ending at the last commit</span><span class="fa-presets">{presets}</span>'
            '<label class="fa-date">From <input class="input" type="date" id="fa-from"></label><label class="fa-date">To <input class="input" type="date" id="fa-to"></label>'
+           '<label class="fa-date">Group by <select class="select" id="fa-group"><option value="none">Nothing</option><option value="dir">Directory</option><option value="type">File type</option></select></label>'
+           '<label class="fa-date" id="fa-depth-l" hidden>Levels <select class="select" id="fa-depth"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></label>'
            '<input class="input fa-filter" type="search" id="fa-filter" placeholder="Filter files" aria-label="Filter files"></div>')
     return (f'<div class="fa" id="fa-root">{bar}<p class="muted" id="fa-sum" aria-live="polite"></p><div id="fa-people"></div>'
             f'<p class="muted fa-note">{E(" ".join(notes))}</p></div><script type="application/json" id="fa-data">{jsn}</script>')
