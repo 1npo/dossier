@@ -27,7 +27,7 @@ Do not present an inference as confirmed. Do not leave a gap unstated. If a topi
 Write citations inline as `[[path]]`, `[[path:12]]` or `[[path:12-30]]`, or list them in a `cite` array. Other forms:
 
 - `commit:<sha>` for a commit in this history.
-- `facts:<key>` for a measured figure. Keys: `git`, `languages`, `hot_files`, `manifests`, `env_vars`, `secret_signals`, `contributors`, `ownership`, `areas`, `chunks`.
+- `facts:<key>` for a measured figure. Keys: `git`, `languages`, `hot_files`, `manifests`, `env_vars`, `secret_signals`, `contributors`, `ownership`, `areas`, `file_activity`, `chunks`.
 
 Rules:
 

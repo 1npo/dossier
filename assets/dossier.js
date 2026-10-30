@@ -174,9 +174,9 @@
     var rows = "";
     Object.keys(who).sort(function (a, b) { return who[b][0] - who[a][0]; }).forEach(function (id) {
       var p = cal.people[id] || ["Others", 8];
-      rows += '<div class="tp-r"><i class="tp-dot" style="background:var(--l' + p[1] + ')"></i><span class="tp-n">' + esc(p[0]) + "</span><span>" + plural(who[id][0]) + "</span>" + diff(who[id][1], who[id][2]) + "</div>";
+      rows += '<div class="tp-r"><i class="tp-dot" style="background:var(--l' + p[1] + ')"></i><span class="tp-n">' + esc(p[0]) + "</span><span class=\"tp-num\">" + num(who[id][0]) + " commit" + (who[id][0] === 1 ? "" : "s") + "</span>" + diff(who[id][1], who[id][2]) + "</div>";
     });
-    if (Object.keys(who).length > 1) rows += '<div class="tp-rule"></div><div class="tp-r"><span></span><span class="tp-n">Total</span><span>' + plural(n) + "</span>" + diff(add, del) + "</div>";
+    if (Object.keys(who).length > 1) rows += '<div class="tp-rule"></div><div class="tp-r"><span></span><span class="tp-n">Total</span><span class="tp-num">' + num(n) + " commit" + (n === 1 ? "" : "s") + "</span>" + diff(add, del) + "</div>";
     if (rows) html += '<div class="tp-g">' + rows + "</div>";
     if (tags.length) html += '<div class="tp-t">Release tag: ' + esc(tags.join(", ")) + "</div>";
     return html;
@@ -249,6 +249,89 @@
     });
   }
   $$("table.table").forEach(makeSortable);
+
+
+  // ---- what each contributor changed: the files their commits touched in a chosen period, totalled in the browser from #fa-data
+  (function () {
+    var root = $("#fa-root"), raw = $("#fa-data"); if (!root || !raw) return;
+    var fa; try { fa = JSON.parse(raw.textContent); } catch (e) { return; }
+    var GRAIN = { day: 1, week: 7, month: 31 }[fa.grain] || 1, DAY = 864e5, LIMIT = 100;
+    var from = $("#fa-from"), to = $("#fa-to"), filter = $("#fa-filter"), sum = $("#fa-sum"), box = $("#fa-people");
+    var gone = {}; fa.gone.forEach(function (i) { gone[i] = 1; });
+    var days = Object.keys(fa.rows).sort(), first = days[0], last = fa.end > days[days.length - 1] ? fa.end : days[days.length - 1];
+    var ms = function (d) { return Date.parse(d + "T00:00:00Z"); }, iso = function (t) { return new Date(t).toISOString().slice(0, 10); };
+    var num = function (v) { return v.toLocaleString(); };
+    from.min = to.min = first; from.max = to.max = last;
+    var more = {};
+    function setRange(r) {
+      var end = ms(last);
+      to.value = last; from.value = r === "all" ? first : iso(Math.max(ms(first), end - (+r - 1) * DAY));
+      render();
+    }
+    function totals() {   // person -> {rows: {file index: [commits, added, deleted]}, commits, added, deleted}
+      var a = ms(from.value || first), b = ms(to.value || last), out = {};
+      Object.keys(fa.rows).forEach(function (k) {
+        var t = ms(k); if (t + (GRAIN - 1) * DAY < a || t > b) return;
+        var who = fa.rows[k];
+        Object.keys(who).forEach(function (id) {
+          var p = out[id] || (out[id] = { files: {}, commits: 0, added: 0, deleted: 0 });
+          who[id].forEach(function (r) {
+            var f = p.files[r[0]] || (p.files[r[0]] = [0, 0, 0]);
+            f[0] += r[1]; f[1] += r[2]; f[2] += r[3];
+            p.added += r[2]; p.deleted += r[3];
+          });
+        });
+      });
+      return out;
+    }
+    function table(id, p, q) {
+      var list = Object.keys(p.files).map(function (i) { return { i: +i, f: fa.files[+i], c: p.files[i][0], a: p.files[i][1], d: p.files[i][2] }; })
+        .filter(function (r) { return !q || r.f.toLowerCase().indexOf(q) >= 0; });
+      list.sort(function (x, y) { return (y.a + y.d) - (x.a + x.d) || x.f.localeCompare(y.f); });
+      var top = list.length ? list[0].a + list[0].d || 1 : 1, cut = more[id] ? list.length : Math.min(list.length, LIMIT);
+      var h = '<div class="table-container"><table class="table fa-table"><thead><tr><th>File</th><th>Commits</th><th>Added</th><th>Deleted</th><th>Change</th></tr></thead><tbody>';
+      list.slice(0, cut).forEach(function (r) {
+        var w = 100 * (r.a + r.d) / top, g = r.a + r.d ? 100 * r.a / (r.a + r.d) : 0;
+        h += '<tr' + (gone[r.i] ? ' class="fa-gone" title="No longer in the repository at this commit"' : "") + '><td><code>' + esc(r.f).replace(/\//g, "/<wbr>") + '</code></td>'
+          + '<td class="fa-n" data-sort="' + r.c + '">' + num(r.c) + '</td><td class="fa-n fa-add" data-sort="' + r.a + '">+' + num(r.a) + '</td><td class="fa-n fa-del" data-sort="' + r.d + '">\u2212' + num(r.d) + "</td>"
+          + '<td data-sort="' + (r.a + r.d) + '"><span class="fa-bar2" style="width:' + Math.max(w, 2).toFixed(1) + '%"><i style="width:' + g.toFixed(1) + '%"></i></span></td></tr>';
+      });
+      h += "</tbody></table></div>";
+      if (!list.length) return '<p class="muted">No files match the filter.</p>';
+      if (list.length > cut) h += '<button type="button" class="btn" data-variant="outline" data-size="sm" data-fa-more="' + esc(id) + '">Show all ' + num(list.length) + " files</button>";
+      return h;
+    }
+    function render() {
+      if (from.value && to.value && from.value > to.value) { var t = from.value; from.value = to.value; to.value = t; }
+      var q = filter.value.trim().toLowerCase(), tot = totals();
+      $$("[data-fa-range]").forEach(function (b) {
+        var r = b.dataset.faRange, want = r === "all" ? first : iso(Math.max(ms(first), ms(last) - (+r - 1) * DAY));
+        b.setAttribute("aria-pressed", String(to.value === last && from.value === want));
+      });
+      var ids = Object.keys(tot).sort(function (x, y) { return tot[y].added + tot[y].deleted - tot[x].added - tot[x].deleted; });
+      var nf = {}, a = 0, d = 0;
+      ids.forEach(function (id) { Object.keys(tot[id].files).forEach(function (i) { nf[i] = 1; }); a += tot[id].added; d += tot[id].deleted; });
+      sum.textContent = ids.length ? ids.length + (ids.length === 1 ? " contributor" : " contributors") + " changed " + num(Object.keys(nf).length) + " files between " + from.value + " and " + to.value + ": +" + num(a) + " \u2212" + num(d) + " lines." : "No commits between " + from.value + " and " + to.value + ".";
+      var open = {}; $$("details.fa-person", box).forEach(function (el) { open[el.dataset.id] = el.open; });
+      box.innerHTML = ids.map(function (id) {
+        var p = tot[id], who = fa.people[id] || ["Everyone else", 8], nfile = Object.keys(p.files).length;
+        var isOpen = id in open ? open[id] : (ids.length === 1 || id === ids[0]);
+        return '<details class="fa-person" data-id="' + esc(id) + '"' + (isOpen ? " open" : "") + '><summary><i class="fa-dot" style="background:var(--l' + who[1] + ')"></i><b>' + esc(who[0]) + '</b>'
+          + '<span class="muted">' + num(nfile) + (nfile === 1 ? " file" : " files") + '</span><span class="fa-n fa-add">+' + num(p.added) + '</span><span class="fa-n fa-del">\u2212' + num(p.deleted) + "</span></summary>"
+          + '<div class="fa-body">' + (isOpen ? table(id, p, q) : "") + "</div></details>";
+      }).join("");
+      $$("details.fa-person", box).forEach(function (el) {
+        var id = el.dataset.id;
+        function fill() { el.querySelector(".fa-body").innerHTML = table(id, tot[id], q); $$("table", el).forEach(makeSortable); wire(); }
+        function wire() { var b = el.querySelector("[data-fa-more]"); if (b) b.addEventListener("click", function () { more[id] = true; fill(); }); }
+        el.addEventListener("toggle", function () { if (el.open && !el.querySelector("table, p")) fill(); });
+        $$("table", el).forEach(makeSortable); wire();
+      });
+    }
+    $$("[data-fa-range]").forEach(function (b) { b.addEventListener("click", function () { setRange(b.dataset.faRange); }); });
+    from.addEventListener("change", render); to.addEventListener("change", render); filter.addEventListener("input", render);
+    setRange(first && ms(last) - ms(first) > 365 * DAY ? "365" : "all");
+  })();
 
   // ---- code viewer: a source marker [n] opens the cited code in a panel on the right. The files are embedded in #code-data.
   var panel = $("#code-panel"), codeTab = $("#code-tab"), codeBody = $("#cp-body"), code = {}, cur = null, pinned = false, isOpen = false;

@@ -41,6 +41,10 @@ The panel also has a row of the statement's other sources and a "Go to reference
 
 The commit calendars (on Overview and Contributors) open on days and zoom to months or to the last twelve months as month calendars. Each week is boxed. Hover a cell to see who committed that day or month, how many commits, and the lines added (green) and deleted (red), lined up in columns. Calendar data older than this version has no line counts until you run `prepare` again.
 
+## What each contributor changed
+
+The bottom card on Contributors lists, for each person, every file their commits touched in a period you choose, with lines added and deleted. Pick 30 days, 90 days, 12 months or all time, or set the From and To dates; the periods end at the last commit. Files that no longer exist are grey. Open a person to see their files, sort by any column, and filter by path. The data is written to `activity.json` next to `facts.json` and embedded in the page, capped at about 2 MB: a larger history is kept by week, then by month, then the least-changed files are left out, and the card says so. Run `prepare` again to add this card to a dossier built before it.
+
 ## Install
 
 Requires Claude Code and [uv](https://docs.astral.sh/uv/), which installs Pygments for `dossier.py` on demand. Without Pygments the code is shown without colors, and `build` prints a warning. The page check in `build` uses Playwright, which `uv` installs on demand; the first run also needs `uv run --with playwright python -m playwright install chromium`.

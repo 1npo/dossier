@@ -347,38 +347,25 @@ class TestProfilerFacts:
         assert f'data-view="{render.PROFILER_PATH}"' in refs.listing()
 
 
-class TestOwnershipMatrix:
-    PAL = {"a": "lang-1", "b": "lang-2"}
+class TestFilesCard:
+    PAL = {"a": "lang-1"}
 
-    def facts(self):
-        owners = lambda x, y: [{"id": "a", "name": "Ann", "lines": x}, {"id": "b", "name": "Bo", "lines": y}]
-        top = lambda r: [{"name": "Ann", "recent_12m": r, "last": "2026-01-01"}, {"name": "Bo", "recent_12m": 3, "last": "2026-02-01"}]
-        return {"git": {"contributors": {"human": 2}},
-                "areas": [{"name": "src/", "exists": True, "recent_commits_12m": 9, "last_active": "2026-02-01", "top": top(6)},
-                          {"name": "docs/", "exists": True, "recent_commits_12m": 0, "last_active": "2024-02-01", "top": top(0)}],
-                "ownership": {"people": [{"id": "a", "name": "Ann"}, {"id": "b", "name": "Bo"}],
-                              "areas": [{"name": "src/", "lines": 100, "owners": owners(75, 25)}, {"name": "docs/", "lines": 40, "owners": owners(0, 30)}]}}
+    def facts(self, **act):
+        activity = {"grain": "day", "files": ["src/app.py", "old.py"], "gone": [1], "trimmed": 0,
+                    "rows": {"2026-01-02": {"a": [[0, 2, 10, 3]], "": [[1, 1, 5, 5]]}}, **act}
+        return {"contributors": {"people": [{"id": "a", "name": "Ann"}]}, "git": {"last_commit": "2026-01-02"}, "file_activity": activity}
 
-    def test_one_cell_per_person_and_area_with_the_share_in_its_tooltip(self, make_cites):
-        html = render.ownership_matrix(self.facts(), render.Refs("contributors", make_cites({})), self.PAL)
-        assert html.count('class="mx-cell"') == 3 * 2
-        assert "Ann wrote 75 of 100 lines in src/ (75%)" in html
+    def test_embeds_the_per_file_data_for_the_browser(self):
+        html = render.files_card(self.facts(), self.PAL)
+        assert 'id="fa-data"' in html and '"src/app.py"' in html
+        assert '"people":{"":["Everyone else",8],"a":["Ann",1]}' in html
 
-    def test_lines_nobody_listed_go_to_everyone_else(self, make_cites):
-        html = render.ownership_matrix(self.facts(), render.Refs("contributors", make_cites({})), self.PAL)
-        assert "Everyone else wrote 10 of 40 lines in docs/ (25%)" in html
+    def test_says_when_the_history_was_coarsened_or_trimmed(self):
+        html = render.files_card(self.facts(grain="week", trimmed=40), self.PAL)
+        assert "kept by week" in html and "40 of the least-changed files" in html
 
-    def test_contributors_run_across_and_areas_down(self, make_cites):
-        html = render.ownership_matrix(self.facts(), render.Refs("contributors", make_cites({})), self.PAL)
-        assert html.count('class="mx-col"') == 3 and html.count('class="mx-row mx-area"') == 2
-        assert 'style="--cols:3"' in html
+    def test_asks_for_prepare_when_there_is_no_file_history(self):
+        assert "Run prepare again" in render.files_card({"file_activity": None}, self.PAL)
 
-    def test_nothing_without_measured_ownership(self, make_cites):
-        assert render.ownership_matrix({}, render.Refs("contributors", make_cites({})), self.PAL) == ""
-
-    def test_flags_dormant_areas_and_owners_who_went_quiet(self, make_cites):
-        f = self.facts()
-        f["areas"][0]["top"][0]["recent_12m"] = 0     # Ann owns most of src/ but has not committed there lately
-        html = render.ownership_matrix(f, render.Refs("contributors", make_cites({})), self.PAL)
-        assert "mx-bad" in html and "no one lately" in html
-        assert "Ann wrote most of this code but has not committed here" in html
+    def test_the_contributors_page_has_no_type_card_or_area_matrix(self):
+        assert not hasattr(render, "ownership_matrix") and "file_activity" in render.FACT_KEYS

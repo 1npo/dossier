@@ -16,7 +16,7 @@ import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
 from collections import Counter, defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import PurePosixPath
 
 try:
@@ -519,6 +519,63 @@ def ownership(repo_path, sha, files, area_of, canon, display, ctype):
                     "A reformat or a bulk import moves ownership to whoever ran it."}
 
 
+ACTIVITY_CAP = 2_000_000   # bytes of JSON the page may carry for "what each contributor changed"
+GRAINS = (("day", 1), ("week", 7), ("month", 31))
+
+
+def bucket_key(day, grain):
+    d = date.fromisoformat(day)
+    if grain == "week":
+        return (d - timedelta(days=d.weekday())).isoformat()
+    return d.strftime("%Y-%m-01") if grain == "month" else day
+
+
+def pack_activity(file_days, top_ids, exists, cap=ACTIVITY_CAP):
+    """Per person and period, the files their commits touched with [commits, added, deleted], for the browser to total over any date range.
+    Days are merged into weeks, then months, and the least-changed files are dropped last, until the JSON fits under `cap`."""
+    def build(grain, keep):
+        files, index, rows = [], {}, {}
+        for day, who in sorted(file_days.items()):
+            b = bucket_key(day, grain)
+            for cid, fs in who.items():
+                cell = rows.setdefault(b, {}).setdefault(cid if cid in top_ids else "", {})
+                for path, (c, a, d) in fs.items():
+                    if keep is not None and path not in keep:
+                        continue
+                    if path not in index:
+                        index[path] = len(files)
+                        files.append(path)
+                    t = cell.setdefault(index[path], [0, 0, 0])
+                    t[0] += c
+                    t[1] += a
+                    t[2] += d
+        rows = {b: {cid: [[i, *t] for i, t in sorted(cell.items())] for cid, cell in w.items() if cell} for b, w in rows.items()}
+        return {"grain": grain, "files": files, "gone": [i for i, f in enumerate(files) if f not in exists], "rows": {b: w for b, w in rows.items() if w}, "trimmed": 0}
+
+    size = lambda o: len(json.dumps(o, separators=(",", ":")))
+    for grain, _ in GRAINS:
+        out = build(grain, None)
+        if size(out) <= cap:
+            return out
+    churn = Counter()
+    for who in file_days.values():
+        for fs in who.values():
+            for path, (_, a, d) in fs.items():
+                churn[path] += a + d
+    ranked = [p for p, _ in churn.most_common()]
+    lo, hi = 0, len(ranked)
+    best = build("month", set())
+    while lo < hi:      # the most files that still fit
+        mid = (lo + hi + 1) // 2
+        trial = build("month", set(ranked[:mid]))
+        if size(trial) <= cap:
+            lo, best = mid, trial
+        else:
+            hi = mid - 1
+    best["trimmed"] = len(ranked) - lo
+    return best
+
+
 def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None):
     repo = Repo(repo_path)
     top = repo.git("rev-parse", "--show-toplevel").strip()
@@ -685,6 +742,7 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
     monthly, yearly = Counter(), Counter()
     daily = defaultdict(Counter)
     daily_lines = defaultdict(lambda: defaultdict(lambda: [0, 0]))   # day -> person -> [lines added, lines deleted]
+    file_days = defaultdict(lambda: defaultdict(dict))               # day -> person -> path -> [commits, lines added, lines deleted]
     merges = total = assisted_total = 0
     assisted_by = Counter()
     bulk = []
@@ -750,9 +808,14 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
             continue
         touched = defaultdict(int)
         day_lines = daily_lines[dt.strftime("%Y-%m-%d")][cid]
+        day_files = file_days[dt.strftime("%Y-%m-%d")][cid]
         for a, d, path in nums:
             if noise_reason(path):
                 continue
+            fd = day_files.setdefault(path, [0, 0, 0])
+            fd[0] += 1
+            fd[1] += a
+            fd[2] += d
             day_lines[0] += a
             day_lines[1] += d
             p["added"] += a
@@ -812,6 +875,8 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
             r[0] += a
             r[1] += d
         lines_out[day] = {k: v for k, v in row.items() if v[0] or v[1]}
+
+    file_activity = pack_activity(file_days, top_ids, set(tree_paths))
 
     areas = []
     for name, s in sorted(area_stat.items(), key=lambda kv: -kv[1]["commits"])[:60]:
@@ -894,6 +959,7 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
                    "chunk_count": len(chunks), "advice": advice,
                    "estimate": f"tokens are estimated as bytes / {BYTES_PER_TOKEN}"},
         "delta": None,
+        "file_activity": file_activity,    # kept out of facts.json: dossier.py writes it to activity.json
     }
     repo.close()
     return facts, {"budget": chunk_tokens, "total_tokens": total_tokens, "chunks": chunks}
