@@ -247,6 +247,48 @@ def check_viewer(page, scheme, shots):
     return out
 
 
+def check_knowledge(page, scheme):
+    """Drive the contributor knowledge map: the tree draws, the controls and chips work, the tooltip shows, the minimap paints, and a phone-width page does not scroll sideways."""
+    out = []
+    if not page.query_selector("#km-root"):
+        return out
+    bad = lambda m: out.append(f"[{scheme}] knowledge map: {m}")
+    page.evaluate("() => { location.hash = 'facts-knowledge'; }")
+    page.wait_for_timeout(200)
+    rows = lambda: page.locator("#km-rows .km-row").count()
+    if not rows():
+        return out + [f"[{scheme}] knowledge map: the tree has no rows"]
+    page.click('#km-zoom [data-v="1"]')
+    top = rows()
+    page.click('#km-zoom [data-v="99"]')
+    if rows() <= top:
+        bad("the All files zoom did not show more rows than Top level")
+    page.click('#km-zoom [data-v="2"]')
+    row = page.locator("#km-rows .km-row").first
+    row.scroll_into_view_if_needed()
+    row.hover()
+    page.mouse.move(row.bounding_box()["x"] + 40, row.bounding_box()["y"] + 12)
+    if not page.is_visible("#cite-tip .tp-h"):
+        bad("a row showed no tooltip on hover")
+    page.mouse.move(0, 0)
+    page.locator(".km-chip").first.click()
+    if page.inner_text("#km-th3").lower() != "their share":
+        bad("focusing a contributor did not switch the third column to their share")
+    page.locator(".km-chip").first.click()
+    if page.evaluate("() => { const c = document.querySelector('#km-mini'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; for (let i = 3; i < d.length; i += 4) if (d[i]) return true; return false; }") is not True:
+        bad("the minimap is blank")
+    page.keyboard.press("Tab")
+    if scheme == "light":
+        page.set_viewport_size({"width": 400, "height": 900})
+        page.wait_for_timeout(200)
+        if not page.evaluate("() => document.documentElement.scrollWidth <= window.innerWidth"):
+            bad("the page scrolls sideways at phone width")
+        if page.is_visible(".km-thead > :nth-child(3)"):
+            bad("the third column is still shown at phone width")
+        page.set_viewport_size({"width": 1500, "height": 1000})
+    return out
+
+
 def check_theme(browser, path, scheme, shots):
     problems = []
     ctx = browser.new_context(color_scheme=scheme, viewport={"width": 1500, "height": 1000})
@@ -301,6 +343,7 @@ def check_theme(browser, path, scheme, shots):
                     problems.append(f"{rid}: the citation tooltip did not appear on hover")
                 page.mouse.move(0, 0)
     problems += check_viewer(page, scheme, shots)
+    problems += check_knowledge(page, scheme)
     problems += [f"[{scheme}] browser error: {e}" for e in errors]
     ctx.close()
     return problems, n_diagrams

@@ -1,4 +1,5 @@
 import json
+import re
 
 import render
 import viewer
@@ -325,6 +326,76 @@ class TestCommitCalendar:
 
     def test_calendar_without_daily_history_says_to_prepare_again(self):
         assert "prepare again" in render.calendar_html({}, {}, self.PAL)
+
+
+class TestKnowledgeCard:
+    def people(self, *names):
+        return [{"id": f"{n}@x.io", "name": n, "short": n, "commits": 10, "last": "2026-05", "departed": False, "type": "human"} for n in names]
+
+    def facts(self, people=None, files=None, **over):
+        k = {"sha": "a" * 40, "date": "2026-06-01", "departed_months": 6, "recent_days": 365, "contributors": people or self.people("Ann", "Bob"), "others": None,
+             "files": files if files is not None else [["src/a.py", 10, "2026-05", [[0, 10, 3, 1]]]], "trimmed": 0, "approx_files": 0, "attribute_excluded": 0, **over}
+        return {"knowledge": k, "repo": {"short": "aaaaaaaaaa"}, "ownership": None,
+                "contributors": {"people": [{"id": p["id"], "name": p["name"]} for p in k["contributors"]]}}
+
+    def data(self, html):
+        return json.loads(html.split('id="km-data">')[1].split("</script>")[0].replace("\\u003c", "<"))
+
+    def test_card_without_knowledge_data_says_to_prepare_again(self):
+        assert "prepare again" in render.knowledge_card({})
+
+    def test_card_has_the_four_tiles_in_order_with_head_first(self):
+        html = render.knowledge_card(self.facts())
+
+        labels = re.findall(r'<div class="k">(.*?)</div>', html)
+
+        assert labels == ["HEAD", "Contributors", "Files", "Lines"]
+
+    def test_card_has_the_three_labelled_control_groups(self):
+        html = render.knowledge_card(self.facts())
+
+        assert all(f'aria-labelledby="km-{g}-l"' in html for g in ("metric", "view", "zoom"))
+        assert html.count('data-v="99"') == 1 and html.count('data-v="mine"') == 1
+
+    def test_data_is_embedded_as_json_with_every_less_than_escaped(self):
+        html = render.knowledge_card(self.facts(files=[["a</script><b>.py", 1, "", []]]))
+
+        body = html.split('id="km-data">')[1].split("</script>")[0]
+
+        assert "<" not in body and self.data(html)["files"][0][0] == "a</script><b>.py"
+
+    def test_people_get_the_chart_colours_by_number_and_others_the_grey(self):
+        f = self.facts(others={"people": 3, "commits": 9})
+
+        data = self.data(render.knowledge_card(f))
+
+        assert [p["cls"] for p in data["contributors"]] == [1, 2] and data["others"]["cls"] == 8
+
+    def test_a_person_keeps_the_colour_the_rest_of_the_page_gives_them(self):
+        f = self.facts()
+        f["ownership"] = {"people": [{"id": "Bob@x.io", "name": "Bob"}, {"id": "Ann@x.io", "name": "Ann"}]}
+
+        data = self.data(render.knowledge_card(f))
+
+        assert [p["cls"] for p in data["contributors"]] == [2, 1]
+
+    def test_estimated_lines_are_announced_on_the_card(self):
+        html = render.knowledge_card(self.facts(approx_files=1))
+
+        assert "Estimated line shares" in html and "estimates for 1 of the 1 files" in html
+
+    def test_dropped_files_are_announced_on_the_card(self):
+        assert "Some files are not shown" in render.knowledge_card(self.facts(trimmed=4))
+
+    def test_departed_and_at_risk_are_labelled_as_inferences_with_the_threshold(self):
+        html = render.knowledge_card(self.facts())
+
+        assert 'basis-inferred' in html and "6 months before HEAD (2026-06-01)" in html
+
+
+class TestCompact:
+    def test_numbers_are_shortened_to_k_and_m(self):
+        assert [render.compact(n) for n in (999, 15_800, 2_500_000)] == ["999", "15.8k", "2.5M"]
 
 
 class TestProfilerFacts:

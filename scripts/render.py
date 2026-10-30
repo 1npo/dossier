@@ -40,7 +40,7 @@ GAP_KINDS = ("assumption", "unknown", "inference", "coverage")
 SEVERITIES = ("critical", "high", "medium", "low", "info")
 RISK_COLUMNS = ("ID", "Risk", "Category", "Severity")
 FACT_KEYS = {k: f"facts-{k}" for k in ("git", "languages", "hot_files", "manifests", "env_vars",
-                                       "secret_signals", "contributors", "ownership", "areas", "file_activity", "chunks")}
+                                       "secret_signals", "contributors", "ownership", "areas", "file_activity", "knowledge", "chunks")}
 FACT_KEYS["areas"] = "facts-contributors"   # the areas are no longer drawn on the page
 FACT_KEYS["inventory"] = "facts-git"  # retired file-name inventory; old reports may still cite it
 OPTIONAL_REPORTS = ("domain-logic",)  # reports added after v0.1: a dossier built before them still renders
@@ -64,11 +64,13 @@ FACT_INFO = {
     "contributors": ("Contributors", "Every author in the history, with identities merged when they share an email address or a full name, and classified as human, agent or bot from names, emails and commit-message markers. The classification is a heuristic.",
                      r"# ---- identities", r"# ---- history pass"),
     "ownership": ("Code ownership", "Who wrote the lines that exist today. The profiler runs git blame on each file at the pinned commit and credits every surviving line to the author of its last change.",
-                  r"^def blame_file\(", r"^def profile\("),
+                  r"^def blame_file\(", r"^ACTIVITY_CAP"),
     "areas": ("Areas", "The directories the code is grouped into. Large directories are split one or two levels deeper. Each area gets its commit counts, authors and activity dates.",
               r"# -+ areas", r"# -+ chunk planning"),
     "file_activity": ("Files changed by each contributor", "For every commit, the files it touched and how many lines it added and deleted, totalled per contributor and per day. Merge commits add nothing, and bulk commits (imports, reformatting) and vendored, generated and lock files are left out.",
                       r"# ---- history pass", r"# ---- assemble contributor"),
+    "knowledge": ("Contributor knowledge map", "Who knows which files, from three measures per file: the lines that survive at the pinned commit (git blame), the commits that touched it, and the commits that touched it in the year before the pinned commit's date. A renamed file keeps its earlier history. Bots are left out, as are bulk commits (imports, reformatting) and vendored, generated, lock and binary files. Whether someone has left is an inference from their last commit.",
+                  r"^# -+ knowledge map", r"^def profile\("),
     "chunks": ("Reading coverage", "How the repository was divided up for reading: file sizes are estimated in tokens (bytes divided by 3.5) and packed into chunks that fit one context window.",
                r"# -+ chunk planning", r"# -+ main profile"),
 }
@@ -726,7 +728,7 @@ class Raw(str):
 def stats_html(items):
     cols = 3 if len(items) == 6 else min(len(items), 5)
     return f'<div class="stats" style="grid-template-columns:repeat({cols},minmax(0,1fr))">' + "".join(
-        f'<div class="stat {extra[0] if extra else ""}"><div class="k">{k if isinstance(k, Raw) else E(k)}</div><div class="v">{E(v)}</div>{f'<div class="s">{E(s)}</div>' if s else ""}</div>' for k, v, s, *extra in items) + "</div>"
+        f'<div class="stat {extra[0] if extra else ""}"><div class="k">{k if isinstance(k, Raw) else E(k)}</div><div class="v">{v if isinstance(v, Raw) else E(v)}</div>{f'<div class="s">{E(s)}</div>' if s else ""}</div>' for k, v, s, *extra in items) + "</div>"
 
 
 def panel_git(f, refs):
@@ -962,6 +964,79 @@ def calendar_html(g, names, pal, tags=()):
     return f'<div class="zoomable" data-zoom-root data-zoom-start="{START_ZOOM}">{levels}{contributor_legend(names, pal)}<div class="cal-foot">{bar}{key}</div></div>'
 
 
+def knowledge_palette(k, f):
+    """The --l colour number (1 to 6) of each person on the knowledge map: the one owner_palette gives them elsewhere on the page, else the next free one."""
+    pal = owner_palette(f)
+    out, used = {}, set()
+    for c in k["contributors"]:
+        n = int(pal[c["id"]][5:]) if c["id"] in pal else 0
+        if n and n not in used:
+            out[c["id"]] = n
+            used.add(n)
+    free = iter([n for n in range(1, PALETTE + 1) if n not in used])
+    return {c["id"]: out.get(c["id"]) or next(free) for c in k["contributors"]}
+
+
+def compact(n):
+    return f"{n / 1_000_000:.1f}M" if n >= 1_000_000 else f"{n / 1000:.1f}k" if n >= 1000 else str(n)
+
+
+KM_MEASURES = (("blend", "Blend"), ("lines", "Lines"), ("commits", "Commits"), ("recent", "Last 12 mo"))
+KM_VIEWS = (("full", "All paths"), ("mine", "Only paths they touched"))
+KM_ZOOMS = (("1", "Top level"), ("2", "Modules"), ("3", "Folders"), ("99", "All files"))
+KM_START = {"metric": "blend", "view": "full", "zoom": "2"}   # what the page opens on; dossier.js starts from the same values
+
+
+def km_group(gid, label, options):
+    on = KM_START[gid]
+    btns = "".join(f'<button type="button" class="btn" data-variant="outline" data-size="sm" data-v="{v}" aria-pressed="{"true" if v == on else "false"}">{E(t)}</button>' for v, t in options)
+    return f'<div class="km-ctl"><span class="muted" id="km-{gid}-l">{E(label)}</span><div class="button-group" id="km-{gid}" role="group" aria-labelledby="km-{gid}-l">{btns}</div></div>'
+
+
+def knowledge_card(f):
+    """Who knows which files: a tree with an ownership bar per row. Every share is worked out in the browser (dossier.js) from the embedded per-file figures."""
+    k = f.get("knowledge")
+    if not k:
+        return '<p class="muted">The knowledge map was not recorded in this profile. Run prepare again to include it.</p>'
+    if not k["contributors"]:
+        return '<p class="muted">No commits by people (as opposed to bots) touch the files in this repository, so there is nobody to map.</p>'
+    cls = knowledge_palette(k, f)
+    people = [{"name": c["name"], "short": c["short"], "commits": c["commits"], "last": c["last"], "departed": c["departed"], "cls": cls[c["id"]]} for c in k["contributors"]]
+    others = {"name": "Others", "short": "Others", "people": k["others"]["people"], "commits": k["others"]["commits"], "cls": 8} if k["others"] else None
+    data = {"head": f["repo"]["short"], "date": k["date"], "contributors": people, "others": others, "files": k["files"]}
+    jsn = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c")
+    lines = sum(r[1] for r in k["files"])
+    tiles = stats_html([("HEAD", Raw(f'<span class="mono">{E(f["repo"]["short"])}</span>'), f"committed {k['date']}"),
+                        ("Contributors", fmt(len(people) + (others["people"] if others else 0)), "people, bots left out"),
+                        ("Files", fmt(len(k["files"])), "text files at HEAD"),
+                        ("Lines", compact(lines), "non-blank, surviving at HEAD")])
+    notes = ""
+    if k["approx_files"]:
+        notes += alert(f'The line counts are estimates for {fmt(k["approx_files"])} of the {fmt(len(k["files"]) + k["trimmed"])} files, because git blame did not finish within its time limit. '
+                       'For those files the profiler used lines added minus lines deleted in each person\'s commits instead.', "Estimated line shares")
+    if k["trimmed"]:
+        notes += alert(f'To keep the page small, {fmt(k["trimmed"])} of the smallest and least changed files are left out of this map.', "Some files are not shown")
+    controls = '<div class="km-controls">' + km_group("metric", "Measure", KM_MEASURES) + km_group("view", "Show", KM_VIEWS) + km_group("zoom", "Zoom", KM_ZOOMS) + "</div>"
+    months = k["departed_months"]
+    legend = (f'<div class="km-note"><span id="km-formula"></span><span><i class="km-hz"></i>Hatched = no longer active</span>'
+              f'<span>{badge("at risk", "basis-inferred")} top contributor has left and holds 50% or more</span></div>')
+    left_out = ("vendored, generated, lock, binary and minified files" + (f", and {fmt(k['attribute_excluded'])} that .gitattributes marks as generated or vendored" if k["attribute_excluded"] else ""))
+    counted = (f'<p class="muted km-counted">Counted: the text files tracked at HEAD, except {left_out}. Bots are not shown'
+               + (f", and the {others['people']} people beyond the top {len(people)} are grouped as Others" if others else "")
+               + ". Commits that touch more than 400 files (imports, reformatting) are not credited to any file. "
+               f'Recent means the {k["recent_days"] // 30} months before HEAD\'s commit date, never today\'s date.</p>')
+    infer = (f'<p class="muted km-infer">{basis("inferred")} "No longer active" and "at risk" are inferences, not records. A person is treated as having left when they made no commit in the '
+             f'{months} months before HEAD ({E(k["date"])}), and a folder is at risk when its top contributor has left and holds 50% or more. '
+             'Someone on leave, or working in another repository, would be marked wrongly. The team can confirm who has really left.</p>')
+    tree = ('<div class="km-tree"><div class="km-scroller" id="km-scroller" role="tree" aria-label="Repository tree with contributor familiarity">'
+            '<div class="km-thead" role="presentation"><span>Path</span><span>Who knows it</span><span id="km-th3">Top contributor</span></div>'
+            '<div class="km-rows" id="km-rows"></div></div>'
+            '<div class="km-mini" id="km-mini-wrap" title="Minimap: click or drag to scroll"><canvas id="km-mini" aria-hidden="true"></canvas></div></div>')
+    return (f'<div class="km" id="km-root">{notes}{tiles}{controls}<h3>Repository tree</h3>'
+            f'<div class="km-chips" id="km-chips" role="group" aria-label="Contributor"></div>{tree}{legend}{counted}{infer}</div>'
+            f'<script type="application/json" id="km-data">{jsn}</script>')
+
+
 def panel_contributors(f, refs):
     g, c = f["git"], f["git"]["contributors"]
     cb = g["commits_by_type"]
@@ -1006,8 +1081,10 @@ def panel_contributors(f, refs):
                          rows, refs, "t-people", True, True)
     main = card("Contributors", tiles + assisted + who_bar + "<h3>Detail by contributor</h3>" + table + more,
                 "facts-contributors", None, refs, ["facts:contributors"] + (["facts:ownership"] if o else []))
+    know = card("Contributor knowledge map", knowledge_card(f), "facts-knowledge",
+                "Which parts of the repository each person knows best, based on surviving lines, commit history and recent activity.", refs, ["facts:knowledge"])
     when = card("Who committed and when", calendar_html(g, names, pal, g.get("tags") or []), "facts-calendar", None, refs, ["facts:git"])
-    return main + when
+    return main + know + when
 
 
 # --------------------------------------------------------------------------- tracker pages

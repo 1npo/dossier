@@ -426,6 +426,302 @@
     out.addEventListener("click", function () { set(at - 1); }); inn.addEventListener("click", function () { set(at + 1); });
     set(+box.dataset.zoomStart || 0);
   });
+  // ---- contributor knowledge map: a tree of who knows which files, with an ownership bar per row and a minimap. Figures come from #km-data.
+  (function () {
+    var kmRoot = $("#km-root"), dataEl = $("#km-data"), D = null;
+    if (!kmRoot || !dataEl) return;
+    try { D = JSON.parse(dataEl.textContent); } catch (e) { return; }
+    var RH = 28, HEAD_H = 30, OVERSCAN = 12, WINDOW_MIN = 400;   // rows are windowed only when there are more than WINDOW_MIN of them
+    var people = D.contributors.slice(), nOwn = people.length;
+    if (D.others) people.push(D.others);
+    var K = people.length, FORMULA = {
+      blend: "Familiarity blends surviving lines (50%), commits (30%) and commits in the last 12 months (20%).",
+      lines: "Share of lines still attributed to each contributor by git blame.",
+      commits: "Share of commits that touched each path.",
+      recent: "Share of commits that touched each path in the 12 months before HEAD’s commit date. People with no commits in that window score zero." };
+    var scroller = $("#km-scroller"), rowsEl = $("#km-rows"), chipsEl = $("#km-chips"), cv = $("#km-mini");
+    var fmt = function (n) { return n.toLocaleString("en-US"); };
+    var color = function (i) { return "var(--l" + people[i].cls + ")"; };
+    var month = function (m) {
+      if (!m) return "unknown";
+      return new Date(Date.UTC(+m.slice(0, 4), +m.slice(5, 7) - 1, 1)).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+    };
+
+    // the tree, built from the flat list of files; directory totals are summed from their files
+    var MAP = Object.create(null), TOP = [];
+    function zeros() { var a = [], i; for (i = 0; i < K; i++) a.push(0); return a; }
+    function cmp(a, b) { return a.type === b.type ? (a.name < b.name ? -1 : a.name > b.name ? 1 : 0) : (a.type === "dir" ? -1 : 1); }
+    D.files.forEach(function (f) {
+      var parts = f[0].split("/"), list = TOP, parent = null, path = "", i, d;
+      for (i = 0; i < parts.length - 1; i++) {
+        path = path ? path + "/" + parts[i] : parts[i];
+        d = MAP[path];
+        if (!d) {
+          d = MAP[path] = { id: path, name: parts[i], path: path, depth: i + 1, type: "dir", children: [], L: zeros(), C: zeros(), R: zeros(), loc: 0, files: 0, last: "", sh: {}, parent: parent };
+          list.push(d);
+        }
+        list = d.children; parent = d;
+      }
+      var n = { id: f[0], name: parts[parts.length - 1], path: f[0], depth: parts.length, type: "file", L: zeros(), C: zeros(), R: zeros(), loc: f[1], files: 1, last: f[2], sh: {}, parent: parent };
+      f[3].forEach(function (t) { n.L[t[0]] = t[1]; n.C[t[0]] = t[2]; n.R[t[0]] = t[3]; });
+      MAP[f[0]] = n; list.push(n);
+    });
+    function roll(n) {
+      if (n.type === "file") return;
+      n.children.forEach(function (c) {
+        var i;
+        roll(c);
+        for (i = 0; i < K; i++) { n.L[i] += c.L[i]; n.C[i] += c.C[i]; n.R[i] += c.R[i]; }
+        n.loc += c.loc; n.files += c.files;
+        if (c.last > n.last) n.last = c.last;
+      });
+      n.children.sort(cmp);
+    }
+    TOP.forEach(roll); TOP.sort(cmp);
+
+    // familiarity shares for a path under the chosen measure; a component whose total is zero is dropped and the blend renormalised
+    function norm(a) {
+      var t = 0, i;
+      for (i = 0; i < a.length; i++) t += a[i];
+      return t ? a.map(function (x) { return x / t; }) : null;
+    }
+    function shares(n, metric) {
+      if (n.sh[metric]) return n.sh[metric];
+      var r = null, parts, tw = 0;
+      if (metric === "lines") r = norm(n.L);
+      else if (metric === "commits") r = norm(n.C);
+      else if (metric === "recent") r = norm(n.R);
+      else {
+        parts = [[norm(n.L), 0.5], [norm(n.C), 0.3], [norm(n.R), 0.2]].filter(function (p) { return p[0]; });
+        parts.forEach(function (p) { tw += p[1]; });
+        if (parts.length) { r = zeros(); parts.forEach(function (p) { p[0].forEach(function (x, i) { r[i] += x * p[1] / tw; }); }); }
+      }
+      n.sh[metric] = r || zeros();
+      return n.sh[metric];
+    }
+    function topOf(sh) {
+      var b = -1, s = 0;
+      sh.forEach(function (x, i) { if (x > s) { s = x; b = i; } });
+      return { i: b, s: s };
+    }
+
+    var state = { metric: "blend", focus: null, zoom: 2, view: "full", open: Object.create(null) };
+    var VIS = [], focusId = null, win = { a: 0, b: 0 };
+    function openForZoom(z) { state.open = Object.create(null); Object.keys(MAP).forEach(function (id) { if (MAP[id].type === "dir" && MAP[id].depth < z) state.open[id] = true; }); }
+    function openAll() { Object.keys(MAP).forEach(function (id) { if (MAP[id].type === "dir") state.open[id] = true; }); }
+    function keep(n) { return state.view !== "mine" || n.C[state.focus] > 0; }
+    function visible() {
+      var out = [];
+      (function walk(list) {
+        list.forEach(function (n) {
+          if (!keep(n)) return;
+          out.push(n);
+          if (n.type === "dir" && state.open[n.id]) walk(n.children);
+        });
+      })(TOP);
+      return out;
+    }
+    function defaultFocus() {
+      var b = 0;
+      D.contributors.forEach(function (p, i) { if (p.commits > D.contributors[b].commits) b = i; });
+      return b;
+    }
+
+    var S = 'fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"';
+    var ICON = {
+      chev: '<svg viewBox="0 0 16 16" width="13" height="13" ' + S + '><path d="M6 3.5 10.5 8 6 12.5"/></svg>',
+      dir: '<svg class="km-ic" viewBox="0 0 16 16" ' + S + '><path d="M1.75 4.25a1 1 0 0 1 1-1h3l1.5 1.75h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-10.5a1 1 0 0 1-1-1z"/></svg>',
+      file: '<svg class="km-ic" viewBox="0 0 16 16" ' + S + '><path d="M4 1.75h5l3.25 3.25v8.5a.75.75 0 0 1-.75.75h-7.5a.75.75 0 0 1-.75-.75v-11a.75.75 0 0 1 .75-.75z"/><path d="M9 1.75V5h3.25"/></svg>' };
+
+    function rowHTML(n, idx) {
+      var sh = shares(n, state.metric), isDir = n.type === "dir", open = isDir && state.open[n.id], f = state.focus, bar, top, dim = false, g = "", k, t, s, i;
+      if (f === null) {
+        bar = '<div class="km-bar">';
+        for (i = 0; i < K; i++) if (sh[i] >= 0.03) bar += '<i class="' + (people[i].departed ? "g" : "") + '" style="flex:' + (sh[i] * 100).toFixed(2) + ' 1 0;background-color:' + color(i) + '"></i>';
+        bar += "</div>";
+        t = topOf(sh);
+        if (t.i < 0) top = '<span class="km-none">' + (state.metric === "recent" ? "no recent activity" : "no activity") + "</span>";
+        else {
+          top = '<span class="km-dot" style="background:' + color(t.i) + '"></span><span class="km-tn">' + esc(people[t.i].short) + '</span><span class="km-pct">' + Math.round(t.s * 100) + "%</span>";
+          if (isDir && people[t.i].departed && t.s >= 0.5) top += '<span class="badge basis-inferred" data-variant="outline">at risk</span>';
+        }
+      } else {
+        s = sh[f]; dim = s < 0.03;
+        bar = '<div class="km-bar fo"><b style="width:' + (s * 100).toFixed(1) + '%;background-color:' + color(f) + '"></b></div>';
+        top = '<span class="km-pct strong">' + (s < 0.005 ? "–" : Math.round(s * 100) + "%") + "</span>";
+      }
+      for (k = 1; k < n.depth; k++) g += '<span class="km-gd"></span>';
+      return '<div class="km-row' + (dim ? " dim" : "") + '" role="treeitem"' + (isDir ? ' aria-expanded="' + !!open + '"' : "") + ' aria-level="' + n.depth + '" data-id="' + esc(n.id) + '" tabindex="-1" style="top:' + idx * RH + 'px">' +
+        '<div class="km-nm">' + g + '<span class="km-chev' + (open ? " o" : "") + '">' + (isDir ? ICON.chev : "") + "</span>" + (isDir ? ICON.dir : ICON.file) +
+        '<span class="km-lbl">' + esc(n.name) + "</span>" + (isDir ? '<span class="km-cnt">' + n.files + "</span>" : "") + "</div>" +
+        '<div class="km-bc">' + bar + '</div><div class="km-tc">' + top + "</div></div>";
+    }
+
+    // only the rows near the viewport are in the page once there are many; the minimap still draws every visible row
+    function viewRange(over) {
+      var n = VIS.length, st = scroller.scrollTop - HEAD_H;
+      if (n <= WINDOW_MIN) return [0, n];
+      return [Math.max(0, Math.floor(st / RH) - over), Math.min(n, Math.ceil((st + scroller.clientHeight) / RH) + over)];
+    }
+    function drawRows() {
+      var had = scroller.contains(doc.activeElement), r = viewRange(OVERSCAN), h = "", i, kids, target = null;
+      rowsEl.style.height = VIS.length * RH + "px";
+      for (i = r[0]; i < r[1]; i++) h += rowHTML(VIS[i], i);
+      rowsEl.innerHTML = h; win.a = r[0]; win.b = r[1];
+      kids = rowsEl.children;
+      for (i = 0; i < kids.length; i++) if (kids[i].dataset.id === focusId) target = kids[i];
+      if (target) { target.tabIndex = 0; if (had) target.focus({ preventScroll: true }); }
+      else if (kids.length) kids[0].tabIndex = 0;
+    }
+    function ensureWindow() {
+      var r = viewRange(0);
+      if (r[0] < win.a || r[1] > win.b) drawRows();
+    }
+
+    // minimap: one bar per visible row, stacked by person, indented by depth; the box is the part of the tree in view
+    function drawMini() {
+      var W = cv.clientWidth, H = cv.clientHeight, dpr = window.devicePixelRatio || 1, ctx, cs, n, rp, gap, f = state.focus, mapped, ratio, vy, vh;
+      if (!W || !H) return;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+      cs = getComputedStyle(root);
+      var col = function (i) { return cs.getPropertyValue("--l" + people[i].cls).trim(); };
+      n = VIS.length || 1; rp = Math.min(6, H / n); gap = rp >= 3 ? 1 : 0;
+      VIS.forEach(function (r, idx) {
+        var y = idx * rp, h = Math.max(1, rp - gap), ind = 4 + (r.depth - 1) * 4, avail = W - ind - 4, sh = shares(r, state.metric), x = ind, i, s;
+        if (r.type === "file") avail *= 0.35 + 0.65 * Math.min(1, r.loc / 300);
+        if (f === null) {
+          for (i = 0; i < K; i++) { if (sh[i] < 0.02) continue; ctx.fillStyle = col(i); ctx.fillRect(x, y, avail * sh[i], h); x += avail * sh[i]; }
+        } else {
+          s = sh[f];
+          if (s < 0.02) { ctx.globalAlpha = 0.12; ctx.fillStyle = cs.getPropertyValue("--muted-foreground").trim(); ctx.fillRect(ind, y, avail, h); ctx.globalAlpha = 1; return; }
+          ctx.globalAlpha = 0.25 + 0.75 * Math.min(1, s / 0.7); ctx.fillStyle = col(f); ctx.fillRect(ind, y, avail, h); ctx.globalAlpha = 1;
+        }
+      });
+      mapped = n * rp; ratio = mapped / Math.max(1, scroller.scrollHeight);
+      vy = scroller.scrollTop * ratio; vh = Math.min(mapped, scroller.clientHeight * ratio);
+      ctx.fillStyle = "rgba(128,128,128,.2)"; ctx.fillRect(0, vy, W, vh);
+      ctx.strokeStyle = "rgba(128,128,128,.85)"; ctx.lineWidth = 1; ctx.strokeRect(0.5, vy + 0.5, W - 1, Math.max(2, vh - 1));
+    }
+    var raf = 0;
+    function sched() { cancelAnimationFrame(raf); raf = requestAnimationFrame(drawMini); }
+    (function () {
+      var drag = false;
+      function seek(e) {
+        var r = cv.getBoundingClientRect(), H = cv.clientHeight, n = VIS.length || 1, mapped = n * Math.min(6, H / n);
+        scroller.scrollTop = (e.clientY - r.top) * (scroller.scrollHeight / mapped) - scroller.clientHeight / 2;
+      }
+      cv.addEventListener("pointerdown", function (e) { drag = true; cv.setPointerCapture(e.pointerId); seek(e); });
+      cv.addEventListener("pointermove", function (e) { if (drag) seek(e); });
+      cv.addEventListener("pointerup", function () { drag = false; });
+      cv.addEventListener("pointercancel", function () { drag = false; });
+    })();
+    if (window.ResizeObserver) { var ro = new ResizeObserver(function () { ensureWindow(); sched(); }); ro.observe(cv); ro.observe(scroller); }
+    if (window.MutationObserver) new MutationObserver(sched).observe(root, { attributes: true, attributeFilter: ["class"] });   // the theme is the "dark" class on <html>
+
+    // controls and chips
+    function setPressed(sel, v) { $$(sel + " button", kmRoot).forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.v === String(v))); }); }
+    function buildChips() {
+      chipsEl.innerHTML = D.contributors.map(function (p, i) {
+        return '<button type="button" class="btn km-chip' + (p.departed ? " gone" : "") + '" data-variant="outline" data-size="sm" data-i="' + i + '" aria-pressed="false" title="' + esc(p.name + (p.departed ? " (left)" : "") + ", last commit " + month(p.last)) + '">' +
+          '<i class="km-sw" style="background-color:' + color(i) + '"></i>' + esc(p.short) + "<small>" + fmt(p.commits) + "</small></button>";
+      }).join("");
+    }
+    function render() {
+      VIS = visible();
+      drawRows();
+      drawMini();
+      $("#km-th3").textContent = state.focus === null ? "Top contributor" : "Their share";
+      $("#km-formula").textContent = FORMULA[state.metric];
+      chipsEl.className = "km-chips" + (state.focus !== null ? " has" : "");
+      $$(".km-chip", chipsEl).forEach(function (b) { b.setAttribute("aria-pressed", String(state.focus === +b.dataset.i)); });
+      setPressed("#km-metric", state.metric); setPressed("#km-view", state.view); setPressed("#km-zoom", state.zoom);
+    }
+    function resetScroll() { focusId = null; scroller.scrollTop = 0; }
+    $("#km-metric").addEventListener("click", function (e) { var b = e.target.closest("button"); if (!b) return; state.metric = b.dataset.v; render(); });
+    $("#km-view").addEventListener("click", function (e) {
+      var b = e.target.closest("button"); if (!b) return;
+      state.view = b.dataset.v;
+      if (state.view === "mine") { if (state.focus === null) state.focus = defaultFocus(); openAll(); } else openForZoom(state.zoom);
+      resetScroll(); render();
+    });
+    $("#km-zoom").addEventListener("click", function (e) {
+      var b = e.target.closest("button"); if (!b) return;
+      state.zoom = +b.dataset.v;
+      if (state.view === "mine") { openAll(); Object.keys(state.open).forEach(function (id) { if (MAP[id].depth >= state.zoom) delete state.open[id]; }); } else openForZoom(state.zoom);
+      resetScroll(); render();
+    });
+    chipsEl.addEventListener("click", function (e) {
+      var b = e.target.closest(".km-chip"); if (!b) return;
+      var i = +b.dataset.i;
+      if (state.view === "mine") { if (state.focus === i) return; state.focus = i; openAll(); scroller.scrollTop = 0; } else state.focus = state.focus === i ? null : i;
+      render();
+    });
+    function toggle(id) { if (state.open[id]) delete state.open[id]; else state.open[id] = true; focusId = id; render(); }
+    rowsEl.addEventListener("click", function (e) {
+      var r = e.target.closest(".km-row"); if (!r) return;
+      var n = MAP[r.dataset.id];
+      if (n.type === "dir") toggle(n.id); else { focusId = n.id; r.focus(); }
+    });
+
+    // keyboard: Up and Down move, Right opens or steps into a folder, Left closes or steps out, Enter and Space toggle
+    function moveTo(t) {
+      var idx = VIS.indexOf(t), top = HEAD_H + idx * RH, kids, i;
+      focusId = t.id;
+      if (top < scroller.scrollTop + HEAD_H) scroller.scrollTop = top - HEAD_H;
+      else if (top + RH > scroller.scrollTop + scroller.clientHeight) scroller.scrollTop = top + RH - scroller.clientHeight;
+      drawRows();
+      kids = rowsEl.children;
+      for (i = 0; i < kids.length; i++) if (kids[i].dataset.id === t.id) { kids[i].focus({ preventScroll: true }); }
+      sched();
+    }
+    scroller.addEventListener("keydown", function (e) {
+      var row = e.target.closest(".km-row"); if (!row) return;
+      var id = row.dataset.id, idx = VIS.indexOf(MAP[id]), n = VIS[idx], t = null;
+      if (e.key === "ArrowDown") t = VIS[idx + 1];
+      else if (e.key === "ArrowUp") t = VIS[idx - 1];
+      else if (e.key === "ArrowRight" && n.type === "dir") {
+        if (!state.open[id]) { e.preventDefault(); toggle(id); return; }
+        t = VIS[idx + 1] && VIS[idx + 1].parent === n ? VIS[idx + 1] : null;
+      } else if (e.key === "ArrowLeft") {
+        if (n.type === "dir" && state.open[id]) { e.preventDefault(); toggle(id); return; }
+        t = n.parent;
+      } else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (n.type === "dir") toggle(id); return; }
+      if (t) { e.preventDefault(); moveTo(t); }
+    });
+    scroller.addEventListener("scroll", function () { if (VIS.length > WINDOW_MIN) ensureWindow(); sched(); hideTip(); });
+
+    // tooltip: follows the pointer and uses the page's shared tooltip element; not shown for touch
+    function tipHTML(n) {
+      var sh = shares(n, state.metric), order = [], h, i;
+      for (i = 0; i < K; i++) if (sh[i] >= 0.01) order.push([sh[i], i]);
+      order.sort(function (a, b) { return b[0] - a[0]; });
+      h = '<div class="tp-h">' + esc(n.path) + (n.type === "dir" ? "/" : "") + '</div><div class="tp-m">' + (n.type === "dir" ? n.files + " files · " : "") + fmt(n.loc) + " lines · last change " + month(n.last) + "</div>";
+      if (!order.length) return h + '<div class="tp-m">No contributor activity for this measure.</div>';
+      h += '<div class="tp-g">';
+      order.forEach(function (o) {
+        var p = people[o[1]], name = p.name + (p.departed ? " (left)" : "") + (p.people ? " (" + p.people + " people)" : "");
+        h += '<div class="tp-r"><i class="tp-dot" style="background:' + color(o[1]) + '"></i><span class="tp-n">' + esc(name) + '</span><span class="tp-num">' + fmt(n.L[o[1]]) + ' lines</span><span class="tp-num">' + fmt(n.C[o[1]]) + ' commits</span><span class="tp-num"><b>' + Math.round(o[0] * 100) + "%</b></span></div>";
+      });
+      return h + "</div>";
+    }
+    var tipId = "";
+    function hideTip() { if (tipId) { tip.hidden = true; tipId = ""; } }
+    rowsEl.addEventListener("pointermove", function (e) {
+      var r = e.target.closest(".km-row"), w, h, x, y;
+      if (!r || e.pointerType === "touch") { hideTip(); return; }
+      if (tipId !== r.dataset.id || tip.hidden) { tip.className = ""; tip.innerHTML = tipHTML(MAP[r.dataset.id]); tipId = r.dataset.id; }
+      tip.hidden = false;
+      w = tip.offsetWidth; h = tip.offsetHeight; x = e.clientX + 16; y = e.clientY + 16;
+      if (x + w > window.innerWidth - 8) x = e.clientX - w - 16;
+      if (y + h > window.innerHeight - 8) y = window.innerHeight - h - 8;
+      tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+    });
+    rowsEl.addEventListener("pointerleave", hideTip);
+
+    buildChips(); openForZoom(state.zoom); render();
+  })();
+
   $("#menu-toggle").addEventListener("click", function () { var sb = $(".sidebar"); if (sb && sb.toggle) sb.toggle(); });
 
   // keep the sticky header height in sync so anchors land below it
