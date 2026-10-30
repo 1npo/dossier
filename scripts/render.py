@@ -1020,11 +1020,6 @@ def knowledge_card(f):
     months = k["departed_months"]
     legend = (f'<div class="km-note"><span id="km-formula"></span><span><i class="km-hz"></i>Hatched = no longer active</span>'
               f'<span>{badge("at risk", "basis-inferred")} top contributor has left and holds 50% or more</span></div>')
-    left_out = ("vendored, generated, lock, binary and minified files" + (f", and {fmt(k['attribute_excluded'])} that .gitattributes marks as generated or vendored" if k["attribute_excluded"] else ""))
-    counted = (f'<p class="muted km-counted">Counted: the text files tracked at HEAD, except {left_out}. Bots are not shown'
-               + (f", and the {others['people']} people beyond the top {len(people)} are grouped as Others" if others else "")
-               + ". Commits that touch more than 400 files (imports, reformatting) are not credited to any file. "
-               f'Recent means the {k["recent_days"] // 30} months before HEAD\'s commit date, never today\'s date.</p>')
     infer = (f'<p class="muted km-infer">{basis("inferred")} "No longer active" and "at risk" are inferences, not records. A person is treated as having left when they made no commit in the '
              f'{months} months before HEAD ({E(k["date"])}), and a folder is at risk when its top contributor has left and holds 50% or more. '
              'Someone on leave, or working in another repository, would be marked wrongly. The team can confirm who has really left.</p>')
@@ -1033,7 +1028,7 @@ def knowledge_card(f):
             '<div class="km-rows" id="km-rows"></div></div>'
             '<div class="km-mini" id="km-mini-wrap" title="Minimap: click or drag to scroll"><canvas id="km-mini" aria-hidden="true"></canvas></div></div>')
     return (f'<div class="km" id="km-root">{notes}{tiles}{controls}<h3>Repository tree</h3>'
-            f'<div class="km-chips" id="km-chips" role="group" aria-label="Contributor"></div>{tree}{legend}{counted}{infer}</div>'
+            f'<div class="km-chips" id="km-chips" role="group" aria-label="Contributor"></div>{tree}{legend}{infer}</div>'
             f'<script type="application/json" id="km-data">{jsn}</script>')
 
 
@@ -1084,7 +1079,7 @@ def panel_contributors(f, refs):
     know = card("Contributor knowledge map", knowledge_card(f), "facts-knowledge",
                 "Which parts of the repository each person knows best, based on surviving lines, commit history and recent activity.", refs, ["facts:knowledge"])
     when = card("Who committed and when", calendar_html(g, names, pal, g.get("tags") or []), "facts-calendar", None, refs, ["facts:git"])
-    return main + know + when
+    return main + when + know
 
 
 # --------------------------------------------------------------------------- tracker pages
