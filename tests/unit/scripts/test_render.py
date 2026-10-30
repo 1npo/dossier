@@ -368,6 +368,11 @@ class TestOwnershipMatrix:
         html = render.ownership_matrix(self.facts(), render.Refs("contributors", make_cites({})), self.PAL)
         assert "Everyone else wrote 10 of 40 lines in docs/ (25%)" in html
 
+    def test_contributors_run_across_and_areas_down(self, make_cites):
+        html = render.ownership_matrix(self.facts(), render.Refs("contributors", make_cites({})), self.PAL)
+        assert html.count('class="mx-col"') == 3 and html.count('class="mx-row mx-area"') == 2
+        assert 'style="--cols:3"' in html
+
     def test_nothing_without_measured_ownership(self, make_cites):
         assert render.ownership_matrix({}, render.Refs("contributors", make_cites({})), self.PAL) == ""
 

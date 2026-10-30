@@ -305,10 +305,12 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 :root { --tip-add: oklch(.84 .17 155); --tip-del: oklch(.78 .16 25); }
 .dark { --tip-add: oklch(.42 .14 155); --tip-del: oklch(.45 .18 25); }
 #cite-tip .tp-h { font-weight: 600; margin-bottom: .2rem; }
-#cite-tip .tp-r { display: flex; align-items: center; gap: .6rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
-#cite-tip .tp-n { flex: 1; min-width: 5rem; overflow: hidden; text-overflow: ellipsis; }
-#cite-tip .tp-dot { width: .6rem; height: .6rem; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px color-mix(in oklab, var(--background) 60%, transparent); }
+#cite-tip .tp-g { display: grid; grid-template-columns: auto minmax(5rem, 16rem) auto auto auto; column-gap: .6rem; align-items: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#cite-tip .tp-r { display: contents; }
+#cite-tip .tp-n { overflow: hidden; text-overflow: ellipsis; min-width: 0; text-align: left; }
+#cite-tip .tp-dot { width: .6rem; height: .6rem; border-radius: 50%; box-shadow: 0 0 0 1px color-mix(in oklab, var(--background) 60%, transparent); }
 #cite-tip .tp-add { color: var(--tip-add); font-weight: 600; } #cite-tip .tp-del { color: var(--tip-del); font-weight: 600; }
+#cite-tip .tp-g .tp-rule { grid-column: 1 / -1; height: 0; margin: .2rem 0; border-top: 1px solid color-mix(in oklab, var(--background) 35%, transparent); }
 #cite-tip .tp-t { margin-top: .2rem; padding-top: .2rem; border-top: 1px solid color-mix(in oklab, var(--background) 35%, transparent); }
 
 /* title bar pills for the open items */
@@ -327,17 +329,20 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 .activity { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
 .llegend + .lbar { margin-top: 1.1rem; }
 
-/* who owns each area: people by areas */
+/* who owns which area: areas down, contributors across */
 .matrix-wrap { overflow-x: auto; }
-.matrix { display: grid; grid-template-columns: 9rem repeat(var(--cols), minmax(3.2rem, 1fr)); gap: 3px; align-items: stretch; min-width: min-content; }
-.mx-col { display: flex; flex-direction: column; justify-content: flex-end; gap: .1rem; padding: 0 .1rem .3rem; font-size: .75rem; line-height: 1.25; min-width: 0; }
-.mx-col code { background: none; padding: 0; overflow-wrap: anywhere; font-weight: 600; } .mx-col span { color: var(--muted-foreground); font-size: .6875rem; }
+.matrix { display: grid; grid-template-columns: minmax(8rem, 14rem) repeat(var(--cols), minmax(3.6rem, 1fr)) .35rem minmax(6.5rem, 9rem) 5rem; gap: 3px; align-items: stretch; min-width: min-content; }
+.mx-col { display: flex; flex-direction: column; justify-content: flex-end; padding: 0 .1rem .3rem; font-size: .75rem; line-height: 1.25; min-width: 0; text-align: center; }
+.mx-who { display: inline-flex; align-items: flex-start; justify-content: center; gap: .3rem; font-weight: 600; overflow-wrap: anywhere; }
+.mx-who .own-dot { margin-top: .2rem; flex: none; }
 .mx-row { display: flex; align-items: center; font-size: .8125rem; min-width: 0; overflow-wrap: anywhere; }
-.mx-cell { display: block; height: 2rem; border-radius: .25rem; background: var(--muted); }
+.mx-area { flex-direction: column; align-items: flex-start; justify-content: center; gap: .1rem; line-height: 1.25; }
+.mx-area code { background: none; padding: 0; overflow-wrap: anywhere; font-weight: 600; font-size: .75rem; } .mx-area span { color: var(--muted-foreground); font-size: .6875rem; }
+.mx-cell { display: block; height: 2.2rem; border-radius: .25rem; background: var(--muted); }
 .mx-cell[data-tip]:hover { outline: 2px solid var(--foreground); outline-offset: -2px; }
-.mx-gap { height: .35rem; border-bottom: 1px solid var(--border); margin-bottom: .15rem; }
+.mx-sep { border-left: 1px solid var(--border); margin-left: .15rem; }
 .mx-lbl { font-weight: 500; color: var(--muted-foreground); }
-.mx-t { display: flex; align-items: center; justify-content: center; text-align: center; min-height: 1.9rem; padding: .1rem .25rem; border-radius: .25rem; font-size: .75rem; line-height: 1.2; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.mx-t { display: flex; align-items: center; justify-content: center; text-align: center; min-height: 2.2rem; padding: .1rem .25rem; border-radius: .25rem; font-size: .75rem; line-height: 1.2; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .mx-warn { background: var(--warn-bg); color: var(--warn); } .mx-bad { background: color-mix(in oklab, var(--destructive) 14%, transparent); color: var(--destructive); }
 .cc.sw.mx-warn, .cc.sw.mx-bad { width: 1.1rem; height: 1.1rem; }
 .mx-t[data-tip] { cursor: help; }

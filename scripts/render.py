@@ -961,31 +961,33 @@ def calendar_html(g, names, pal, tags=()):
 
 
 def ownership_matrix(f, refs, pal):
-    """A heatmap of people (rows) by areas (columns). A cell is the person's colour, stronger the bigger their share of the area's surviving lines."""
+    """A heatmap of areas (rows) by contributors (columns). A cell is the contributor's colour, stronger the bigger their share of the area's surviving lines.
+    Two columns beside it say who to ask and when the area was last touched."""
     o = f.get("ownership")
     if not o or not o["areas"]:
         return ""
     areas = o["areas"]
     people = o["people"][:PALETTE]
     cls = lambda p: pal.get(p["id"], "own-other")
-    rows = [(p["id"], p["name"], cls(p)) for p in people] + [(None, "Everyone else", "own-other")]
-    cols = "".join(f'<div class="mx-col"><code>{E(a["name"]).replace("/", "/<wbr>")}</code><span>{fmt(a["lines"])} lines</span></div>' for a in areas)
+    cols = [(p["id"], p["name"], cls(p)) for p in people] + [(None, "Everyone else", "own-other")]
+    listed = {q["id"] for q in people}
+    head = '<div></div>' + "".join(f'<div class="mx-col"><span class="mx-who"><b class="own-dot {c}"></b>{E(name)}</span></div>' for _, name, c in cols)
+    head += '<div class="mx-sep"></div><div class="mx-col mx-lbl">Active lately</div><div class="mx-col mx-lbl">Last active</div>'
+    info = {a["name"]: a for a in f["areas"]}
     body = ""
-    for pid, name, c in rows:
-        body += f'<div class="mx-row"><b class="own-dot {c}"></b>{E(name)}</div>'
-        for a in areas:
-            n = next((x["lines"] for x in a["owners"] if x["id"] == pid), 0) if pid else a["lines"] - sum(x["lines"] for x in a["owners"] if x["id"] in {q["id"] for q in people})
+    for a in areas:
+        body += f'<div class="mx-row mx-area"><code>{E(a["name"]).replace("/", "/<wbr>")}</code><span>{fmt(a["lines"])} lines</span></div>'
+        for pid, name, c in cols:
+            n = next((x["lines"] for x in a["owners"] if x["id"] == pid), 0) if pid else a["lines"] - sum(x["lines"] for x in a["owners"] if x["id"] in listed)
             share = 100 * n / a["lines"] if a["lines"] else 0
             lvl = min(100, round(share)) if n else 0
             style = f' style="background:color-mix(in oklab, var(--l{c[5:] if c.startswith("lang-") else "8"}) {max(lvl, 8)}%, var(--muted))"' if n else ""
             body += f'<span class="mx-cell"{style} data-tip="{E(name)} wrote {fmt(n)} of {fmt(a["lines"])} lines in {E(a["name"])} ({share:.0f}%)"></span>'
-    # beneath the heatmap: who to ask, and whether the knowledge is at risk
-    info = {a["name"]: a for a in f["areas"]}
-    ask = last = ""
-    for a in areas:
+        body += '<div class="mx-sep"></div>'
+        # beside the heatmap: who to ask, and whether the knowledge is at risk
         i = info.get(a["name"])
         if not i:
-            ask += '<span class="mx-t"></span>'; last += '<span class="mx-t"></span>'
+            body += '<span class="mx-t"></span><span class="mx-t"></span>'
             continue
         recent = max(i["top"], key=lambda x: x["recent_12m"], default=None)
         recent = recent if recent and recent["recent_12m"] else None
@@ -993,20 +995,18 @@ def ownership_matrix(f, refs, pal):
         owner_recent = next((x["recent_12m"] for x in i["top"] if owner and x["name"] == owner["name"]), 0)
         dormant = not i["exists"] or not i["recent_commits_12m"]
         if dormant:
-            ask += '<span class="mx-t mx-bad" data-tip="No commits here in the last 12 months">no one lately</span>'
+            body += '<span class="mx-t mx-bad" data-tip="No commits here in the last 12 months">no one lately</span>'
         elif owner and not owner_recent:
-            ask += f'<span class="mx-t mx-warn" data-tip="{E(owner["name"])} wrote most of this code but has not committed here in the last 12 months. Most active lately: {E(recent["name"])}">{E(recent["name"])}</span>'
+            body += f'<span class="mx-t mx-warn" data-tip="{E(owner["name"])} wrote most of this code but has not committed here in the last 12 months. Most active lately: {E(recent["name"])}">{E(recent["name"])}</span>'
         else:
-            ask += f'<span class="mx-t" data-tip="Most commits here in the last 12 months: {E(recent["name"])} ({recent["recent_12m"]})">{E(recent["name"])}</span>'
-        last += f'<span class="mx-t{" mx-bad" if dormant else ""}">{E(i["last_active"][:7])}</span>'
-    foot = (f'<div class="mx-row mx-lbl">Active lately</div>{ask}'
-            f'<div class="mx-row mx-lbl">Last active</div>{last}')
-    grid = f'<div class="matrix" style="--cols:{len(areas)}"><div></div>{cols}{body}<div class="mx-gap" style="grid-column:1/-1"></div>{foot}</div>'
+            body += f'<span class="mx-t" data-tip="Most commits here in the last 12 months: {E(recent["name"])} ({recent["recent_12m"]})">{E(recent["name"])}</span>'
+        body += f'<span class="mx-t{" mx-bad" if dormant else ""}">{E(i["last_active"][:7])}</span>'
+    grid = f'<div class="matrix" style="--cols:{len(cols)}">{head}{body}</div>'
     scale = "".join(f'<span class="cc sw" style="background:color-mix(in oklab, var(--l7) {m}%, var(--muted))"></span>' for m in MIX)
     key = ('<div class="heat-key muted"><span class="kg">Smaller share of the area ' + scale + ' Larger share</span>'
            '<span class="kg"><span class="cc sw mx-warn"></span> The main owner has not committed there in 12 months</span>'
            '<span class="kg"><span class="cc sw mx-bad"></span> No commits in 12 months</span></div>')
-    return f'<h3 id="facts-areas">Who owns each area {refs.mark(["facts:areas", "facts:ownership"])}</h3><div class="matrix-wrap">{grid}</div>{key}'
+    return f'<div class="matrix-wrap">{grid}</div>{key}'
 
 
 def area_codes(areas):
@@ -1019,56 +1019,58 @@ def panel_contributors(f, refs):
     commits_total = sum(cb.values()) or 1
     o = f.get("ownership")
     pal = owner_palette(f)
-    tiles = stats_html([(t.capitalize(), str(c[t]), "") for t in ("human", "agent", "bot")])
+    tiles = stats_html([(t.capitalize(), str(c[t]), f"{fmt(cb[t])} commit{'' if cb[t] == 1 else 's'} · {100 * cb[t] / commits_total:.0f}%") for t in ("human", "agent", "bot")])
     assisted = ""
     if g["agent_assisted_commits"]:
         by = ", ".join(f"{k}: {v}" for k, v in g["agent_assisted_by"].items())
         assisted = f'<p>{fmt(g["agent_assisted_commits"])} commits carry an AI-assistant marker ({E(by)}). They are counted under "agent" in the tables below.</p>'
-    # two bars, with the legend beneath each: whose code it is, and what kind of contributor wrote it
+    # two bars, with the legend beneath each: whose code it is (above the contributor table), and what kind of contributor wrote it (above the type table)
     if o:
         total = o["total_lines"]
         top = o["people"][:PALETTE]
         rest = total - sum(p["lines"] for p in top)
         people_items = [(pal[p["id"]], p["name"], p["lines"], "") for p in top] + [("lang-8", "Everyone else", rest, "")]
         type_items = [(TYPE_CLS[t], t.capitalize(), o["by_type"][t], "") for t in ("human", "agent", "bot")]
-        bars = f'<div id="facts-ownership">{share_bar(people_items, total)}{share_bar(type_items, total)}</div>'
+        who_bar, type_bar = f'<div id="facts-ownership">{share_bar(people_items, total)}</div>', share_bar(type_items, total)
     else:
         ppl = f["contributors"]["people"]
         top = ppl[:PALETTE]
         rest = commits_total - sum(p["commits"] for p in top)
         people_items = [(pal[p["id"]], p["name"], p["commits"], "") for p in top] + [("lang-8", "Everyone else", rest, "")]
         type_items = [(TYPE_CLS[t], t.capitalize(), cb[t], "") for t in ("human", "agent", "bot")]
-        bars = (f'{share_bar(people_items, commits_total)}{share_bar(type_items, commits_total)}'
-                '<p class="muted">Code ownership was not measured in this profile, so these bars show commits. Run prepare again to measure it.</p>')
+        who_bar = f'{share_bar(people_items, commits_total)}<p class="muted">Code ownership was not measured in this profile, so these bars show commits. Run prepare again to measure it.</p>'
+        type_bar = share_bar(type_items, commits_total)
     names = {p["id"]: p["name"] for p in f["contributors"]["people"]}
-    cal = f'<h3>Who committed, and when</h3>{calendar_html(g, names, pal, g.get("tags") or [])}'
     own = {p["id"]: p for p in (o or {}).get("people", [])}
-    rows, detail = [], []
+    rows = []
     for p in f["contributors"]["people"][:40]:
         lines = own.get(p["id"])
         who = f'<b class="own-dot {pal.get(p["id"], "own-other")}"></b>{E(p["name"])}'
         code = (f'{fmt(lines["lines"])} <span class="meter"><i class="{pal.get(p["id"], "own-other")}" style="width:{max(lines["share_pct"], 0.4):.1f}%"></i></span> {lines["share_pct"]}%', lines["lines"]) if lines else ("0" if o else "·", 0)
         areas = area_codes(a["area"] for a in (lines["top_areas"] if lines else p["top_areas"])[:3])
-        rows.append([who, type_badge(p["type"]), (f'{fmt(p["commits"])} ({p["share_pct"]}%)', p["commits"]),
-                     code, f'{p["first"]} to {p["last"]}', fmt(p["recent_commits_12m"]), fmt(p["assisted_commits"]), areas])
         added, deleted, months = p["added"], p["deleted"], max(p["active_months"], 1)
-        span = (datetime.strptime(p["last"], "%Y-%m-%d") - datetime.strptime(p["first"], "%Y-%m-%d")).days
         mix = " · ".join(f"{v} {k}" for k, v in p["commits_by_type"].items() if v)
-        detail.append([who, (fmt(added), added), (fmt(deleted), deleted), (f"{added - deleted:+,}", added - deleted),
-                       (fmt(round((added + deleted) / p["commits"])) if p["commits"] else "0", (added + deleted) / max(p["commits"], 1)),
-                       fmt(p["active_months"]), (f"{p['commits'] / months:.1f}", p["commits"] / months), (f"{span / 365.25:.1f} years", span), mix])
-    more = f'<p class="muted">{f["contributors"]["not_listed"]} more contributors are in the profiler data but not shown. Tables show the top 40.</p>' if f["contributors"]["not_listed"] or len(f["contributors"]["people"]) > 40 else ""
-    table = render_table(["Name", "Type", "Commits", "Code today" if o else "Code today (not measured)", "Active", "Last 12 months", "Agent-assisted", "Main areas"], rows, refs, "t-people", True, True)
+        rows.append([who, type_badge(p["type"]), (f'{fmt(p["commits"])} ({p["share_pct"]}%)', p["commits"]),
+                     code, f'{p["first"]} to {p["last"]}', fmt(p["recent_commits_12m"]), fmt(p["assisted_commits"]), areas,
+                     (fmt(added), added), (fmt(deleted), deleted), (f"{added - deleted:+,}", added - deleted),
+                     (fmt(round((added + deleted) / p["commits"])) if p["commits"] else "0", (added + deleted) / max(p["commits"], 1)),
+                     fmt(p["active_months"]), (f"{p['commits'] / months:.1f}", p["commits"] / months), mix])
+    more = f'<p class="muted">{f["contributors"]["not_listed"]} more contributors are in the profiler data but not shown. The table shows the top 40.</p>' if f["contributors"]["not_listed"] or len(f["contributors"]["people"]) > 40 else ""
+    table = render_table(["Name", "Type", "Commits", "Code today" if o else "Code today (not measured)", "Active", "Last 12 months", "Agent-assisted", "Main areas",
+                          "Lines added", "Lines deleted", "Net lines", "Lines changed per commit", "Active months", "Commits per active month", "Commits by type"],
+                         rows, refs, "t-people", True, True)
     by_type = []
     for t in ("human", "agent", "bot"):
         today = o["by_type"][t] if o else 0
         by_type.append([f'<b class="{TYPE_CLS[t]} own-dot"></b>{t.capitalize()}', str(c[t]), (fmt(cb[t]), cb[t]), f"{100 * cb[t] / commits_total:.0f}%",
                         (fmt(today), today) if o else "·", f"{100 * today / o['total_lines']:.0f}%" if o and o["total_lines"] else "·"])
-    type_table = render_table(["Type", "People", "Commits", "Share of commits", "Code today", "Share of codebase"], by_type, refs, "t-types", False, True, sort=False)
-    detail_table = render_table(["Name", "Lines added", "Lines deleted", "Net lines", "Lines changed per commit", "Active months", "Commits per active month", "Active for", "Commits by type"],
-                                detail, refs, "t-detail", True, True)
-    body = (tiles + assisted + bars + cal + ownership_matrix(f, refs, pal) + "<h3>Everyone</h3>" + table + "<h3>By type</h3>" + type_table + "<h3>Detail by person</h3>" + detail_table + more)
-    return card("Contributors", body, "facts-contributors", None, refs, ["facts:contributors"] + (["facts:ownership"] if o else []))
+    type_table = render_table(["Type", "Contributors", "Commits", "Share of commits", "Code today", "Share of codebase"], by_type, refs, "t-types", False, True, sort=False)
+    main = card("Contributors", tiles + assisted + who_bar + "<h3>Detail by contributor</h3>" + table + more + type_bar + "<h3>Detail by contributor type</h3>" + type_table,
+                "facts-contributors", None, refs, ["facts:contributors"] + (["facts:ownership"] if o else []))
+    matrix = ownership_matrix(f, refs, pal)
+    owns = card("Who owns which area", matrix, "facts-areas", None, refs, ["facts:areas", "facts:ownership"]) if matrix else ""
+    when = card("Who committed and when", calendar_html(g, names, pal, g.get("tags") or []), "facts-calendar", None, refs, ["facts:git"])
+    return main + owns + when
 
 
 # --------------------------------------------------------------------------- tracker pages
