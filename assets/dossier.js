@@ -262,7 +262,7 @@
     var ms = function (d) { return Date.parse(d + "T00:00:00Z"); }, iso = function (t) { return new Date(t).toISOString().slice(0, 10); };
     var num = function (v) { return v.toLocaleString(); };
     from.min = to.min = first; from.max = to.max = last;
-    var more = {};
+    var more = {}, grouping = "none", depth = 1, groupSel = $("#fa-group"), depthSel = $("#fa-depth"), depthLabel = $("#fa-depth-l");
     function setRange(r) {
       var end = ms(last);
       to.value = last; from.value = r === "all" ? first : iso(Math.max(ms(first), end - (+r - 1) * DAY));
@@ -284,11 +284,13 @@
       });
       return out;
     }
-    function table(id, p, q) {
-      var list = Object.keys(p.files).map(function (i) { return { i: +i, f: fa.files[+i], c: p.files[i][0], a: p.files[i][1], d: p.files[i][2] }; })
-        .filter(function (r) { return !q || r.f.toLowerCase().indexOf(q) >= 0; });
-      list.sort(function (x, y) { return (y.a + y.d) - (x.a + x.d) || x.f.localeCompare(y.f); });
-      var top = list.length ? list[0].a + list[0].d || 1 : 1, cut = more[id] ? list.length : Math.min(list.length, LIMIT);
+    function groupKey(f) {   // the folder (to the chosen depth) or the extension a file belongs to
+      if (grouping === "type") { var base = f.slice(f.lastIndexOf("/") + 1), dot = base.lastIndexOf("."); return dot > 0 ? base.slice(dot).toLowerCase() : "(no extension)"; }
+      var parts = f.split("/"); parts.pop();
+      return parts.length ? parts.slice(0, depth).join("/") + "/" : "(repository root)";
+    }
+    function rowsTable(list, key) {
+      var top = list.length ? list[0].a + list[0].d || 1 : 1, cut = more[key] ? list.length : Math.min(list.length, LIMIT);
       var h = '<div class="table-container"><table class="table fa-table"><thead><tr><th>File</th><th>Commits</th><th>Added</th><th>Deleted</th><th>Change</th></tr></thead><tbody>';
       list.slice(0, cut).forEach(function (r) {
         var w = 100 * (r.a + r.d) / top, g = r.a + r.d ? 100 * r.a / (r.a + r.d) : 0;
@@ -297,9 +299,27 @@
           + '<td data-sort="' + (r.a + r.d) + '"><span class="fa-bar2" style="width:' + Math.max(w, 2).toFixed(1) + '%"><i style="width:' + g.toFixed(1) + '%"></i></span></td></tr>';
       });
       h += "</tbody></table></div>";
-      if (!list.length) return '<p class="muted">No files match the filter.</p>';
-      if (list.length > cut) h += '<button type="button" class="btn" data-variant="outline" data-size="sm" data-fa-more="' + esc(id) + '">Show all ' + num(list.length) + " files</button>";
+      if (list.length > cut) h += '<button type="button" class="btn" data-variant="outline" data-size="sm" data-fa-more="' + esc(key) + '">Show all ' + num(list.length) + " files</button>";
       return h;
+    }
+    function table(id, p, q) {
+      var list = Object.keys(p.files).map(function (i) { return { i: +i, f: fa.files[+i], c: p.files[i][0], a: p.files[i][1], d: p.files[i][2] }; })
+        .filter(function (r) { return !q || r.f.toLowerCase().indexOf(q) >= 0; });
+      if (!list.length) return '<p class="muted">No files match the filter.</p>';
+      list.sort(function (x, y) { return (y.a + y.d) - (x.a + x.d) || x.f.localeCompare(y.f); });
+      if (grouping === "none") return rowsTable(list, id);
+      var groups = {};
+      list.forEach(function (r) {
+        var k = groupKey(r.f), g = groups[k] || (groups[k] = { k: k, rows: [], c: 0, a: 0, d: 0 });
+        g.rows.push(r); g.c += r.c; g.a += r.a; g.d += r.d;
+      });
+      return Object.keys(groups).map(function (k) { return groups[k]; })
+        .sort(function (x, y) { return (y.a + y.d) - (x.a + x.d) || x.k.localeCompare(y.k); })
+        .map(function (g, n) {
+          var key = id + "|" + g.k;
+          return '<details class="fa-group"' + (n < 3 || q || more[key] ? " open" : "") + '><summary><b><code>' + esc(g.k) + '</code></b><span class="muted">' + num(g.rows.length) + (g.rows.length === 1 ? " file" : " files")
+            + '</span><span class="fa-n fa-add">+' + num(g.a) + '</span><span class="fa-n fa-del">\u2212' + num(g.d) + "</span></summary>" + rowsTable(g.rows, key) + "</details>";
+        }).join("");
     }
     function render() {
       if (from.value && to.value && from.value > to.value) { var t = from.value; from.value = to.value; to.value = t; }
@@ -323,13 +343,15 @@
       $$("details.fa-person", box).forEach(function (el) {
         var id = el.dataset.id;
         function fill() { el.querySelector(".fa-body").innerHTML = table(id, tot[id], q); $$("table", el).forEach(makeSortable); wire(); }
-        function wire() { var b = el.querySelector("[data-fa-more]"); if (b) b.addEventListener("click", function () { more[id] = true; fill(); }); }
-        el.addEventListener("toggle", function () { if (el.open && !el.querySelector("table, p")) fill(); });
+        function wire() { $$("[data-fa-more]", el).forEach(function (b) { b.addEventListener("click", function () { more[b.dataset.faMore] = true; fill(); }); }); }
+        el.addEventListener("toggle", function (e) { if (e.target === el && el.open && !el.querySelector("table, p")) fill(); });
         $$("table", el).forEach(makeSortable); wire();
       });
     }
     $$("[data-fa-range]").forEach(function (b) { b.addEventListener("click", function () { setRange(b.dataset.faRange); }); });
     from.addEventListener("change", render); to.addEventListener("change", render); filter.addEventListener("input", render);
+    groupSel.addEventListener("change", function () { grouping = groupSel.value; depthLabel.hidden = grouping !== "dir"; render(); });
+    depthSel.addEventListener("change", function () { depth = +depthSel.value; render(); });
     setRange(first && ms(last) - ms(first) > 365 * DAY ? "365" : "all");
   })();
 
