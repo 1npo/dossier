@@ -222,6 +222,28 @@ def check_viewer(page, scheme, shots):
             els[0].click()
             if opened():
                 bad(f"a click on {label} citation opened the panel")
+    # a profiler-facts marker explains itself in a popover and leaves the panel closed until its button is pressed
+    els = page.query_selector_all("sup.cite a[data-fact]")
+    if els:
+        els[0].evaluate("e => { location.hash = e.closest('.report').id; }")
+        els[0].scroll_into_view_if_needed()
+        els[0].click()
+        if opened():
+            bad("a click on a profiler facts citation opened the panel instead of the explanation")
+        elif not page.is_visible(".fact-pop"):
+            bad("a click on a profiler facts citation showed no explanation")
+        else:
+            page.click(".fact-pop [data-open]")
+            if not opened():
+                bad("the profiler code button in the explanation did not open the panel")
+            page.keyboard.press("Escape")
+    # a calendar cell shows its tooltip at once, with the lines added and deleted
+    cell = page.query_selector(".report:not([hidden]) .zoom-lvl:not([hidden]) .cc.on[data-cal]")
+    if cell:
+        cell.scroll_into_view_if_needed()
+        cell.hover()
+        if not page.is_visible("#cite-tip .tp-r"):
+            bad("a calendar cell showed no tooltip")
     return out
 
 

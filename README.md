@@ -29,9 +29,13 @@ Hover a source marker `[n]` to see what it points to. Click it to open the cited
 | `[` `]` | Previous or next source in the report's reference list |
 | `Esc` | Collapse an unpinned panel (a click outside it does the same) |
 
-The panel also has a row of the statement's other sources and a "Go to reference" button. Citations of directories, commits and profiler facts, and of files that are binary, minified or may hold secrets, do not open the panel; the click jumps to the reference list as before. A file longer than 1,500 lines is embedded as the 1,500-line window that holds the most cited ranges, and the panel says which lines it shows.
+The panel also has a row of the statement's other sources and a "Go to reference" button. Citations of directories and commits, and of files that are binary, minified or may hold secrets, do not open the panel; the click jumps to the reference list as before. A click on a "profiler facts" marker opens a short explanation of what the measurement is, with a button that shows the profiler code that made it in the same panel. A file longer than 1,500 lines is embedded as the 1,500-line window that holds the most cited ranges, and the panel says which lines it shows.
 
 **Sharing.** The page now contains the source of every file it cites, up to 3 MB of text in total. Treat it like the repository: do not share it more widely than the code. Files that match secret patterns or are flagged by the profiler are never embedded.
+
+## Calendars
+
+The commit calendars (on Overview and Contributors) open on days and zoom to months or to the last twelve months as month calendars. Each week is boxed. Hover a cell to see who committed that day or month, how many commits, and the lines added (green) and deleted (red). Calendar data older than this version has no line counts until you run `prepare` again.
 
 ## Install
 

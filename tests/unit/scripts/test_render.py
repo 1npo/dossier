@@ -295,10 +295,85 @@ class TestCommitCalendar:
     def test_empty_day_has_no_colour(self):
         assert "background" not in render.day_cell({}, 1, self.PAL, "day")
 
-    def test_calendar_has_three_zoom_levels_and_starts_on_the_coarsest(self):
-        html = render.calendar_html(self.facts({"2026-01-05": {"a": 1}, "2026-03-09": {"a": 2, "b": 1}}), {"a": "A", "b": "B"}, self.PAL)
+    DAILY = {"2026-01-05": {"a": 1}, "2026-03-09": {"a": 2, "b": 1}}
+
+    def test_calendar_has_three_zoom_levels_and_starts_on_days(self):
+        html = render.calendar_html(self.facts(self.DAILY), {"a": "A", "b": "B"}, self.PAL)
         assert html.count("data-zoom-level=") == 3
-        assert 'data-zoom-level="0">' in html and 'data-zoom-level="1" hidden' in html and 'data-zoom-level="2" hidden' in html
+        assert 'data-zoom-start="1"' in html
+        assert 'data-zoom-level="0" hidden' in html and 'data-zoom-level="1">' in html and 'data-zoom-level="2" hidden' in html
+
+    def test_legend_and_zoom_buttons_come_after_the_calendar(self):
+        html = render.calendar_html(self.facts(self.DAILY), {"a": "A", "b": "B"}, self.PAL)
+        assert html.rindex("data-zoom-level=") < html.index("llegend") < html.index("zoom-bar")
+
+    def test_day_view_boxes_each_week(self):
+        html = render.calendar_html(self.facts(self.DAILY), {"a": "A"}, self.PAL)
+        level1 = html.split('data-zoom-level="1">')[1].split('data-zoom-level="2"')[0]
+        assert level1.count('<div class="wk">') in (53, 54)
+        assert all(w.count("<span class=\"cc") == 7 for w in level1.split('<div class="wk">')[1:])
+
+    def test_cells_get_their_tooltip_from_the_calendar_data(self):
+        html = render.calendar_html(self.facts(self.DAILY), {"a": "A"}, self.PAL)
+        assert 'data-cal="2026-03-09"' in html and 'data-cal="2026-03"' in html
+
+    def test_calendar_data_has_commits_and_lines_per_person_per_day(self):
+        f = {"git": {"daily": {"2026-03-09": {"a": 2}}, "daily_lines": {"2026-03-09": {"a": [10, 4]}}, "tags": [{"name": "v1", "date": "2026-03-09"}]},
+             "contributors": {"people": [{"id": "a", "name": "Ann"}]}}
+        data = render.calendar_data(f)
+        assert data["days"] == {"2026-03-09": {"a": [2, 10, 4]}} and data["people"]["a"][0] == "Ann" and data["tags"] == {"2026-03-09": ["v1"]}
 
     def test_calendar_without_daily_history_says_to_prepare_again(self):
         assert "prepare again" in render.calendar_html({}, {}, self.PAL)
+
+
+class TestProfilerFacts:
+    def test_every_fact_key_points_at_profiler_code(self):
+        for key in render.FACT_INFO:
+            a, b = render.profiler_range(key)
+            assert 1 <= a < b <= len(render.profiler_source()), key
+
+    def test_every_citable_fact_key_is_explained(self):
+        assert set(render.FACT_KEYS) <= set(render.FACT_INFO)
+
+    def test_fact_marker_opens_an_explanation_not_the_viewer(self, make_cites):
+        refs = render.Refs("overview", make_cites({}))
+        marker = refs.mark(["facts:git"])
+        assert 'data-fact="git"' in marker and "data-view" not in marker
+
+    def test_fact_reference_offers_the_profiler_code(self, make_cites):
+        refs = render.Refs("overview", make_cites({}))
+        refs.mark(["facts:git"])
+        assert f'data-view="{render.PROFILER_PATH}"' in refs.listing()
+
+
+class TestOwnershipMatrix:
+    PAL = {"a": "lang-1", "b": "lang-2"}
+
+    def facts(self):
+        owners = lambda x, y: [{"id": "a", "name": "Ann", "lines": x}, {"id": "b", "name": "Bo", "lines": y}]
+        top = lambda r: [{"name": "Ann", "recent_12m": r, "last": "2026-01-01"}, {"name": "Bo", "recent_12m": 3, "last": "2026-02-01"}]
+        return {"git": {"contributors": {"human": 2}},
+                "areas": [{"name": "src/", "exists": True, "recent_commits_12m": 9, "last_active": "2026-02-01", "top": top(6)},
+                          {"name": "docs/", "exists": True, "recent_commits_12m": 0, "last_active": "2024-02-01", "top": top(0)}],
+                "ownership": {"people": [{"id": "a", "name": "Ann"}, {"id": "b", "name": "Bo"}],
+                              "areas": [{"name": "src/", "lines": 100, "owners": owners(75, 25)}, {"name": "docs/", "lines": 40, "owners": owners(0, 30)}]}}
+
+    def test_one_cell_per_person_and_area_with_the_share_in_its_tooltip(self, make_cites):
+        html = render.ownership_matrix(self.facts(), render.Refs("contributors", make_cites({})), self.PAL)
+        assert html.count('class="mx-cell"') == 3 * 2
+        assert "Ann wrote 75 of 100 lines in src/ (75%)" in html
+
+    def test_lines_nobody_listed_go_to_everyone_else(self, make_cites):
+        html = render.ownership_matrix(self.facts(), render.Refs("contributors", make_cites({})), self.PAL)
+        assert "Everyone else wrote 10 of 40 lines in docs/ (25%)" in html
+
+    def test_nothing_without_measured_ownership(self, make_cites):
+        assert render.ownership_matrix({}, render.Refs("contributors", make_cites({})), self.PAL) == ""
+
+    def test_flags_dormant_areas_and_owners_who_went_quiet(self, make_cites):
+        f = self.facts()
+        f["areas"][0]["top"][0]["recent_12m"] = 0     # Ann owns most of src/ but has not committed there lately
+        html = render.ownership_matrix(f, render.Refs("contributors", make_cites({})), self.PAL)
+        assert "mx-bad" in html and "no one lately" in html
+        assert "Ann wrote most of this code but has not committed here" in html

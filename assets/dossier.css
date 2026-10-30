@@ -256,11 +256,12 @@ details.deps { margin: .5rem 0; } details.deps summary { cursor: pointer; overfl
 .cl .nt { color: var(--tk-nt); } .cl .na { color: var(--tk-na); } .cl .no { color: var(--tk-no); } .cl .gd { color: var(--tk-gd); } .cl .gi { color: var(--tk-gi); } .cl .gh { color: var(--tk-gh); font-weight: 600; }
 .cl.hit { background: color-mix(in oklab, var(--warn) 24%, transparent); }
 .cp-keys { padding: .45rem .9rem; border-top: 1px solid var(--border); font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif); font-size: .75rem; display: flex; flex-wrap: wrap; gap: .25rem .5rem; align-items: center; }
-.code-tab { position: fixed; right: 0; top: 50%; z-index: 54; transform: translateY(-50%); writing-mode: vertical-rl; padding: .7rem .35rem; border: 1px solid var(--border); border-right: 0; border-radius: var(--radius) 0 0 var(--radius);
+.code-tab { position: fixed; right: 0; top: 50%; z-index: 54; transform: translateY(-50%); padding: .5rem .7rem; border: 1px solid var(--border); border-right: 0; border-radius: var(--radius) 0 0 var(--radius);
   background: var(--card); color: var(--foreground); font: inherit; font-size: .8125rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: .4rem; box-shadow: -2px 0 8px rgb(0 0 0 / .12); }
 .code-tab[hidden] { display: none; }
 .code-tab:hover, .code-tab:focus-visible { background: var(--accent); }
-.refs li [data-open] { margin-left: .5rem; }
+/* reference buttons stay inside the line, so they never change the spacing of the list */
+.refs li .ref-btn { margin-left: .4rem; height: 1.25rem; min-height: 0; padding: 0 .5rem; font-size: .75rem; line-height: 1; vertical-align: baseline; position: relative; top: -.05em; }
 main { transition: margin-right .15s ease; }
 .code-pinned main { margin-right: var(--code-w-px, 0px); }
 @media print { .code-panel, .code-tab { display: none !important; } main { margin-right: 0 !important; } }
@@ -283,14 +284,60 @@ main { transition: margin-right .15s ease; }
 }
 
 /* commit calendar */
+.cc.ph { visibility: hidden; }
+.cc.rel { outline: 2px solid var(--pend); outline-offset: -2px; }
 .cc { display: block; border-radius: .2rem; background: var(--muted); min-width: 0; } .cc.mc { height: 1.6rem; border-radius: .25rem; }
-.zoom-bar { display: flex; align-items: center; gap: .4rem; margin-bottom: .7rem; } .zoom-name { font-weight: 600; margin-left: .4rem; }
+.zoom-bar { display: flex; align-items: center; gap: .4rem; } .zoom-name { font-weight: 600; margin-left: .4rem; }
 .zoom-lvl[hidden] { display: none; }
 .year-scroll { max-height: 26rem; overflow-y: auto; display: flex; flex-direction: column; gap: .9rem; padding-right: .5rem; }
 .yr { display: grid; grid-template-columns: 3rem minmax(0, 1fr); align-items: start; } .yr .hy { font-size: .8125rem; color: var(--muted-foreground); font-weight: 400; }
-.weeks { display: grid; grid-template-rows: repeat(7, auto); grid-auto-flow: column; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 2px; } .weeks .cc { aspect-ratio: 1; }
+.weeks { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 3px; }
+/* each week is boxed: a column in the day view, a row in the month calendars */
+.wk { display: grid; grid-template-rows: repeat(7, auto); gap: 2px; padding: 2px; border-radius: .3rem; box-shadow: inset 0 0 0 1px var(--border); } .wk .cc { aspect-ratio: 1; }
 .month-cals { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: 1rem 1.25rem; }
 .mcal > b { display: block; font-size: .8125rem; font-weight: 600; margin-bottom: .3rem; }
-.days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; } .days .cc { aspect-ratio: 1; border-radius: .25rem; }
+.days { display: grid; gap: 3px; } .days .wk { grid-template-rows: none; grid-template-columns: repeat(7, minmax(0, 1fr)); } .days .cc { border-radius: .25rem; }
+.cal-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1.5rem; margin-top: .7rem; } .cal-foot .zoom-bar, .cal-foot .heat-key { margin: 0; }
 details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer; font-weight: 600; font-size: .9375rem; margin-bottom: .6rem; }
 .heat-key .cc.sw { width: 1.1rem; height: 1.1rem; flex: none; border-radius: .25rem; }
+
+/* calendar tooltip: who committed, and how many lines they added (green) and deleted (red). The tip is dark in the light theme and light in the dark one. */
+:root { --tip-add: oklch(.84 .17 155); --tip-del: oklch(.78 .16 25); }
+.dark { --tip-add: oklch(.42 .14 155); --tip-del: oklch(.45 .18 25); }
+#cite-tip .tp-h { font-weight: 600; margin-bottom: .2rem; }
+#cite-tip .tp-r { display: flex; align-items: center; gap: .6rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#cite-tip .tp-n { flex: 1; min-width: 5rem; overflow: hidden; text-overflow: ellipsis; }
+#cite-tip .tp-dot { width: .6rem; height: .6rem; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px color-mix(in oklab, var(--background) 60%, transparent); }
+#cite-tip .tp-add { color: var(--tip-add); font-weight: 600; } #cite-tip .tp-del { color: var(--tip-del); font-weight: 600; }
+#cite-tip .tp-t { margin-top: .2rem; padding-top: .2rem; border-top: 1px solid color-mix(in oklab, var(--background) 35%, transparent); }
+
+/* title bar pills for the open items */
+.count.pill { padding: .1rem .6rem; text-decoration: none; font-size: .75rem; white-space: nowrap; }
+.count.pill:hover { filter: brightness(.95); }
+.count.c-inferred { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--warn) 45%, transparent); }
+.count.c-unknown { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--destructive) 45%, transparent); }
+
+/* what a "profiler facts" marker means */
+.fact-pop { position: fixed; z-index: 91; width: min(30rem, 92vw); padding: .85rem 1rem; border-radius: var(--radius); background: var(--popover, var(--card)); color: var(--popover-foreground, var(--foreground));
+  border: 1px solid var(--border); box-shadow: 0 8px 28px rgb(0 0 0 / .28); font-size: .875rem; line-height: 1.5; }
+.fact-pop[hidden] { display: none; }
+.fact-pop h4 { margin: 0 0 .3rem; font-size: .9375rem; font-weight: 600; } .fact-pop p { margin: .3rem 0 .7rem; }
+.fact-pop .fp-row { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.activity.solo { grid-template-columns: minmax(0, 1fr); }
+.activity { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.llegend + .lbar { margin-top: 1.1rem; }
+
+/* who owns each area: people by areas */
+.matrix-wrap { overflow-x: auto; }
+.matrix { display: grid; grid-template-columns: 9rem repeat(var(--cols), minmax(3.2rem, 1fr)); gap: 3px; align-items: stretch; min-width: min-content; }
+.mx-col { display: flex; flex-direction: column; justify-content: flex-end; gap: .1rem; padding: 0 .1rem .3rem; font-size: .75rem; line-height: 1.25; min-width: 0; }
+.mx-col code { background: none; padding: 0; overflow-wrap: anywhere; font-weight: 600; } .mx-col span { color: var(--muted-foreground); font-size: .6875rem; }
+.mx-row { display: flex; align-items: center; font-size: .8125rem; min-width: 0; overflow-wrap: anywhere; }
+.mx-cell { display: block; height: 2rem; border-radius: .25rem; background: var(--muted); }
+.mx-cell[data-tip]:hover { outline: 2px solid var(--foreground); outline-offset: -2px; }
+.mx-gap { height: .35rem; border-bottom: 1px solid var(--border); margin-bottom: .15rem; }
+.mx-lbl { font-weight: 500; color: var(--muted-foreground); }
+.mx-t { display: flex; align-items: center; justify-content: center; text-align: center; min-height: 1.9rem; padding: .1rem .25rem; border-radius: .25rem; font-size: .75rem; line-height: 1.2; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.mx-warn { background: var(--warn-bg); color: var(--warn); } .mx-bad { background: color-mix(in oklab, var(--destructive) 14%, transparent); color: var(--destructive); }
+.cc.sw.mx-warn, .cc.sw.mx-bad { width: 1.1rem; height: 1.1rem; }
+.mx-t[data-tip] { cursor: help; }

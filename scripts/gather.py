@@ -684,6 +684,7 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
     file_who = defaultdict(Counter)
     monthly, yearly = Counter(), Counter()
     daily = defaultdict(Counter)
+    daily_lines = defaultdict(lambda: defaultdict(lambda: [0, 0]))   # day -> person -> [lines added, lines deleted]
     merges = total = assisted_total = 0
     assisted_by = Counter()
     bulk = []
@@ -748,9 +749,12 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
             bulk.append({"sha": csha, "files": len(nums), "author": display.get(cid, an), "date": iso_day(dt), "subject": msg.strip().split("\n")[0][:100]})
             continue
         touched = defaultdict(int)
+        day_lines = daily_lines[dt.strftime("%Y-%m-%d")][cid]
         for a, d, path in nums:
             if noise_reason(path):
                 continue
+            day_lines[0] += a
+            day_lines[1] += d
             p["added"] += a
             p["deleted"] += d
             ar = area_of(path)
@@ -800,24 +804,23 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
         for cid, n in who.items():
             row[cid if cid in top_ids else ""] += n
         daily_out[day] = dict(row)
+    lines_out = {}
+    for day, who in sorted(daily_lines.items()):
+        row = defaultdict(lambda: [0, 0])
+        for cid, (a, d) in who.items():
+            r = row[cid if cid in top_ids else ""]
+            r[0] += a
+            r[1] += d
+        lines_out[day] = {k: v for k, v in row.items() if v[0] or v[1]}
 
     areas = []
     for name, s in sorted(area_stat.items(), key=lambda kv: -kv[1]["commits"])[:60]:
         top_who = sorted(s["who"].items(), key=lambda kv: -kv[1][0])
-        humans = [(cid, w) for cid, w in top_who if people[cid]["type"] == "human" or people[cid]["by_type"].get("human")]
-        hum_total = sum(w[0] for _, w in humans)
-        acc, need = 0, 0
-        for _, w in humans:
-            need += 1
-            acc += w[0]
-            if hum_total and acc / hum_total >= 0.8:
-                break
         areas.append({
             "name": name, "files": area_files.get(name, 0), "exists": area_files.get(name, 0) > 0, "commits": s["commits"], "lines_changed": s["lines"],
             "by_type": {k: {"commits": v[0], "lines": v[1]} for k, v in s["t"].items()},
             "top": [{"name": people[cid]["name"], "type": people[cid]["type"], "commits": w[0], "share_pct": pct(w[0], s["commits"]),
                      "recent_12m": w[3], "last": iso_day(w[2])} for cid, w in top_who[:5]],
-            "humans_for_80pct": need if hum_total else 0,
             "first_active": iso_day(s["first"]), "last_active": iso_day(s["last"]), "recent_commits_12m": s["recent"],
         })
 
@@ -870,7 +873,7 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
                 "agent_assisted_commits": assisted_total, "agent_assisted_by": dict(assisted_by),
                 "tags": tags, "bulk_commits": bulk[:20], "bulk_commit_count": len(bulk),
                 "monthly": dict(sorted(monthly.items())), "yearly": dict(sorted(yearly.items())),
-                "daily": daily_out},
+                "daily": daily_out, "daily_lines": lines_out},
         "files": {"tracked": len(tree_paths), "analyzed": len(files), "excluded": dict(excluded),
                   "excluded_top_dirs": excluded_dirs.most_common(8), "tests": test_files,
                   "total_code_lines": sum(v["lines"] for v in lang_stats.values() if v["kind"] == "code"),

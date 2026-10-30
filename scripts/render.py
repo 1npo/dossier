@@ -14,6 +14,7 @@ import re
 import subprocess
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 from pathlib import Path
 from urllib.parse import quote
 
@@ -44,6 +45,31 @@ FACT_KEYS["inventory"] = "facts-git"  # retired file-name inventory; old reports
 OPTIONAL_REPORTS = ("domain-logic",)  # reports added after v0.1: a dossier built before them still renders
 DIAGRAM_START = re.compile(r"^\s*(%%\{.*?\}%%\s*)?(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram(-v2)?|erDiagram|journey|gantt|pie|mindmap|timeline|gitGraph|quadrantChart|requirementDiagram|C4\w+|sankey-beta|xychart-beta|block-beta|architecture-beta)\b", re.S)
 INLINE_CITE = re.compile(r"\[\[(.+?)\]\]")
+PROFILER_PATH = "dossier-profiler/gather.py"   # the profiler's source, embedded in the code viewer under this name
+# What each "profiler facts: <key>" citation means: (what it is, how the profiler measured it, first line of its code, line that ends it)
+FACT_INFO = {
+    "git": ("Commit history", "Totals and timelines from the repository's commit history: commits, merges, first and last commit, commits per day and month, release tags, and who made them. Everything is counted by the profiler, not written by Claude.",
+            r"# ---- history pass", r"# ---- assemble contributor"),
+    "languages": ("Languages", "How much of the code is written in each language, in non-blank lines. Files are classified by extension, and by content when the extension is ambiguous. Generated, vendored, lock and binary files are left out.",
+                  r"# ---- languages", r"own = ownership\("),
+    "hot_files": ("Most changed files", "The files that appear in the most commits, with how many lines changed in them and who changed them most. Files that no longer exist at the pinned commit are not listed.",
+                  r"^    hot = \[\]", r"^    tags = \[\]"),
+    "manifests": ("Project manifests", "Package manifests such as pyproject.toml or package.json, read for the project name, version and dependencies. Values that are template placeholders are ignored.",
+                  r"^def _dep\(", r"# -+ areas"),
+    "env_vars": ("Environment variables", "Reads of environment variables found by pattern matching in the source. Names built at run time are missed.",
+                 r"^    env_refs, secret_hits", r"# ---- areas"),
+    "secret_signals": ("Secret scan", "Strings shaped like credentials, and tracked files that often hold secrets. These are pattern matches only: the values are never stored, and each match needs a person to review it.",
+                       r"^def sensitive_verdict\(", r"^def noise_reason\("),
+    "contributors": ("Contributors", "Every author in the history, with identities merged when they share an email address or a full name, and classified as human, agent or bot from names, emails and commit-message markers. The classification is a heuristic.",
+                     r"# ---- identities", r"# ---- history pass"),
+    "ownership": ("Code ownership", "Who wrote the lines that exist today. The profiler runs git blame on each file at the pinned commit and credits every surviving line to the author of its last change.",
+                  r"^def blame_file\(", r"^def profile\("),
+    "areas": ("Areas", "The directories the code is grouped into. Large directories are split one or two levels deeper. Each area gets its commit counts, authors and activity dates.",
+              r"# -+ areas", r"# -+ chunk planning"),
+    "chunks": ("Reading coverage", "How the repository was divided up for reading: file sizes are estimated in tokens (bytes divided by 3.5) and packed into chunks that fit one context window.",
+               r"# -+ chunk planning", r"# -+ main profile"),
+}
+FACT_INFO["inventory"] = FACT_INFO["git"]
 E = lambda s: html.escape(str(s if s is not None else ""), quote=True)
 
 # --------------------------------------------------------------------------- citations
@@ -62,6 +88,27 @@ def parse_cite(raw):
     a, b = (int(a) if a else None), (int(b) if b else (int(a) if a else None))
     key = path + (f":{a}-{b}" if a and b and b != a else f":{a}" if a else "")
     return {"kind": "file", "path": path, "a": a, "b": b, "key": key, "text": key}
+
+
+@lru_cache(maxsize=None)
+def profiler_source():
+    return viewer.split_lines(Path(gather.__file__).read_bytes())
+
+
+@lru_cache(maxsize=None)
+def profiler_range(key):
+    """(first, last) line of the profiler code that measures a fact, or None."""
+    info = FACT_INFO.get(key)
+    lines = profiler_source()
+    if not info:
+        return None
+    first = next((i for i, l in enumerate(lines) if re.search(info[2], l)), None)
+    last = next((i for i in range((first or 0) + 1, len(lines)) if re.search(info[3], lines[i])), None)
+    if first is None or last is None:
+        return None
+    while last > first + 1 and not lines[last - 1].strip():
+        last -= 1
+    return first + 1, last
 
 
 class Cites:
@@ -187,6 +234,11 @@ class Cites:
         a, b = viewer.clip(*r) if r else ("", "")
         return f' data-view="{E(c["path"])}" data-a="{a}" data-b="{b}"'
 
+    def profiler_view(self, c):
+        """Attributes that point a profiler-facts citation at the profiler code that measured it, or "" when that code cannot be found."""
+        rng = profiler_range(c["name"])
+        return f' data-view="{PROFILER_PATH}" data-a="{rng[0]}" data-b="{rng[1]}"' if rng else ""
+
     def view_counts(self):
         """How many distinct citations open the viewer and how many do not, and how many files were left out for size."""
         n = sum(self.opens.values())
@@ -235,6 +287,8 @@ class Refs:
     def tip(self, c):
         if c["kind"] == "file" and self.cites.check(c)["type"] == "tree":
             return f"directory {c['path'].rstrip('/')}/, relative to the repo root"
+        if c["kind"] == "facts" and c["name"] in FACT_INFO:
+            return c["text"] + " (click to see what this is)"
         return c["text"]
 
     def mark(self, raws):
@@ -243,7 +297,8 @@ class Refs:
             n = self.num(raw)
             c = parse_cite(raw)
             tip = E(self.tip(c))
-            out.append(f'<a href="#ref-{self.rid}-{n}" data-tip="{tip}" aria-label="Source {n}: {tip}"{self.cites.view_attrs(c)}>[{n}]</a>')
+            fact = f' data-fact="{E(c["name"])}"' if c["kind"] == "facts" and c["name"] in FACT_INFO else ""
+            out.append(f'<a href="#ref-{self.rid}-{n}" data-tip="{tip}" aria-label="Source {n}: {tip}"{fact}{self.cites.view_attrs(c)}>[{n}]</a>')
         return f'<sup class="cite">{"".join(out)}</sup>' if out else ""
 
     def listing(self):
@@ -255,6 +310,9 @@ class Refs:
             st = self.cites.check(c)
             url = self.cites.url(c)
             view = self.cites.view_attrs(c)
+            fact = c["kind"] == "facts" and c["name"] in FACT_INFO
+            if fact:
+                view = self.cites.profiler_view(c)
             label = E(self.tip(c) if st["type"] == "tree" else c["text"])
             if not st["ok"]:
                 link = f'<span class="bad">{label}</span> <span class="muted">unresolved: {E(st["msg"])}</span>'
@@ -266,7 +324,9 @@ class Refs:
             else:
                 link = f'<code>git show {E(c["sha"][:10])}</code>'
             kind = {"file": "file", "tree": "directory", "blob": "file", "commit": "commit", "facts": "measured by the profiler"}.get(st["type"], "")
-            btn = f' <button type="button" class="btn" data-variant="outline" data-size="sm" data-open="{self.rid}-{i}">View code</button>' if view else ""
+            btn = f' <button type="button" class="btn ref-btn" data-variant="outline" data-size="sm" data-open="{self.rid}-{i}">View code</button>' if view else ""
+            if fact:
+                btn = f' <button type="button" class="btn ref-btn" data-variant="outline" data-size="sm" data-fact="{E(c["name"])}">What is this?</button>' + btn
             rows.append(f'<li id="ref-{self.rid}-{i}"{view}>{link} <span class="muted">· {kind}</span>{btn}</li>')
         return "<ol class=\"refs\">" + "".join(rows) + "</ol>"
 
@@ -645,7 +705,7 @@ def render_blocks(blocks, refs, rid):
 
 
 def card(title, body, pid=None, desc=None, refs=None, cite=None):
-    mark = refs.mark([cite]) if refs and cite else ""
+    mark = refs.mark([cite] if isinstance(cite, str) else cite) if refs and cite else ""
     d = f"<p>{E(desc)}</p>" if desc else ""
     idattr = f' id="{pid}"' if pid else ""
     return f'<div class="card panel"{idattr}><header><h2>{E(title)} {mark}</h2>{d}</header><section>{body}</section></div>'
@@ -663,7 +723,7 @@ class Raw(str):
 def stats_html(items):
     cols = 3 if len(items) == 6 else min(len(items), 5)
     return f'<div class="stats" style="grid-template-columns:repeat({cols},minmax(0,1fr))">' + "".join(
-        f'<div class="stat {extra[0] if extra else ""}"><div class="k">{k if isinstance(k, Raw) else E(k)}</div><div class="v">{E(v)}</div><div class="s">{E(s)}</div></div>' for k, v, s, *extra in items) + "</div>"
+        f'<div class="stat {extra[0] if extra else ""}"><div class="k">{k if isinstance(k, Raw) else E(k)}</div><div class="v">{E(v)}</div>{f'<div class="s">{E(s)}</div>' if s else ""}</div>' for k, v, s, *extra in items) + "</div>"
 
 
 def panel_git(f, refs):
@@ -678,32 +738,20 @@ def panel_git(f, refs):
         ("Code lines", fmt(fl["total_code_lines"]), f"{len([l for l in f['languages'] if l['kind'] == 'code'])} programming languages"),
         ("Dependencies", fmt(len(deps)), f"{sum(1 for d in deps if not d['dev'])} runtime · {sum(1 for d in deps if d['dev'])} dev"),
     ])
-    months, tags = g["monthly"], g["tags"]
-    ys = sorted({int(k[:4]) for k in months})
-    yrs = [str(y) for y in range(ys[0], ys[-1] + 1)][-16:] if ys else []
-    peak = max((v for k, v in months.items() if k[:4] in yrs), default=1)
-    tagged = {t["date"][:7] for t in tags}
-    def cell(y, m):
-        k = f"{y}-{m:02d}"; v = months.get(k, 0)
-        lvl = 0 if not v else 1 + min(3, int(4 * (v - 1) / max(peak, 1)))
-        rel = " rel" if k in tagged else ""
-        return f'<span class="hm l{lvl}{rel}" title="{k}: {v} commit{"" if v == 1 else "s"}{", release tag" if rel else ""}">{v or ""}</span>'
-    head = '<span></span>' + "".join(f'<span class="hh">{n}</span>' for n in "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()) + '<span class="hh">Total</span>'
-    body = "".join(f'<span class="hy">{y}</span>' + "".join(cell(y, m) for m in range(1, 13)) + f'<span class="ht">{fmt(g["yearly"].get(y, 0))}</span>' for y in yrs)
-    heat = (f'<div class="activity-main"><h3>Commits by month</h3><div class="heat">{head}{body}</div>'
-            f'<div class="heat-key muted"><span class="kg">Fewer commits <span class="hm l0"></span><span class="hm l1"></span><span class="hm l2"></span><span class="hm l3"></span><span class="hm l4"></span> More commits</span><span class="kg"><span class="hm rel keyrel"></span> Month with a release tag</span></div></div>') if yrs else ""
+    tags = g["tags"]
+    names = {p["id"]: p["name"] for p in f["contributors"]["people"]}
+    heat = f'<div class="activity-main"><h3>Commits over time</h3>{calendar_html(g, names, owner_palette(f), tags)}</div>'
     def gap(i):
         if i + 1 >= len(tags): return "·"
         d = (datetime.strptime(tags[i]["date"], "%Y-%m-%d") - datetime.strptime(tags[i + 1]["date"], "%Y-%m-%d")).days
         return f"{d} days"
-    n = max(5, min(14, len(yrs) + 1))
+    n = 10
     rel = ""
     if tags:
         rows = "".join(f'<tr><td><code>{E(t["name"])}</code></td><td>{E(t["date"])}</td><td class="muted">{gap(i)}</td></tr>' for i, t in enumerate(tags[:n]))
         rel = f'<div class="activity-side"><h3>Recent releases</h3><table class="table"><thead><tr><th>Tag</th><th>Date</th><th>Gap</th></tr></thead><tbody>{rows}</tbody></table></div>'
-    chart = f'<div class="activity">{heat}{rel}</div>' if heat else ""
+    chart = f'<div class="activity{"" if rel else " solo"}">{heat}{rel}</div>'
     notes = "".join(alert(E(w)) for w in f["repo"]["warnings"])
-    tags = ""
     return card("Repository at a glance", notes + stats + chart + languages_block(f, refs), "facts-git", refs=refs, cite="facts:git")
 
 
@@ -800,14 +848,17 @@ def share_bar(items, total):
 
 # ---- commit calendar: colour is who made the commits, strength is how many, and the zoom buttons change the granularity
 ZOOMS = ("Months", "Days", "Calendar")
+START_ZOOM = 1   # the page opens on days
 MIX = (0, 35, 55, 78, 100)  # percent of the person's colour at each level, the rest is the muted background
 
 
-def day_cell(counts, peak, pal, title, cls="", style=""):
-    """One calendar cell. Several people on the same day share the cell as coloured stripes."""
+def day_cell(counts, peak, pal, title, cls="", style="", key=None):
+    """One calendar cell. Several people on the same day share the cell as coloured stripes.
+    The tooltip is built in the browser from the calendar data when the cell has a `key` (a day or a month), else it is `title`."""
+    tip = f' data-cal="{E(key)}"' if key else f' data-tip="{E(title)}"'
     n = sum(counts.values())
     if not n:
-        return f'<span class="cc {cls}" style="{style}" title="{E(title)}"></span>'
+        return f'<span class="cc {cls}" style="{style}"{tip}></span>'
     lvl = 1 + min(3, int(4 * (n - 1) / max(peak, 1)))
     mix = lambda cid: f"color-mix(in oklab, var({'--l' + pal[cid][5:] if cid in pal else '--l8'}) {MIX[lvl]}%, var(--muted))"
     by_col = {}
@@ -822,17 +873,39 @@ def day_cell(counts, peak, pal, title, cls="", style=""):
             stops.append(f"{col} {acc:.1f}% {acc + 100 * c / n:.1f}%")
             acc += 100 * c / n
         bg = f"linear-gradient(90deg,{','.join(stops)})"
-    return f'<span class="cc on {cls}" style="{style}background:{bg}" title="{E(title)}"></span>'
+    return f'<span class="cc on {cls}" style="{style}background:{bg}"{tip}></span>'
 
 
-def calendar_html(g, names, pal):
+def calendar_data(f):
+    """What the browser needs to build a calendar tooltip: who made how many commits, and added and deleted how many lines, on each day.
+    One copy serves every calendar on the page."""
+    g = f["git"]
+    daily, lines = g.get("daily") or {}, g.get("daily_lines") or {}
+    pal = owner_palette(f)
+    names = {p["id"]: p["name"] for p in f["contributors"]["people"]}
+    ids = {cid for who in daily.values() for cid in who}
+    tags = defaultdict(list)
+    for t in g.get("tags") or []:
+        tags[t["date"]].append(t["name"])
+    return {"people": {cid: [names.get(cid, "Others"), int(pal[cid][5:]) if cid in pal else 8] for cid in sorted(ids)},
+            "days": {d: {cid: [n, *lines.get(d, {}).get(cid, (0, 0))] for cid, n in who.items()} for d, who in daily.items()},
+            "tags": dict(tags), "lines": bool(lines)}
+
+
+def contributor_legend(names, pal):
+    items = sorted({v: k for k, v in pal.items() if k in names.values()}.items())
+    return '<ul class="llegend">' + "".join(f'<li><b class="{cls}"></b>{E(n)}</li>' for cls, n in items) + '<li><b class="own-other"></b>Everyone else</li></ul>'
+
+
+def calendar_html(g, names, pal, tags=()):
     daily = g.get("daily")
     if not daily:
         return '<p class="muted">The commit calendar needs the daily history. Run prepare again to include it.</p>'
-    who = lambda counts: ", ".join(f"{names.get(c, 'Others')} {n}" for c, n in sorted(counts.items(), key=lambda kv: -kv[1]))
     plural = lambda n: f"{n} commit{'' if n == 1 else 's'}"
     days = {datetime.strptime(d, "%Y-%m-%d").date(): c for d, c in daily.items()}
     end = max(days)
+    tag_days = {t["date"] for t in tags}
+    tag_months = {d[:7] for d in tag_days}
     # level 0: one cell per month
     months = defaultdict(Counter)
     for d, c in days.items():
@@ -844,63 +917,100 @@ def calendar_html(g, names, pal):
     for y in years:
         rows += f'<span class="hy">{y}</span>'
         for m in range(1, 13):
-            c = months.get((y, m), Counter())
-            n = sum(c.values())
-            rows += day_cell(c, peak_m, pal, f"{y}-{m:02d}: {plural(n)}" + (f" ({who(c)})" if n else ""), "mc")
+            k = f"{y}-{m:02d}"
+            rows += day_cell(months.get((y, m), Counter()), peak_m, pal, "", "mc rel" if k in tag_months else "mc", key=k)
         rows += f'<span class="ht">{fmt(sum(sum(c.values()) for (yy, _), c in months.items() if yy == y))}</span>'
     lvl0 = f'<div class="heat">{head}{rows}</div>'
     peak_d = max(sum(c.values()) for c in days.values())
 
-    def cell(d, style=""):
-        c = Counter(days.get(d, {}))
-        n = sum(c.values())
-        return day_cell(c, peak_d, pal, f"{d.isoformat()}: {plural(n)}" + (f" ({who(c)})" if n else ""), "", style)
-    # level 1: a year per block, a column per week (Monday first)
+    def cell(d):
+        return day_cell(Counter(days.get(d, {})), peak_d, pal, "", "rel" if d.isoformat() in tag_days else "", key=d.isoformat())
+    blank = '<span class="cc ph"></span>'
+    # level 1: a year per block, one boxed column per week (Monday first)
     blocks = ""
     for y in reversed(years):
-        first = datetime(y, 1, 1).date()
-        n_days = (datetime(y + 1, 1, 1).date() - first).days
-        cells = cell(first, f"grid-row-start:{first.weekday() + 1};") + "".join(cell(first + timedelta(days=i)) for i in range(1, n_days))
-        blocks += f'<div class="yr"><b class="hy">{y}</b><div class="weeks" style="--cols:{(first.weekday() + n_days + 6) // 7}">{cells}</div></div>'
+        first, last = datetime(y, 1, 1).date(), datetime(y, 12, 31).date()
+        wk, weeks = first - timedelta(days=first.weekday()), ""
+        n_weeks = 0
+        while wk <= last:
+            weeks += '<div class="wk">' + "".join(cell(d) if first <= d <= last else blank for d in (wk + timedelta(days=i) for i in range(7))) + "</div>"
+            wk, n_weeks = wk + timedelta(days=7), n_weeks + 1
+        blocks += f'<div class="yr"><b class="hy">{y}</b><div class="weeks" style="--cols:{n_weeks}">{weeks}</div></div>'
     lvl1 = f'<div class="year-scroll">{blocks}</div>'
-    # level 2: the last twelve months as month calendars
-    first_m = (end.replace(day=1) - timedelta(days=335)).replace(day=1)
-    mcal, cur = "", first_m
+    # level 2: the last twelve months as month calendars, one boxed row per week
+    cur, mcal = (end.replace(day=1) - timedelta(days=335)).replace(day=1), ""
     while cur <= end:
         nxt = (cur.replace(day=28) + timedelta(days=4)).replace(day=1)
-        cells = cell(cur, f"grid-column-start:{cur.weekday() + 1};") + "".join(cell(cur + timedelta(days=i)) for i in range(1, (nxt - cur).days))
-        mcal += f'<div class="mcal"><b>{cur.strftime("%b %Y")}</b><div class="days">{cells}</div></div>'
+        wk, weeks = cur - timedelta(days=cur.weekday()), ""
+        while wk < nxt:
+            weeks += '<div class="wk">' + "".join(cell(d) if cur <= d < nxt else blank for d in (wk + timedelta(days=i) for i in range(7))) + "</div>"
+            wk += timedelta(days=7)
+        mcal += f'<div class="mcal"><b>{cur.strftime("%b %Y")}</b><div class="days">{weeks}</div></div>'
         cur = nxt
     lvl2 = f'<div class="month-cals">{mcal}</div>'
-    levels = "".join(f'<div class="zoom-lvl" data-zoom-level="{i}"{"" if i == 0 else " hidden"}>{html_}</div>' for i, html_ in enumerate((lvl0, lvl1, lvl2)))
+    levels = "".join(f'<div class="zoom-lvl" data-zoom-level="{i}"{"" if i == START_ZOOM else " hidden"}>{html_}</div>' for i, html_ in enumerate((lvl0, lvl1, lvl2)))
     bar = ('<div class="zoom-bar"><span class="muted">Zoom</span>'
-           '<button type="button" class="btn" data-variant="outline" data-size="sm" data-zoom="-1" aria-label="Zoom out: fewer, larger periods" title="Zoom out" disabled>&minus;</button>'
-           f'<button type="button" class="btn" data-variant="outline" data-size="sm" data-zoom="1" aria-label="Zoom in: one cell per day" title="Zoom in">+</button>'
-           f'<span class="zoom-name" aria-live="polite" data-zoom-names="{E("|".join(ZOOMS))}">{ZOOMS[0]}</span></div>')
+           f'<button type="button" class="btn" data-variant="outline" data-size="sm" data-zoom="-1" aria-label="Zoom out: fewer, larger periods" title="Zoom out"{" disabled" if START_ZOOM == 0 else ""}>&minus;</button>'
+           f'<button type="button" class="btn" data-variant="outline" data-size="sm" data-zoom="1" aria-label="Zoom in: one cell per day" title="Zoom in"{" disabled" if START_ZOOM == len(ZOOMS) - 1 else ""}>+</button>'
+           f'<span class="zoom-name" aria-live="polite" data-zoom-names="{E("|".join(ZOOMS))}">{ZOOMS[START_ZOOM]}</span></div>')
     swatches = "".join(f'<span class="cc sw" style="background:color-mix(in oklab, var(--l7) {m}%, var(--muted))"></span>' for m in MIX)
     key = (f'<div class="heat-key muted"><span class="kg">Fewer commits {swatches} More commits</span>'
-           '<span class="kg">A cell split in stripes had several people commit in that period</span></div>')
-    return f'<div class="zoomable" data-zoom-root>{bar}{levels}{key}</div>'
+           '<span class="kg">A cell split in stripes had several people commit in that period</span>'
+           + ('<span class="kg"><span class="cc sw rel"></span> Release tag</span>' if tag_days else "") + '</div>')
+    return f'<div class="zoomable" data-zoom-root data-zoom-start="{START_ZOOM}">{levels}{contributor_legend(names, pal)}<div class="cal-foot">{bar}{key}</div></div>'
 
 
-def area_table(f, refs, pal):
-    blame = {a["name"]: a for a in (f.get("ownership") or {}).get("areas", [])}
-    dot = lambda x: f'<b class="own-dot {pal.get(x.get("id")) or pal.get(x["name"]) or "own-other"}"></b>'
-    arows = []
-    for a in f["areas"]:
-        who = "<br>".join(f'{E(x["name"])} <span class="muted">({x["share_pct"]}%{", " + x["type"] if x["type"] != "human" else ""})</span>' for x in a["top"][:3])
-        bl = blame.get(a["name"])
-        owners = "<br>".join(f'{dot(x)}{E(x["name"])} <span class="muted">({100 * x["lines"] / bl["lines"]:.0f}%)</span>' for x in bl["owners"][:3]) if bl else '<span class="muted">no surviving code</span>'
-        mix = " · ".join(f"{100 * v['commits'] / a['commits']:.0f}% {k}" for k, v in a["by_type"].items() if v["commits"]) if a["commits"] else ""
-        state = "removed" if not a["exists"] else ("dormant" if not a["recent_commits_12m"] else "")
-        name = f"<code>{E(a['name'])}</code>" + (f'<div class="muted">{state}</div>' if state else "")
-        arows.append([(name, a["name"]), (fmt(bl["lines"]) if bl else "0", bl["lines"] if bl else 0), owners, who,
-                      (f'{fmt(a["commits"])}<div class="muted">{E(mix)}</div>', a["commits"]), str(a["humans_for_80pct"]), E(a["last_active"])])
-    table = render_table(["Area", "Lines today", "Wrote most of today's code", "Made most of the commits", "Commits", "People for 80%", "Last active"], arows, refs, "t-areas", True, True)
-    return (f'<details class="areas" id="facts-areas"><summary>Every area ({len(f["areas"])}) {refs.mark(["facts:areas"])}</summary>' + table
-            + '<p class="muted">"People for 80%" is how many human contributors account for 80% of the human commits in that area. A low number means knowledge is concentrated. '
-              '"Removed" areas no longer exist at this commit but their history is kept, and "dormant" ones have had no commits in the last 12 months. '
-              'Large directories are split one or two levels deeper.</p></details>')
+def ownership_matrix(f, refs, pal):
+    """A heatmap of people (rows) by areas (columns). A cell is the person's colour, stronger the bigger their share of the area's surviving lines."""
+    o = f.get("ownership")
+    if not o or not o["areas"]:
+        return ""
+    areas = o["areas"]
+    people = o["people"][:PALETTE]
+    cls = lambda p: pal.get(p["id"], "own-other")
+    rows = [(p["id"], p["name"], cls(p)) for p in people] + [(None, "Everyone else", "own-other")]
+    cols = "".join(f'<div class="mx-col"><code>{E(a["name"]).replace("/", "/<wbr>")}</code><span>{fmt(a["lines"])} lines</span></div>' for a in areas)
+    body = ""
+    for pid, name, c in rows:
+        body += f'<div class="mx-row"><b class="own-dot {c}"></b>{E(name)}</div>'
+        for a in areas:
+            n = next((x["lines"] for x in a["owners"] if x["id"] == pid), 0) if pid else a["lines"] - sum(x["lines"] for x in a["owners"] if x["id"] in {q["id"] for q in people})
+            share = 100 * n / a["lines"] if a["lines"] else 0
+            lvl = min(100, round(share)) if n else 0
+            style = f' style="background:color-mix(in oklab, var(--l{c[5:] if c.startswith("lang-") else "8"}) {max(lvl, 8)}%, var(--muted))"' if n else ""
+            body += f'<span class="mx-cell"{style} data-tip="{E(name)} wrote {fmt(n)} of {fmt(a["lines"])} lines in {E(a["name"])} ({share:.0f}%)"></span>'
+    # beneath the heatmap: who to ask, and whether the knowledge is at risk
+    info = {a["name"]: a for a in f["areas"]}
+    ask = last = ""
+    for a in areas:
+        i = info.get(a["name"])
+        if not i:
+            ask += '<span class="mx-t"></span>'; last += '<span class="mx-t"></span>'
+            continue
+        recent = max(i["top"], key=lambda x: x["recent_12m"], default=None)
+        recent = recent if recent and recent["recent_12m"] else None
+        owner = a["owners"][0] if a["owners"] else None
+        owner_recent = next((x["recent_12m"] for x in i["top"] if owner and x["name"] == owner["name"]), 0)
+        dormant = not i["exists"] or not i["recent_commits_12m"]
+        if dormant:
+            ask += '<span class="mx-t mx-bad" data-tip="No commits here in the last 12 months">no one lately</span>'
+        elif owner and not owner_recent:
+            ask += f'<span class="mx-t mx-warn" data-tip="{E(owner["name"])} wrote most of this code but has not committed here in the last 12 months. Most active lately: {E(recent["name"])}">{E(recent["name"])}</span>'
+        else:
+            ask += f'<span class="mx-t" data-tip="Most commits here in the last 12 months: {E(recent["name"])} ({recent["recent_12m"]})">{E(recent["name"])}</span>'
+        last += f'<span class="mx-t{" mx-bad" if dormant else ""}">{E(i["last_active"][:7])}</span>'
+    foot = (f'<div class="mx-row mx-lbl">Active lately</div>{ask}'
+            f'<div class="mx-row mx-lbl">Last active</div>{last}')
+    grid = f'<div class="matrix" style="--cols:{len(areas)}"><div></div>{cols}{body}<div class="mx-gap" style="grid-column:1/-1"></div>{foot}</div>'
+    scale = "".join(f'<span class="cc sw" style="background:color-mix(in oklab, var(--l7) {m}%, var(--muted))"></span>' for m in MIX)
+    key = ('<div class="heat-key muted"><span class="kg">Smaller share of the area ' + scale + ' Larger share</span>'
+           '<span class="kg"><span class="cc sw mx-warn"></span> The main owner has not committed there in 12 months</span>'
+           '<span class="kg"><span class="cc sw mx-bad"></span> No commits in 12 months</span></div>')
+    return f'<h3 id="facts-areas">Who owns each area {refs.mark(["facts:areas", "facts:ownership"])}</h3><div class="matrix-wrap">{grid}</div>{key}'
+
+
+def area_codes(areas):
+    return "<br>".join(f'<code>{E(a).replace("/", "/<wbr>")}</code>' for a in areas)
 
 
 def panel_contributors(f, refs):
@@ -909,46 +1019,56 @@ def panel_contributors(f, refs):
     commits_total = sum(cb.values()) or 1
     o = f.get("ownership")
     pal = owner_palette(f)
-    tiles = stats_html([(t.capitalize(), f"{c[t]} {'person' if c[t] == 1 else 'people'}", f"{fmt(cb[t])} commits ({100 * cb[t] / commits_total:.0f}%)") for t in ("human", "agent", "bot")])
+    tiles = stats_html([(t.capitalize(), str(c[t]), "") for t in ("human", "agent", "bot")])
     assisted = ""
     if g["agent_assisted_commits"]:
         by = ", ".join(f"{k}: {v}" for k, v in g["agent_assisted_by"].items())
-        assisted = f'<p>{fmt(g["agent_assisted_commits"])} commits carry an AI-assistant marker ({E(by)}). They are counted under "agent" in the area table below.</p>'
-    # two bars: whose code it is, and what kind of contributor wrote it
+        assisted = f'<p>{fmt(g["agent_assisted_commits"])} commits carry an AI-assistant marker ({E(by)}). They are counted under "agent" in the tables below.</p>'
+    # two bars, with the legend beneath each: whose code it is, and what kind of contributor wrote it
     if o:
         total = o["total_lines"]
         top = o["people"][:PALETTE]
         rest = total - sum(p["lines"] for p in top)
         people_items = [(pal[p["id"]], p["name"], p["lines"], "") for p in top] + [("lang-8", "Everyone else", rest, "")]
-        type_items = [(TYPE_CLS[t], t.capitalize(), o["by_type"][t], f" · {c[t]} {'person' if c[t] == 1 else 'people'}") for t in ("human", "agent", "bot")]
-        bars = (f'<h3 id="facts-ownership">Share of the codebase, by contributor {refs.mark(["facts:ownership"])}</h3>{share_bar(people_items, total)}'
-                f'<h3>Share of the codebase, by contributor type</h3>{share_bar(type_items, total)}<p class="muted">{E(o["note"])}</p>')
+        type_items = [(TYPE_CLS[t], t.capitalize(), o["by_type"][t], "") for t in ("human", "agent", "bot")]
+        bars = f'<div id="facts-ownership">{share_bar(people_items, total)}{share_bar(type_items, total)}</div>'
     else:
         ppl = f["contributors"]["people"]
         top = ppl[:PALETTE]
         rest = commits_total - sum(p["commits"] for p in top)
         people_items = [(pal[p["id"]], p["name"], p["commits"], "") for p in top] + [("lang-8", "Everyone else", rest, "")]
-        type_items = [(TYPE_CLS[t], t.capitalize(), cb[t], f" · {c[t]} {'person' if c[t] == 1 else 'people'}") for t in ("human", "agent", "bot")]
-        bars = (f'<h3>Share of commits, by contributor</h3>{share_bar(people_items, commits_total)}<h3>Share of commits, by contributor type</h3>{share_bar(type_items, commits_total)}'
+        type_items = [(TYPE_CLS[t], t.capitalize(), cb[t], "") for t in ("human", "agent", "bot")]
+        bars = (f'{share_bar(people_items, commits_total)}{share_bar(type_items, commits_total)}'
                 '<p class="muted">Code ownership was not measured in this profile, so these bars show commits. Run prepare again to measure it.</p>')
     names = {p["id"]: p["name"] for p in f["contributors"]["people"]}
-    legend = "".join(f'<li><b class="{cls}"></b>{E(n)}</li>' for cls, n in sorted({v: k for k, v in pal.items() if k in names.values()}.items()))
-    legend += '<li><b class="own-other"></b>Everyone else</li>'
-    cal = f'<h3>Who committed, and when</h3><ul class="llegend">{legend}</ul>{calendar_html(g, names, pal)}'
+    cal = f'<h3>Who committed, and when</h3>{calendar_html(g, names, pal, g.get("tags") or [])}'
     own = {p["id"]: p for p in (o or {}).get("people", [])}
-    rows = []
+    rows, detail = [], []
     for p in f["contributors"]["people"][:40]:
         lines = own.get(p["id"])
+        who = f'<b class="own-dot {pal.get(p["id"], "own-other")}"></b>{E(p["name"])}'
         code = (f'{fmt(lines["lines"])} <span class="meter"><i class="{pal.get(p["id"], "own-other")}" style="width:{max(lines["share_pct"], 0.4):.1f}%"></i></span> {lines["share_pct"]}%', lines["lines"]) if lines else ("0" if o else "·", 0)
-        areas = ", ".join(E(a["area"]) for a in (lines["top_areas"] if lines else p["top_areas"])[:3])
-        rows.append([f'<b class="own-dot {pal.get(p["id"], "own-other")}"></b>{E(p["name"])}', type_badge(p["type"]), (f'{fmt(p["commits"])} <span class="muted">({p["share_pct"]}%)</span>', p["commits"]),
+        areas = area_codes(a["area"] for a in (lines["top_areas"] if lines else p["top_areas"])[:3])
+        rows.append([who, type_badge(p["type"]), (f'{fmt(p["commits"])} ({p["share_pct"]}%)', p["commits"]),
                      code, f'{p["first"]} to {p["last"]}', fmt(p["recent_commits_12m"]), fmt(p["assisted_commits"]), areas])
-    more = f'<p class="muted">{f["contributors"]["not_listed"]} more contributors are in the profiler data but not shown. Table shows the top 40.</p>' if f["contributors"]["not_listed"] or len(f["contributors"]["people"]) > 40 else ""
+        added, deleted, months = p["added"], p["deleted"], max(p["active_months"], 1)
+        span = (datetime.strptime(p["last"], "%Y-%m-%d") - datetime.strptime(p["first"], "%Y-%m-%d")).days
+        mix = " · ".join(f"{v} {k}" for k, v in p["commits_by_type"].items() if v)
+        detail.append([who, (fmt(added), added), (fmt(deleted), deleted), (f"{added - deleted:+,}", added - deleted),
+                       (fmt(round((added + deleted) / p["commits"])) if p["commits"] else "0", (added + deleted) / max(p["commits"], 1)),
+                       fmt(p["active_months"]), (f"{p['commits'] / months:.1f}", p["commits"] / months), (f"{span / 365.25:.1f} years", span), mix])
+    more = f'<p class="muted">{f["contributors"]["not_listed"]} more contributors are in the profiler data but not shown. Tables show the top 40.</p>' if f["contributors"]["not_listed"] or len(f["contributors"]["people"]) > 40 else ""
     table = render_table(["Name", "Type", "Commits", "Code today" if o else "Code today (not measured)", "Active", "Last 12 months", "Agent-assisted", "Main areas"], rows, refs, "t-people", True, True)
-    body = (tiles + assisted + bars + cal + "<h3>Everyone</h3>" + table + more
-            + f'<p class="muted">Main areas are where the person\'s surviving code lives, or where they commit when ownership was not measured. {E(f["contributors"]["classification_note"])}</p>'
-            + area_table(f, refs, pal))
-    return card("Contributors", body, "facts-contributors", "Who made the commits, who wrote the code that survives, and which areas each person knows.", refs, "facts:contributors")
+    by_type = []
+    for t in ("human", "agent", "bot"):
+        today = o["by_type"][t] if o else 0
+        by_type.append([f'<b class="{TYPE_CLS[t]} own-dot"></b>{t.capitalize()}', str(c[t]), (fmt(cb[t]), cb[t]), f"{100 * cb[t] / commits_total:.0f}%",
+                        (fmt(today), today) if o else "·", f"{100 * today / o['total_lines']:.0f}%" if o and o["total_lines"] else "·"])
+    type_table = render_table(["Type", "People", "Commits", "Share of commits", "Code today", "Share of codebase"], by_type, refs, "t-types", False, True, sort=False)
+    detail_table = render_table(["Name", "Lines added", "Lines deleted", "Net lines", "Lines changed per commit", "Active months", "Commits per active month", "Active for", "Commits by type"],
+                                detail, refs, "t-detail", True, True)
+    body = (tiles + assisted + bars + cal + ownership_matrix(f, refs, pal) + "<h3>Everyone</h3>" + table + "<h3>By type</h3>" + type_table + "<h3>Detail by person</h3>" + detail_table + more)
+    return card("Contributors", body, "facts-contributors", None, refs, ["facts:contributors"] + (["facts:ownership"] if o else []))
 
 
 # --------------------------------------------------------------------------- tracker pages
@@ -1186,6 +1306,17 @@ def real(v):
     return v if v and not PLACEHOLDER.search(v) else ""
 
 
+def open_pills(reports):
+    """Two pills for the title bar: how many statements in the dossier are inferred, and how many are unknown."""
+    allc = [c for rid, _, authored in REPORTS if authored for c in claims_of(rid, reports.get(rid) or {})]
+    out = ""
+    for conf, noun in (("inferred", "inference"), ("unknown", "unknown")):
+        n = sum(1 for c in allc if c["conf"] == conf)
+        word = noun + ("" if n == 1 or noun == "unknown" else "s")
+        out += f'<a class="count pill c-{conf}" href="#gaps" data-tip="{n} {conf} statement{"" if n == 1 else "s"} in this dossier. Open the tracker.">{n} {word}</a>'
+    return out
+
+
 def masthead(facts, reports):
     r = facts["repo"]
     ms = [m for m in facts["manifests"] if real(m.get("name")) and m["name"] != m["path"].rsplit("/", 1)[-1]]
@@ -1212,6 +1343,10 @@ def render_html(facts, reports, state, history, version, cites):
     if dropped:
         print(f"warning: {len(dropped)} cited file(s) are not embedded in the code viewer, to keep the page small: {', '.join(dropped[:5])}{' ...' if len(dropped) > 5 else ''}")
     files = {p: {"lines": cites.source(p)[0]} for p in cites.windows}
+    windows = dict(cites.windows)
+    src = profiler_source()      # the profiler's own code, so a "profiler facts" citation can show how its numbers were measured
+    files[PROFILER_PATH], windows[PROFILER_PATH] = {"lines": src}, viewer.pick_window(src, [profiler_range(k) for k in FACT_INFO])
+    jsn = lambda d: json.dumps(d, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/").replace("<!--", "<\\u0021--")
     numbered = {rid: i for i, (rid, _, _) in enumerate(REPORTS, 1)}
     groups = "".join(
         f'<div role="group" aria-labelledby="nav-g{gi}"><h3 id="nav-g{gi}">{E(label)}</h3><ul>'
@@ -1224,7 +1359,7 @@ def render_html(facts, reports, state, history, version, cites):
     head = (f'<header class="masthead"><div class="masthead-inner"><div class="mh-row">'
             f'<button class="btn" data-variant="outline" data-size="sm" id="menu-toggle" type="button">Menu</button>'
             f'<h1>{E(mh["name"])}</h1>{source}'
-            f'<span class="chips">{badge(mh["ref"], "", "secondary")}{badge("commit " + mh["short"], "", "outline")}{badge(mh["date"], "", "outline")}</span>'
+            f'<span class="chips">{badge(mh["ref"], "", "secondary")}{badge("commit " + mh["short"], "", "outline")}{badge(mh["date"], "", "outline")}{open_pills(reports)}</span>'
             '</div>'
             f'<div class="mh-row2"><p class="lede" title="{E(mh["description"])}">{E(mh["description"][:300])}</p></div></div>'
             '</header>')
@@ -1233,6 +1368,7 @@ def render_html(facts, reports, state, history, version, cites):
     out = (ASSETS / "template.html").read_text()
     for k, v in {"TITLE": E(f"{mh['name']} dossier"), "CSS": css, "NAV": groups, "RAIL": rail, "MASTHEAD": head, "REPORTS": pages, "MERMAID": mermaid,
                  "BASECOAT_JS": (VENDOR / "basecoat.min.js").read_text(), "JS": (ASSETS / "dossier.js").read_text(),
-                 "NAME": E(mh["name"]), "SHORT": E(mh["short"]), "CODE": viewer.embed(files, cites.windows)}.items():
+                 "NAME": E(mh["name"]), "SHORT": E(mh["short"]), "CODE": viewer.embed(files, windows),
+                 "CAL": jsn(calendar_data(facts)), "FACTS": jsn({k: {"t": v[0], "x": v[1]} for k, v in FACT_INFO.items()})}.items():
         out = out.replace(f"<!--@{k}-->", v)
     return out, gaps

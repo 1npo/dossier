@@ -79,7 +79,7 @@
   var input = $("#search"), results = $("#search-results"), navGroups = $("#nav-groups"), index = null, shown = [], active = -1;
   function textOf(el, dropTables) {
     var c = el.cloneNode(true);
-    $$("details, sup.cite, .mermaid-host svg, button" + (dropTables ? ", .badge, table, .table-container" : ""), c).forEach(function (n) { n.remove(); });
+    $$("details, sup.cite, script, .mermaid-host svg, button" + (dropTables ? ", .badge, table, .table-container" : ""), c).forEach(function (n) { n.remove(); });
     return c.textContent.replace(/\s+/g, " ").trim();
   }
   function buildIndex() {
@@ -153,17 +153,44 @@
 
   // ---- tooltips: appear the moment the pointer is over a source marker [n] or a note such as a gap ID
   var tip = doc.createElement("div"); tip.id = "cite-tip"; tip.hidden = true; tip.setAttribute("role", "tooltip"); doc.body.appendChild(tip);
+  // calendar cells carry a day or a month; the tooltip says who committed then, and how many lines they added and deleted
+  var cal = null, calMonths = null;
+  try { cal = JSON.parse($("#cal-data").textContent); } catch (e) {}
+  function calTip(key) {
+    var who = {}, tags = [], n = 0, add = 0, del = 0;
+    Object.keys(cal.days).forEach(function (d) {
+      if (d.indexOf(key) !== 0) return;
+      var row = cal.days[d];
+      Object.keys(row).forEach(function (id) {
+        var w = who[id] || (who[id] = [0, 0, 0]);
+        w[0] += row[id][0]; w[1] += row[id][1]; w[2] += row[id][2];
+        n += row[id][0]; add += row[id][1]; del += row[id][2];
+      });
+    });
+    Object.keys(cal.tags).forEach(function (d) { if (d.indexOf(key) === 0) tags = tags.concat(cal.tags[d]); });
+    var num = function (v) { return v.toLocaleString(); }, plural = function (v) { return num(v) + " commit" + (v === 1 ? "" : "s"); };
+    var diff = function (a, d) { return cal.lines ? '<span class="tp-add">+' + num(a) + '</span><span class="tp-del">\u2212' + num(d) + "</span>" : ""; };
+    var html = '<div class="tp-h">' + esc(key) + (n ? "" : " \u00b7 no commits") + "</div>";
+    Object.keys(who).sort(function (a, b) { return who[b][0] - who[a][0]; }).forEach(function (id) {
+      var p = cal.people[id] || ["Others", 8];
+      html += '<div class="tp-r"><i class="tp-dot" style="background:var(--l' + p[1] + ')"></i><span class="tp-n">' + esc(p[0]) + "</span><span>" + plural(who[id][0]) + "</span>" + diff(who[id][1], who[id][2]) + "</div>";
+    });
+    if (Object.keys(who).length > 1) html += '<div class="tp-r tp-t"><span class="tp-n">Total</span><span>' + plural(n) + "</span>" + diff(add, del) + "</div>";
+    if (tags.length) html += '<div class="tp-t">Release tag: ' + esc(tags.join(", ")) + "</div>";
+    return html;
+  }
   function tipFor(a) {
     var r = a.getBoundingClientRect();
     tip.className = a.dataset.tipKind === "note" ? "note" : "";
-    tip.textContent = a.dataset.tip; tip.hidden = false;
+    if (a.dataset.cal && cal) tip.innerHTML = calTip(a.dataset.cal); else tip.textContent = a.dataset.tip || a.dataset.cal;
+    tip.hidden = false;
     var w = tip.offsetWidth, h = tip.offsetHeight;
     var left = Math.max(8, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 8));
     var top = r.top - h - 6 < 8 ? r.bottom + 6 : r.top - h - 6;
     tip.style.left = left + "px"; tip.style.top = top + "px";
   }
-  doc.addEventListener("mouseover", function (e) { var a = e.target.closest && e.target.closest("[data-tip]"); if (a) tipFor(a); });
-  doc.addEventListener("mouseout", function (e) { if (e.target.closest && e.target.closest("[data-tip]")) tip.hidden = true; });
+  doc.addEventListener("mouseover", function (e) { var a = e.target.closest && e.target.closest("[data-tip], [data-cal]"); if (a) tipFor(a); });
+  doc.addEventListener("mouseout", function (e) { if (e.target.closest && e.target.closest("[data-tip], [data-cal]")) tip.hidden = true; });
   doc.addEventListener("focusin", function (e) { var a = e.target.closest && e.target.closest("[data-tip]"); if (a) tipFor(a); });
   doc.addEventListener("focusout", function () { tip.hidden = true; });
   window.addEventListener("scroll", function () { tip.hidden = true; }, true);
@@ -291,8 +318,33 @@
     if (!pinned) setOpen(false);
     go(id);
   }
+  // ---- "profiler facts" markers: a click explains what the measurement is and offers the profiler code that made it
+  var facts = {}, pop = doc.createElement("div"), popFor = null;
+  try { facts = JSON.parse($("#fact-data").textContent); } catch (e) {}
+  pop.className = "fact-pop"; pop.hidden = true; pop.setAttribute("role", "dialog"); doc.body.appendChild(pop);
+  function closePop() { pop.hidden = true; popFor = null; }
+  function showFact(el) {
+    var info = facts[el.dataset.fact]; if (!info) return false;
+    var ref = (el.getAttribute("href") || "").match(/^#ref-(.+-\d+)$/) || (el.closest("li") && el.closest("li").id.match(/^ref-(.+-\d+)$/));
+    var li = ref && doc.getElementById("ref-" + ref[1]);
+    pop.innerHTML = "<h4>Profiler facts: " + esc(info.t) + "</h4><p>" + esc(info.x) + "</p><p>The profiler is the script that counts things in the repository before Claude writes any report, so these numbers are measured, not guessed.</p>" +
+      (li && li.dataset.view ? '<div class="fp-row"><button type="button" class="btn" data-variant="outline" data-size="sm" data-open="' + ref[1] + '">View the profiler code</button></div>' : "");
+    pop.hidden = false; popFor = el;
+    var r = el.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
+    pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + "px";
+    pop.style.top = (r.bottom + 8 + h > window.innerHeight && r.top - h - 8 > 8 ? r.top - h - 8 : r.bottom + 8) + "px";
+    tip.hidden = true;
+    return true;
+  }
+  doc.addEventListener("keydown", function (e) { if (e.key === "Escape" && !pop.hidden) closePop(); });
+  window.addEventListener("resize", closePop);
   doc.addEventListener("click", function (e) {
     var t = e.target; if (!t.closest) return;
+    var f = t.closest("[data-fact]");
+    if (f && !(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button)) {
+      e.preventDefault(); if (popFor === f) closePop(); else showFact(f); return;
+    }
+    if (!t.closest(".fact-pop")) closePop(); else if (t.closest("[data-open]")) closePop();
     var a = t.closest("sup.cite a[data-view]");
     if (a && !(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button)) {
       var r = parseRef(a.getAttribute("href")); e.preventDefault(); openRef(r.rid, r.n, a.parentElement); return;
@@ -369,6 +421,7 @@
       name.textContent = names[at]; out.disabled = at === 0; inn.disabled = at === lv.length - 1;
     }
     out.addEventListener("click", function () { set(at - 1); }); inn.addEventListener("click", function () { set(at + 1); });
+    set(+box.dataset.zoomStart || 0);
   });
   $("#menu-toggle").addEventListener("click", function () { var sb = $(".sidebar"); if (sb && sb.toggle) sb.toggle(); });
 
