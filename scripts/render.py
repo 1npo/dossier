@@ -40,7 +40,8 @@ GAP_KINDS = ("assumption", "unknown", "inference", "coverage")
 SEVERITIES = ("critical", "high", "medium", "low", "info")
 RISK_COLUMNS = ("ID", "Risk", "Category", "Severity")
 FACT_KEYS = {k: f"facts-{k}" for k in ("git", "languages", "hot_files", "manifests", "env_vars",
-                                       "secret_signals", "contributors", "ownership", "areas", "chunks")}
+                                       "secret_signals", "contributors", "ownership", "areas", "file_activity", "chunks")}
+FACT_KEYS["areas"] = "facts-contributors"   # the areas are no longer drawn on the page
 FACT_KEYS["inventory"] = "facts-git"  # retired file-name inventory; old reports may still cite it
 OPTIONAL_REPORTS = ("domain-logic",)  # reports added after v0.1: a dossier built before them still renders
 DIAGRAM_START = re.compile(r"^\s*(%%\{.*?\}%%\s*)?(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram(-v2)?|erDiagram|journey|gantt|pie|mindmap|timeline|gitGraph|quadrantChart|requirementDiagram|C4\w+|sankey-beta|xychart-beta|block-beta|architecture-beta)\b", re.S)
@@ -66,6 +67,8 @@ FACT_INFO = {
                   r"^def blame_file\(", r"^def profile\("),
     "areas": ("Areas", "The directories the code is grouped into. Large directories are split one or two levels deeper. Each area gets its commit counts, authors and activity dates.",
               r"# -+ areas", r"# -+ chunk planning"),
+    "file_activity": ("Files changed by each contributor", "For every commit, the files it touched and how many lines it added and deleted, totalled per contributor and per day. Merge commits add nothing, and bulk commits (imports, reformatting) and vendored, generated and lock files are left out.",
+                      r"# ---- history pass", r"# ---- assemble contributor"),
     "chunks": ("Reading coverage", "How the repository was divided up for reading: file sizes are estimated in tokens (bytes divided by 3.5) and packed into chunks that fit one context window.",
                r"# -+ chunk planning", r"# -+ main profile"),
 }
@@ -823,7 +826,6 @@ def type_cls(t):
 
 
 PALETTE = 6  # people who get their own colour; everyone else shares grey
-TYPE_CLS = {"human": "lang-6", "agent": "lang-5", "bot": "lang-7"}
 
 
 def owner_palette(f):
@@ -960,57 +962,29 @@ def calendar_html(g, names, pal, tags=()):
     return f'<div class="zoomable" data-zoom-root data-zoom-start="{START_ZOOM}">{levels}{contributor_legend(names, pal)}<div class="cal-foot">{bar}{key}</div></div>'
 
 
-def ownership_matrix(f, refs, pal):
-    """A heatmap of areas (rows) by contributors (columns). A cell is the contributor's colour, stronger the bigger their share of the area's surviving lines.
-    Two columns beside it say who to ask and when the area was last touched."""
-    o = f.get("ownership")
-    if not o or not o["areas"]:
-        return ""
-    areas = o["areas"]
-    people = o["people"][:PALETTE]
-    cls = lambda p: pal.get(p["id"], "own-other")
-    cols = [(p["id"], p["name"], cls(p)) for p in people] + [(None, "Everyone else", "own-other")]
-    listed = {q["id"] for q in people}
-    head = '<div></div>' + "".join(f'<div class="mx-col"><span class="mx-who"><b class="own-dot {c}"></b>{E(name)}</span></div>' for _, name, c in cols)
-    head += '<div class="mx-sep"></div><div class="mx-col mx-lbl">Active lately</div><div class="mx-col mx-lbl">Last active</div>'
-    info = {a["name"]: a for a in f["areas"]}
-    body = ""
-    for a in areas:
-        body += f'<div class="mx-row mx-area"><code>{E(a["name"]).replace("/", "/<wbr>")}</code><span>{fmt(a["lines"])} lines</span></div>'
-        for pid, name, c in cols:
-            n = next((x["lines"] for x in a["owners"] if x["id"] == pid), 0) if pid else a["lines"] - sum(x["lines"] for x in a["owners"] if x["id"] in listed)
-            share = 100 * n / a["lines"] if a["lines"] else 0
-            lvl = min(100, round(share)) if n else 0
-            style = f' style="background:color-mix(in oklab, var(--l{c[5:] if c.startswith("lang-") else "8"}) {max(lvl, 8)}%, var(--muted))"' if n else ""
-            body += f'<span class="mx-cell"{style} data-tip="{E(name)} wrote {fmt(n)} of {fmt(a["lines"])} lines in {E(a["name"])} ({share:.0f}%)"></span>'
-        body += '<div class="mx-sep"></div>'
-        # beside the heatmap: who to ask, and whether the knowledge is at risk
-        i = info.get(a["name"])
-        if not i:
-            body += '<span class="mx-t"></span><span class="mx-t"></span>'
-            continue
-        recent = max(i["top"], key=lambda x: x["recent_12m"], default=None)
-        recent = recent if recent and recent["recent_12m"] else None
-        owner = a["owners"][0] if a["owners"] else None
-        owner_recent = next((x["recent_12m"] for x in i["top"] if owner and x["name"] == owner["name"]), 0)
-        dormant = not i["exists"] or not i["recent_commits_12m"]
-        if dormant:
-            body += '<span class="mx-t mx-bad" data-tip="No commits here in the last 12 months">no one lately</span>'
-        elif owner and not owner_recent:
-            body += f'<span class="mx-t mx-warn" data-tip="{E(owner["name"])} wrote most of this code but has not committed here in the last 12 months. Most active lately: {E(recent["name"])}">{E(recent["name"])}</span>'
-        else:
-            body += f'<span class="mx-t" data-tip="Most commits here in the last 12 months: {E(recent["name"])} ({recent["recent_12m"]})">{E(recent["name"])}</span>'
-        body += f'<span class="mx-t{" mx-bad" if dormant else ""}">{E(i["last_active"][:7])}</span>'
-    grid = f'<div class="matrix" style="--cols:{len(cols)}">{head}{body}</div>'
-    scale = "".join(f'<span class="cc sw" style="background:color-mix(in oklab, var(--l7) {m}%, var(--muted))"></span>' for m in MIX)
-    key = ('<div class="heat-key muted"><span class="kg">Smaller share of the area ' + scale + ' Larger share</span>'
-           '<span class="kg"><span class="cc sw mx-warn"></span> The main owner has not committed there in 12 months</span>'
-           '<span class="kg"><span class="cc sw mx-bad"></span> No commits in 12 months</span></div>')
-    return f'<div class="matrix-wrap">{grid}</div>{key}'
-
-
-def area_codes(areas):
-    return "<br>".join(f'<code>{E(a).replace("/", "/<wbr>")}</code>' for a in areas)
+def files_card(f, pal):
+    """What each contributor changed: every file their commits touched in a period you choose, with lines added and deleted.
+    The browser totals the embedded per-day (or per-week, or per-month) numbers, so changing the period needs no re-render."""
+    act = f.get("file_activity")
+    if not act or not act["rows"]:
+        return '<p class="muted">The per-file history was not recorded in this profile. Run prepare again to include it.</p>'
+    names = {p["id"]: p["name"] for p in f["contributors"]["people"]}
+    ids = {cid for who in act["rows"].values() for cid in who}
+    people = {cid: ([names.get(cid, "Everyone else"), int(pal[cid][5:]) if cid in pal else 8]) for cid in sorted(ids)}
+    data = {**act, "people": people, "end": f["git"]["last_commit"]}
+    jsn = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/").replace("<!--", "<\\u0021--")
+    notes = []
+    if act["grain"] != "day":
+        notes.append(f'To keep the page small the history is kept by {act["grain"]}, so a period starts and ends on a whole {act["grain"]}.')
+    if act["trimmed"]:
+        notes.append(f'{fmt(act["trimmed"])} of the least-changed files are left out for the same reason.')
+    notes.append("Files in grey are no longer in the repository. Bulk commits (imports, reformatting) and vendored, generated and lock files are not counted.")
+    presets = "".join(f'<button type="button" class="btn" data-variant="outline" data-size="sm" data-fa-range="{v}">{E(t)}</button>' for v, t in (("30", "30 days"), ("90", "90 days"), ("365", "12 months"), ("all", "All time")))
+    bar = (f'<div class="fa-bar"><span class="kg">Period ending at the last commit</span><span class="fa-presets">{presets}</span>'
+           '<label class="fa-date">From <input class="input" type="date" id="fa-from"></label><label class="fa-date">To <input class="input" type="date" id="fa-to"></label>'
+           '<input class="input fa-filter" type="search" id="fa-filter" placeholder="Filter files" aria-label="Filter files"></div>')
+    return (f'<div class="fa" id="fa-root">{bar}<p class="muted" id="fa-sum" aria-live="polite"></p><div id="fa-people"></div>'
+            f'<p class="muted fa-note">{E(" ".join(notes))}</p></div><script type="application/json" id="fa-data">{jsn}</script>')
 
 
 def panel_contributors(f, refs):
@@ -1023,23 +997,20 @@ def panel_contributors(f, refs):
     assisted = ""
     if g["agent_assisted_commits"]:
         by = ", ".join(f"{k}: {v}" for k, v in g["agent_assisted_by"].items())
-        assisted = f'<p>{fmt(g["agent_assisted_commits"])} commits carry an AI-assistant marker ({E(by)}). They are counted under "agent" in the tables below.</p>'
-    # two bars, with the legend beneath each: whose code it is (above the contributor table), and what kind of contributor wrote it (above the type table)
+        assisted = f'<p>{fmt(g["agent_assisted_commits"])} commits carry an AI-assistant marker ({E(by)}). They are counted under "agent" in the table below.</p>'
+    # a bar of whose code it is, with its legend, above the contributor table
     if o:
         total = o["total_lines"]
         top = o["people"][:PALETTE]
         rest = total - sum(p["lines"] for p in top)
         people_items = [(pal[p["id"]], p["name"], p["lines"], "") for p in top] + [("lang-8", "Everyone else", rest, "")]
-        type_items = [(TYPE_CLS[t], t.capitalize(), o["by_type"][t], "") for t in ("human", "agent", "bot")]
-        who_bar, type_bar = f'<div id="facts-ownership">{share_bar(people_items, total)}</div>', share_bar(type_items, total)
+        who_bar = f'<div id="facts-ownership">{share_bar(people_items, total)}</div>'
     else:
         ppl = f["contributors"]["people"]
         top = ppl[:PALETTE]
         rest = commits_total - sum(p["commits"] for p in top)
         people_items = [(pal[p["id"]], p["name"], p["commits"], "") for p in top] + [("lang-8", "Everyone else", rest, "")]
-        type_items = [(TYPE_CLS[t], t.capitalize(), cb[t], "") for t in ("human", "agent", "bot")]
         who_bar = f'{share_bar(people_items, commits_total)}<p class="muted">Code ownership was not measured in this profile, so these bars show commits. Run prepare again to measure it.</p>'
-        type_bar = share_bar(type_items, commits_total)
     names = {p["id"]: p["name"] for p in f["contributors"]["people"]}
     own = {p["id"]: p for p in (o or {}).get("people", [])}
     rows = []
@@ -1047,30 +1018,22 @@ def panel_contributors(f, refs):
         lines = own.get(p["id"])
         who = f'<b class="own-dot {pal.get(p["id"], "own-other")}"></b>{E(p["name"])}'
         code = (f'{fmt(lines["lines"])} <span class="meter"><i class="{pal.get(p["id"], "own-other")}" style="width:{max(lines["share_pct"], 0.4):.1f}%"></i></span> {lines["share_pct"]}%', lines["lines"]) if lines else ("0" if o else "·", 0)
-        areas = area_codes(a["area"] for a in (lines["top_areas"] if lines else p["top_areas"])[:3])
         added, deleted, months = p["added"], p["deleted"], max(p["active_months"], 1)
         mix = " · ".join(f"{v} {k}" for k, v in p["commits_by_type"].items() if v)
         rows.append([who, type_badge(p["type"]), (f'{fmt(p["commits"])} ({p["share_pct"]}%)', p["commits"]),
-                     code, f'{p["first"]} to {p["last"]}', fmt(p["recent_commits_12m"]), fmt(p["assisted_commits"]), areas,
+                     code, f'{p["first"]} to {p["last"]}', fmt(p["recent_commits_12m"]), fmt(p["assisted_commits"]),
                      (fmt(added), added), (fmt(deleted), deleted), (f"{added - deleted:+,}", added - deleted),
                      (fmt(round((added + deleted) / p["commits"])) if p["commits"] else "0", (added + deleted) / max(p["commits"], 1)),
                      fmt(p["active_months"]), (f"{p['commits'] / months:.1f}", p["commits"] / months), mix])
     more = f'<p class="muted">{f["contributors"]["not_listed"]} more contributors are in the profiler data but not shown. The table shows the top 40.</p>' if f["contributors"]["not_listed"] or len(f["contributors"]["people"]) > 40 else ""
-    table = render_table(["Name", "Type", "Commits", "Code today" if o else "Code today (not measured)", "Active", "Last 12 months", "Agent-assisted", "Main areas",
+    table = render_table(["Name", "Type", "Commits", "Code today" if o else "Code today (not measured)", "Active", "Last 12 months", "Agent-assisted",
                           "Lines added", "Lines deleted", "Net lines", "Lines changed per commit", "Active months", "Commits per active month", "Commits by type"],
                          rows, refs, "t-people", True, True)
-    by_type = []
-    for t in ("human", "agent", "bot"):
-        today = o["by_type"][t] if o else 0
-        by_type.append([f'<b class="{TYPE_CLS[t]} own-dot"></b>{t.capitalize()}', str(c[t]), (fmt(cb[t]), cb[t]), f"{100 * cb[t] / commits_total:.0f}%",
-                        (fmt(today), today) if o else "·", f"{100 * today / o['total_lines']:.0f}%" if o and o["total_lines"] else "·"])
-    type_table = render_table(["Type", "Contributors", "Commits", "Share of commits", "Code today", "Share of codebase"], by_type, refs, "t-types", False, True, sort=False)
-    main = card("Contributors", tiles + assisted + who_bar + "<h3>Detail by contributor</h3>" + table + more + type_bar + "<h3>Detail by contributor type</h3>" + type_table,
+    main = card("Contributors", tiles + assisted + who_bar + "<h3>Detail by contributor</h3>" + table + more,
                 "facts-contributors", None, refs, ["facts:contributors"] + (["facts:ownership"] if o else []))
-    matrix = ownership_matrix(f, refs, pal)
-    owns = card("Who owns which area", matrix, "facts-areas", None, refs, ["facts:areas", "facts:ownership"]) if matrix else ""
+    files = card("What each contributor changed", files_card(f, pal), "facts-file_activity", None, refs, ["facts:file_activity"])
     when = card("Who committed and when", calendar_html(g, names, pal, g.get("tags") or []), "facts-calendar", None, refs, ["facts:git"])
-    return main + owns + when
+    return main + when + files
 
 
 # --------------------------------------------------------------------------- tracker pages
