@@ -16,6 +16,10 @@ Inside Claude Code:
 
 `build` pins the dossier to a commit, writes twelve reports (overview, capabilities, interfaces, architecture, domain logic, data, code tour, failures, delivery, risks, contributors, gaps), and renders them to `<home>/<repo-name>/` as one self-contained HTML page.
 
+## Updating a dossier
+
+Run `/dossier build` again after the code changes. `prepare` compares the pinned commit with the last render and works out which reports cite code that changed: a cited file was edited at the cited lines, deleted, or lost or gained a neighbour; a cited directory changed; or a correction is pending. Only those reports are re-read and rewritten, and the others are left alone. Citations whose lines did not move are renumbered to the new commit by script, with no model involved. If nothing is stale, the build just re-renders. `overview` and `contributors` are refreshed whenever the commit changes, and `gaps` whenever another report is. A new minor version of the skill, a rewritten history, or `--full` rebuilds everything.
+
 Every claim is marked confirmed, inferred, or unknown, and cites the files it came from. Your confirmations and corrections survive rebuilds.
 
 ## Reading the code behind a citation

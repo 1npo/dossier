@@ -1,7 +1,7 @@
 ---
 name: dossier
 description: Build a cited HTML dossier that explains a git repository (capabilities, architecture, data model, code tour, delivery, risks, contributors). Use for /dossier home, /dossier build, /dossier version, /dossier correct, /dossier confirm.
-argument-hint: home [dir] | build [repo-path] [--ref branch-or-sha] | version | correct ... | confirm [ids] [--answer|--wrong|--note ...]
+argument-hint: home [dir] | build [repo-path] [--ref branch-or-sha] [--full] | version | correct ... | confirm [ids] [--answer|--wrong|--note ...]
 disable-model-invocation: true
 allowed-tools: Bash(uv run *), Read, Grep, Glob, Write, Agent
 ---
@@ -24,16 +24,21 @@ Run `DOSSIER version` and show the output.
 ### `/dossier home [dir]`
 Run `DOSSIER home [dir]`. With no directory it shows the current home. Dossiers are saved under `<home>/<repo-name>/`.
 
-### `/dossier build [repo-path] [--ref <branch-or-sha>]`
-The repository defaults to the current directory. The ref defaults to the checked-out commit. Follow these steps in order.
+### `/dossier build [repo-path] [--ref <branch-or-sha>] [--full]`
+The repository defaults to the current directory. The ref defaults to the checked-out commit. `--full` rebuilds every report. Without it, a build of a repository that already has a dossier only redoes the reports whose cited code changed. Follow these steps in order.
 
-1. **Prepare.** Run `DOSSIER prepare <repo> [--ref R]`. If it says no home is set, ask the user for a directory and run `DOSSIER home`. Read the JSON it prints. Show the user one line: repo, branch, short commit, size.
-2. **Size check.** Look at `reading.advice`. If it describes a large or very large repository, tell the user the token count and chunk count in plain words, then ask whether to continue before reading any code. Do not offer to switch models: the default model, Sonnet 5.5, already has a 1M-token context window. Keep Sonnet (pass `model: "sonnet"` to the subagents) and the default chunk size, and process the chunks with parallel subagents. For anything smaller, carry on without asking. Relay any `warnings` (shallow clone, uncommitted changes).
+1. **Prepare.** Run `DOSSIER prepare <repo> [--ref R]`. If it says no home is set, ask the user for a directory and run `DOSSIER home`. Pass `--full` through if the user gave it. Read the JSON it prints. Show the user one line: repo, branch, short commit, size, and the update plan in plain words (for example "updating 3 of 12 reports; 9 are unchanged" or "full build: first build").
+
+   `update_plan.mode` decides what the rest of the steps do:
+   - `full`: nothing earlier can be reused (first build, `--full`, new skill version, history rewritten). Do every step below for all twelve reports.
+   - `incremental`: only the reports in `update_plan.stale` are rewritten, each with its reasons. The reports in `fresh` are left exactly as they are. Their line numbers were already moved to the new commit by `prepare` (`line_shifts`).
+   - `render_only`: nothing is stale. Skip steps 2 to 5 and 7, run step 6, and finish at step 8.
+2. **Size check.** Look at `reading.advice`. In `incremental` mode skip this step: only the files in `update_plan.read` get read. Otherwise, if it describes a large or very large repository, tell the user the token count and chunk count in plain words, then ask whether to continue before reading any code. Do not offer to switch models: the default model, Sonnet 5.5, already has a 1M-token context window. Keep Sonnet (pass `model: "sonnet"` to the subagents) and the default chunk size, and process the chunks with parallel subagents. For anything smaller, carry on without asking. Relay any `warnings` (shallow clone, uncommitted changes).
 3. **Learn the rules.** Read `${CLAUDE_SKILL_DIR}/prompts/method.md` and `${CLAUDE_SKILL_DIR}/prompts/reports.md`. Read `state.json` for user corrections and for `user_decisions` (what the user has confirmed, answered or disputed; `prepare` prints them), and `facts.json` (use Read with a limit if it is large; start with `repo`, `git`, `files`, `manifests`, `ownership`, `areas`, `chunks`).
-4. **Read the code.** Follow "Reading the repository" in `method.md`. In `single` mode, read the files yourself. In `chunked` mode, write a note for every chunk that is not cached, using subagents in parallel batches of about five when the Agent tool is available. Do not skip chunks and do not truncate files.
-5. **Write the reports.** Write all twelve files to `reports_dir`: overview, capabilities, interfaces, architecture, domain-logic, data, code-tour, failures, delivery, risks, contributors, gaps. For a large repository, give each report to its own subagent with the report name, the paths to `method.md`, `reports.md`, `facts.json`, the notes, and the repository. If this is an update and reports already exist, update them as `method.md` describes.
+4. **Read the code.** In `incremental` mode do not read the whole repository and do not write chunk notes. Read the stale reports and the files in `update_plan.read` (the changed files they cite or sit next to), plus any other file in `facts.json` `delta.changed` that a stale report needs. Otherwise follow "Reading the repository" in `method.md`. In `single` mode, read the files yourself. In `chunked` mode, write a note for every chunk that is not cached, using subagents in parallel batches of about five when the Agent tool is available. Do not skip chunks and do not truncate files.
+5. **Write the reports.** In `incremental` mode write only the reports in `update_plan.stale`, as `method.md` describes under "Updating". Otherwise write all twelve files to `reports_dir`: overview, capabilities, interfaces, architecture, domain-logic, data, code-tour, failures, delivery, risks, contributors, gaps. For a large repository, give each report to its own subagent with the report name, the paths to `method.md`, `reports.md`, `facts.json`, the notes, and the repository. If this is an update and reports already exist, update them as `method.md` describes.
 6. **Render.** Run `DOSSIER render <repo>`. If it prints errors (unresolved citations, missing columns, bad diagrams), fix the report files and run it again until it succeeds. Warnings are worth fixing but do not block. The summary's `code_viewer` counts the citations that open the code viewer, the ones that do not, and the files left out to keep the page small.
-7. **Check the page in a real browser.** Mermaid errors, unreadable text and layout faults only show when the page is opened, so never skip this and never judge diagrams by reading their source. `check_page.py` declares its own dependency (Playwright), so `uv` installs it for you:
+7. **Check the page in a real browser.** (Skip in `render_only` mode.) Mermaid errors, unreadable text and layout faults only show when the page is opened, so never skip this and never judge diagrams by reading their source. `check_page.py` declares its own dependency (Playwright), so `uv` installs it for you:
 
    ```
    uv run ${CLAUDE_SKILL_DIR}/scripts/check_page.py <html> --shots <dir>
