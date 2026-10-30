@@ -17,6 +17,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 import gather
+import viewer
 from gather import Repo
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -73,6 +74,10 @@ class Cites:
         self.status = {}          # key -> {"ok": bool, "msg": str, "type": str}
         self._lines = {}
         self._tree = None
+        self._src = {}            # path -> (lines or None, reason): what the viewer may embed
+        self.ranges = {}          # path -> cited (a, b) ranges, or None for no line numbers; recorded while pages are built
+        self.windows = None       # path -> (first, last) lines embedded; None until the pages have been built once
+        self._secret = None
 
     def tree(self):
         """(files, directories) at the pinned commit."""
@@ -122,6 +127,65 @@ class Cites:
         self.status[k] = st
         return st
 
+    def secret_paths(self):
+        """Files the profiler flagged as holding secrets."""
+        if self._secret is None:
+            s = self.facts.get("secret_signals") or {}
+            files = [x["path"] if isinstance(x, dict) else x for x in s.get("sensitive_files", [])]
+            self._secret = set(files) | {h["path"] for h in s.get("hits", [])}
+        return self._secret
+
+    def source(self, path):
+        """(lines, reason) for a file at the pinned commit. lines is None, and reason says why, when the viewer must not embed it.
+        A secret-prone file is never read."""
+        if path not in self._src:
+            lines, reason = None, ""
+            if path in self.secret_paths() or (gather.SENSITIVE_FILE.search(path) and not path.endswith(".pub")):
+                reason = "may hold secrets"
+            else:
+                data = self.repo.read(f"{self.sha}:{path}")[1]
+                if b"\0" in data[:8000]:
+                    reason = "binary file"
+                else:
+                    lines = viewer.split_lines(data)
+                    if not lines:
+                        lines, reason = None, "empty file"
+                    elif any(len(l) > viewer.MINIFIED_LINE for l in lines):
+                        lines, reason = None, "minified file"
+            self._src[path] = (lines, reason)
+        return self._src[path]
+
+    def viewable(self, c):
+        """(ok, reason): whether a citation may open the code viewer."""
+        if c["kind"] != "file":
+            return False, "not a file"
+        st = self.check(c)
+        if not st["ok"]:
+            return False, "unresolved"
+        if st["type"] != "blob":
+            return False, "directory"
+        lines, reason = self.source(c["path"])
+        return lines is not None, reason
+
+    def view_attrs(self, c):
+        """Attributes that make a citation open the viewer, or "" when it does not. While the first pass runs, it records the range."""
+        if not self.viewable(c)[0]:
+            return ""
+        r = (c["a"], c["b"]) if c["a"] else None
+        if self.windows is None:
+            self.ranges.setdefault(c["path"], set()).add(r)
+        elif c["path"] not in self.windows or not viewer.covers(self.windows[c["path"]], r):
+            return ""
+        a, b = viewer.clip(*r) if r else ("", "")
+        return f' data-view="{E(c["path"])}" data-a="{a}" data-b="{b}"'
+
+    def plan_view(self):
+        """Pick the windows from the ranges the first pass recorded. Returns (dropped paths, whether any marker must be redrawn)."""
+        files = {p: {"lines": self._src[p][0], "ranges": list(rs)} for p, rs in self.ranges.items()}
+        self.windows, dropped = viewer.plan(files)
+        stale = bool(dropped) or any(not viewer.covers(self.windows[p], r) for p, rs in self.ranges.items() if p in self.windows for r in rs)
+        return dropped, stale
+
     def url(self, c):
         if c["kind"] == "facts":
             return "#" + FACT_KEYS.get(c["name"], "")
@@ -154,12 +218,18 @@ class Refs:
             self.keys.append(c["key"])
         return self.keys.index(c["key"]) + 1
 
+    def tip(self, c):
+        if c["kind"] == "file" and self.cites.check(c)["type"] == "tree":
+            return f"directory {c['path'].rstrip('/')}/, relative to the repo root"
+        return c["text"]
+
     def mark(self, raws):
         out = []
         for raw in dict.fromkeys(raws):
             n = self.num(raw)
-            tip = E(parse_cite(raw)["text"])
-            out.append(f'<a href="#ref-{self.rid}-{n}" data-tip="{tip}" aria-label="Source {n}: {tip}">[{n}]</a>')
+            c = parse_cite(raw)
+            tip = E(self.tip(c))
+            out.append(f'<a href="#ref-{self.rid}-{n}" data-tip="{tip}" aria-label="Source {n}: {tip}"{self.cites.view_attrs(c)}>[{n}]</a>')
         return f'<sup class="cite">{"".join(out)}</sup>' if out else ""
 
     def listing(self):
@@ -170,16 +240,20 @@ class Refs:
             c = self.parsed[k]
             st = self.cites.check(c)
             url = self.cites.url(c)
-            label = E(c["text"])
+            view = self.cites.view_attrs(c)
+            label = E(self.tip(c) if st["type"] == "tree" else c["text"])
             if not st["ok"]:
                 link = f'<span class="bad">{label}</span> <span class="muted">unresolved: {E(st["msg"])}</span>'
+            elif url and url.startswith("file://") and (view or st["type"] == "tree"):
+                link = f"<code>{label}</code>"    # a local path would leak into a shared page
             elif url:
                 ext = "" if c["kind"] == "facts" else ' target="_blank" rel="noopener noreferrer"'
                 link = f'<a href="{E(url)}"{ext}>{label}</a>'
             else:
                 link = f'<code>git show {E(c["sha"][:10])}</code>'
             kind = {"file": "file", "tree": "directory", "blob": "file", "commit": "commit", "facts": "measured by the profiler"}.get(st["type"], "")
-            rows.append(f'<li id="ref-{self.rid}-{i}">{link} <span class="muted">· {kind}</span></li>')
+            btn = f' <button type="button" class="btn" data-variant="outline" data-size="sm" data-open="{self.rid}-{i}">View code</button>' if view else ""
+            rows.append(f'<li id="ref-{self.rid}-{i}"{view}>{link} <span class="muted">· {kind}</span>{btn}</li>')
         return "<ol class=\"refs\">" + "".join(rows) + "</ol>"
 
 
@@ -1106,7 +1180,14 @@ def render_html(facts, reports, state, history, version, cites):
     built = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     ctx = {"cites": cites, "gaps": gaps, "history": history, "built": built, "version": version}
     mh = masthead(facts, reports)
-    pages = "".join(build_page(rid, reports, facts, state, ctx) for rid, _, _ in REPORTS)
+    build = lambda: "".join(build_page(rid, reports, facts, state, ctx) for rid, _, _ in REPORTS)
+    pages = build()
+    dropped, stale = cites.plan_view()      # the first pass recorded which files and ranges are cited
+    if stale:
+        pages = build()
+    if dropped:
+        print(f"warning: {len(dropped)} cited file(s) are not embedded in the code viewer, to keep the page small: {', '.join(dropped[:5])}{' ...' if len(dropped) > 5 else ''}")
+    files = {p: {"lines": cites.source(p)[0]} for p in cites.windows}
     numbered = {rid: i for i, (rid, _, _) in enumerate(REPORTS, 1)}
     groups = "".join(
         f'<div role="group" aria-labelledby="nav-g{gi}"><h3 id="nav-g{gi}">{E(label)}</h3><ul>'
@@ -1127,6 +1208,6 @@ def render_html(facts, reports, state, history, version, cites):
     out = (ASSETS / "template.html").read_text()
     for k, v in {"TITLE": E(f"{mh['name']} dossier"), "CSS": css, "NAV": groups, "MASTHEAD": head, "REPORTS": pages, "MERMAID": mermaid,
                  "BASECOAT_JS": (VENDOR / "basecoat.min.js").read_text(), "JS": (ASSETS / "dossier.js").read_text(),
-                 "NAME": E(mh["name"]), "SHORT": E(mh["short"])}.items():
+                 "NAME": E(mh["name"]), "SHORT": E(mh["short"]), "CODE": viewer.embed(files, cites.windows)}.items():
         out = out.replace(f"<!--@{k}-->", v)
     return out, gaps

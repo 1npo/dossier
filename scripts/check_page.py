@@ -12,7 +12,10 @@ Checks, in both the light and the dark theme:
   - every piece of text inside a diagram has a contrast ratio of at least 4.5:1 against what is
     actually painted behind it (edge labels, node boxes, subgraph titles, sequence-diagram messages);
   - every table column header is sortable;
-  - a citation tooltip appears at once on hover.
+  - a citation tooltip appears at once on hover;
+  - the code viewer: a click on a citation opens the panel with the cited lines marked, the keys and buttons
+    (]  [  p  v  Esc, other sources, Go to reference) work, and citations of directories, commits and
+    secret-looking files do not open it.
 
 Exits 1 and prints one line per problem. With --shots it also saves a screenshot of each diagram,
 which is worth opening: a script cannot judge layout, overlap or clipping.
@@ -92,6 +95,105 @@ CONTRAST_JS = r"""
 """
 
 
+SECRET_PATH = r"(^|/)(\.env(\.[^/]+)?|id_rsa|id_ed25519|[^/]+\.(pem|key|p12|pfx))$"
+
+PANEL_JS = "() => { const p = document.getElementById('code-panel'); return !p.hidden && p.getBoundingClientRect().width > 0; }"
+COUNT_JS = "() => document.getElementById('cp-count').textContent"
+WIDTH_JS = """() => { const p = document.getElementById('code-panel'), s = document.createElement('span');
+  s.style.cssText = 'position:absolute;visibility:hidden;width:90ch'; p.appendChild(s);
+  const want = Math.min(s.getBoundingClientRect().width, innerWidth); s.remove(); return [p.getBoundingClientRect().width, want]; }"""
+PIN_JS = "() => document.getElementById('cp-pin').getAttribute('aria-pressed') === 'true'"
+
+
+def check_viewer(page, scheme, shots):
+    """Drive the code viewer in the open page. Returns the problems it found."""
+    out = []
+    bad = lambda msg: out.append(f"[{scheme}] code viewer: {msg}")
+    opened = lambda: page.evaluate(PANEL_JS)
+    # pick a statement with several openable sources if there is one, else any openable citation
+    pick = page.evaluate("""() => {
+      const sups = Array.from(document.querySelectorAll('sup.cite')).filter(s => s.querySelector('a[data-view]'));
+      const best = sups.find(s => s.querySelectorAll('a[data-view]').length > 1) || sups[0];
+      return best ? { rid: best.closest('.report').id, n: sups.indexOf(best) } : null; }""")
+    if not pick:
+        return [f"[{scheme}] code viewer: no citation in the page can open it"]
+    page.evaluate("id => { location.hash = id; }", pick["rid"])
+    page.wait_for_timeout(150)
+    sup_sel = f"#{pick['rid']} sup.cite:has(a[data-view])"
+    sups = page.query_selector_all(sup_sel)
+    sup = next((x for x in sups if len(x.query_selector_all("a[data-view]")) > 1), sups[0])
+    a = sup.query_selector("a[data-view]")
+    secret = page.evaluate("re => Array.from(document.querySelectorAll('[data-view]')).map(e => e.dataset.view).filter(p => new RegExp(re).test(p))", SECRET_PATH)
+    if secret:
+        bad(f"secret-looking files can be opened: {', '.join(sorted(set(secret)))}")
+
+    a.scroll_into_view_if_needed()
+    a.hover()
+    if not page.evaluate("() => { const t = document.getElementById('cite-tip'); return !!t && !t.hidden && t.textContent.length > 0; }"):
+        bad("the tooltip did not appear on hover")
+    page.mouse.move(0, 0)
+    a.click()
+    if not opened():
+        return out + [f"[{scheme}] code viewer: a click on a citation did not open the panel"]
+    if not page.evaluate("() => document.querySelectorAll('#cp-body .cl.hit').length") and a.get_attribute("data-a"):
+        bad("no line is marked as cited")
+    got, want = page.evaluate(WIDTH_JS)
+    if abs(got - want) > 1.5:
+        bad(f"the panel is {got:.0f}px wide, expected {want:.0f}px (90 characters)")
+    if shots:
+        page.screenshot(path=str(Path(shots) / f"{scheme}-code-viewer.png"))
+
+    n0 = page.evaluate(COUNT_JS)
+    key = "]" if not page.evaluate("() => document.getElementById('cp-next').disabled") else "["
+    page.keyboard.press(key)
+    if page.evaluate(COUNT_JS) == n0:
+        bad(f"pressing {key} did not change the counter ({n0})")
+    other = page.query_selector("#cp-sources [data-src]:not([aria-current])")
+    if other:
+        before = page.evaluate(COUNT_JS)
+        other.click()
+        if page.evaluate(COUNT_JS) == before or not opened():
+            bad("a click on another source of the statement did not open it")
+    page.keyboard.press("p")
+    if not page.evaluate(PIN_JS):
+        bad("p did not pin the panel")
+    page.keyboard.press("Escape")
+    if not opened():
+        bad("Esc collapsed a pinned panel")
+    if not page.evaluate("() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--code-w-px')) > 0"):
+        bad("a pinned panel did not make room for itself")
+    page.keyboard.press("p")
+    page.keyboard.press("Escape")
+    if opened():
+        bad("Esc did not collapse an unpinned panel")
+    page.keyboard.press("v")
+    if not opened():
+        bad("v did not bring the panel back")
+    page.keyboard.press("v")
+    if opened():
+        bad("v did not collapse the panel")
+    page.keyboard.press("v")
+    page.click("#cp-goto")
+    page.wait_for_timeout(700)
+    target = page.evaluate("""() => { const p = location.hash.slice(1), e = document.getElementById(p); if (!e) return null;
+      const r = e.getBoundingClientRect(); return { id: p, top: Math.round(r.top), bottom: Math.round(r.bottom), visible: r.top >= 0 && r.bottom <= innerHeight, flash: e.classList.contains('flash') }; }""")
+    if not target or not target["id"].startswith("ref-") or not target["visible"]:
+        bad(f"Go to reference did not bring the reference list entry into view ({target})")
+    if opened():
+        bad("Go to reference left an unpinned panel open")
+
+    # citations that must not open the viewer
+    for label, tip_start in (("a directory", "directory "), ("a commit", "commit ")):
+        els = page.query_selector_all(f"sup.cite a:not([data-view])[data-tip^='{tip_start}']")
+        if els:
+            els[0].evaluate("e => { location.hash = e.closest('.report').id; }")
+            els[0].scroll_into_view_if_needed()
+            els[0].click()
+            if opened():
+                bad(f"a click on {label} citation opened the panel")
+    return out
+
+
 def check_theme(browser, path, scheme, shots):
     problems = []
     ctx = browser.new_context(color_scheme=scheme, viewport={"width": 1500, "height": 1000})
@@ -145,6 +247,7 @@ def check_theme(browser, path, scheme, shots):
                 if not shown:
                     problems.append(f"{rid}: the citation tooltip did not appear on hover")
                 page.mouse.move(0, 0)
+    problems += check_viewer(page, scheme, shots)
     problems += [f"[{scheme}] browser error: {e}" for e in errors]
     ctx.close()
     return problems, n_diagrams
