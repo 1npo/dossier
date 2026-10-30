@@ -169,13 +169,15 @@
     });
     Object.keys(cal.tags).forEach(function (d) { if (d.indexOf(key) === 0) tags = tags.concat(cal.tags[d]); });
     var num = function (v) { return v.toLocaleString(); }, plural = function (v) { return num(v) + " commit" + (v === 1 ? "" : "s"); };
-    var diff = function (a, d) { return cal.lines ? '<span class="tp-add">+' + num(a) + '</span><span class="tp-del">\u2212' + num(d) + "</span>" : ""; };
+    var diff = function (a, d) { return cal.lines ? '<span class="tp-add">+' + num(a) + '</span><span class="tp-del">\u2212' + num(d) + "</span>" : "<span></span><span></span>"; };
     var html = '<div class="tp-h">' + esc(key) + (n ? "" : " \u00b7 no commits") + "</div>";
+    var rows = "";
     Object.keys(who).sort(function (a, b) { return who[b][0] - who[a][0]; }).forEach(function (id) {
       var p = cal.people[id] || ["Others", 8];
-      html += '<div class="tp-r"><i class="tp-dot" style="background:var(--l' + p[1] + ')"></i><span class="tp-n">' + esc(p[0]) + "</span><span>" + plural(who[id][0]) + "</span>" + diff(who[id][1], who[id][2]) + "</div>";
+      rows += '<div class="tp-r"><i class="tp-dot" style="background:var(--l' + p[1] + ')"></i><span class="tp-n">' + esc(p[0]) + "</span><span>" + plural(who[id][0]) + "</span>" + diff(who[id][1], who[id][2]) + "</div>";
     });
-    if (Object.keys(who).length > 1) html += '<div class="tp-r tp-t"><span class="tp-n">Total</span><span>' + plural(n) + "</span>" + diff(add, del) + "</div>";
+    if (Object.keys(who).length > 1) rows += '<div class="tp-rule"></div><div class="tp-r"><span></span><span class="tp-n">Total</span><span>' + plural(n) + "</span>" + diff(add, del) + "</div>";
+    if (rows) html += '<div class="tp-g">' + rows + "</div>";
     if (tags.length) html += '<div class="tp-t">Release tag: ' + esc(tags.join(", ")) + "</div>";
     return html;
   }
