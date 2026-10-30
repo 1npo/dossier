@@ -962,33 +962,6 @@ def calendar_html(g, names, pal, tags=()):
     return f'<div class="zoomable" data-zoom-root data-zoom-start="{START_ZOOM}">{levels}{contributor_legend(names, pal)}<div class="cal-foot">{bar}{key}</div></div>'
 
 
-def files_card(f, pal):
-    """What each contributor changed: every file their commits touched in a period you choose, with lines added and deleted.
-    The browser totals the embedded per-day (or per-week, or per-month) numbers, so changing the period needs no re-render."""
-    act = f.get("file_activity")
-    if not act or not act["rows"]:
-        return '<p class="muted">The per-file history was not recorded in this profile. Run prepare again to include it.</p>'
-    names = {p["id"]: p["name"] for p in f["contributors"]["people"]}
-    ids = {cid for who in act["rows"].values() for cid in who}
-    people = {cid: ([names.get(cid, "Everyone else"), int(pal[cid][5:]) if cid in pal else 8]) for cid in sorted(ids)}
-    data = {**act, "people": people, "end": f["git"]["last_commit"]}
-    jsn = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/").replace("<!--", "<\\u0021--")
-    notes = []
-    if act["grain"] != "day":
-        notes.append(f'To keep the page small the history is kept by {act["grain"]}, so a period starts and ends on a whole {act["grain"]}.')
-    if act["trimmed"]:
-        notes.append(f'{fmt(act["trimmed"])} of the least-changed files are left out for the same reason.')
-    notes.append("Files in grey are no longer in the repository. Bulk commits (imports, reformatting) and vendored, generated and lock files are not counted.")
-    presets = "".join(f'<button type="button" class="btn" data-variant="outline" data-size="sm" data-fa-range="{v}">{E(t)}</button>' for v, t in (("30", "30 days"), ("90", "90 days"), ("365", "12 months"), ("all", "All time")))
-    bar = (f'<div class="fa-bar"><span class="kg">Period ending at the last commit</span><span class="fa-presets">{presets}</span>'
-           '<label class="fa-date">From <input class="input" type="date" id="fa-from"></label><label class="fa-date">To <input class="input" type="date" id="fa-to"></label>'
-           '<label class="fa-date">Group by <select class="select" id="fa-group"><option value="none">Nothing</option><option value="dir">Directory</option><option value="type">File type</option></select></label>'
-           '<label class="fa-date" id="fa-depth-l" hidden>Levels <select class="select" id="fa-depth"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></label>'
-           '<input class="input fa-filter" type="search" id="fa-filter" placeholder="Filter files" aria-label="Filter files"></div>')
-    return (f'<div class="fa" id="fa-root">{bar}<p class="muted" id="fa-sum" aria-live="polite"></p><div id="fa-people"></div>'
-            f'<p class="muted fa-note">{E(" ".join(notes))}</p></div><script type="application/json" id="fa-data">{jsn}</script>')
-
-
 def panel_contributors(f, refs):
     g, c = f["git"], f["git"]["contributors"]
     cb = g["commits_by_type"]
@@ -1033,9 +1006,8 @@ def panel_contributors(f, refs):
                          rows, refs, "t-people", True, True)
     main = card("Contributors", tiles + assisted + who_bar + "<h3>Detail by contributor</h3>" + table + more,
                 "facts-contributors", None, refs, ["facts:contributors"] + (["facts:ownership"] if o else []))
-    files = card("What each contributor changed", files_card(f, pal), "facts-file_activity", None, refs, ["facts:file_activity"])
     when = card("Who committed and when", calendar_html(g, names, pal, g.get("tags") or []), "facts-calendar", None, refs, ["facts:git"])
-    return main + when + files
+    return main + when
 
 
 # --------------------------------------------------------------------------- tracker pages

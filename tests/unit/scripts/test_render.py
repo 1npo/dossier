@@ -345,27 +345,3 @@ class TestProfilerFacts:
         refs = render.Refs("overview", make_cites({}))
         refs.mark(["facts:git"])
         assert f'data-view="{render.PROFILER_PATH}"' in refs.listing()
-
-
-class TestFilesCard:
-    PAL = {"a": "lang-1"}
-
-    def facts(self, **act):
-        activity = {"grain": "day", "files": ["src/app.py", "old.py"], "gone": [1], "trimmed": 0,
-                    "rows": {"2026-01-02": {"a": [[0, 2, 10, 3]], "": [[1, 1, 5, 5]]}}, **act}
-        return {"contributors": {"people": [{"id": "a", "name": "Ann"}]}, "git": {"last_commit": "2026-01-02"}, "file_activity": activity}
-
-    def test_embeds_the_per_file_data_for_the_browser(self):
-        html = render.files_card(self.facts(), self.PAL)
-        assert 'id="fa-data"' in html and '"src/app.py"' in html
-        assert '"people":{"":["Everyone else",8],"a":["Ann",1]}' in html
-
-    def test_says_when_the_history_was_coarsened_or_trimmed(self):
-        html = render.files_card(self.facts(grain="week", trimmed=40), self.PAL)
-        assert "kept by week" in html and "40 of the least-changed files" in html
-
-    def test_asks_for_prepare_when_there_is_no_file_history(self):
-        assert "Run prepare again" in render.files_card({"file_activity": None}, self.PAL)
-
-    def test_the_contributors_page_has_no_type_card_or_area_matrix(self):
-        assert not hasattr(render, "ownership_matrix") and "file_activity" in render.FACT_KEYS
