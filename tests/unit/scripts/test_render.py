@@ -345,12 +345,12 @@ class TestKnowledgeCard:
     def test_card_without_knowledge_data_says_to_prepare_again(self):
         assert "prepare again" in render.knowledge_card({})
 
-    def test_card_has_the_four_tiles_in_order_with_head_first(self):
-        html = render.knowledge_card(self.facts())
+    def test_card_has_no_tiles_and_opens_on_the_contributor_view(self):
+        html = render.knowledge_card(self.facts(), "<table id=people></table>")
 
-        labels = re.findall(r'<div class="k">(.*?)</div>', html)
-
-        assert labels == ["HEAD", "Contributors", "Files", "Lines"]
+        assert 'class="stats"' not in html
+        assert html.index("<table id=people>") < html.index('id="km-pane-files" hidden')
+        assert re.findall(r'data-v="(people|files)" aria-pressed="(\w+)"', html) == [("people", "true"), ("files", "false")]
 
     def test_card_has_the_three_labelled_control_groups(self):
         html = render.knowledge_card(self.facts())

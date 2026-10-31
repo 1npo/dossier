@@ -253,7 +253,8 @@ def check_knowledge(page, scheme):
     if not page.query_selector("#km-root"):
         return out
     bad = lambda m: out.append(f"[{scheme}] knowledge map: {m}")
-    page.evaluate("() => { location.hash = 'facts-knowledge'; }")
+    page.evaluate("() => { location.hash = 'facts-contributors'; }")
+    page.click('#km-vw [data-v="files"]')
     page.wait_for_timeout(200)
     rows = lambda: page.locator("#km-rows .km-row").count()
     if not rows():

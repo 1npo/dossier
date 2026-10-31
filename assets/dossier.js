@@ -732,6 +732,14 @@
     });
     rowsEl.addEventListener("pointerleave", hideTip);
 
+    $("#km-vw").addEventListener("click", function (e) {
+      var b = e.target.closest("button"); if (!b) return;
+      var files = b.dataset.v === "files";
+      $("#km-pane-people").hidden = files; $("#km-pane-files").hidden = !files;
+      setPressed("#km-vw", b.dataset.v);
+      if (files) render();   // the minimap needs its size, which a hidden pane does not have
+    });
+
     buildChips(); openForZoom(state.zoom); render();
   })();
 

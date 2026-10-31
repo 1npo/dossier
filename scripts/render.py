@@ -752,11 +752,12 @@ def fact_box(title, rows):
 
 def panel_git(f, refs, ctx):
     g, fl, r = f["git"], f["files"], f["repo"]
+    code_langs = sorted((l for l in f["languages"] if l["kind"] == "code"), key=lambda l: -l["lines"])
     stats = stats_html([
+        ("Tracked files", fmt(fl["tracked"]), f"{fmt(fl['tests'])} contain tests"),
+        ("Languages", fmt(len(code_langs)), f"{code_langs[0]['name']} is the largest" if code_langs else "no programming languages"),
         ("Commits", fmt(g["commits"]), f"{fmt(g['merges'])} merges"),
         ("Active span", f"{(g['age_days'] / 365.25):.1f} years", f"{g['first_commit']} to {g['last_commit']}"),
-        ("Tracked files", fmt(fl["tracked"]), f"{fmt(fl['tests'])} contain tests"),
-        ("Code lines", fmt(fl["total_code_lines"]), f"{len([l for l in f['languages'] if l['kind'] == 'code'])} programming languages"),
     ])
     link = ctx["cites"].url({"kind": "commit", "sha": r["sha"]})
     sha = f'<a href="{E(link)}" target="_blank" rel="noopener noreferrer">{E(r["sha"])}</a>' if link else E(r["sha"])
@@ -826,15 +827,15 @@ def dependency_findings(d):
     scope = lambda s: (badge(s, "", "secondary") if s == "runtime" else badge(s, "", "outline"), s)
     rows = []
     for u in d["unused"]:
-        rows.append([pkg(u["n"], u["v"]), pill("Declared, never imported", "dp-warn"), scope(u["s"]), E(u["note"])])
+        rows.append([pkg(u["n"], u["v"]), scope(u["s"]), pill("Declared, never imported", "dp-warn"), E(u["note"])])
     for u in d["undeclared"]:
         mods = ", ".join(sorted(u["mods"]))
         via = f' · reaches you via {E(u["via"])}' if u["via"] else " · no declared package provides it"
-        rows.append([pkg(u["n"], ""), pill("Imported, never declared", "dp-crit"), ('<span class="muted">·</span>', "~"),
+        rows.append([pkg(u["n"], ""), ('<span class="muted">·</span>', "~"), pill("Imported, never declared", "dp-crit"),
                      f'{u["files"]} file{"" if u["files"] == 1 else "s"} in {E(mods)}{via}'])
     for x in d["deps"]:
         if x["s"] == "runtime" and x["src"] == 0:
-            rows.append([pkg(x["n"], x["v"]), pill("Runtime, used only in tests", "dp-warn"), scope(x["s"]),
+            rows.append([pkg(x["n"], x["v"]), scope(x["s"]), pill("Runtime, used only in tests", "dp-warn"),
                          f'{x["tst"]} test file{"" if x["tst"] == 1 else "s"}, no source imports · likely belongs with the dev dependencies'])
     return rows
 
@@ -868,7 +869,7 @@ def dependencies_card(d, refs):
         ("Runtime, used only in tests", test_only, "", f"dp-warn {zero(test_only)}"),
     ])
     rows = dependency_findings(d)
-    finds = (render_table(["Package", "Finding", "Scope", "Detail"], rows, refs, "t-dep-findings", False, True)
+    finds = (render_table(["Package", "Scope", "Finding", "Detail"], rows, refs, "t-dep-findings", False, True)
              if rows else '<p class="muted">No findings: every declared package is imported or used through configuration, and every import is declared.</p>')
     notes = ""
     if d.get("trimmed"):
@@ -880,7 +881,7 @@ def dependencies_card(d, refs):
                   '<ul id="dp-deplist" class="dp-deplist" role="listbox" aria-label="Dependencies" hidden></ul></div></div></div>')
     foot = '<div class="dp-foot"><span><i class="dp-sw"></i>source files</span><span><i class="dp-sw t"></i>test files</span></div>'
     jsn = json.dumps(d, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c")
-    return (f'<div class="dp" id="dp-root">{notes}{tiles}<div class="dp-finds">{finds}</div>{controls}<div id="dp-stage"></div>{foot}</div>'
+    return (f'<div class="dp" id="dp-root">{notes}{tiles}<h3 class="dp-vh">Where packages are used</h3>{controls}<div id="dp-stage"></div>{foot}<div class="dp-finds"><h3>Findings</h3>{finds}</div></div>'
             f'<script type="application/json" id="dp-data">{jsn}</script>')
 
 
@@ -1061,7 +1062,8 @@ def compact(n):
 KM_MEASURES = (("lines", "Lines"), ("commits", "Commits"))
 KM_VIEWS = (("full", "All paths"), ("mine", "Only paths they touched"))
 KM_ZOOMS = (("1", "Top level"), ("2", "Modules"), ("3", "Folders"), ("99", "All files"))
-KM_START = {"metric": "lines", "view": "full", "zoom": "2"}   # what the page opens on; dossier.js starts from the same values
+KM_VWS = (("people", "By contributor"), ("files", "By file"))
+KM_START = {"vw": "people", "metric": "lines", "view": "full", "zoom": "2"}   # what the page opens on; dossier.js starts from the same values
 
 
 def km_group(gid, label, options):
@@ -1070,23 +1072,18 @@ def km_group(gid, label, options):
     return f'<div class="km-ctl"><span class="muted" id="km-{gid}-l">{E(label)}</span><div class="button-group" id="km-{gid}" role="group" aria-labelledby="km-{gid}-l">{btns}</div></div>'
 
 
-def knowledge_card(f):
-    """Who knows which files: a tree with an ownership bar per row. Every share is worked out in the browser (dossier.js) from the embedded per-file figures."""
+def knowledge_card(f, people_html=""):
+    """Who knows which files: the contributor table, or a tree with an ownership bar per row. Every share is worked out in the browser (dossier.js) from the embedded per-file figures."""
     k = f.get("knowledge")
     if not k:
-        return '<p class="muted">The knowledge map was not recorded in this dossier. Run prepare again to include it.</p>'
+        return people_html + '<p class="muted">The knowledge map was not recorded in this dossier. Run prepare again to include it.</p>'
     if not k["contributors"]:
-        return '<p class="muted">No commits by people (as opposed to bots) touch the files in this repository, so there is nobody to map.</p>'
+        return people_html + '<p class="muted">No commits by people (as opposed to bots) touch the files in this repository, so there is nobody to map.</p>'
     cls = knowledge_palette(k, f)
     people = [{"name": c["name"], "short": c["short"], "commits": c["commits"], "last": c["last"], "departed": c["departed"], "cls": cls[c["id"]]} for c in k["contributors"]]
     others = {"name": "Others", "short": "Others", "people": k["others"]["people"], "commits": k["others"]["commits"], "cls": 8} if k["others"] else None
     data = {"head": f["repo"]["short"], "date": k["date"], "contributors": people, "others": others, "files": k["files"]}
     jsn = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c")
-    lines = sum(r[1] for r in k["files"])
-    tiles = stats_html([("HEAD", Raw(f'<span class="mono">{E(f["repo"]["short"])}</span>'), f"committed {k['date']}"),
-                        ("Contributors", fmt(len(people) + (others["people"] if others else 0)), "people, bots left out"),
-                        ("Files", fmt(len(k["files"])), "text files at HEAD"),
-                        ("Lines", compact(lines), "non-blank, surviving at HEAD")])
     notes = ""
     if k["approx_files"]:
         notes += alert(f'The line counts are estimates for {fmt(k["approx_files"])} of the {fmt(len(k["files"]) + k["trimmed"])} files, because git blame did not finish within its time limit. '
@@ -1104,8 +1101,10 @@ def knowledge_card(f):
             '<div class="km-thead" role="presentation"><span>Path</span><span>Who knows it</span><span id="km-th3">Top contributor</span></div>'
             '<div class="km-rows" id="km-rows"></div></div>'
             '<div class="km-mini" id="km-mini-wrap" title="Minimap: click or drag to scroll"><canvas id="km-mini" aria-hidden="true"></canvas></div></div>')
-    return (f'<div class="km" id="km-root">{notes}{tiles}{controls}<h3>Repository tree</h3>'
-            f'<div class="km-chips" id="km-chips" role="group" aria-label="Contributor"></div>{tree}{legend}{infer}</div>'
+    views = '<div class="km-controls">' + km_group("vw", "View", KM_VWS) + "</div>"
+    return (f'<div class="km" id="km-root">{views}<div id="km-pane-people">{people_html}</div>'
+            f'<div id="km-pane-files" hidden>{notes}{controls}'
+            f'<div class="km-chips" id="km-chips" role="group" aria-label="Contributor"></div>{tree}{legend}{infer}</div></div>'
             f'<script type="application/json" id="km-data">{jsn}</script>')
 
 
@@ -1151,12 +1150,12 @@ def panel_contributors(f, refs):
     table = render_table(["Name", "Type", "Commits", "Code today" if o else "Code today (not measured)", "Active", "Last 12 months", "Agent-assisted",
                           "Lines added", "Lines deleted", "Net lines", "Lines changed per commit", "Active months", "Commits per active month", "Commits by type"],
                          rows, refs, "t-people", True, True)
-    main = card("Contributors", tiles + assisted + who_bar + "<h3>Detail by contributor</h3>" + table + more,
-                "facts-contributors", None, refs, ["facts:contributors"] + (["facts:ownership"] if o else []))
-    know = card("Contributor knowledge map", knowledge_card(f), "facts-knowledge",
-                "Which parts of the repository each person knows best, based on surviving lines, commit history and recent activity.", refs, ["facts:knowledge"])
-    when = card("Who committed and when", calendar_html(g, names, pal, g.get("tags") or []), "facts-calendar", None, refs, ["facts:git"])
-    return main + when + know
+    when = "<h3>Who committed and when</h3>" + calendar_html(g, names, pal, g.get("tags") or [])
+    know = ("<h3>Contributor knowledge map</h3>"
+            '<p class="muted">Which parts of the repository each person knows best, based on surviving lines, commit history and recent activity.</p>'
+            + knowledge_card(f, table + more))
+    return card("Contributors", tiles + assisted + when + who_bar + know,
+                "facts-contributors", None, refs, ["facts:contributors", "facts:git", "facts:knowledge"] + (["facts:ownership"] if o else []))
 
 
 # --------------------------------------------------------------------------- tracker pages
@@ -1204,7 +1203,7 @@ def panel_gaps(gaps, refs):
     done = len(gaps) - len(live)
     tone = lambda n, sev="": f"{sev}{'' if n else ' zero'}".strip()
     cards = stats_html([("Unknowns", counts["unknown"], "could not be found or inferred", tone(counts["unknown"], "sev-destructive")),
-                        ("Inferences", counts["inference"], "reasoned from context, not stated", tone(counts["inference"], "sev-primary")),
+                        ("Inferences", counts["inference"], "reasoned from context, not stated", tone(counts["inference"], "sev-warn")),
                         ("Assumptions", counts["assumption"], "taken as true to proceed", tone(counts["assumption"], "sev-secondary")),
                         ("Resolved by you", done, "confirmed or answered", tone(done)), ("Coverage notes", counts["coverage"], "what was and was not read", tone(counts["coverage"]))])
     rows = [[f'<code class="gid">{E(g.get("id") or "")}</code>', gap_badge(g["kind"]), f'<a href="#{g["report"]}">{E(TITLES.get(g["report"], g["report"]))}</a>', inline(g["statement"], refs),

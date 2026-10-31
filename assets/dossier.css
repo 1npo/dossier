@@ -1,7 +1,7 @@
 /* Layout glue only. Basecoat (Vega style) supplies the sidebar, cards, tables, badges, buttons, inputs and alerts. */
-:root { --ok: oklch(.52 .14 155); --ok-bg: oklch(.95 .05 155); --warn: oklch(.55 .15 70); --warn-bg: oklch(.96 .06 85); --bad: var(--destructive); --pend: oklch(.5 .16 260);
+:root { --ok: oklch(.52 .14 155); --ok-bg: oklch(.95 .05 155); --warn: oklch(.58 .14 90); --warn-bg: oklch(.96 .07 100); --bad: var(--destructive); --pend: oklch(.5 .16 260);
   --header-h: 7rem; --sidebar-width: 18.5rem; }
-.dark { --ok: oklch(.8 .15 155); --ok-bg: oklch(.3 .07 155); --warn: oklch(.82 .14 80); --warn-bg: oklch(.32 .07 80); --pend: oklch(.78 .12 260); }
+.dark { --ok: oklch(.8 .15 155); --ok-bg: oklch(.3 .07 155); --warn: oklch(.85 .15 95); --warn-bg: oklch(.32 .07 95); --pend: oklch(.78 .12 260); }
 html { font-size: 16px; scroll-padding-top: var(--header-h); }
 html, body { font-family: var(--font-sans, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif); background: var(--background); color: var(--foreground); margin: 0; }
 body { font-size: .9375rem; line-height: 1.6; }
@@ -73,7 +73,7 @@ mark { background: color-mix(in oklab, var(--warn) 30%, transparent); color: inh
 ol.refs { margin: 0; padding-left: 1.8rem; } ol.refs li { overflow-wrap: break-word; }
 dl.facts { display: grid; grid-template-columns: minmax(7rem, 10rem) minmax(0, 1fr); gap: .35rem 1rem; margin: 0; } dl.facts dt { color: var(--muted-foreground); } dl.facts dd { margin: 0; overflow-wrap: anywhere; }
 
-/* pills: confirmed is green, inferred amber, unknown red */
+/* pills: confirmed is green, inferred yellow, unknown red */
 .badge.basis-confirmed { background: var(--ok-bg); color: var(--ok); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ok) 45%, transparent); }
 html.dark .badge.basis-confirmed { background: var(--ok-bg); color: var(--ok); }
 .badge.basis-inferred, .badge.gap-inference { background: var(--warn-bg); border-color: var(--warn); color: var(--warn); }
@@ -202,9 +202,9 @@ details.deps { margin: .5rem 0; } details.deps summary { cursor: pointer; overfl
 
 /* severity tiles: the label is the same pill the register table uses, and a tile with rows takes the pill's colour */
 .stat .k .badge { text-transform: none; letter-spacing: 0; font-size: .8125rem; }
-.stat.sev-destructive { --sev: var(--destructive); } .stat.sev-primary { --sev: var(--primary); } .stat.sev-secondary { --sev: var(--muted-foreground); }
+.stat.sev-destructive { --sev: var(--destructive); } .stat.sev-warn { --sev: var(--warn); } .stat.sev-secondary { --sev: var(--muted-foreground); }
 .stat[class*="sev-"]:not(.zero) { border-color: var(--sev); background: color-mix(in oklab, var(--sev) 10%, var(--card)); }
-.stat.sev-destructive:not(.zero) .v { color: var(--destructive); }
+.stat.sev-destructive:not(.zero) .v { color: var(--destructive); } .stat.sev-warn:not(.zero) .v { color: var(--warn); }
 .stat.zero .v { color: var(--muted-foreground); }
 
 /* provenance rows: a diagram and its notes each get a labelled row */
@@ -383,13 +383,13 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 }
 @media (prefers-reduced-motion: reduce) { .km * { transition: none !important; animation: none !important; } }
 
-/* card shading: a card of figures measured from the repository is tinted blue, one holding statements written by Claude amber. Contents and References stay plain */
-:root { --card-fact: color-mix(in oklab, var(--pend) 7%, var(--card)); --card-llm: color-mix(in oklab, var(--warn) 9%, var(--card)); }
-.card.fact { background: var(--card-fact); } .card.llm { background: var(--card-llm); }
+/* card shading: a card of figures measured from the repository is tinted blue, one holding statements written by Claude is outlined in amber. Contents and References stay plain */
+:root { --card-fact: color-mix(in oklab, var(--pend) 7%, var(--card)); --card-llm: color-mix(in oklab, var(--warn) 70%, var(--card)); }
+.card.fact { background: var(--card-fact); } .card.llm { border-color: var(--card-llm); box-shadow: 0 0 0 1px var(--card-llm); }
 .facts-groups.one { grid-template-columns: minmax(0, 1fr); }
 .shade-key { display: flex; flex-wrap: wrap; gap: .3rem 1.25rem; font-size: .8125rem; color: var(--muted-foreground); }
 .shade-key i { display: inline-block; width: .8rem; height: .8rem; border-radius: .2rem; margin-right: .4rem; vertical-align: -1px; border: 1px solid var(--border); }
-.shade-key .fact i { background: var(--card-fact); } .shade-key .llm i { background: var(--card-llm); }
+.shade-key .fact i { background: var(--card-fact); } .shade-key .llm i { border-color: var(--card-llm); box-shadow: 0 0 0 1px var(--card-llm); }
 
 /* dependencies card: stat tiles and a findings table, then one of six views of which files import which packages. Colour is by category; the blue ramp is for magnitude only */
 .dp { container: dp / inline-size; display: flex; flex-direction: column; gap: 1.25rem; min-width: 0;
@@ -406,9 +406,11 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 .dp-ver { font: .6875rem var(--font-mono, ui-monospace, Menlo, Consolas, monospace); color: var(--muted-foreground); margin-left: .35rem; }
 .badge.dp-warn { background: var(--warn-bg); border-color: transparent; color: var(--warn); } .badge.dp-crit { background: color-mix(in oklab, var(--destructive) 14%, transparent); border-color: transparent; color: var(--destructive); }
 
-.dp-controls { display: flex; flex-wrap: wrap; gap: .75rem 1.5rem; }
-.dp-ctl { display: flex; flex-direction: column; gap: .25rem; min-width: 0; max-width: 100%; } .dp-ctl[hidden] { display: none; }
-.dp-lbl { font-size: .6875rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); }
+.dp-controls { display: flex; flex-wrap: wrap; gap: .6rem 1.5rem; }
+.dp-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .6rem; min-width: 0; max-width: 100%; } .dp-ctl[hidden] { display: none; }
+.dp-lbl { color: var(--muted-foreground); }
+.dp .button-group .btn[aria-pressed="true"] { background: var(--primary); color: var(--primary-foreground); }
+.dp h3 { margin: 0 0 .5rem; }
 .dp-ctl .button-group { flex-wrap: wrap; row-gap: 2px; max-width: 100%; }
 .dp-combo { position: relative; } .dp-dsel { width: 15rem; max-width: 100%; }
 .dp-deplist { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: 18rem; max-width: calc(100vw - 2rem); max-height: 18rem; overflow: auto; margin: 0; padding: .25rem; list-style: none; background: var(--popover, var(--card)); color: var(--popover-foreground, var(--foreground)); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 6px 24px rgb(0 0 0 / .18); }
@@ -423,7 +425,7 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 .dp-dot { display: inline-block; flex: none; width: 9px; height: 9px; border-radius: 2px; margin-right: .5rem; }
 .dp-scroll { overflow-x: auto; min-width: 0; }
 .dp-legend { display: flex; flex-wrap: wrap; gap: .35rem 1rem; margin-top: .75rem; font-size: .8125rem; color: var(--muted-foreground); } .dp-legend > span { display: inline-flex; align-items: center; } .dp-legend .dp-dot { margin-right: .4rem; }
-.dp-foot { display: flex; flex-wrap: wrap; gap: .35rem 1.25rem; align-items: center; font-size: .8125rem; color: var(--muted-foreground); border-top: 1px solid var(--border); padding-top: .9rem; }
+.dp-foot { display: flex; flex-wrap: wrap; gap: .35rem 1.25rem; align-items: center; font-size: .8125rem; color: var(--muted-foreground); }
 .dp-sw { display: inline-block; width: 18px; height: 8px; border-radius: 2px; vertical-align: middle; margin-right: .4rem; background: var(--dp-seq); } .dp-sw.t { background: var(--dp-hatch); box-shadow: inset 0 0 0 1px var(--dp-seq); }
 
 /* ranked list */
