@@ -321,7 +321,7 @@
     if (!pinned) setOpen(false);
     go(id);
   }
-  // ---- "profiler facts" markers: a click explains what the measurement is and offers the profiler code that made it
+  // ---- "measured facts" markers: a click explains what the measurement is and offers the gatherer code that made it
   var facts = {}, pop = doc.createElement("div"), popFor = null;
   try { facts = JSON.parse($("#fact-data").textContent); } catch (e) {}
   pop.className = "fact-pop"; pop.hidden = true; pop.setAttribute("role", "dialog"); doc.body.appendChild(pop);
@@ -330,8 +330,8 @@
     var info = facts[el.dataset.fact]; if (!info) return false;
     var ref = (el.getAttribute("href") || "").match(/^#ref-(.+-\d+)$/) || (el.closest("li") && el.closest("li").id.match(/^ref-(.+-\d+)$/));
     var li = ref && doc.getElementById("ref-" + ref[1]);
-    pop.innerHTML = "<h4>Profiler facts: " + esc(info.t) + "</h4><p>" + esc(info.x) + "</p><p>The profiler is the script that counts things in the repository before Claude writes any report, so these numbers are measured, not guessed.</p>" +
-      (li && li.dataset.view ? '<div class="fp-row"><button type="button" class="btn" data-variant="outline" data-size="sm" data-open="' + ref[1] + '">View the profiler code</button></div>' : "");
+    pop.innerHTML = "<h4>Measured facts: " + esc(info.t) + "</h4><p>" + esc(info.x) + "</p><p>The gatherer is the script that counts things in the repository before Claude writes any report, so these numbers are measured, not guessed.</p>" +
+      (li && li.dataset.view ? '<div class="fp-row"><button type="button" class="btn" data-variant="outline" data-size="sm" data-open="' + ref[1] + '">View the gatherer code</button></div>' : "");
     pop.hidden = false; popFor = el;
     var r = el.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
     pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + "px";

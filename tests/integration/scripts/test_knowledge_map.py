@@ -3,7 +3,7 @@ import gather
 
 class TestKnowledgeMap:
     def knowledge(self, git_repo):
-        facts, _ = gather.profile(str(git_repo))
+        facts, _ = gather.collect(str(git_repo))
         return facts["knowledge"]
 
     def row(self, k, path):

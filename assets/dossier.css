@@ -321,7 +321,7 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 .count.c-inferred { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--warn) 45%, transparent); }
 .count.c-unknown { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--destructive) 45%, transparent); }
 
-/* what a "profiler facts" marker means */
+/* what a "measured facts" marker means */
 .fact-pop { position: fixed; z-index: 91; width: min(30rem, 92vw); padding: .85rem 1rem; border-radius: var(--radius); background: var(--popover, var(--card)); color: var(--popover-foreground, var(--foreground));
   border: 1px solid var(--border); box-shadow: 0 8px 28px rgb(0 0 0 / .28); font-size: .875rem; line-height: 1.5; }
 .fact-pop[hidden] { display: none; }
