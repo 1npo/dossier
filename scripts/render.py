@@ -881,7 +881,7 @@ def dependencies_card(d, refs):
                   '<ul id="dp-deplist" class="dp-deplist" role="listbox" aria-label="Dependencies" hidden></ul></div></div></div>')
     foot = '<div class="dp-foot"><span><i class="dp-sw"></i>source files</span><span><i class="dp-sw t"></i>test files</span></div>'
     jsn = json.dumps(d, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c")
-    return (f'<div class="dp" id="dp-root">{notes}{tiles}<h3 class="dp-vh">Where packages are used</h3>{controls}<div id="dp-stage"></div>{foot}<div class="dp-finds"><h3>Findings</h3>{finds}</div></div>'
+    return (f'<div class="dp" id="dp-root">{notes}{tiles}{controls}<div id="dp-stage"></div>{foot}<div class="dp-finds">{finds}</div></div>'
             f'<script type="application/json" id="dp-data">{jsn}</script>')
 
 
@@ -1209,7 +1209,7 @@ def panel_gaps(gaps, refs):
     rows = [[f'<code class="gid">{E(g.get("id") or "")}</code>', gap_badge(g["kind"]), f'<a href="#{g["report"]}">{E(TITLES.get(g["report"], g["report"]))}</a>', inline(g["statement"], refs),
              decision_cell(g), inline(g["confirm"], refs) or '<span class="muted">not stated</span>', refs.mark(new_cites(g["cites"], g["statement"], g["confirm"]))] for g in gaps]
     hint = '<p class="muted">To confirm an item or give the answer to an unknown, ask Claude to run <code>/dossier confirm</code> with the ID. Your decisions are kept across rebuilds.</p>'
-    return cards + card("Tracker", hint + (render_table(["ID", "Type", "Report", "Statement", "Status", "What would confirm it", "Evidence"], rows, refs, "t-gaps", True, True) if rows else '<p>Nothing is outstanding.</p>'), "tracker", kind="llm")
+    return cards + card("Gap tracker", hint + (render_table(["ID", "Type", "Report", "Statement", "Status", "What would confirm it", "Evidence"], rows, refs, "t-gaps", True, True) if rows else '<p>Nothing is outstanding.</p>'), "tracker", kind="llm")
 
 
 def panel_corrections(state, refs, present=frozenset()):
@@ -1365,11 +1365,10 @@ def build_page(rid, reports, facts, state, ctx):
         summary_html = md(rep.get("summary", ""), refs) or '<p class="muted">Not generated.</p>'
         if rid == "overview":
             parts.append(panel_git(facts, refs, ctx))
+            parts.append(panel_contributors(facts, refs))
             parts.append(panel_dependencies(facts, refs))
         if rid == "risks" and rep:
             parts.append(panel_risk_counts(rep))
-        if rid == "contributors":
-            parts.append(panel_contributors(facts, refs))
         blocks = render_blocks(rep.get("blocks", []), refs, rid)
         if blocks:
             parts.append(f'<div class="findings">{blocks}</div>')
