@@ -735,6 +735,504 @@
     buildChips(); openForZoom(state.zoom); render();
   })();
 
+  // ---- dependencies card: six views of which files import which packages. Figures come from #dp-data; breadth, spread and depth are worked out here.
+  (function () {
+    var rootEl = $("#dp-root"), dataEl = $("#dp-data"), D = null;
+    if (!rootEl || !dataEl) return;
+    try { D = JSON.parse(dataEl.textContent); } catch (e) { return; }
+    var MODS = D.modules, DEPS = D.deps, FILES = D.files, STORE = "dossier-dep-card";
+    var CATS = ["Framework", "Data", "Tooling", "Testing", "Utilities", "Other"];
+    var MEAS = { breadth: "Breadth", spread: "Spread", depth: "Depth" };
+    var HAS_TR = DEPS.some(function (d) { return d.tr != null; });
+    var stage = $("#dp-stage", rootEl);
+    var state = { view: "files", measure: "breadth", scope: "all", all: false, zoom: 3, show: "all", focus: null, open: Object.create(null), sel: null };
+    try {
+      var sv = JSON.parse(localStorage.getItem(STORE) || "{}");
+      if (MEAS[sv.measure]) state.measure = sv.measure;
+      if (["all", "runtime", "dev"].indexOf(sv.scope) >= 0) state.scope = sv.scope;
+    } catch (e) {}
+    var catVar = function (c) { return "var(--dp-" + c.toLowerCase() + ")"; };
+    var pct = function (x) { return Math.round(x * 100); };
+    var fmt = function (n) { return n.toLocaleString("en-US"); };
+    var CAT = Object.create(null); DEPS.forEach(function (d) { CAT[d.n] = d.c; });
+    var BYNAME = Object.create(null); DEPS.forEach(function (d) { BYNAME[d.n] = d; });
+    var plural = function (n, w) { return n + " " + w + (n === 1 ? "" : "s"); };
+
+    // ---- measures, for the dependencies in the chosen scope
+    function list() {
+      var l = DEPS.filter(function (d) { return state.scope === "all" || d.s === state.scope; });
+      var mf = 1, mm = 1, ms = 1;
+      l.forEach(function (d) { d.files = d.src + d.tst; d.spread = Object.keys(d.mods).length; mf = Math.max(mf, d.files); mm = Math.max(mm, d.spread); ms = Math.max(ms, d.sym); });
+      l.forEach(function (d) { d.b = d.files / mf; d.sp = d.spread / mm; d.dp = d.sym / ms; });
+      return l;
+    }
+    var val = function (d) { return state.measure === "spread" ? d.sp : state.measure === "depth" ? d.dp : d.b; };
+    var ranked = function (l) { return l.slice().sort(function (a, b) { return val(b) - val(a) || b.files - a.files || (a.n < b.n ? -1 : 1); }); };
+    var EMPTY = '<p class="muted">No dependencies in this scope are imported by any file.</p>';
+
+    function catLegend() {
+      var seen = {}; DEPS.forEach(function (d) { seen[d.c] = 1; });
+      return CATS.filter(function (c) { return seen[c]; }).map(function (c) {
+        return '<span><i class="dp-dot" style="background:' + catVar(c) + '"></i>' + c + (c === "Other" ? " (inferred)" : "") + "</span>";
+      }).join("");
+    }
+    var legend = function (extra) { return '<div class="dp-legend">' + catLegend() + (extra ? "<span>" + extra + "</span>" : "") + "</div>"; };
+
+    // ---- sorting (the ranked list; the findings table is sorted by the page's own table code)
+    var SORTS = { name: function (d) { return d.n.toLowerCase(); }, scope: function (d) { return d.s; }, src: function (d) { return d.src; }, tst: function (d) { return d.tst; },
+      breadth: function (d) { return d.files; }, spread: function (d) { return d.spread; }, depth: function (d) { return d.sym; }, tr: function (d) { return d.tr == null ? -1 : d.tr; } };
+    var tsort = { key: null, dir: "desc" };
+    function nextSort(key) {
+      var cur = tsort.key || state.measure, curDir = tsort.key ? tsort.dir : "desc";
+      tsort.dir = cur === key ? (curDir === "asc" ? "desc" : "asc") : (key === "name" || key === "scope" ? "asc" : "desc");
+      tsort.key = key;
+    }
+    function th(label, key, cls) {
+      var cur = tsort.key || state.measure, on = cur === key, dir = tsort.key ? tsort.dir : "desc";
+      return '<th class="sortable ' + (cls || "") + '"' + (on ? ' aria-sort="' + (dir === "asc" ? "ascending" : "descending") + '"' : "") + '><button type="button" data-sort="' + key + '">' + label + "</button></th>";
+    }
+
+    // ---- ranked list
+    function viewTable(l) {
+      var cur = tsort.key || state.measure, m = (tsort.key ? tsort.dir : "desc") === "asc" ? 1 : -1, LIM = 12;
+      var rows = l.slice().sort(function (a, b) { var x = SORTS[cur](a), y = SORTS[cur](b); return (x < y ? -1 : x > y ? 1 : 0) * m || (a.n < b.n ? -1 : 1); });
+      var shown = state.all ? rows : rows.slice(0, LIM), maxF = Math.max.apply(null, l.map(function (d) { return d.files; })) || 1;
+      var h = '<div class="table-container"><table class="table dp-rank" data-nosort aria-label="Dependencies"><thead><tr>' + th("Dependency", "name") + th("Scope", "scope") + (HAS_TR ? th("Pulls in", "tr", "r c-hide") : "") +
+        th("Source", "src", "r c-hide") + th("Test", "tst", "r c-hide") + th("Breadth", "breadth") + th("Spread", "spread", "c-hide") + th("Depth", "depth", "c-hide") + "</tr></thead><tbody>";
+      shown.forEach(function (d) {
+        var w = function (x) { return (x / maxF * 100).toFixed(1) + "%"; };
+        h += '<tr data-dep="' + esc(d.n) + '" tabindex="0"><td><div class="dp-name"><i class="dp-dot" style="background:' + catVar(d.c) + '"></i><span class="dp-nm">' + esc(d.n) + '</span><span class="dp-ver">' + esc(d.v) + "</span></div></td>" +
+          "<td>" + '<span class="badge" data-variant="' + (d.s === "runtime" ? "secondary" : "outline") + '">' + d.s + "</span></td>" +
+          (HAS_TR ? '<td class="r dp-num c-hide">' + (d.tr == null ? "·" : d.tr) + "</td>" : "") +
+          '<td class="r dp-num c-hide">' + d.src + '</td><td class="r dp-num c-hide">' + d.tst + "</td>" +
+          '<td><div class="dp-used"><div class="dp-bar">' + (d.src ? '<i style="flex:0 0 ' + w(d.src) + '"></i>' : "") + (d.tst ? '<i class="t" style="flex:0 0 ' + w(d.tst) + '"></i>' : "") + '<span style="flex:1"></span></div><span class="dp-num">' + d.files + "</span></div></td>" +
+          '<td class="c-hide"><div class="dp-used"><div class="dp-bar"><i style="flex:0 0 ' + pct(d.sp) + '%"></i><span style="flex:1"></span></div><span class="dp-num">' + d.spread + "/" + MODS.length + "</span></div></td>" +
+          '<td class="c-hide"><div class="dp-used"><div class="dp-bar"><i style="flex:0 0 ' + pct(d.dp) + '%"></i><span style="flex:1"></span></div><span class="dp-num">' + d.sym + "</span></div></td></tr>";
+      });
+      h += "</tbody></table></div>";
+      if (rows.length > LIM) h += '<button type="button" class="dp-more" data-more>' + (state.all ? "Show top " + LIM : "Show " + (rows.length - LIM) + " more") + "</button>";
+      return h;
+    }
+
+    // ---- module matrix: rows are modules, columns the top 12 dependencies, grouped by the module that leans on each most
+    function viewMatrix(l) {
+      var top = ranked(l).slice(0, 12);
+      var dom = function (d) { var b = 0, bi = 0; MODS.forEach(function (m, i) { var s = (d.mods[m.id] || 0) / m.files; if (s > b) { b = s; bi = i; } }); return [bi, b]; };
+      top.sort(function (a, b) { var x = dom(a), y = dom(b); return x[0] - y[0] || y[1] - x[1]; });
+      var h = '<div class="dp-scroll"><table class="dp-mx" aria-label="Files per module that import each dependency"><thead><tr><th></th>' +
+        top.map(function (d) { return '<th class="col" scope="col"><span>' + esc(d.n) + "</span></th>"; }).join("") + "</tr></thead><tbody>";
+      MODS.forEach(function (m) {
+        h += '<tr><th scope="row">' + esc(m.id) + "<small>" + plural(m.files, "file") + "</small></th>";
+        top.forEach(function (d) {
+          var n = d.mods[m.id] || 0, s = n / m.files, p;
+          if (!n) { h += '<td class="z" data-cell="' + esc(m.id + "|" + d.n) + '">·</td>'; return; }
+          p = Math.min(100, 8 + s * 130);
+          h += '<td data-cell="' + esc(m.id + "|" + d.n) + '" style="background:color-mix(in oklab, var(--dp-seq) ' + p.toFixed(0) + '%, var(--card));color:' + (p > 52 ? "var(--dp-on-seq)" : "var(--foreground)") + '">' + n + "</td>";
+        });
+        h += "</tr>";
+      });
+      return h + '</tbody></table></div><div class="dp-ramp"><span>Share of the module\'s files</span><span>0%</span><i></i><span>80%+</span><span>Cell number = files importing it. Columns are grouped by the module that leans on them most.</span></div>';
+    }
+
+    // ---- treemap: squarified, grouped by category, area = the Rank by measure
+    function squarify(items, x, y, w, h) {
+      var total = items.reduce(function (s, i) { return s + i.value; }, 0), k = w * h / total, out = [], rest = items.map(function (i) { return { i: i, a: i.value * k }; });
+      var worst = function (r, s) {
+        var sum = r.reduce(function (t, c) { return t + c.a; }, 0), mx = Math.max.apply(null, r.map(function (c) { return c.a; })), mn = Math.min.apply(null, r.map(function (c) { return c.a; }));
+        return Math.max(s * s * mx / (sum * sum), sum * sum / (s * s * mn));
+      };
+      while (rest.length) {
+        var short = Math.min(w, h), row = [], wv, wr = Infinity, sum, cur, rw, rh, cy, cx;
+        while (rest.length) { wv = worst(row.concat([rest[0]]), short); if (row.length && wv > wr) break; row.push(rest.shift()); wr = wv; }
+        sum = row.reduce(function (t, c) { return t + c.a; }, 0);
+        if (w >= h) { rw = sum / h; cy = y; row.forEach(function (c) { var ch = c.a / rw; out.push({ item: c.i, x: x, y: cy, w: rw, h: ch }); cy += ch; }); x += rw; w -= rw; }
+        else { rh = sum / w; cx = x; row.forEach(function (c) { var cw = c.a / rh; out.push({ item: c.i, x: cx, y: y, w: cw, h: rh }); cx += cw; }); y += rh; h -= rh; }
+      }
+      return out;
+    }
+    function viewTree() { return '<div class="dp-tm" id="dp-tm"></div>' + legend("Area = " + MEAS[state.measure].toLowerCase()); }
+    function layoutTree() {
+      var el = $("#dp-tm", rootEl); if (!el || !el.clientWidth) return;
+      var W = el.clientWidth, H = el.clientHeight, l = list(), h = "";
+      var groups = CATS.map(function (c) {
+        var ds = l.filter(function (d) { return d.c === c; }).sort(function (a, b) { return val(b) - val(a); });
+        return { c: c, ds: ds, value: ds.reduce(function (s, d) { return s + Math.max(val(d), 0.01); }, 0) };
+      }).filter(function (g) { return g.ds.length; }).sort(function (a, b) { return b.value - a.value; });
+      if (!groups.length) { el.innerHTML = EMPTY; return; }
+      squarify(groups, 0, 0, W, H).forEach(function (g) {
+        var gr = g.item, gap = 3, LH = 18;
+        h += '<div class="g" style="left:' + (g.x + gap) + "px;top:" + (g.y + 1) + "px;width:" + (g.w - gap * 2) + 'px"><i class="dp-dot" style="background:' + catVar(gr.c) + '"></i>' + gr.c + "</div>";
+        squarify(gr.ds.map(function (d) { return { d: d, value: Math.max(val(d), 0.01) }; }), g.x + gap, g.y + LH + 1, g.w - gap * 2, g.h - LH - gap - 1).forEach(function (r) {
+          var d = r.item.d, w = r.w - 3, hh = r.h - 3;
+          var lab = w > 44 && hh > 22 ? "<b>" + esc(d.n) + "</b>" : "", sub = w > 60 && hh > 40 ? "<small>" + plural(d.files, "file") + (w > 110 ? " · " + d.spread + " mod" : "") + "</small>" : "";
+          h += '<div class="cell" data-dep="' + esc(d.n) + '" style="left:' + r.x + "px;top:" + r.y + "px;width:" + w + "px;height:" + hh + "px;border-color:" + catVar(d.c) + ";background:color-mix(in oklab, " + catVar(d.c) + ' 22%, var(--card))">' + lab + sub + "</div>";
+        });
+      });
+      el.innerHTML = h;
+    }
+
+    // ---- reliance plot: files importing it against distinct symbols, sized by packages pulled in
+    function viewBubble(l) {
+      var W = 680, H = 380, m = { l: 52, r: 20, t: 16, b: 44 }, pw = W - m.l - m.r, ph = H - m.t - m.b, i;
+      var xm = Math.ceil(Math.max.apply(null, l.map(function (d) { return d.files; })) / 20) * 20 || 20, ym = Math.ceil(Math.max.apply(null, l.map(function (d) { return d.sym; })) / 5) * 5 || 5;
+      var X = function (v) { return m.l + v / xm * pw; }, Y = function (v) { return m.t + ph - v / ym * ph; }, R = function (d) { return 5 + (HAS_TR ? Math.sqrt(d.tr || 0) * 2.1 : 3); };
+      var s = '<svg viewBox="0 0 ' + W + " " + H + '" width="100%" style="min-width:35rem" role="img" aria-label="Reliance plot: files importing each dependency against distinct symbols used' + (HAS_TR ? ", sized by packages pulled in" : "") + '">';
+      for (i = 0; i <= 4; i++) {
+        var gv = xm / 4 * i, gy = ym / 4 * i;
+        s += '<line class="grid" x1="' + X(gv) + '" x2="' + X(gv) + '" y1="' + m.t + '" y2="' + (m.t + ph) + '"/><line class="grid" y1="' + Y(gy) + '" y2="' + Y(gy) + '" x1="' + m.l + '" x2="' + (m.l + pw) + '"/>' +
+          '<text x="' + X(gv) + '" y="' + (m.t + ph + 16) + '" text-anchor="middle">' + Math.round(gv) + '</text><text x="' + (m.l - 8) + '" y="' + (Y(gy) + 4) + '" text-anchor="end">' + Math.round(gy) + "</text>";
+      }
+      s += '<line class="axis" x1="' + m.l + '" x2="' + (m.l + pw) + '" y1="' + (m.t + ph) + '" y2="' + (m.t + ph) + '"/><line class="axis" x1="' + m.l + '" x2="' + m.l + '" y1="' + m.t + '" y2="' + (m.t + ph) + '"/>' +
+        '<text x="' + (m.l + pw / 2) + '" y="' + (H - 6) + '" text-anchor="middle">Files importing it</text><text transform="translate(13 ' + (m.t + ph / 2) + ') rotate(-90)" text-anchor="middle">Distinct symbols used</text>' +
+        '<text x="' + (m.l + 8) + '" y="' + (m.t + 14) + '">Deep, local</text><text x="' + (m.l + pw - 8) + '" y="' + (m.t + 14) + '" text-anchor="end">Load-bearing</text><text x="' + (m.l + pw - 8) + '" y="' + (m.t + ph - 8) + '" text-anchor="end">Wide, shallow</text>';
+      l.slice().sort(function (a, b) { return (b.tr || 0) - (a.tr || 0) || b.files - a.files; }).forEach(function (d) {
+        s += '<circle data-dep="' + esc(d.n) + '" cx="' + X(d.files) + '" cy="' + Y(d.sym) + '" r="' + R(d) + '" fill="color-mix(in oklab, ' + catVar(d.c) + ' 38%, var(--card))" stroke="' + catVar(d.c) + '" stroke-width="2"/>';
+      });
+      var placed = [], hit = function (a, b) { return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h; };
+      var circles = l.map(function (d) { return { n: d.n, x: X(d.files) - R(d), y: Y(d.sym) - R(d), w: R(d) * 2, h: R(d) * 2 }; });
+      ranked(l).slice(0, 8).forEach(function (d) {
+        var x = X(d.files), y = Y(d.sym), r = R(d), w = d.n.length * 7.2;
+        var cands = [[x + r + 4, y + 4, "start", x + r + 4], [x - r - 4, y + 4, "end", x - r - 4 - w], [x, y - r - 6, "middle", x - w / 2], [x, y + r + 13, "middle", x - w / 2]], pick = cands[0], k, c, box;
+        for (k = 0; k < cands.length; k++) {
+          c = cands[k]; box = { x: c[3], y: c[1] - 11, w: w, h: 14 };
+          if (box.x < m.l || box.x + w > W - 4) continue;
+          if (placed.some(function (p) { return hit(box, p); }) || circles.some(function (ci) { return ci.n !== d.n && hit(box, ci); })) continue;
+          pick = c; break;
+        }
+        placed.push({ x: pick[3], y: pick[1] - 11, w: w, h: 14 });
+        s += '<text class="strong mono" x="' + pick[0] + '" y="' + pick[1] + '" text-anchor="' + pick[2] + '" style="pointer-events:none">' + esc(d.n) + "</text>";
+      });
+      return '<div class="dp-scroll">' + s + "</svg></div>" + legend(HAS_TR ? "Circle size = packages pulled in" : "");
+    }
+
+    // ---- module graph: modules on the left, the top 10 dependencies on the right, edge width = files importing
+    function viewGraph(l) {
+      var top = ranked(l).slice(0, 10), W = 680, nh = 34, Hm = Math.max(MODS.length, top.length) * 44 + 16, x1 = 150, x2 = W - 190;
+      var ly = function (i) { return 12 + i * ((Hm - 24 - nh) / Math.max(1, MODS.length - 1)); }, ry = function (i) { return 12 + i * ((Hm - 24 - nh) / Math.max(1, top.length - 1)); };
+      var s = '<svg viewBox="0 0 ' + W + " " + Hm + '" width="100%" style="min-width:35rem" role="img" aria-label="Module to dependency graph; line width shows files importing">';
+      MODS.forEach(function (m, i) {
+        top.forEach(function (d, j) {
+          var n = d.mods[m.id]; if (!n) return;
+          var y1 = ly(i) + nh / 2, y2 = ry(j) + nh / 2, mx = (x1 + x2) / 2;
+          s += '<path class="dp-ge" data-m="' + esc(m.id) + '" data-d="' + esc(d.n) + '" data-cell="' + esc(m.id + "|" + d.n) + '" d="M' + x1 + " " + y1 + " C" + mx + " " + y1 + " " + mx + " " + y2 + " " + x2 + " " + y2 + '" stroke="' + catVar(d.c) + '" stroke-width="' + (1.5 + Math.sqrt(n) * 1.1).toFixed(1) + '" opacity=".5"/>';
+        });
+      });
+      MODS.forEach(function (m, i) {
+        s += '<g class="dp-gn" data-mod="' + esc(m.id) + '" tabindex="0"><rect class="box" x="0" y="' + ly(i) + '" width="' + x1 + '" height="' + nh + '" rx="6"/><text class="strong" x="12" y="' + (ly(i) + 15) + '" style="font-weight:500;font-size:12px">' + esc(m.id) + '</text><text x="12" y="' + (ly(i) + 28) + '">' + plural(m.files, "file") + "</text></g>";
+      });
+      top.forEach(function (d, j) {
+        s += '<g class="dp-gn" data-dep="' + esc(d.n) + '" tabindex="0"><rect class="box" x="' + x2 + '" y="' + ry(j) + '" width="' + (W - x2) + '" height="' + nh + '" rx="6"/><rect x="' + x2 + '" y="' + ry(j) + '" width="4" height="' + nh + '" style="fill:' + catVar(d.c) + ';stroke:none"/>' +
+          '<text class="strong mono" x="' + (x2 + 14) + '" y="' + (ry(j) + 15) + '" style="font-size:12px">' + esc(d.n) + '</text><text x="' + (x2 + 14) + '" y="' + (ry(j) + 28) + '">' + plural(d.files, "file") + " · " + plural(d.spread, "module") + "</text></g>";
+      });
+      return '<div class="dp-scroll">' + s + "</svg></div>" + legend("Line width = files importing it · top 10 by " + MEAS[state.measure].toLowerCase());
+    }
+
+    // ---- by file: the repository tree. Directory totals are summed from their files, and rows are drawn only for the part in view.
+    var RH = 28, HEAD_H = 30, OVER = 8;
+    var NODE = Object.create(null), TOPS = [], VIS = [], INS = Object.create(null), focusRow = false;
+    (function () {
+      FILES.forEach(function (f) {
+        var parts = f.p.split("/"), list = TOPS, parent = null, path = "", i, d, n;
+        for (i = 0; i < parts.length - 1; i++) {
+          path = path ? path + "/" + parts[i] : parts[i];
+          d = NODE[path];
+          if (!d) { d = NODE[path] = { id: path, name: parts[i], dir: true, depth: i, kids: [], nf: 0, parent: parent }; list.push(d); }
+          list = d.kids; parent = d;
+        }
+        n = NODE[f.p] = { id: f.p, name: parts[parts.length - 1], dir: false, depth: parts.length - 1, file: f, nf: 1, parent: parent };
+        list.push(n);
+      });
+      function sortKids(a) { a.sort(function (x, y) { return x.dir === y.dir ? (x.name < y.name ? -1 : x.name > y.name ? 1 : 0) : (x.dir ? -1 : 1); }); a.forEach(function (n) { if (n.dir) sortKids(n.kids); }); }
+      sortKids(TOPS);
+      (function count(a) { a.forEach(function (n) { if (n.dir) { count(n.kids); n.nf = n.kids.reduce(function (s, k) { return s + k.nf; }, 0); } }); })(TOPS);
+    })();
+    // import pairs per path, for the dependencies in scope: stat = { imp, per: {name: files}, cc: {category: pairs} }
+    function computeStats() {
+      INS = Object.create(null); list().forEach(function (d) { INS[d.n] = 1; });
+      (function walk(a) {
+        a.forEach(function (n) {
+          var st = { imp: 0, per: Object.create(null), cc: Object.create(null) };
+          if (n.dir) {
+            walk(n.kids);
+            n.kids.forEach(function (k) {
+              st.imp += k.st.imp;
+              Object.keys(k.st.per).forEach(function (x) { st.per[x] = (st.per[x] || 0) + k.st.per[x]; });
+              Object.keys(k.st.cc).forEach(function (x) { st.cc[x] = (st.cc[x] || 0) + k.st.cc[x]; });
+            });
+          } else {
+            n.file.d.forEach(function (x) { if (!INS[x]) return; st.imp++; st.per[x] = 1; st.cc[CAT[x]] = (st.cc[CAT[x]] || 0) + 1; });
+          }
+          n.st = st;
+        });
+      })(TOPS);
+    }
+    function applyZoom() { state.open = Object.create(null); Object.keys(NODE).forEach(function (id) { var n = NODE[id]; if (n.dir && n.depth < state.zoom - 1) state.open[id] = 1; }); }
+    function defaultFocus() { var l = list().sort(function (a, b) { return b.files - a.files || (a.n < b.n ? -1 : 1); }); return l.length ? l[0].n : null; }
+    function buildVis() {
+      var fc;
+      if (state.focus && !INS[state.focus]) state.focus = null;
+      if (state.show === "touched" && !state.focus) state.focus = defaultFocus();
+      fc = state.focus; VIS = [];
+      (function walk(a) { a.forEach(function (n) { if (state.show === "touched" && !n.st.per[fc]) return; VIS.push(n); if (n.dir && state.open[n.id]) walk(n.kids); }); })(TOPS);
+      if (!state.sel || !NODE[state.sel] || VIS.indexOf(NODE[state.sel]) < 0) state.sel = VIS.length ? VIS[0].id : null;
+    }
+    var ICON = {
+      chev: '<svg class="dp-chev" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>',
+      dir: '<svg class="dp-ic" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 4.5a1 1 0 011-1h3.2l1.3 1.5h6.5a1 1 0 011 1v6a1 1 0 01-1 1h-11a1 1 0 01-1-1z"/></svg>',
+      file: '<svg class="dp-ic" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" aria-hidden="true"><path d="M4 1.5h5l3.5 3.5v9a.5.5 0 01-.5.5H4a.5.5 0 01-.5-.5v-12a.5.5 0 01.5-.5zM9 1.5V5h3.5"/></svg>' };
+    var scroller = null, rowsEl = null, cv = null;
+    function viewFiles(l) {
+      if (!l.length) return EMPTY;
+      return '<div class="dp-tree"><div class="dp-scroller" id="dp-scroller" role="tree" aria-label="Repository files"><div class="dp-thead" role="presentation"><span>Path</span><span id="dp-th2"></span><span id="dp-th3"></span></div>' +
+        '<div class="dp-rows" id="dp-rows"></div></div><div class="dp-mini" id="dp-mini-wrap" title="Minimap: click or drag to scroll"><canvas id="dp-mini" aria-hidden="true"></canvas></div></div>' +
+        legend("Bar = share of imports by category · number = imports in that path");
+    }
+    function rowHTML(n, i) {
+      var st = n.st, fc = state.focus, has = fc ? (st.per[fc] || 0) : st.imp, p = fc ? (st.per[fc] || 0) / n.nf : 0, bar, tail, top, open = !!state.open[n.id];
+      if (fc) {
+        bar = '<div class="dp-bar track">' + (p > 0 ? '<i style="flex:0 0 ' + (p * 100).toFixed(1) + "%;background:" + catVar(CAT[fc]) + '"></i>' : "") + '<span style="flex:1"></span></div><span class="dp-pc">' + pct(p) + "%</span>";
+        tail = '<span class="dp-nm">' + (st.per[fc] || 0) + '</span><span class="dp-cnt">/ ' + plural(n.nf, "file") + "</span>";
+      } else {
+        bar = st.imp ? '<div class="dp-bar">' + CATS.filter(function (c) { return st.cc[c]; }).map(function (c) { return '<i style="flex:' + st.cc[c] + ";background:" + catVar(c) + '"></i>'; }).join("") + "</div>" : '<div class="dp-bar track"></div>';
+        bar += '<span class="dp-pc">' + st.imp + "</span>";
+        top = Object.keys(st.per).sort(function (a, b) { return st.per[b] - st.per[a] || (a < b ? -1 : 1); });
+        tail = !top.length ? '<span class="dp-cnt">none</span>' : n.dir ? '<span class="dp-nm">' + esc(top[0]) + '</span><span class="dp-cnt">' + st.per[top[0]] + " / " + n.nf + "</span>" :
+          '<span class="dp-nm">' + esc(top.slice(0, 2).join(", ")) + "</span>" + (top.length > 2 ? '<span class="dp-cnt">+' + (top.length - 2) + "</span>" : "");
+      }
+      return '<div class="dp-row' + (fc && !has ? " dim" : "") + '" role="treeitem" aria-level="' + (n.depth + 1) + '"' + (n.dir ? ' aria-expanded="' + open + '"' : "") + ' aria-setsize="' + VIS.length + '" aria-posinset="' + (i + 1) + '" tabindex="' + (n.id === state.sel ? 0 : -1) + '" data-path="' + esc(n.id) + '" style="top:' + i * RH + 'px">' +
+        '<div class="dp-p" style="padding-left:' + n.depth * 14 + 'px">' + (n.dir ? ICON.chev : '<span style="width:12px;flex:none"></span>') + (n.dir ? ICON.dir : ICON.file) + '<span class="dp-nm">' + esc(n.name) + "</span>" + (n.dir ? '<span class="dp-cnt">' + n.nf + "</span>" : "") + "</div>" +
+        '<div class="dp-mix">' + bar + '</div><div class="dp-top">' + tail + "</div></div>";
+    }
+    function drawRows() {
+      if (!rowsEl) return;
+      var n = VIS.length, a = Math.max(0, Math.floor((scroller.scrollTop - HEAD_H) / RH) - OVER), b = Math.min(n, Math.ceil((scroller.scrollTop + scroller.clientHeight - HEAD_H) / RH) + OVER), i, h = "", had = rowsEl.contains(doc.activeElement);
+      rowsEl.style.height = n * RH + "px";
+      for (i = a; i < b; i++) h += rowHTML(VIS[i], i);
+      rowsEl.innerHTML = h;
+      if (!$('.dp-row[tabindex="0"]', rowsEl)) { var first = $(".dp-row", rowsEl); if (first) first.tabIndex = 0; }
+      if (had || focusRow) { var cur = $('.dp-row[data-path="' + cssEsc(state.sel) + '"]', rowsEl); if (cur) cur.focus({ preventScroll: true }); focusRow = false; }
+    }
+    var cssEsc = function (s) { return window.CSS && CSS.escape ? CSS.escape(s) : String(s).replace(/["\\]/g, "\\$&"); };
+    function renderFiles(keepScroll) {
+      scroller = $("#dp-scroller", rootEl); rowsEl = $("#dp-rows", rootEl); cv = $("#dp-mini", rootEl);
+      if (!scroller) return;
+      buildVis();
+      var fc = state.focus;
+      $("#dp-th2", rootEl).textContent = fc ? "Share of files importing " + fc : "Imports by category";
+      $("#dp-th3", rootEl).textContent = fc ? "Files importing" : "Top dependency";
+      if (!keepScroll) scroller.scrollTop = 0;
+      drawRows(); drawMini();
+    }
+    // minimap: one bar per visible row, stacked by category (or by the focused dependency's share); rows beyond the pixel height are averaged into bands
+    function drawMini() {
+      if (!cv || state.view !== "files") return;
+      var W = cv.clientWidth, H = cv.clientHeight, dpr = window.devicePixelRatio || 1, ctx, cs, n = VIS.length, fc = state.focus, rp, bands = {}, i, mapped, top, bx, css;
+      if (!W || !H || !n) return;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+      cs = getComputedStyle(rootEl); css = function (k) { return cs.getPropertyValue(k).trim(); };
+      rp = Math.min(6, H / n);
+      VIS.forEach(function (nd, idx) {
+        var y = Math.floor(idx * rp), ind = 3 + nd.depth * 4, av = Math.max(6, W - ind - 4) * (nd.dir ? 1 : 0.7), b = bands[y] || (bands[y] = { n: 0, ind: 0, av: 0, seg: {}, none: 0 }), st = nd.st;
+        b.n++; b.ind += ind; b.av += av;
+        if (fc) { b.seg[fc] = (b.seg[fc] || 0) + av * ((st.per[fc] || 0) / nd.nf); }
+        else if (!st.imp) b.none += av;
+        else CATS.forEach(function (c) { if (st.cc[c]) b.seg[c] = (b.seg[c] || 0) + av * st.cc[c] / st.imp; });
+      });
+      Object.keys(bands).forEach(function (k) {
+        var b = bands[k], y = +k, ind = b.ind / b.n, av = b.av / b.n, bh = Math.max(1, rp - 1.5), x = ind;
+        if (fc) {
+          var frac = (b.seg[fc] || 0) / b.av;
+          ctx.fillStyle = css("--border"); ctx.fillRect(ind, y, av, bh);
+          if (frac > 0.005) { ctx.fillStyle = css("--dp-" + CAT[fc].toLowerCase()); ctx.fillRect(ind, y, Math.max(2, av * frac), bh); }
+        } else {
+          var tot = 0; CATS.forEach(function (c) { tot += b.seg[c] || 0; });
+          ctx.fillStyle = css("--border"); ctx.fillRect(ind, y, av * (1 - Math.min(1, tot / b.av)) + 0.01, bh);
+          x = ind;
+          CATS.forEach(function (c) { var w = (b.seg[c] || 0) / b.n; if (!w) return; ctx.fillStyle = css("--dp-" + c.toLowerCase()); ctx.fillRect(x, y, Math.max(0.5, w - 0.5), bh); x += w; });
+        }
+      });
+      mapped = n * rp; top = scroller.scrollTop / scroller.scrollHeight * mapped; bx = Math.min(mapped, scroller.clientHeight / scroller.scrollHeight * mapped);
+      ctx.fillStyle = css("--foreground"); ctx.globalAlpha = 0.1; ctx.fillRect(0, top, W, bx);
+      ctx.globalAlpha = 0.7; ctx.strokeStyle = css("--foreground"); ctx.lineWidth = 1; ctx.strokeRect(0.5, top + 0.5, W - 1, Math.max(2, bx - 1)); ctx.globalAlpha = 1;
+    }
+    var miniRaf = 0, sched = function () { cancelAnimationFrame(miniRaf); miniRaf = requestAnimationFrame(drawMini); };
+    function seek(e) {
+      var r = cv.getBoundingClientRect(), n = VIS.length || 1, mapped = n * Math.min(6, cv.clientHeight / n);
+      scroller.scrollTop = (e.clientY - r.top) / mapped * scroller.scrollHeight - scroller.clientHeight / 2;
+    }
+    var dragging = false;
+    stage.addEventListener("pointerdown", function (e) { if (e.target !== cv) return; dragging = true; cv.setPointerCapture(e.pointerId); seek(e); });
+    stage.addEventListener("pointermove", function (e) { if (dragging && cv) seek(e); });
+    stage.addEventListener("pointerup", function () { dragging = false; });
+    stage.addEventListener("pointercancel", function () { dragging = false; });
+    stage.addEventListener("scroll", function (e) { if (e.target === scroller) { drawRows(); sched(); hideTip(); } }, true);
+    if (window.ResizeObserver) new ResizeObserver(function () { if (state.view === "tree") layoutTree(); else if (state.view === "files") { drawRows(); sched(); } }).observe(stage);
+    if (window.MutationObserver) new MutationObserver(sched).observe(root, { attributes: true, attributeFilter: ["class"] });   // the theme is the "dark" class on <html>
+
+    // ---- tree keyboard: Up and Down move, Right opens or enters, Left closes or leaves, Enter and Space toggle, Home and End jump
+    function toggle(n, open) { if (open) state.open[n.id] = 1; else delete state.open[n.id]; state.sel = n.id; focusRow = true; renderFiles(true); }
+    function moveTo(j) {
+      if (j < 0 || j >= VIS.length) return;
+      state.sel = VIS[j].id;
+      var y = HEAD_H + j * RH;
+      if (y < scroller.scrollTop + HEAD_H) scroller.scrollTop = y - HEAD_H; else if (y + RH > scroller.scrollTop + scroller.clientHeight) scroller.scrollTop = y + RH - scroller.clientHeight;
+      focusRow = true; drawRows(); sched();
+    }
+    stage.addEventListener("keydown", function (e) {
+      var row = e.target.closest && e.target.closest(".dp-row"); if (!row) return;
+      var n = NODE[row.dataset.path], i = VIS.indexOf(n), j;
+      if (e.key === "ArrowDown") { e.preventDefault(); moveTo(i + 1); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); moveTo(i - 1); }
+      else if (e.key === "ArrowRight") { e.preventDefault(); if (n.dir && !state.open[n.id]) toggle(n, true); else if (n.dir) moveTo(i + 1); }
+      else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        if (n.dir && state.open[n.id]) toggle(n, false);
+        else if (n.parent) moveTo(VIS.indexOf(n.parent));
+      }
+      else if ((e.key === "Enter" || e.key === " ") && n.dir) { e.preventDefault(); toggle(n, !state.open[n.id]); }
+      else if (e.key === "Home") { e.preventDefault(); moveTo(0); }
+      else if (e.key === "End") { e.preventDefault(); moveTo(VIS.length - 1); }
+    });
+
+    // ---- the dependency picker: a searchable combobox. "All dependencies" clears the focus, and is not offered while Show is "Only paths it touches".
+    var combo = { open: false, q: "", idx: 0, items: [] }, depInp = $("#dp-depsel", rootEl), depList = $("#dp-deplist", rootEl);
+    function depItems() {
+      var q = combo.q.trim().toLowerCase();
+      var items = list().sort(function (a, b) { return a.n.toLowerCase() < b.n.toLowerCase() ? -1 : 1; }).filter(function (d) { return !q || d.n.toLowerCase().indexOf(q) >= 0; });
+      if (!q && state.show !== "touched") items.unshift({ all: true });
+      return items;
+    }
+    function drawCombo() {
+      depList.hidden = !combo.open; depInp.setAttribute("aria-expanded", String(combo.open));
+      if (!combo.open) { depInp.removeAttribute("aria-activedescendant"); return; }
+      combo.items = depItems(); combo.idx = Math.max(0, Math.min(combo.idx, combo.items.length - 1));
+      depList.innerHTML = combo.items.length ? combo.items.map(function (d, i) {
+        return d.all ? '<li id="dp-opt' + i + '" role="option" data-v="" aria-selected="' + (i === combo.idx) + '"><span>All dependencies</span></li>' :
+          '<li id="dp-opt' + i + '" role="option" data-v="' + esc(d.n) + '" aria-selected="' + (i === combo.idx) + '" class="' + (d.n === state.focus ? "cur" : "") + '"><i class="dp-dot" style="background:' + catVar(d.c) + ';margin:0"></i><span class="dp-nm">' + esc(d.n) + '</span><span class="dp-cnt">' + plural(d.files, "file") + "</span></li>";
+      }).join("") : '<li class="none" role="option" aria-disabled="true">No dependency matches</li>';
+      if (combo.items.length) {
+        depInp.setAttribute("aria-activedescendant", "dp-opt" + combo.idx);
+        var li = depList.children[combo.idx];
+        if (li) { if (li.offsetTop < depList.scrollTop) depList.scrollTop = li.offsetTop - 4; else if (li.offsetTop + li.offsetHeight > depList.scrollTop + depList.clientHeight) depList.scrollTop = li.offsetTop + li.offsetHeight - depList.clientHeight + 4; }
+      }
+    }
+    function openCombo() {
+      if (combo.open) return;
+      combo.open = true; combo.q = ""; combo.items = depItems();
+      var cur = state.focus || ""; combo.idx = 0;
+      combo.items.forEach(function (d, i) { if ((d.all ? "" : d.n) === cur) combo.idx = i; });
+      drawCombo(); depInp.select();
+    }
+    function closeCombo() { combo.open = false; drawCombo(); depInp.value = state.focus || ""; }
+    function pickDep(v) {
+      closeCombo();
+      if (!v) { if (state.focus) { state.focus = null; render(); } }
+      else if (v !== state.focus) { state.focus = v; if (state.show === "touched") applyZoom(); render(); }
+    }
+    depInp.addEventListener("focus", openCombo); depInp.addEventListener("click", openCombo); depInp.addEventListener("blur", closeCombo);
+    depInp.addEventListener("input", function () { combo.open = true; combo.q = depInp.value; combo.idx = 0; drawCombo(); });
+    depInp.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (!combo.open) { openCombo(); return; }
+        var n = combo.items.length; if (n) { combo.idx = (combo.idx + (e.key === "ArrowDown" ? 1 : n - 1)) % n; drawCombo(); }
+      } else if (e.key === "Enter") { if (combo.open && combo.items[combo.idx]) { e.preventDefault(); pickDep(combo.items[combo.idx].all ? "" : combo.items[combo.idx].n); } }
+      else if (e.key === "Escape") { if (combo.open) { e.preventDefault(); closeCombo(); } }
+    });
+    depList.addEventListener("mousedown", function (e) { e.preventDefault(); var li = e.target.closest('li[role="option"]'); if (li && li.dataset.v !== undefined) pickDep(li.dataset.v); });
+
+    // ---- render
+    function setPressed(id, v) { $$("#" + id + " button", rootEl).forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.v === String(v))); }); }
+    function render(keepScroll) {
+      var l = list(), V = state.view, files = V === "files";
+      computeStats(); hideTip();
+      stage.innerHTML = !l.length ? EMPTY : ({ table: viewTable, matrix: viewMatrix, tree: viewTree, bubble: viewBubble, graph: viewGraph, files: viewFiles })[V](l);
+      if (V === "tree" && l.length) layoutTree();
+      if (files && l.length) renderFiles(keepScroll === true);
+      setPressed("dp-view", state.view); setPressed("dp-measure", state.measure); setPressed("dp-scope", state.scope); setPressed("dp-zoom", state.zoom); setPressed("dp-show", state.show);
+      ["zoom", "show", "dep"].forEach(function (k) { $("#dp-" + k + "-ctl", rootEl).hidden = !files; });
+      if (!combo.open) depInp.value = state.focus || "";
+      depInp.placeholder = state.show === "touched" ? "Search dependencies" : "All dependencies";
+      try { localStorage.setItem(STORE, JSON.stringify({ measure: state.measure, scope: state.scope })); } catch (e) {}
+    }
+    [["view", "dp-view"], ["measure", "dp-measure"], ["scope", "dp-scope"]].forEach(function (p) {
+      $("#" + p[1], rootEl).addEventListener("click", function (e) {
+        var b = e.target.closest("button"); if (!b) return;
+        state[p[0]] = b.dataset.v; state.all = false; if (p[0] === "measure") tsort.key = null;
+        render();
+      });
+    });
+    $("#dp-zoom", rootEl).addEventListener("click", function (e) { var b = e.target.closest("button"); if (!b) return; state.zoom = +b.dataset.v; applyZoom(); render(); });
+    $("#dp-show", rootEl).addEventListener("click", function (e) {
+      var b = e.target.closest("button"); if (!b) return;
+      state.show = b.dataset.v; if (state.show === "touched") computeStats();
+      applyZoom(); render();
+    });
+    stage.addEventListener("click", function (e) {
+      var sb = e.target.closest("[data-sort]"), row, n;
+      if (sb) { nextSort(sb.dataset.sort); render(); return; }
+      if (e.target.closest("[data-more]")) { state.all = !state.all; render(); return; }
+      row = e.target.closest(".dp-row");
+      if (row) { n = NODE[row.dataset.path]; state.sel = n.id; if (n.dir) toggle(n, !state.open[n.id]); else { focusRow = true; drawRows(); } }
+    });
+
+    // ---- tooltips: follow the pointer, use the page's shared tooltip element, and are not shown for touch
+    var r2 = function (k, v) { return '<div class="dp-r"><span>' + k + "</span><span>" + v + "</span></div>"; };
+    function depTip(d) {
+      var mods = Object.keys(d.mods).sort(function (a, b) { return d.mods[b] - d.mods[a]; }).map(function (k) { return esc(k) + " " + d.mods[k]; }).join(" · ");
+      var h = '<div class="tp-h">' + esc(d.n) + ' <span style="opacity:.75;font-weight:400">' + esc(d.v) + "</span></div>" +
+        r2("Category", d.c + (d.c === "Other" ? " (inferred)" : "")) + r2("Scope", d.s + (d.group ? " · " + esc(d.group) : "")) + r2("Files importing", d.src + " source · " + d.tst + " test") +
+        r2("Modules", mods || "none") + r2("Symbols used", d.sym);
+      if (d.tr != null) h += r2("Pulls in", plural(d.tr, "package"));
+      if (d.b !== undefined) h += r2("Breadth · spread · depth", pct(d.b) + " · " + pct(d.sp) + " · " + pct(d.dp));
+      return h;
+    }
+    function tipFor(el) {
+      var d, n, st, top, p, m;
+      if (el.dataset.path) {
+        n = NODE[el.dataset.path]; st = n.st;
+        top = Object.keys(st.per).sort(function (a, b) { return st.per[b] - st.per[a] || (a < b ? -1 : 1); }).slice(0, 5);
+        return '<div class="tp-h">' + esc(n.id) + (n.dir ? "/" : "") + "</div>" + r2(n.dir ? "Files" : "File", n.nf) + r2("Imports", st.imp) +
+          top.map(function (k) { return r2(esc(k), st.per[k] + (n.dir ? " / " + n.nf : "")); }).join("");
+      }
+      if (el.dataset.cell) {
+        p = el.dataset.cell.split("|"); m = MODS.filter(function (x) { return x.id === p[0]; })[0]; d = BYNAME[p[1]];
+        return '<div class="tp-h">' + esc(p[1]) + " in " + esc(p[0]) + "</div>" + r2("Files importing", (d.mods[p[0]] || 0) + " of " + m.files + " (" + pct((d.mods[p[0]] || 0) / m.files) + "%)");
+      }
+      if (el.dataset.dep) { d = BYNAME[el.dataset.dep]; return d ? depTip(d) : null; }
+      if (el.dataset.mod) {
+        m = MODS.filter(function (x) { return x.id === el.dataset.mod; })[0];
+        top = DEPS.filter(function (x) { return x.mods[m.id]; }).sort(function (a, b) { return b.mods[m.id] - a.mods[m.id]; }).slice(0, 5);
+        return '<div class="tp-h">' + esc(m.id) + "</div>" + r2("Files", m.files) + top.map(function (x) { return r2(esc(x.n), x.mods[m.id]); }).join("");
+      }
+      return null;
+    }
+    var tipOwned = false;
+    function hideTip() { if (tipOwned) { tip.hidden = true; tipOwned = false; } }
+    function clearHl() { var s = $("svg.hl", stage); if (s) { s.classList.remove("hl"); $$(".on", s).forEach(function (p) { p.classList.remove("on"); }); } }
+    function hl(svg, el) {
+      var cell = el.dataset.cell ? el.dataset.cell.split("|") : null, m = el.dataset.mod || (cell && cell[0]), d = cell ? cell[1] : el.dataset.dep;
+      svg.classList.add("hl");
+      $$(".dp-ge", svg).forEach(function (p) { p.classList.toggle("on", cell ? (p.dataset.m === m && p.dataset.d === d) : (el.dataset.mod ? p.dataset.m === m : p.dataset.d === d)); });
+    }
+    stage.addEventListener("pointermove", function (e) {
+      if (e.pointerType === "touch" || dragging) return;
+      var el = e.target.closest("[data-cell],[data-dep],[data-mod],[data-path]"), h, w, ht, x, y, svg;
+      if (!el) { hideTip(); clearHl(); return; }
+      h = tipFor(el); if (!h) { hideTip(); return; }
+      tip.className = ""; tip.innerHTML = h; tip.hidden = false; tipOwned = true;
+      w = tip.offsetWidth; ht = tip.offsetHeight; x = e.clientX + 16; y = e.clientY + 16;
+      if (x + w > window.innerWidth - 8) x = e.clientX - w - 16;
+      if (y + ht > window.innerHeight - 8) y = window.innerHeight - ht - 8;
+      tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+      svg = e.target.closest("svg"); if (svg && state.view === "graph") hl(svg, el);
+    });
+    stage.addEventListener("pointerleave", function () { hideTip(); clearHl(); });
+
+    applyZoom(); render();
+  })();
+
   $("#menu-toggle").addEventListener("click", function () { var sb = $(".sidebar"); if (sb && sb.toggle) sb.toggle(); });
 
   // keep the sticky header height in sync so anchors land below it
