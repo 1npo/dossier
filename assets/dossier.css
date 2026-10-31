@@ -344,7 +344,7 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 
 .km-tree { display: grid; grid-template-columns: minmax(0, 1fr) 68px; height: 468px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--card); }
 .km-scroller { position: relative; overflow: auto; scrollbar-gutter: stable; }
-.km-thead, .km-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px 150px; align-items: center; gap: .75rem; padding: 0 .75rem 0 .5rem; }
+.km-thead, .km-row { display: grid; grid-template-columns: minmax(0, 1fr) 220px 150px; align-items: center; gap: .75rem; padding: 0 .75rem 0 .5rem; }
 .km-thead { position: sticky; top: 0; z-index: 2; height: 30px; background: var(--card); border-bottom: 1px solid var(--border); font-size: .6875rem; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: .06em; }
 .km-rows { position: relative; }
 .km-row { position: absolute; left: 0; right: 0; height: var(--km-rh); cursor: default; }
@@ -464,7 +464,7 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 /* by file */
 .dp-tree { display: grid; grid-template-columns: minmax(0, 1fr) 68px; height: 468px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--card); }
 .dp-scroller { position: relative; overflow: auto; scrollbar-gutter: stable; } .dp-scroller:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
-.dp-thead, .dp-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px 150px; align-items: center; gap: .75rem; padding: 0 .75rem 0 .5rem; min-width: 36rem; }
+.dp-thead, .dp-row { display: grid; grid-template-columns: minmax(0, 1fr) 220px 150px; align-items: center; gap: .75rem; padding: 0 .75rem 0 .5rem; min-width: 36rem; }
 .dp-thead { position: sticky; top: 0; z-index: 2; height: 30px; background: var(--card); border-bottom: 1px solid var(--border); font-size: .6875rem; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: .06em; }
 .dp-rows { position: relative; min-width: 36rem; }
 .dp-row { position: absolute; left: 0; right: 0; height: 28px; font-size: .75rem; cursor: default; } .dp-row:hover { background: var(--accent); }
