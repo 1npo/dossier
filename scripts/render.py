@@ -1057,7 +1057,7 @@ KM_START = {"vw": "files", "metric": "lines", "view": "full", "zoom": "99"}   # 
 def km_group(gid, label, options):
     on = KM_START[gid]
     btns = "".join(f'<button type="button" class="btn" data-variant="outline" data-size="sm" data-v="{v}" aria-pressed="{"true" if v == on else "false"}">{E(t)}</button>' for v, t in options)
-    return f'<div class="km-ctl"><span class="muted" id="km-{gid}-l">{E(label)}</span><div class="button-group" id="km-{gid}" role="group" aria-labelledby="km-{gid}-l">{btns}</div></div>'
+    return f'<div class="km-ctl" id="km-{gid}-ctl"><span class="muted" id="km-{gid}-l">{E(label)}</span><div class="button-group" id="km-{gid}" role="group" aria-labelledby="km-{gid}-l">{btns}</div></div>'
 
 
 def knowledge_card(f, people_html=""):
@@ -1078,7 +1078,7 @@ def knowledge_card(f, people_html=""):
                        'For those files the gatherer used lines added minus lines deleted in each person\'s commits instead.', "Estimated line shares")
     if k["trimmed"]:
         notes += alert(f'To keep the page small, {fmt(k["trimmed"])} of the smallest and least changed files are left out of this map.', "Some files are not shown")
-    controls = '<div class="km-controls">' + km_group("zoom", "Zoom", KM_ZOOMS) + km_group("view", "Show", KM_VIEWS) + km_group("metric", "Measure", KM_MEASURES) + "</div>"
+    controls = '<div class="km-controls">' + km_group("zoom", "Zoom", KM_ZOOMS) + km_group("view", "Show", KM_VIEWS) + "</div>"
     months = k["departed_months"]
     legend = (f'<div class="km-note"><span id="km-formula"></span><span><i class="km-hz"></i>Hatched = no longer active</span>'
               f'<span>{badge("at risk", "basis-inferred")} top contributor has left and holds 50% or more</span></div>')
@@ -1089,7 +1089,7 @@ def knowledge_card(f, people_html=""):
             '<div class="km-thead" role="presentation"><span>Path</span><span>Who knows it</span><span id="km-th3">Top contributor</span></div>'
             '<div class="km-rows" id="km-rows"></div></div>'
             '<div class="km-mini" id="km-mini-wrap" title="Minimap: click or drag to scroll"><canvas id="km-mini" aria-hidden="true"></canvas></div></div>')
-    views = '<div class="km-controls">' + km_group("vw", "View", KM_VWS) + "</div>"
+    views = '<div class="km-controls">' + km_group("vw", "View", KM_VWS) + km_group("metric", "Measure", KM_MEASURES) + "</div>"   # Measure only applies to the Files view
     return (f'<div class="km" id="km-root">{views}<div id="km-pane-files">{notes}{controls}'
             f'<div class="km-chips" id="km-chips" role="group" aria-label="Contributor"></div>{tree}{legend}{infer}</div>'
             f'<div id="km-pane-people" hidden>{people_html}</div></div>'

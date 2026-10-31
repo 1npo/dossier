@@ -332,6 +332,7 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 .km { container: km / inline-size; --km-hatch: color-mix(in oklab, var(--card) 55%, transparent); --km-rh: 28px; }
 .km .stats { margin-bottom: 1rem; } .stat .v .mono { font-family: var(--font-mono, ui-monospace, Menlo, Consolas, monospace); font-size: 1.125rem; line-height: 1.9rem; display: inline-block; }
 .km-controls { display: flex; flex-wrap: wrap; gap: .6rem 1.5rem; margin-bottom: 1.25rem; }
+.km-ctl[hidden] { display: none; }
 .km-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .6rem; min-width: 0; }
 .km .button-group { flex-wrap: wrap; } .km .button-group .btn[aria-pressed="true"] { background: var(--primary); color: var(--primary-foreground); }
 .km h3 { margin: 0 0 .5rem; }
