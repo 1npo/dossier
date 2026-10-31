@@ -1347,16 +1347,16 @@ def build_page(rid, reports, facts, state, ctx):
     else:
         headline = rep.get("headline", "This report has not been written yet.")
         summary_html = md(rep.get("summary", ""), refs) or '<p class="muted">Not generated.</p>'
-        blocks = render_blocks(rep.get("blocks", []), refs, rid)
         if rid == "overview":
-            if blocks:
-                parts.append(f'<div class="findings">{blocks}</div>')
             parts.append(panel_git(facts, refs, ctx))
             parts.append(panel_contributors(facts, refs))
             parts.append(panel_dependencies(facts, refs))
         if rid == "risks" and rep:
             parts.append(panel_risk_counts(rep))
-        if blocks and rid != "overview":
+        # the overview's written cards (what to know first, technology, maturity) head the Capabilities report, ahead of its own
+        moved = (reports.get("overview") or {}).get("blocks", []) if rid == "capabilities" else []
+        blocks = render_blocks(moved + (rep.get("blocks", []) if rid != "overview" else []), refs, rid)
+        if blocks:
             parts.append(f'<div class="findings">{blocks}</div>')
         if rid == "gaps":
             parts.append(panel_gaps(ctx["gaps"], refs))
