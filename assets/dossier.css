@@ -292,11 +292,8 @@ main { transition: margin-right .15s ease; }
 .year-scroll { max-height: 26rem; overflow-y: auto; display: flex; flex-direction: column; gap: .9rem; padding-right: .5rem; }
 .yr { display: grid; grid-template-columns: 3rem minmax(0, 1fr); align-items: start; } .yr .hy { font-size: .8125rem; color: var(--muted-foreground); font-weight: 400; }
 .weeks { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 3px; }
-/* each week is boxed: a column in the day view, a row in the month calendars */
+/* each week is boxed: a column in the day view */
 .wk { display: grid; grid-template-rows: repeat(7, auto); gap: 2px; padding: 2px; border-radius: .3rem; box-shadow: inset 0 0 0 1px var(--border); } .wk .cc { aspect-ratio: 1; }
-.month-cals { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: 1rem 1.25rem; }
-.mcal > b { display: block; font-size: .8125rem; font-weight: 600; margin-bottom: .3rem; }
-.days { display: grid; gap: 3px; } .days .wk { grid-template-rows: none; grid-template-columns: repeat(7, minmax(0, 1fr)); } .days .cc { border-radius: .25rem; }
 .cal-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1.5rem; margin-top: .7rem; } .cal-foot .zoom-bar, .cal-foot .heat-key { margin: 0; }
 details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer; font-weight: 600; font-size: .9375rem; margin-bottom: .6rem; }
 .heat-key .cc.sw { width: 1.1rem; height: 1.1rem; flex: none; border-radius: .25rem; }
@@ -402,7 +399,6 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 .dp-split i { font-style: normal; font-size: .6875rem; font-weight: 400; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); }
 .dp-split b { font-size: 1.125rem; font-weight: 600; color: var(--muted-foreground); } .dp-split .rt b { color: var(--dp-seq); }
 .dp-splitbar { display: flex; gap: 2px; height: 6px; margin-top: .5rem; } .dp-splitbar i { display: block; border-radius: 2px; background: var(--dp-seq); } .dp-splitbar i.dv { background: var(--border); }
-.dp-finds .table { min-width: 42rem; }
 .dp-ver { font: .6875rem var(--font-mono, ui-monospace, Menlo, Consolas, monospace); color: var(--muted-foreground); margin-left: .35rem; }
 .badge.dp-warn { background: var(--warn-bg); border-color: transparent; color: var(--warn); } .badge.dp-crit { background: color-mix(in oklab, var(--destructive) 14%, transparent); border-color: transparent; color: var(--destructive); }
 
@@ -466,9 +462,9 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 .dp-gn rect.box { fill: var(--muted); stroke: var(--border); } .dp-gn:hover rect.box, .dp-gn:focus-visible rect.box { stroke: var(--foreground); } .dp-gn:focus-visible { outline: none; }
 
 /* by file */
-.dp-tree { display: grid; grid-template-columns: minmax(0, 1fr) 68px; height: 420px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--card); }
+.dp-tree { display: grid; grid-template-columns: minmax(0, 1fr) 68px; height: 468px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--card); }
 .dp-scroller { position: relative; overflow: auto; scrollbar-gutter: stable; } .dp-scroller:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
-.dp-thead, .dp-row { display: grid; grid-template-columns: minmax(14rem, 2.2fr) minmax(11rem, 1.4fr) minmax(9rem, 1.1fr); align-items: center; gap: .75rem; padding: 0 .75rem 0 .5rem; min-width: 36rem; }
+.dp-thead, .dp-row { display: grid; grid-template-columns: minmax(0, 1fr) 220px 150px; align-items: center; gap: .75rem; padding: 0 .75rem 0 .5rem; min-width: 36rem; }
 .dp-thead { position: sticky; top: 0; z-index: 2; height: 30px; background: var(--card); border-bottom: 1px solid var(--border); font-size: .6875rem; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: .06em; }
 .dp-rows { position: relative; min-width: 36rem; }
 .dp-row { position: absolute; left: 0; right: 0; height: 28px; font-size: .75rem; cursor: default; } .dp-row:hover { background: var(--accent); }
@@ -491,4 +487,11 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 }
 @container dp (max-width: 520px) { .dp-tree { grid-template-columns: minmax(0, 1fr) 44px; } .dp-tm { height: 320px; } }
 @media (prefers-reduced-motion: reduce) { .dp * { transition: none !important; animation: none !important; } }
-.dp-finds .table-container { max-height: 20rem; overflow: auto; } .dp-finds thead th { position: sticky; top: 0; z-index: 1; background: var(--card); }
+
+/* contributors: space between the calendar and the ownership bar */
+.who-bar { margin-top: 1.5rem; }
+/* the contributor table and the dependency tables share the look of the By file tree: a bordered box, small capital headings, compact rows */
+.table-container:has(> #t-people), .table-container:has(> .dp-rank), .dp-finds .table-container { border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); }
+:is(#t-people, .dp-rank, .dp-finds .table) thead th { height: 30px; padding-top: 0; padding-bottom: 0; font-size: .6875rem; font-weight: 400; text-transform: uppercase; letter-spacing: .06em; vertical-align: middle; }
+:is(#t-people, .dp-rank, .dp-finds .table) tbody td { padding-top: .3rem; padding-bottom: .3rem; font-size: .75rem; vertical-align: middle; }
+:is(#t-people, .dp-rank, .dp-finds .table) tbody tr:hover { background: var(--accent); }
