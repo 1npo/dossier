@@ -18,6 +18,7 @@ from functools import lru_cache
 from pathlib import Path
 from urllib.parse import quote
 
+import deps as depscan
 import gather
 import viewer
 from gather import Repo
@@ -42,7 +43,7 @@ GAP_KINDS = ("assumption", "unknown", "inference", "coverage")
 SEVERITIES = ("critical", "high", "medium", "low", "info")
 RISK_COLUMNS = ("ID", "Risk", "Category", "Severity")
 FACT_KEYS = {k: f"facts-{k}" for k in ("git", "languages", "hot_files", "manifests", "env_vars",
-                                       "secret_signals", "contributors", "ownership", "areas", "file_activity", "knowledge", "chunks")}
+                                       "secret_signals", "contributors", "ownership", "areas", "file_activity", "knowledge", "dependencies", "chunks")}
 FACT_KEYS["areas"] = "facts-contributors"   # the areas are no longer drawn on the page
 FACT_KEYS["hot_files"] = FACT_KEYS["manifests"] = "facts-git"   # their cards were retired; the figures still back statements about the repository
 FACT_KEYS["chunks"] = "dossier-build"
@@ -51,6 +52,7 @@ OPTIONAL_REPORTS = ("domain-logic",)  # reports added after v0.1: a dossier buil
 DIAGRAM_START = re.compile(r"^\s*(%%\{.*?\}%%\s*)?(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram(-v2)?|erDiagram|journey|gantt|pie|mindmap|timeline|gitGraph|quadrantChart|requirementDiagram|C4\w+|sankey-beta|xychart-beta|block-beta|architecture-beta)\b", re.S)
 INLINE_CITE = re.compile(r"\[\[(.+?)\]\]")
 PROFILER_PATH = "dossier-profiler/gather.py"   # the profiler's source, embedded in the code viewer under this name
+DEPS_PATH = "dossier-profiler/deps.py"         # likewise the dependency analysis, which the Dependencies card cites
 # What each "profiler facts: <key>" citation means: (what it is, how the profiler measured it, first line of its code, line that ends it)
 FACT_INFO = {
     "git": ("Commit history", "Totals and timelines from the repository's commit history: commits, merges, first and last commit, commits per day and month, release tags, and who made them. Everything is counted by the profiler, not written by Claude.",
@@ -75,6 +77,8 @@ FACT_INFO = {
                       r"# ---- history pass", r"# ---- assemble contributor"),
     "knowledge": ("Contributor knowledge map", "Who knows which files, from three measures per file: the lines that survive at the pinned commit (git blame), the commits that touched it, and the commits that touched it in the year before the pinned commit's date. A renamed file keeps its earlier history. Bots are left out, as are bulk commits (imports, reformatting) and vendored, generated, lock and binary files. Whether someone has left is an inference from their last commit.",
                   r"^# -+ knowledge map", r"^def profile\("),
+    "dependencies": ("Dependencies", "The packages the repository declares in its manifests (Python, JavaScript and TypeScript, C#, shell) and the files that import them. Each import is matched to a declared package, so import names that differ from package names are mapped by a built-in table; the standard library and the repository's own code are not dependencies. Test files are told apart by path and file name. Versions and packages installed come from a lockfile when there is one. Categories come from a fixed list of known packages, and anything else is Other, which is an inference. Symbols used are counted from named imports and the members used on an imported name; for C# they are the distinct namespaces imported. Packages that only configure tools (linters, bundlers, test plugins) are not reported as unused.",
+                     r"^def analyze\(", r'^            "deps": deps, "unused": unused', "deps"),
     "chunks": ("Reading coverage", "How the repository was divided up for reading: file sizes are estimated in tokens (bytes divided by 3.5) and packed into chunks that fit one context window.",
                r"# -+ chunk planning", r"# -+ main profile"),
 }
@@ -100,17 +104,22 @@ def parse_cite(raw):
 
 
 @lru_cache(maxsize=None)
-def profiler_source():
-    return viewer.split_lines(Path(gather.__file__).read_bytes())
+def profiler_source(which="gather"):
+    return viewer.split_lines(Path((depscan if which == "deps" else gather).__file__).read_bytes())
+
+
+def profiler_path(key):
+    """The name the code viewer knows the profiler code behind a fact by."""
+    return DEPS_PATH if len(FACT_INFO.get(key, ())) > 4 else PROFILER_PATH
 
 
 @lru_cache(maxsize=None)
 def profiler_range(key):
     """(first, last) line of the profiler code that measures a fact, or None."""
     info = FACT_INFO.get(key)
-    lines = profiler_source()
     if not info:
         return None
+    lines = profiler_source("deps" if len(info) > 4 else "gather")
     first = next((i for i, l in enumerate(lines) if re.search(info[2], l)), None)
     last = next((i for i in range((first or 0) + 1, len(lines)) if re.search(info[3], lines[i])), None)
     if first is None or last is None:
@@ -246,7 +255,7 @@ class Cites:
     def profiler_view(self, c):
         """Attributes that point a profiler-facts citation at the profiler code that measured it, or "" when that code cannot be found."""
         rng = profiler_range(c["name"])
-        return f' data-view="{PROFILER_PATH}" data-a="{rng[0]}" data-b="{rng[1]}"' if rng else ""
+        return f' data-view="{profiler_path(c["name"])}" data-a="{rng[0]}" data-b="{rng[1]}"' if rng else ""
 
     def view_counts(self):
         """How many distinct citations open the viewer and how many do not, and how many files were left out for size."""
@@ -788,6 +797,93 @@ def languages_block(f, refs):
 
 
 
+# --------------------------------------------------------------------------- dependencies card
+
+DEP_CATEGORIES = depscan.CATEGORIES + ("Other",)
+DEP_VIEWS = (("files", "By file"), ("table", "Ranked list"), ("matrix", "Module matrix"), ("tree", "Treemap"), ("bubble", "Reliance plot"), ("graph", "Module graph"))
+DEP_MEASURES = (("breadth", "Breadth"), ("spread", "Spread"), ("depth", "Depth"))
+DEP_SCOPES = (("all", "All"), ("runtime", "Runtime"), ("dev", "Dev"))
+DEP_ZOOMS = (("1", "Top level"), ("2", "Modules"), ("3", "Folders"), ("99", "All files"))
+DEP_SHOWS = (("all", "All paths"), ("touched", "Only paths it touches"))
+DEP_START = {"view": "files", "measure": "breadth", "scope": "all", "zoom": "3", "show": "all"}   # what the card opens on; dossier.js starts from the same values
+
+
+def dp_group(gid, label, options, hidden=False):
+    on = DEP_START[gid]
+    btns = "".join(f'<button type="button" class="btn" data-variant="outline" data-size="sm" data-v="{v}" aria-pressed="{"true" if v == on else "false"}">{E(t)}</button>' for v, t in options)
+    return (f'<div class="dp-ctl" id="dp-{gid}-ctl"{" hidden" if hidden else ""}><span class="dp-lbl" id="dp-{gid}-l">{E(label)}</span>'
+            f'<div class="button-group" id="dp-{gid}" role="group" aria-labelledby="dp-{gid}-l">{btns}</div></div>')
+
+
+def dp_ver(v):
+    return f' <span class="dp-ver">{E(v)}</span>' if v else ""
+
+
+def dependency_findings(d):
+    """One row per package for each of the three findings, as plain table cells (text and sort key)."""
+    pkg = lambda n, v: (f'<code>{E(n)}</code>{dp_ver(v)}', n.lower())
+    pill = lambda label, cls: badge(label, cls, "outline")
+    scope = lambda s: (badge(s, "", "secondary") if s == "runtime" else badge(s, "", "outline"), s)
+    rows = []
+    for u in d["unused"]:
+        rows.append([pkg(u["n"], u["v"]), pill("Declared, never imported", "dp-warn"), scope(u["s"]), E(u["note"])])
+    for u in d["undeclared"]:
+        mods = ", ".join(sorted(u["mods"]))
+        via = f' · reaches you via {E(u["via"])}' if u["via"] else " · no declared package provides it"
+        rows.append([pkg(u["n"], ""), pill("Imported, never declared", "dp-crit"), ('<span class="muted">·</span>', "~"),
+                     f'{u["files"]} file{"" if u["files"] == 1 else "s"} in {E(mods)}{via}'])
+    for x in d["deps"]:
+        if x["s"] == "runtime" and x["src"] == 0:
+            rows.append([pkg(x["n"], x["v"]), pill("Runtime, used only in tests", "dp-warn"), scope(x["s"]),
+                         f'{x["tst"]} test file{"" if x["tst"] == 1 else "s"}, no source imports · likely belongs with the dev dependencies'])
+    return rows
+
+
+def panel_dependencies(f, refs):
+    d = f.get("dependencies")
+    if d is None and "dependencies" not in f:
+        body = '<p class="muted">Dependencies were not recorded in this profile. Run prepare again to include them.</p>'
+    elif not d:
+        body = '<p class="muted">No declared or imported dependencies were found in the languages this analysis reads (Python, JavaScript and TypeScript, C#, shell).</p>'
+    elif d.get("error"):
+        body = alert(E(d["error"]), "The dependency analysis failed")
+    else:
+        body = dependencies_card(d, refs)
+    return card("Dependencies", body, "facts-dependencies", refs=refs, cite="facts:dependencies")
+
+
+def dependencies_card(d, refs):
+    deps, co = d["deps"], d.get("configOnly") or {"runtime": 0, "dev": 0}
+    runtime = sum(1 for x in deps if x["s"] == "runtime") + sum(1 for x in d["unused"] if x["s"] == "runtime") + co["runtime"]
+    total = len(deps) + len(d["unused"]) + co["runtime"] + co["dev"]
+    test_only = sum(1 for x in deps if x["s"] == "runtime" and x["src"] == 0)
+    split = (f'<div class="dp-split"><span class="rt"><i>runtime</i><b>{runtime}</b></span><span><i>dev</i><b>{total - runtime}</b></span></div>'
+             f'<div class="dp-splitbar" aria-hidden="true"><i style="flex:{runtime}"></i><i class="dv" style="flex:{total - runtime}"></i></div>')
+    zero = lambda n: "zero" if not n else ""
+    tiles = stats_html([
+        ("Declared", Raw(f'{total}{split}'), ""),
+        ("Packages installed", d["transTotal"] if d.get("transTotal") else "·", "incl. transitive" if d.get("transTotal") else "no lockfile found"),
+        ("Declared, never imported", len(d["unused"]), "", f"dp-warn {zero(len(d['unused']))}"),
+        ("Imported, never declared", len(d["undeclared"]), "", f"dp-crit {zero(len(d['undeclared']))}"),
+        ("Runtime, used only in tests", test_only, "", f"dp-warn {zero(test_only)}"),
+    ])
+    rows = dependency_findings(d)
+    finds = (render_table(["Package", "Finding", "Scope", "Detail"], rows, refs, "t-dep-findings", False, True)
+             if rows else '<p class="muted">No findings: every declared package is imported or used through configuration, and every import is declared.</p>')
+    notes = ""
+    if d.get("trimmed"):
+        notes = alert(f'To keep the page small, {fmt(d["trimmed"])} files that import no declared package are left out of the By file view. Module totals still count them.', "Some files are not shown")
+    controls = ('<div class="dp-controls">' + dp_group("view", "View", DEP_VIEWS) + dp_group("measure", "Rank by", DEP_MEASURES) + dp_group("scope", "Scope", DEP_SCOPES)
+                + dp_group("zoom", "Zoom", DEP_ZOOMS, True) + dp_group("show", "Show", DEP_SHOWS, True)
+                + '<div class="dp-ctl" id="dp-dep-ctl" hidden><label class="dp-lbl" for="dp-depsel">Dependency</label><div class="dp-combo">'
+                  '<input id="dp-depsel" class="input dp-dsel" type="text" role="combobox" aria-expanded="false" aria-controls="dp-deplist" aria-autocomplete="list" autocomplete="off" spellcheck="false" placeholder="All dependencies">'
+                  '<ul id="dp-deplist" class="dp-deplist" role="listbox" aria-label="Dependencies" hidden></ul></div></div></div>')
+    foot = '<div class="dp-foot"><span><i class="dp-sw"></i>source files</span><span><i class="dp-sw t"></i>test files</span></div>'
+    jsn = json.dumps(d, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c")
+    return (f'<div class="dp" id="dp-root">{notes}{tiles}<div class="dp-finds">{finds}</div>{controls}<div id="dp-stage"></div>{foot}</div>'
+            f'<script type="application/json" id="dp-data">{jsn}</script>')
+
+
 def panel_env(f, refs):
     rows = [[f"<code>{E(e['name'])}</code>", fmt(e["count"]), path_cell(e["first"]["path"], refs, e["first"]["line"])] for e in f["env_vars"][:40]]
     body = render_table(["Variable", "References", "First seen"], rows, refs, "t-env", True, True) if rows else '<p class="muted">No environment variable reads were detected.</p>'
@@ -1270,6 +1366,7 @@ def build_page(rid, reports, facts, state, ctx):
         summary_html = md(rep.get("summary", ""), refs) or '<p class="muted">Not generated.</p>'
         if rid == "overview":
             parts.append(panel_git(facts, refs, ctx))
+            parts.append(panel_dependencies(facts, refs))
         if rid == "risks" and rep:
             parts.append(panel_risk_counts(rep))
         if rid == "contributors":
@@ -1343,8 +1440,9 @@ def render_html(facts, reports, state, history, version, cites):
         print(f"warning: {len(dropped)} cited file(s) are not embedded in the code viewer, to keep the page small: {', '.join(dropped[:5])}{' ...' if len(dropped) > 5 else ''}")
     files = {p: {"lines": cites.source(p)[0]} for p in cites.windows}
     windows = dict(cites.windows)
-    src = profiler_source()      # the profiler's own code, so a "profiler facts" citation can show how its numbers were measured
-    files[PROFILER_PATH], windows[PROFILER_PATH] = {"lines": src}, viewer.pick_window(src, [profiler_range(k) for k in FACT_INFO])
+    for which, path in (("gather", PROFILER_PATH), ("deps", DEPS_PATH)):      # the profiler's own code, so a "profiler facts" citation can show how its numbers were measured
+        src = profiler_source(which)
+        files[path], windows[path] = {"lines": src}, viewer.pick_window(src, [profiler_range(k) for k in FACT_INFO if profiler_path(k) == path])
     jsn = lambda d: json.dumps(d, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/").replace("<!--", "<\\u0021--")
     numbered = {rid: i for i, (rid, _, _) in enumerate(REPORTS, 1)}
     groups = "".join(

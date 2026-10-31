@@ -19,6 +19,8 @@ from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta, timezone
 from pathlib import PurePosixPath
 
+import deps as depscan
+
 try:
     import tomllib
 except ImportError:  # Python < 3.11
@@ -1137,6 +1139,12 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
         own = ownership(repo.path, sha, files, area_of, canon, display, ctype, blamed)
         knowledge = knowledge_map(scan.result(), blamed, sha, as_of, display, ctype)
 
+    # ---- dependencies
+    try:
+        dependencies = depscan.analyze(repo, entries, files)
+    except Exception as exc:    # the dependency card is optional: a failure here must not stop the profile
+        dependencies = {"error": f"{type(exc).__name__}: {exc}"[:300]}
+
     # ---- chunk plan
     plan_files = [f for f in files if f["bytes"] > 0]
     chunks = plan_chunks(plan_files, chunk_tokens)
@@ -1189,6 +1197,7 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
         "delta": None,
         "file_activity": file_activity,    # kept out of facts.json: dossier.py writes it to activity.json
         "knowledge": knowledge,            # likewise written to knowledge.json
+        "dependencies": dependencies,      # likewise written to dependencies.json
     }
     repo.close()
     return facts, {"budget": chunk_tokens, "total_tokens": total_tokens, "chunks": chunks}
