@@ -801,12 +801,12 @@ def languages_block(f, refs):
 # --------------------------------------------------------------------------- dependencies card
 
 DEP_CATEGORIES = depscan.CATEGORIES + ("Other",)
-DEP_VIEWS = (("files", "By file"), ("table", "Ranked list"), ("matrix", "Module matrix"), ("tree", "Treemap"), ("bubble", "Reliance plot"), ("graph", "Module graph"))
+DEP_VIEWS = (("files", "Files"), ("table", "Ranked list"), ("matrix", "Module matrix"), ("tree", "Treemap"), ("bubble", "Reliance plot"), ("graph", "Module graph"))
 DEP_MEASURES = (("breadth", "Breadth"), ("spread", "Spread"), ("depth", "Depth"))
 DEP_SCOPES = (("all", "All"), ("runtime", "Runtime"), ("dev", "Dev"))
 DEP_ZOOMS = (("1", "Top level"), ("2", "Modules"), ("3", "Folders"), ("99", "All files"))
 DEP_SHOWS = (("all", "All paths"), ("touched", "Only paths it touches"))
-DEP_START = {"view": "files", "measure": "breadth", "scope": "all", "zoom": "3", "show": "all"}   # what the card opens on; dossier.js starts from the same values
+DEP_START = {"view": "files", "measure": "breadth", "scope": "all", "zoom": "99", "show": "all"}   # what the card opens on; dossier.js starts from the same values
 
 
 def dp_group(gid, label, options, hidden=False):
@@ -873,7 +873,7 @@ def dependencies_card(d, refs):
              if rows else '<p class="muted">No findings: every declared package is imported or used through configuration, and every import is declared.</p>')
     notes = ""
     if d.get("trimmed"):
-        notes = alert(f'To keep the page small, {fmt(d["trimmed"])} files that import no declared package are left out of the By file view. Module totals still count them.', "Some files are not shown")
+        notes = alert(f'To keep the page small, {fmt(d["trimmed"])} files that import no declared package are left out of the Files view. Module totals still count them.', "Some files are not shown")
     controls = ('<div class="dp-controls">' + dp_group("view", "View", DEP_VIEWS) + dp_group("measure", "Rank by", DEP_MEASURES) + dp_group("scope", "Scope", DEP_SCOPES)
                 + dp_group("zoom", "Zoom", DEP_ZOOMS, True) + dp_group("show", "Show", DEP_SHOWS, True)
                 + '<div class="dp-ctl" id="dp-dep-ctl" hidden><label class="dp-lbl" for="dp-depsel">Dependency</label><div class="dp-combo">'
@@ -1050,8 +1050,8 @@ def compact(n):
 KM_MEASURES = (("lines", "Lines"), ("commits", "Commits"))
 KM_VIEWS = (("full", "All paths"), ("mine", "Only paths they touched"))
 KM_ZOOMS = (("1", "Top level"), ("2", "Modules"), ("3", "Folders"), ("99", "All files"))
-KM_VWS = (("people", "By contributor"), ("files", "By file"))
-KM_START = {"vw": "people", "metric": "lines", "view": "full", "zoom": "2"}   # what the page opens on; dossier.js starts from the same values
+KM_VWS = (("files", "Files"), ("people", "Contributors"))
+KM_START = {"vw": "files", "metric": "lines", "view": "full", "zoom": "99"}   # what the page opens on; dossier.js starts from the same values
 
 
 def km_group(gid, label, options):
@@ -1078,7 +1078,7 @@ def knowledge_card(f, people_html=""):
                        'For those files the gatherer used lines added minus lines deleted in each person\'s commits instead.', "Estimated line shares")
     if k["trimmed"]:
         notes += alert(f'To keep the page small, {fmt(k["trimmed"])} of the smallest and least changed files are left out of this map.', "Some files are not shown")
-    controls = '<div class="km-controls">' + km_group("metric", "Measure", KM_MEASURES) + km_group("view", "Show", KM_VIEWS) + km_group("zoom", "Zoom", KM_ZOOMS) + "</div>"
+    controls = '<div class="km-controls">' + km_group("zoom", "Zoom", KM_ZOOMS) + km_group("view", "Show", KM_VIEWS) + km_group("metric", "Measure", KM_MEASURES) + "</div>"
     months = k["departed_months"]
     legend = (f'<div class="km-note"><span id="km-formula"></span><span><i class="km-hz"></i>Hatched = no longer active</span>'
               f'<span>{badge("at risk", "basis-inferred")} top contributor has left and holds 50% or more</span></div>')
@@ -1090,9 +1090,9 @@ def knowledge_card(f, people_html=""):
             '<div class="km-rows" id="km-rows"></div></div>'
             '<div class="km-mini" id="km-mini-wrap" title="Minimap: click or drag to scroll"><canvas id="km-mini" aria-hidden="true"></canvas></div></div>')
     views = '<div class="km-controls">' + km_group("vw", "View", KM_VWS) + "</div>"
-    return (f'<div class="km" id="km-root">{views}<div id="km-pane-people">{people_html}</div>'
-            f'<div id="km-pane-files" hidden>{notes}{controls}'
-            f'<div class="km-chips" id="km-chips" role="group" aria-label="Contributor"></div>{tree}{legend}{infer}</div></div>'
+    return (f'<div class="km" id="km-root">{views}<div id="km-pane-files">{notes}{controls}'
+            f'<div class="km-chips" id="km-chips" role="group" aria-label="Contributor"></div>{tree}{legend}{infer}</div>'
+            f'<div id="km-pane-people" hidden>{people_html}</div></div>'
             f'<script type="application/json" id="km-data">{jsn}</script>')
 
 
@@ -1347,14 +1347,16 @@ def build_page(rid, reports, facts, state, ctx):
     else:
         headline = rep.get("headline", "This report has not been written yet.")
         summary_html = md(rep.get("summary", ""), refs) or '<p class="muted">Not generated.</p>'
+        blocks = render_blocks(rep.get("blocks", []), refs, rid)
         if rid == "overview":
+            if blocks:
+                parts.append(f'<div class="findings">{blocks}</div>')
             parts.append(panel_git(facts, refs, ctx))
             parts.append(panel_contributors(facts, refs))
             parts.append(panel_dependencies(facts, refs))
         if rid == "risks" and rep:
             parts.append(panel_risk_counts(rep))
-        blocks = render_blocks(rep.get("blocks", []), refs, rid)
-        if blocks:
+        if blocks and rid != "overview":
             parts.append(f'<div class="findings">{blocks}</div>')
         if rid == "gaps":
             parts.append(panel_gaps(ctx["gaps"], refs))
