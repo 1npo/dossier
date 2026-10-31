@@ -4,7 +4,7 @@ Write one file per report to `reports/<id>.json`, following `method.md`. Every r
 
 **Executive summaries are short and plain.** Write `summary` as 3 to 5 bullets (`- ` lines), each one sentence of about 20 words or fewer, in everyday words. Lead with the answer. No filler, no restating the headline, no jargon the reader has to look up.
 
-The page also shows measured tables from `facts.json` (languages, most changed files, manifests, environment variables, secret scan, code ownership, contributor and area tables). Do not repeat those tables. Refer to them with `[[facts:...]]` and add what only reading the code can tell.
+The page also shows measured tables from `facts.json` (languages, environment variables, secret scan, code ownership, contributor and area tables). Do not repeat those tables. Refer to them with `[[facts:...]]` and add what only reading the code can tell.
 
 ## overview
 
@@ -91,7 +91,7 @@ Anything you cannot see (for example cloud settings outside the repo) is `unknow
 
 ## risks
 
-A register of everything risky or doubtful. Use one or more tables with exactly these columns: `ID`, `Risk`, `Category`, `Severity`, `Impact`, `Recommendation`. IDs are R1, R2, and so on. Order by severity; the page counts Critical and High rows and highlights those tiles. Severity is Critical, High, Medium, Low or Info. Categories include security, reliability, data, performance, maintainability, testing, dependencies, delivery, knowledge concentration, compliance.
+A register of everything risky or doubtful. Give the table block the heading `Tracker`. Use one or more tables with exactly these columns: `ID`, `Risk`, `Category`, `Severity`, `Impact`, `Recommendation`. IDs are R1, R2, and so on. Order by severity; the page counts Critical and High rows and highlights those tiles. Severity is Critical, High, Medium, Low or Info. Categories include security, reliability, data, performance, maintainability, testing, dependencies, delivery, knowledge concentration, compliance.
 
 Rules: every row has citations. A row based on inference is `inferred` with a note, and still goes in the register. Order by severity. Include risks from the scan in `facts.json` (secrets, unpinned or abandoned dependencies, no tests for important areas, single-person areas from `facts:areas`, very large or very hot files). Do not pad with generic advice. Summary: the top three risks in plain words and the overall picture.
 

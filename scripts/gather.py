@@ -109,11 +109,11 @@ VENDOR_SEG = {"node_modules", "vendor", "third_party", "third-party", "thirdpart
 GENERATED_SEG = {"dist", "target", ".next", ".nuxt", "__pycache__", "coverage", "htmlcov", ".pytest_cache",
                  ".mypy_cache", ".gradle"}
 GENERATED_NAME = re.compile(r"(\.min\.(js|css)|\.map|\.pb\.go|\.pb\.gw\.go|_pb2(_grpc)?\.py|\.generated\.|\.g\.dart|\.designer\.cs)$")
-TEST_RE = re.compile(r"(^|/)(tests?|__tests__|specs?|e2e|cypress|playwright)/|(^|/)test_[^/]*\.py$|_test\.(go|py|rb|exs?)$|\.(test|spec)\.[jt]sx?$|Tests?\.(java|kt|cs)$")
+TEST_RE = re.compile(r"(^|/)(tests?|__tests__|specs?|e2e|cypress|playwright)/|(^|/)test_[^/]*\.py$|_test\.(go|py|rb|exs?|c|cc|cpp|zig|rs)$|(^|/)test_[^/]*\.(c|cc|cpp|zig|rs)$|\.(test|spec)\.[jt]sx?$|Tests?\.(java|kt|cs)$")
 
 SENSITIVE_FILE = re.compile(r"(^|/)(\.env(\.(?!example|sample|template|dist)[^/]+)?|id_rsa|id_dsa|id_ecdsa|id_ed25519|[^/]+\.(pem|key|p12|pfx|jks|keystore|kdbx)|credentials(\.json)?|\.netrc|\.npmrc|\.pypirc|[^/]+\.tfstate(\.backup)?|secrets?\.(ya?ml|json|toml|env))$")
 
-ENV_RE = re.compile(r"""(?:os\.environ(?:\.get)?\s*[\[(]\s*["']|os\.getenv\s*\(\s*["']|process\.env\.|process\.env\[\s*["']|os\.Getenv\(\s*"|System\.getenv\(\s*"|std::env::var\(\s*"|ENV\[\s*["']|ENV\.fetch\(\s*["']|[^\w.]getenv\(\s*["']|Environment\.GetEnvironmentVariable\(\s*")([A-Z][A-Z0-9_]{2,})""")
+ENV_RE = re.compile(r"""(?:os\.environ(?:\.get)?\s*[\[(]\s*["']|os\.getenv\s*\(\s*["']|process\.env\.|process\.env\[\s*["']|os\.Getenv\(\s*"|System\.getenv\(\s*"|std::env::var\(\s*"|ENV\[\s*["']|ENV\.fetch\(\s*["']|[^\w.]getenv\(\s*["']|std\.(?:posix\.getenv|process\.getEnvVar(?:Owned|Map)?)\(\s*(?:[\w.]+\s*,\s*)?"|Environment\.GetEnvironmentVariable\(\s*")([A-Z][A-Z0-9_]{2,})""")
 DOTENV_RE = re.compile(r"^\s*(?:export\s+)?([A-Z][A-Z0-9_]{2,})\s*=", re.M)
 SECRET_PATTERNS = [
     ("aws-access-key-id", re.compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b")),
@@ -150,7 +150,7 @@ SHEBANG = re.compile(rb"^#!\s*(?:/usr/bin/env\s+(?:-\S+\s+)*|\S*/)([A-Za-z][\w.\
 SHEBANG_EXT = {"sh": "sh", "bash": "sh", "zsh": "sh", "dash": "sh", "ksh": "sh", "fish": "sh", "python": "py", "python3": "py",
                "node": "js", "nodejs": "js", "deno": "ts", "ruby": "rb", "perl": "pl", "php": "php", "lua": "lua", "bats": "sh"}
 TEST_CONTENT = re.compile(rb"^\s*(?:def test_\w+|async def test_\w+|class Test\w+|@test\b|@pytest\.|func Test\w+\(|fn test_\w+|#\[test\]|#\[tokio::test\]"
-                          rb"|@Test\b|\[(?:Test|TestMethod|Fact|Theory)\]|(?:describe|it|test)(?:\.\w+)?\(\s*['\"`])", re.M)
+                          rb"|@Test\b|\[(?:Test|TestMethod|Fact|Theory)\]|test\s+[\"]|(?:describe|it|test)(?:\.\w+)?\(\s*['\"`])", re.M)
 
 
 def lang_of_content(path, data):
@@ -244,14 +244,23 @@ def _pep508(s):
     return _dep(m.group(1), m.group(2).split(";")[0]) if m else None
 
 
+def _author(v):
+    """A manifest's author as one string: a name, a {name} table, or the first of a list of either."""
+    if isinstance(v, (list, tuple)):
+        v = v[0] if v else None
+    if isinstance(v, dict):
+        v = v.get("name")
+    return v.strip() or None if isinstance(v, str) else None
+
+
 def parse_manifest(path, text):
     base = path.rsplit("/", 1)[-1]
-    out = {"path": path, "ecosystem": None, "name": None, "version": None, "description": None,
+    out = {"path": path, "ecosystem": None, "name": None, "version": None, "description": None, "author": None,
            "dependencies": [], "scripts": {}, "extra": {}}
     try:
         if base == "package.json":
             j = json.loads(text)
-            out.update(ecosystem="npm", name=j.get("name"), version=j.get("version"), description=j.get("description"))
+            out.update(ecosystem="npm", name=j.get("name"), version=j.get("version"), description=j.get("description"), author=_author(j.get("author") or j.get("contributors")))
             for key, dev in (("dependencies", False), ("devDependencies", True), ("peerDependencies", False), ("optionalDependencies", False)):
                 out["dependencies"] += [_dep(k, v, dev) for k, v in (j.get(key) or {}).items()]
             out["scripts"] = j.get("scripts") or {}
@@ -260,7 +269,7 @@ def parse_manifest(path, text):
             j = tomllib.loads(text)
             p, poetry = j.get("project", {}), j.get("tool", {}).get("poetry", {})
             out.update(ecosystem="python", name=p.get("name") or poetry.get("name"), version=p.get("version") or poetry.get("version"),
-                       description=p.get("description") or poetry.get("description"))
+                       description=p.get("description") or poetry.get("description"), author=_author(p.get("authors") or poetry.get("authors")))
             out["dependencies"] += [d for d in map(_pep508, p.get("dependencies", [])) if d]
             for grp, items in (p.get("optional-dependencies") or {}).items():
                 out["dependencies"] += [dict(d, dev=True) for d in map(_pep508, items) if d]
@@ -294,7 +303,7 @@ def parse_manifest(path, text):
             j = tomllib.loads(text)
             p = j.get("package", {})
             out.update(ecosystem="rust", name=p.get("name"), version=p.get("version") if isinstance(p.get("version"), str) else None,
-                       description=p.get("description") if isinstance(p.get("description"), str) else None)
+                       description=p.get("description") if isinstance(p.get("description"), str) else None, author=_author(p.get("authors")))
             for key, dev in (("dependencies", False), ("build-dependencies", False), ("dev-dependencies", True)):
                 for k, v in (j.get(key) or {}).items():
                     out["dependencies"].append(_dep(k, v if isinstance(v, str) else (v.get("version", "") if isinstance(v, dict) else ""), dev))
@@ -304,13 +313,13 @@ def parse_manifest(path, text):
             root = ET.fromstring(re.sub(r'\sxmlns="[^"]+"', "", text, count=1))
             g = lambda n, tag: (n.findtext(tag) or "").strip() or None
             out.update(ecosystem="maven", name=":".join(x for x in (g(root, "groupId"), g(root, "artifactId")) if x),
-                       version=g(root, "version"), description=g(root, "description"))
+                       version=g(root, "version"), description=g(root, "description"), author=g(root, "developers/developer/name"))
             for d in root.iter("dependency"):
                 out["dependencies"].append(_dep(f"{g(d, 'groupId')}:{g(d, 'artifactId')}", g(d, "version") or "", g(d, "scope") in ("test", "provided")))
             out["extra"] = {"modules": [m.text for m in root.iter("module")]} if list(root.iter("module")) else {}
         elif base == "composer.json":
             j = json.loads(text)
-            out.update(ecosystem="php", name=j.get("name"), version=j.get("version"), description=j.get("description"))
+            out.update(ecosystem="php", name=j.get("name"), version=j.get("version"), description=j.get("description"), author=_author(j.get("authors")))
             out["dependencies"] += [_dep(k, v) for k, v in (j.get("require") or {}).items()]
             out["dependencies"] += [_dep(k, v, True) for k, v in (j.get("require-dev") or {}).items()]
         elif base == "Gemfile":
@@ -320,10 +329,20 @@ def parse_manifest(path, text):
         elif base.endswith(".csproj"):
             out["ecosystem"] = "dotnet"
             out["name"] = base[:-7]
+            for tag, key in (("Version", "version"), ("Authors", "author"), ("Description", "description")):
+                m = re.search(rf"<{tag}>([^<]+)<", text)
+                out[key] = m.group(1).split(";")[0].strip() if m else None
             for m in re.finditer(r'<PackageReference\s+Include="([^"]+)"(?:\s+Version="([^"]+)")?', text):
                 out["dependencies"].append(_dep(m.group(1), m.group(2) or ""))
             tf = re.search(r"<TargetFrameworks?>([^<]+)<", text)
             out["extra"] = {"target": tf.group(1)} if tf else {}
+        elif base == "build.zig.zon":
+            out["ecosystem"] = "zig"
+            for key, pat in (("name", r"\.name\s*=\s*(?:\.(\w+)|\"([^\"]+)\")"), ("version", r"\.version\s*=\s*\"([^\"]+)\"")):
+                m = re.search(pat, text)
+                out[key] = next((x for x in m.groups() if x), None) if m else None
+            for m in re.finditer(r"^\s*\.(\w+)\s*=\s*\.\{[^}]*?\.(?:url|path)\s*=", text, re.M | re.S):
+                out["dependencies"].append(_dep(m.group(1), ""))
         elif base.startswith("build.gradle"):
             out["ecosystem"] = "gradle"
             for m in re.finditer(r"\b(implementation|api|compileOnly|runtimeOnly|testImplementation|annotationProcessor|kapt)\s*[( ]\s*['\"]([^'\":]+:[^'\":]+)(?::([^'\"]+))?['\"]", text):
@@ -335,7 +354,7 @@ def parse_manifest(path, text):
     return out if out["ecosystem"] else None
 
 
-MANIFEST_NAMES = re.compile(r"(^|/)(package\.json|pyproject\.toml|requirements[^/]*\.txt|go\.mod|Cargo\.toml|pom\.xml|composer\.json|Gemfile|[^/]+\.csproj|build\.gradle(\.kts)?)$")
+MANIFEST_NAMES = re.compile(r"(^|/)(package\.json|pyproject\.toml|requirements[^/]*\.txt|go\.mod|Cargo\.toml|pom\.xml|composer\.json|Gemfile|[^/]+\.csproj|build\.zig\.zon|build\.gradle(\.kts)?)$")
 
 # --------------------------------------------------------------------------- areas
 

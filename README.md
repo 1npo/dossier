@@ -41,7 +41,7 @@ The panel also has a row of the statement's other sources and a "Go to reference
 
 The Contributors report has a card that shows which parts of the repository each person knows best. It is a tree of directories and files with one row per path. Each row has a bar split by contributor, and the top contributor beside it. Four controls change what you see:
 
-- **Measure**: *Blend* (50% surviving lines, 30% commits, 20% commits in the last 12 months), *Lines* (surviving lines per `git blame`), *Commits*, or *Last 12 mo*. The 12 months are counted back from the pinned commit's date, so the page is the same whenever it is rebuilt.
+- **Measure**: *Lines* (surviving lines per `git blame`) or *Commits*.
 - **Show**: all paths, or only the paths the selected contributor has touched.
 - **Zoom**: how deep the tree is open, from *Top level* to *All files*. You can still open and close single folders.
 - **Contributor chips**: click one to see only that person's share on every row. Click it again to go back.

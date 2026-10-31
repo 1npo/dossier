@@ -1,6 +1,7 @@
 import json
 import re
 
+import gather
 import render
 import viewer
 
@@ -416,3 +417,30 @@ class TestProfilerFacts:
         refs = render.Refs("overview", make_cites({}))
         refs.mark(["facts:git"])
         assert f'data-view="{render.PROFILER_PATH}"' in refs.listing()
+
+
+class TestReportLayout:
+    def test_tracker_reports_have_no_summary_or_contents_card(self):
+        assert set(render.BARE_REPORTS) == {"risks", "gaps", "corrections"}
+
+    def test_renamed_reports_and_tracking_group(self):
+        assert render.TITLES["overview"] == "This repository" and render.TITLES["risks"] == "Risks" and render.TITLES["gaps"] == "Gaps"
+        assert dict(render.NAV_GROUPS)["Tracking"] == ["risks", "gaps", "corrections"]
+
+    def test_knowledge_map_offers_lines_and_commits_only(self):
+        assert [v for v, _ in render.KM_MEASURES] == ["lines", "commits"] and render.KM_START["metric"] == "lines"
+
+    def test_cards_are_tinted_by_where_their_content_comes_from(self):
+        assert 'class="card panel fact"' in render.card("T", "x")
+        assert 'class="card panel llm"' in render.card("T", "x", kind="llm")
+        assert 'class="card block llm ' in render.block_card("T", "x", "")
+
+
+class TestManifestAuthor:
+    def test_author_is_read_from_the_manifest(self):
+        m = gather.parse_manifest("package.json", '{"name": "a", "author": {"name": "Ann"}}')
+        assert m["author"] == "Ann"
+
+    def test_zig_manifest_gives_name_and_version(self):
+        m = gather.parse_manifest("build.zig.zon", '.{\n .name = .zapp,\n .version = "0.1.0",\n}\n')
+        assert (m["ecosystem"], m["name"], m["version"]) == ("zig", "zapp", "0.1.0")

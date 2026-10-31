@@ -382,3 +382,11 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
   .km-tree { grid-template-columns: minmax(0, 1fr) 44px; }
 }
 @media (prefers-reduced-motion: reduce) { .km * { transition: none !important; animation: none !important; } }
+
+/* card shading: a card of figures measured from the repository is tinted blue, one holding statements written by Claude amber. Contents and References stay plain */
+:root { --card-fact: color-mix(in oklab, var(--pend) 7%, var(--card)); --card-llm: color-mix(in oklab, var(--warn) 9%, var(--card)); }
+.card.fact { background: var(--card-fact); } .card.llm { background: var(--card-llm); }
+.facts-groups.one { grid-template-columns: minmax(0, 1fr); }
+.shade-key { display: flex; flex-wrap: wrap; gap: .3rem 1.25rem; font-size: .8125rem; color: var(--muted-foreground); }
+.shade-key i { display: inline-block; width: .8rem; height: .8rem; border-radius: .2rem; margin-right: .4rem; vertical-align: -1px; border: 1px solid var(--border); }
+.shade-key .fact i { background: var(--card-fact); } .shade-key .llm i { background: var(--card-llm); }
