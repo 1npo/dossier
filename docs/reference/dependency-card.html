@@ -1,0 +1,725 @@
+<title>Dependency Significance</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one dossier card. BAN row -> findings table -> controls (View / Rank by / Scope / Zoom) -> one of six views -> legend.
+   Tokens follow Basecoat/shadcn naming so they can be swapped for the dossier's own. */
+:root{
+  --bg:#f3f3f1; --card:#fcfcfb; --fg:#0b0b0b; --fg-2:#52514e; --fg-3:#7a7974;
+  --border:#e4e3df; --muted:#f0efec; --ring:#2a78d6;
+  --c-framework:#2a78d6; --c-data:#eb6834; --c-tooling:#1baf7a; --c-testing:#eda100; --c-utilities:#e87ba4;
+  --seq:#2a78d6; --seq-2:#3987e5;
+  --warn:#9a5b00; --warn-bg:#fdf1dc; --crit:#b3261e; --crit-bg:#fce8e6; --info:#1c5cab; --info-bg:#e6f0fc;
+  --font:"Geist",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"Geist Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#111110; --card:#1a1a19; --fg:#f0efec; --fg-2:#c3c2b7; --fg-3:#8f8e86;
+    --border:#2e2e2c; --muted:#242423; --ring:#3987e5;
+    --c-framework:#3987e5; --c-data:#d95926; --c-tooling:#199e70; --c-testing:#c98500; --c-utilities:#d55181;
+    --seq:#3987e5; --seq-2:#3987e5;
+    --warn:#f0b45a; --warn-bg:#33270f; --crit:#f2928c; --crit-bg:#3a1b19; --info:#86b6ef; --info-bg:#14263d;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111110; --card:#1a1a19; --fg:#f0efec; --fg-2:#c3c2b7; --fg-3:#8f8e86;
+  --border:#2e2e2c; --muted:#242423; --ring:#3987e5;
+  --c-framework:#3987e5; --c-data:#d95926; --c-tooling:#199e70; --c-testing:#c98500; --c-utilities:#d55181;
+  --seq:#3987e5; --seq-2:#3987e5;
+  --warn:#f0b45a; --warn-bg:#33270f; --crit:#f2928c; --crit-bg:#3a1b19; --info:#86b6ef; --info-bg:#14263d;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14px;line-height:1.5;margin:0;
+  padding-block:24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:20px;min-width:0}
+h2{margin:0;font-size:18px;font-weight:600;letter-spacing:-.01em;text-wrap:balance}
+.num{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--mono)}
+
+/* BAN row */
+.bans{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.ban{border:1px solid var(--border);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.ban b{font-size:28px;font-weight:600;line-height:1.1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.ban span{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-3)}
+.ban em{font-style:normal;font-size:12px;color:var(--fg-2)}
+.ban.warn b{color:var(--warn)} .ban.crit b{color:var(--crit)}
+.split{display:flex;gap:18px;margin-top:6px}
+.split span{display:flex;flex-direction:column;gap:0;line-height:1.15}
+.split span b{font-size:22px;font-weight:600;letter-spacing:-.02em;line-height:1.1;color:var(--fg-2)}
+.split .rt b{color:var(--info)}
+.splitbar{display:flex;gap:2px;height:6px;margin-top:8px}
+.splitbar i{display:block;border-radius:2px;background:var(--seq-2)}
+.splitbar i.dv{background:var(--border)}
+
+/* controls */
+.controls{display:flex;flex-wrap:wrap;gap:12px 24px}
+.ctl{display:flex;flex-direction:column;gap:4px;min-width:0}
+.ctl[hidden]{display:none}
+.ctl>label{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-3)}
+.seg{display:inline-flex;flex-wrap:wrap;gap:2px;padding:2px;background:var(--muted);border:1px solid var(--border);border-radius:8px}
+.seg button{font:500 13px var(--font);color:var(--fg-2);background:transparent;border:0;border-radius:6px;padding:5px 11px;cursor:pointer}
+.seg button:hover{color:var(--fg)}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--fg);box-shadow:0 0 0 1px var(--border),0 1px 2px rgb(0 0 0/.08)}
+button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+
+/* tables */
+.tbl{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.tbl.rank{min-width:830px}
+.tr,.fr{display:grid;gap:12px;align-items:center;padding:8px 14px;border-top:1px solid var(--border);min-height:40px}
+.tr{grid-template-columns:minmax(150px,1.6fr) 64px 64px 56px 48px minmax(120px,1.3fr) minmax(100px,1.1fr) minmax(100px,1.1fr)}
+.fr{grid-template-columns:minmax(150px,1fr) minmax(200px,1.1fr) 76px minmax(240px,2.2fr)}
+.tr.th,.fr.th{background:var(--muted);border-top:0;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-3);min-height:34px}
+.tr:not(.th):hover,.fr:not(.th):hover{background:var(--muted)}
+.sb{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font:inherit;letter-spacing:inherit;text-transform:inherit;color:inherit;white-space:nowrap;border-radius:3px}
+.sb:hover{color:var(--fg)}
+.sb:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+[aria-sort] .sb{color:var(--fg)}
+[aria-sort="ascending"] .sb::after{content:"\25B2";font-size:8px}
+[aria-sort="descending"] .sb::after{content:"\25BC";font-size:8px}
+.r{display:flex;justify-content:flex-end;text-align:right}
+.nm{font:500 13px var(--mono)} .ver{font:400 11px var(--mono);color:var(--fg-3);margin-left:6px}
+.c-name{display:flex;align-items:center;min-width:0;flex-wrap:wrap}
+.dot{width:9px;height:9px;border-radius:2px;margin-right:8px;flex:none}
+.pill{font-size:11px;font-weight:500;padding:1px 7px;border-radius:99px;border:1px solid var(--border);color:var(--fg-2);white-space:nowrap;justify-self:start}
+.pill.rt{background:var(--info-bg);color:var(--info);border-color:transparent}
+.pill.warn{background:var(--warn-bg);color:var(--warn);border-color:transparent}
+.pill.crit{background:var(--crit-bg);color:var(--crit);border-color:transparent}
+.used{display:flex;align-items:center;gap:8px;min-width:0}
+.bar{display:flex;gap:2px;height:10px;flex:1;min-width:0}
+.bar i{display:block;height:100%;background:var(--seq-2);border-radius:0 3px 3px 0}
+.bar i:first-child{border-radius:2px 3px 3px 2px}
+.bar i.t{background:repeating-linear-gradient(135deg,var(--seq-2) 0 2px,transparent 2px 4px);box-shadow:inset 0 0 0 1px var(--seq-2)}
+.bar.track{background:var(--muted);border-radius:3px}
+.used .num{width:30px;text-align:right;font-size:12px;color:var(--fg-2);flex:none}
+.more{width:100%;border:0;border-top:1px solid var(--border);background:transparent;color:var(--fg-2);font:500 12px var(--font);padding:9px;cursor:pointer}
+.more:hover{background:var(--muted);color:var(--fg)}
+.cell-n{font-size:12px;color:var(--fg-2);font-variant-numeric:tabular-nums}
+.finds .tbl{min-width:680px}
+
+/* generic chart shells */
+.scroll{overflow-x:auto;min-width:0}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--fg-2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend .dot{margin:0}
+svg text{font-family:var(--font);fill:var(--fg-2);font-size:11px}
+svg .strong{fill:var(--fg)}
+svg .mono{font-family:var(--mono)}
+.axis{stroke:var(--border);stroke-width:1} .grid{stroke:var(--border);stroke-width:1;opacity:.55}
+
+/* matrix */
+.mx{border-collapse:separate;border-spacing:2px;min-width:560px;width:100%}
+.mx th{font-weight:500;font-size:12px;color:var(--fg-2);text-align:left;padding:0 8px 0 0;white-space:nowrap}
+.mx th.col{vertical-align:bottom;padding:0 0 4px;height:104px;text-align:center}
+.mx th.col span{writing-mode:vertical-rl;transform:rotate(180deg);font:500 12px var(--mono);color:var(--fg);display:inline-block}
+.mx td{height:34px;min-width:42px;text-align:center;font:500 12px var(--font);font-variant-numeric:tabular-nums;border-radius:3px;color:var(--fg)}
+.mx td.z{color:var(--fg-3);font-weight:400}
+.mx th small{display:block;font-size:11px;color:var(--fg-3);font-weight:400}
+.ramp{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--fg-2)}
+.ramp i{display:block;width:120px;height:8px;border-radius:2px;background:linear-gradient(90deg,color-mix(in srgb,var(--seq) 6%,var(--card)),var(--seq))}
+
+/* treemap */
+.tm{position:relative;height:380px;min-width:0}
+.tm .g{position:absolute;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-2);white-space:nowrap;overflow:hidden;line-height:16px;display:flex;gap:6px;align-items:center}
+.tm .g .dot{margin:0}
+.tm .cellx{position:absolute;border-radius:4px;padding:5px 7px;overflow:hidden;cursor:default;border:1.5px solid;line-height:1.25}
+.tm .cellx b{display:block;font:500 12px var(--mono);color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tm .cellx small{display:block;font-size:11px;color:var(--fg-2);white-space:nowrap}
+.tm .cellx:hover{box-shadow:0 0 0 2px var(--fg)}
+
+/* graph */
+.ge{fill:none;transition:opacity .12s}
+svg.hl .ge{opacity:.07 !important} svg.hl .ge.on{opacity:.85 !important}
+.gn{cursor:default}
+.gn rect{fill:var(--muted);stroke:var(--border)}
+.gn:hover rect{stroke:var(--fg)}
+
+/* by file */
+.ftree{display:flex;gap:8px;min-width:0}
+.fscroll{flex:1;min-width:0;height:420px;overflow:auto;border:1px solid var(--border);border-radius:8px}
+.fin{min-width:560px}
+.fhead,.fx{display:grid;grid-template-columns:minmax(220px,2.2fr) minmax(150px,1.4fr) minmax(130px,1.1fr);gap:12px;align-items:center;padding:0 12px}
+.fhead{position:sticky;top:0;z-index:2;height:32px;background:var(--muted);border-bottom:1px solid var(--border);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-3)}
+.fx{height:28px;font-size:12px;cursor:default}
+.fx.dir{cursor:pointer}
+.fx:hover{background:var(--muted)}
+.fx.dim{opacity:.4}
+.fx .p{display:flex;align-items:center;gap:6px;min-width:0}
+.fx .p .nm{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fx .p .cnt{color:var(--fg-3);font-size:11px;font-variant-numeric:tabular-nums}
+.fx svg{flex:none;color:var(--fg-3)}
+.chev{transition:transform .12s}
+.fx[aria-expanded="true"] .chev{transform:rotate(90deg)}
+.fx .mix{display:flex;align-items:center;gap:8px;min-width:0}
+.fx .pc{width:34px;text-align:right;color:var(--fg-2);font-size:11px;font-variant-numeric:tabular-nums;flex:none}
+.fx .top{color:var(--fg-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px}
+.fx .top .mono{color:var(--fg);font-size:12px}
+.fx .top .cnt{color:var(--fg-3);font-size:11px;margin-left:4px}
+#mini{width:68px;height:420px;flex:none;border:1px solid var(--border);border-radius:8px;background:var(--card);cursor:pointer;touch-action:none}
+
+.dsel{font:500 13px var(--font);color:var(--fg);background:var(--muted);border:1px solid var(--border);border-radius:8px;padding:0 10px;height:35px;min-width:210px;max-width:280px;cursor:pointer}
+.dsel{cursor:text;width:240px}
+.dsel:hover{border-color:var(--fg-3)}
+.dsel:focus{outline:2px solid var(--ring);outline-offset:2px}
+.dsel::placeholder{color:var(--fg-2);opacity:1}
+.combo{position:relative}
+.deplist{position:absolute;z-index:20;top:calc(100% + 4px);left:0;width:280px;max-width:calc(100vw - 32px);max-height:300px;overflow:auto;margin:0;padding:4px;list-style:none;background:var(--card);border:1px solid var(--border);border-radius:8px;box-shadow:0 6px 24px rgb(0 0 0/.18)}
+.deplist li{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;font-size:13px;cursor:pointer;color:var(--fg)}
+.deplist li:hover,.deplist li[aria-selected="true"]{background:var(--muted)}
+.deplist li.cur .nm{font-weight:600}
+.deplist li .nm{font:500 12px var(--mono)}
+.deplist li .cnt{margin-left:auto;color:var(--fg-3);font-size:12px;font-variant-numeric:tabular-nums}
+.deplist li .dot{margin:0}
+.deplist li.none{color:var(--fg-3);cursor:default}
+.deplist li.none:hover{background:transparent}
+.foot{display:flex;flex-wrap:wrap;gap:6px 20px;align-items:center;font-size:12px;color:var(--fg-2);border-top:1px solid var(--border);padding-top:14px}
+.sw{display:inline-block;width:18px;height:8px;border-radius:2px;vertical-align:middle;margin-right:5px}
+
+#tip{position:fixed;z-index:50;pointer-events:none;background:var(--card);color:var(--fg);border:1px solid var(--border);border-radius:8px;
+  box-shadow:0 6px 24px rgb(0 0 0/.18);padding:9px 11px;font-size:12px;max-width:300px;display:none;line-height:1.45;overflow-wrap:anywhere}
+#tip b{font:500 13px var(--mono)} #tip .k{color:var(--fg-3)} #tip .row{display:flex;justify-content:space-between;gap:16px}
+
+@media (max-width:760px){
+  .tbl.rank{min-width:0}
+  .tr{grid-template-columns:minmax(110px,1.4fr) 56px minmax(90px,1fr)}
+  .tr>.c-src,.tr>.c-tst,.tr>.c-spr,.tr>.c-dep,.tr>.c-tr{display:none}
+  .fhead,.fx{grid-template-columns:minmax(150px,2fr) minmax(90px,1fr)}
+  .fhead .top,.fx .top{display:none}
+  .fin{min-width:0}
+  #mini{width:44px}
+  .card{padding:14px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
+
+<div class="wrap">
+<section class="card" aria-labelledby="t">
+  <h2 id="t">Dependencies</h2>
+
+  <div class="bans" id="bans"></div>
+
+  <div class="finds scroll" id="finds"></div>
+
+  <div class="controls">
+    <div class="ctl"><label id="l-view">View</label>
+      <div class="seg" id="view" role="group" aria-labelledby="l-view">
+        <button data-v="files">By file</button><button data-v="table">Ranked list</button><button data-v="matrix">Module matrix</button><button data-v="tree">Treemap</button><button data-v="bubble">Reliance plot</button><button data-v="graph">Module graph</button>
+      </div></div>
+    <div class="ctl"><label id="l-rank">Rank by</label>
+      <div class="seg" id="measure" role="group" aria-labelledby="l-rank">
+        <button data-v="breadth">Breadth</button><button data-v="spread">Spread</button><button data-v="depth">Depth</button>
+      </div></div>
+    <div class="ctl"><label id="l-scope">Scope</label>
+      <div class="seg" id="scope" role="group" aria-labelledby="l-scope">
+        <button data-v="all">All</button><button data-v="runtime">Runtime</button><button data-v="dev">Dev</button>
+      </div></div>
+    <div class="ctl" id="zoomctl" hidden><label id="l-zoom">Zoom</label>
+      <div class="seg" id="zoom" role="group" aria-labelledby="l-zoom">
+        <button data-v="1">Top level</button><button data-v="2">Modules</button><button data-v="3">Folders</button><button data-v="99">All files</button>
+      </div></div>
+    <div class="ctl" id="showctl" hidden><label id="l-show">Show</label>
+      <div class="seg" id="show" role="group" aria-labelledby="l-show">
+        <button data-v="all">All paths</button><button data-v="touched">Only paths it touches</button>
+      </div></div>
+    <div class="ctl" id="depctl" hidden><label for="depsel">Dependency</label>
+      <div class="combo"><input id="depsel" class="dsel" type="text" role="combobox" aria-expanded="false" aria-controls="deplist" aria-autocomplete="list" autocomplete="off" spellcheck="false" placeholder="All dependencies"><ul id="deplist" class="deplist" role="listbox" aria-label="Dependencies" hidden></ul></div></div>
+  </div>
+
+  <div id="stage"></div>
+
+  <div class="foot">
+    <span><i class="sw" style="background:var(--seq-2)"></i>source files</span>
+    <span><i class="sw" style="background:repeating-linear-gradient(135deg,var(--seq-2) 0 2px,transparent 2px 4px);box-shadow:inset 0 0 0 1px var(--seq-2)"></i>test files</span>
+  </div>
+</section>
+</div>
+<div id="tip" role="tooltip"></div>
+
+<script type="application/json" id="data">
+{"transTotal":412,"modules":[{"id":"api","files":108},{"id":"web","files":175},{"id":"worker","files":38},{"id":"db","files":41},{"id":"shared","files":40},{"id":"cli","files":12}],
+"deps":[
+{"n":"react","v":"18.3.1","c":"Framework","s":"runtime","src":104,"tst":8,"mods":{"web":108,"shared":4},"sym":14,"tr":3},
+{"n":"next","v":"14.2.5","c":"Framework","s":"runtime","src":64,"tst":0,"mods":{"web":64},"sym":22,"tr":38},
+{"n":"fastify","v":"4.28.1","c":"Framework","s":"runtime","src":33,"tst":8,"mods":{"api":38,"worker":3},"sym":12,"tr":29},
+{"n":"zod","v":"3.23.8","c":"Utilities","s":"runtime","src":80,"tst":7,"mods":{"api":30,"web":21,"shared":28,"worker":8},"sym":9,"tr":0},
+{"n":"drizzle-orm","v":"0.33.0","c":"Data","s":"runtime","src":44,"tst":8,"mods":{"db":34,"api":14,"worker":4},"sym":31,"tr":4},
+{"n":"pg","v":"8.12.0","c":"Data","s":"runtime","src":5,"tst":1,"mods":{"db":5,"worker":1},"sym":3,"tr":14},
+{"n":"bullmq","v":"5.12.2","c":"Data","s":"runtime","src":11,"tst":3,"mods":{"worker":12,"api":2},"sym":6,"tr":9},
+{"n":"ioredis","v":"5.4.1","c":"Data","s":"runtime","src":8,"tst":1,"mods":{"worker":5,"api":3,"db":1},"sym":3,"tr":8},
+{"n":"pino","v":"9.3.2","c":"Utilities","s":"runtime","src":58,"tst":0,"mods":{"api":30,"worker":20,"shared":8},"sym":2,"tr":17},
+{"n":"date-fns","v":"3.6.0","c":"Utilities","s":"runtime","src":31,"tst":2,"mods":{"web":20,"api":8,"shared":5},"sym":11,"tr":0},
+{"n":"lodash","v":"4.17.21","c":"Utilities","s":"runtime","src":19,"tst":0,"mods":{"api":9,"web":6,"shared":4},"sym":7,"tr":0},
+{"n":"clsx","v":"2.1.1","c":"Utilities","s":"runtime","src":71,"tst":0,"mods":{"web":71},"sym":1,"tr":0},
+{"n":"axios","v":"1.7.4","c":"Utilities","s":"runtime","src":5,"tst":0,"mods":{"web":3,"worker":2},"sym":2,"tr":6},
+{"n":"commander","v":"12.1.0","c":"Tooling","s":"runtime","src":11,"tst":0,"mods":{"cli":11},"sym":4,"tr":1},
+{"n":"chalk","v":"5.3.0","c":"Tooling","s":"runtime","src":8,"tst":0,"mods":{"cli":8},"sym":1,"tr":0},
+{"n":"esbuild","v":"0.23.0","c":"Tooling","s":"dev","src":3,"tst":0,"mods":{"cli":1,"shared":2},"sym":1,"tr":2},
+{"n":"vitest","v":"2.0.5","c":"Testing","s":"dev","src":0,"tst":148,"mods":{"api":52,"web":61,"worker":14,"db":11,"shared":10},"sym":6,"tr":54},
+{"n":"@testing-library/react","v":"16.0.0","c":"Testing","s":"dev","src":0,"tst":47,"mods":{"web":47},"sym":5,"tr":22},
+{"n":"msw","v":"2.3.5","c":"Testing","s":"dev","src":0,"tst":19,"mods":{"web":15,"api":4},"sym":4,"tr":31},
+{"n":"supertest","v":"7.0.0","c":"Testing","s":"dev","src":0,"tst":22,"mods":{"api":22},"sym":2,"tr":12},
+{"n":"@faker-js/faker","v":"8.4.1","c":"Testing","s":"runtime","src":0,"tst":16,"mods":{"db":9,"api":7},"sym":3,"tr":0}
+],
+"unused":[
+{"n":"moment","v":"2.30.1","s":"runtime","note":"date-fns covers every date call"},
+{"n":"uuid","v":"10.0.0","s":"runtime","note":"crypto.randomUUID() is used instead"},
+{"n":"nodemon","v":"3.1.4","s":"dev","note":"no script references it"}
+],
+"undeclared":[
+{"n":"semver","files":4,"mods":{"cli":3,"shared":1},"via":"esbuild → semver"},
+{"n":"debug","files":2,"mods":{"worker":2},"via":"bullmq → ioredis → debug"}
+]}
+</script>
+
+<script>
+(function(){
+const D=JSON.parse(document.getElementById('data').textContent);
+const MODS=D.modules;
+const CATS=['Framework','Data','Tooling','Testing','Utilities'];
+const CAT={};D.deps.forEach(d=>CAT[d.n]=d.c);
+const MEAS={breadth:'Breadth',spread:'Spread',depth:'Depth'};
+const VIEWS=['table','matrix','tree','bubble','graph','files'];
+const state={view:'files',measure:'breadth',scope:'all',all:false,zoom:3,show:'all',focus:null,open:new Set(),sel:null,resetScroll:false,refocus:false};
+try{const s=JSON.parse(localStorage.getItem('depcard')||'{}');
+  if(MEAS[s.measure])state.measure=s.measure;if(['all','runtime','dev'].includes(s.scope))state.scope=s.scope}catch(e){}
+const $=s=>document.querySelector(s);
+const cat=d=>`var(--c-${d.c.toLowerCase()})`;
+const catv=c=>`var(--c-${c.toLowerCase()})`;
+const pct=x=>Math.round(x*100);
+
+/* ======================================================================
+   FILE-LEVEL DATA. In the real dossier this is FILES = [{p, t, m, d}] from the
+   analysis phase: p = repo path, t = 1 for test files, m = module id,
+   d = declared dependencies the file imports. The block below only fabricates
+   a consistent mock from the package-level counts above.
+   ====================================================================== */
+const MODDIR={api:'apps/api',web:'apps/web',worker:'apps/worker',db:'packages/db',shared:'packages/shared',cli:'packages/cli'};
+const LAYOUT={
+  api:{src:[['src/routes',18,'.route','ts'],['src/plugins',8,'.plugin','ts'],['src/services',16,'.service','ts'],['src/schemas',8,'.schema','ts'],['src/lib',6,'','ts']],
+       test:[['test/routes',24,'ts'],['test/services',16,'ts'],['test/plugins',12,'ts']]},
+  web:{src:[['src/app',30,'.page','tsx'],['src/components',48,'','tsx'],['src/hooks',12,'.hook','ts'],['src/lib',14,'','ts'],['src/features/billing',10,'','tsx']],
+       test:[['test/components',36,'tsx'],['test/app',15,'tsx'],['test/hooks',10,'ts']]},
+  worker:{src:[['src/jobs',14,'.job','ts'],['src/queues',4,'.queue','ts'],['src/lib',6,'','ts']],test:[['test/jobs',14,'ts']]},
+  db:{src:[['src/schema',12,'.table','ts'],['src/migrations',10,'.migration','ts'],['src/queries',8,'.queries','ts']],test:[['test/queries',11,'ts']]},
+  shared:{src:[['src/types',10,'.types','ts'],['src/validation',14,'.schema','ts'],['src/utils',6,'','ts']],test:[['test',10,'ts']]},
+  cli:{src:[['src/commands',9,'.command','ts'],['src/lib',3,'','ts']],test:[]}
+};
+const NOUNS=['invoice','customer','ledger','payment','account','balance','report','export','import','webhook','session','user','team','role','audit','tax','currency','refund','payout','statement','budget','receipt','vendor','contract','plan','usage','alert','search','filter','settings','profile','billing','notice','reminder','rule','journal','reconcile','upload','tag','note'];
+const AFF={'drizzle-orm':['schema','queries','services','migrations'],zod:['schemas','validation','routes'],fastify:['routes','plugins'],pino:['lib','services','jobs','plugins'],next:['app'],clsx:['components'],bullmq:['jobs','queues'],'date-fns':['components','lib','services'],ioredis:['queues','jobs','plugins'],pg:['queries','migrations'],axios:['lib','hooks'],lodash:['lib','utils','services'],commander:['commands'],chalk:['commands','lib'],supertest:['routes'],msw:['components','routes'],'@testing-library/react':['components'],esbuild:['lib','utils']};
+function rngOf(str){let h=2166136261>>>0;for(const c of str){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return function(){h=(h+0x6D2B79F5)|0;let t=h;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
+const shuffle=(a,r)=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const dirOf=f=>f.p.slice(0,f.p.lastIndexOf('/'));
+function mockFiles(){
+  const files=[],by={};
+  MODS.forEach(m=>{const L=LAYOUT[m.id],root=MODDIR[m.id];by[m.id]={src:[],test:[]};
+    L.src.forEach(([dir,n,suf,ext],di)=>{for(let i=0;i<n;i++){const noun=NOUNS[(i+di*7)%NOUNS.length]+(i>=NOUNS.length?'-detail':'');
+      const f={p:`${root}/${dir}/${noun}${suf}.${ext}`,t:0,m:m.id,d:[]};files.push(f);by[m.id].src.push(f)}});
+    L.test.forEach(([dir,n,ext],di)=>{for(let i=0;i<n;i++){const noun=NOUNS[(i+di*11+3)%NOUNS.length]+(i>=NOUNS.length?'-detail':'');
+      const f={p:`${root}/${dir}/${noun}.test.${ext}`,t:1,m:m.id,d:[]};files.push(f);by[m.id].test.push(f)}});
+  });
+  D.deps.forEach(d=>{
+    const entries=Object.entries(d.mods),tm={};
+    if(d.src===0){entries.forEach(([k,n])=>tm[k]=n)}
+    else{const tot=entries.reduce((s,e)=>s+e[1],0);entries.forEach(([k,n])=>{tm[k]=Math.min(n,Math.floor(d.tst*n/tot))});
+      let rem=d.tst-Object.values(tm).reduce((s,x)=>s+x,0);
+      entries.slice().sort((a,b)=>b[1]-a[1]).forEach(([k,n])=>{while(rem>0&&tm[k]<n){tm[k]++;rem--}})}
+    entries.forEach(([k,n])=>{
+      const r=rngOf(d.n+k),ta=tm[k],sa=n-ta,aff=AFF[d.n]||null;
+      const pick=(pool,cnt)=>{if(!pool.length||cnt<=0)return[];
+        const dirs=[...new Set(pool.map(dirOf))];
+        const home=aff?dirs.filter(x=>aff.some(h=>x.includes(h))):[dirs[Math.floor(r()*dirs.length)]];
+        const inH=pool.filter(f=>home.includes(dirOf(f))),out=pool.filter(f=>!home.includes(dirOf(f)));
+        return [...shuffle(inH,r),...shuffle(out,r)].slice(0,cnt)};
+      pick(by[k].src,sa).forEach(f=>f.d.push(d.n));
+      pick(by[k].test,ta).forEach(f=>f.d.push(d.n));
+    });
+  });
+  return files;
+}
+const FILES=mockFiles();
+const NODE=new Map();
+const TREE=(function(){
+  const root={id:'',name:'',dir:true,depth:-1,children:new Map(),files:[],kids:[]};
+  FILES.forEach(f=>{const parts=f.p.split('/');let n=root;n.files.push(f);
+    parts.forEach((part,i)=>{const isFile=i===parts.length-1,id=parts.slice(0,i+1).join('/');
+      let c=n.children.get(part);
+      if(!c){c={id,name:part,dir:!isFile,depth:i,children:new Map(),files:[],kids:[],file:isFile?f:null};n.children.set(part,c);NODE.set(id,c)}
+      if(!isFile)c.files.push(f);n=c})});
+  (function sort(n){n.kids=[...n.children.values()].sort((a,b)=>(b.dir-a.dir)||a.name.localeCompare(b.name));n.kids.forEach(sort)})(root);
+  return root;
+})();
+function applyZoom(z){state.open=new Set();NODE.forEach(n=>{if(n.dir&&n.depth<z-1)state.open.add(n.id)})}
+applyZoom(state.zoom);
+
+/* ---------- metrics ---------- */
+function list(){
+  const l=D.deps.filter(d=>state.scope==='all'||d.s===state.scope);
+  const mx={f:Math.max(...l.map(d=>d.src+d.tst)),m:Math.max(...l.map(d=>Object.keys(d.mods).length)),s:Math.max(...l.map(d=>d.sym))};
+  l.forEach(d=>{d.files=d.src+d.tst;d.spread=Object.keys(d.mods).length;d.b=d.files/mx.f;d.sp=d.spread/mx.m;d.dp=d.sym/mx.s});
+  return l;
+}
+const val=d=>({breadth:d.b,spread:d.sp,depth:d.dp})[state.measure];
+const ranked=l=>[...l].sort((a,b)=>val(b)-val(a)||b.files-a.files||a.n.localeCompare(b.n));
+
+/* ---------- sorting ---------- */
+const SORTS={name:d=>d.n,scope:d=>d.s,src:d=>d.src,tst:d=>d.tst,breadth:d=>d.files,spread:d=>d.spread,depth:d=>d.sym,tr:d=>d.tr};
+const tsort={key:null,dir:'desc'};
+const fsort={key:null,dir:'asc'};
+const STR=['name','scope','finding','detail'];
+const cmp=(x,y)=>typeof x==='string'?x.localeCompare(y):x-y;
+function sortRows(rows,cur,get){const m=cur.dir==='asc'?1:-1;return [...rows].sort((a,b)=>cmp(get(a,cur.key),get(b,cur.key))*m)}
+function nextSort(obj,cur,key){
+  if(cur.key===key)obj.dir=cur.dir==='asc'?'desc':'asc';
+  else obj.dir=STR.includes(key)?'asc':'desc';
+  obj.key=key;
+}
+function head(label,key,cur,cls){
+  const on=cur.key===key;
+  return `<div class="${cls||''}" role="columnheader"${on?` aria-sort="${cur.dir==='asc'?'ascending':'descending'}"`:''}><button class="sb" data-sort="${key}">${label}</button></div>`;
+}
+
+/* ---------- BANs ---------- */
+function renderBans(){
+  const used=D.deps.length,un=D.unused.length,all=used+un;
+  const rt=D.deps.filter(d=>d.s==='runtime').length+D.unused.filter(d=>d.s==='runtime').length;
+  const mism=D.deps.filter(d=>d.s==='runtime'&&d.src===0);
+  $('#bans').innerHTML=[
+    ['',all,'Declared',`<div class="split"><span class="rt">runtime<b>${rt}</b></span><span>dev<b>${all-rt}</b></span></div><div class="splitbar" aria-hidden="true"><i style="flex:${rt}"></i><i class="dv" style="flex:${all-rt}"></i></div>`],
+    ['',D.transTotal,'Packages installed','incl. transitive'],
+    ['warn',un,'Declared, never imported','safe to review for removal'],
+    ['crit',D.undeclared.length,'Imported, never declared','resolved only by hoisting'],
+    ['warn',mism.length,'Runtime, used only in tests','scope may be wrong']
+  ].map(b=>`<div class="ban ${b[0]}"><span>${b[2]}</span><b>${b[1]}</b>${b[3].startsWith('<')?b[3]:`<em>${b[3]}</em>`}</div>`).join('');
+}
+
+/* ---------- findings table ---------- */
+function renderFinds(){
+  const rows=[
+    ...D.unused.map(u=>({name:u.n,ver:u.v,scope:u.s,finding:'Declared, never imported',kind:'warn',detail:u.note})),
+    ...D.undeclared.map(u=>({name:u.n,ver:'',scope:'—',finding:'Imported, never declared',kind:'crit',detail:`${u.files} files in ${Object.keys(u.mods).join(', ')} · reaches you via ${u.via}`})),
+    ...D.deps.filter(d=>d.s==='runtime'&&d.src===0).map(u=>({name:u.n,ver:u.v,scope:u.s,finding:'Runtime, used only in tests',kind:'warn',detail:`${u.tst} test files, no source imports · likely belongs in devDependencies`}))];
+  const out=fsort.key?sortRows(rows,fsort,(r,k)=>r[k]):rows;
+  $('#finds').innerHTML=`<div class="tbl" role="table" aria-label="Dependency findings"><div class="fr th" role="row">${head('Package','name',fsort)}${head('Finding','finding',fsort)}${head('Scope','scope',fsort)}${head('Detail','detail',fsort)}</div>`+
+    out.map(r=>`<div class="fr" role="row"><div><span class="nm">${r.name}</span>${r.ver?`<span class="ver">${r.ver}</span>`:''}</div><div><span class="pill ${r.kind}">${r.finding}</span></div><div><span class="pill ${r.scope==='runtime'?'rt':''}">${r.scope}</span></div><div class="cell-n">${r.detail}</div></div>`).join('')+`</div>`;
+}
+
+/* ---------- ranked list ---------- */
+function renderTable(l){
+  const cur={key:tsort.key||state.measure,dir:tsort.key?tsort.dir:'desc'};
+  const LIM=12;
+  const rows=sortRows(l,cur,(d,k)=>SORTS[k](d)),show=state.all?rows:rows.slice(0,LIM);
+  const maxF=Math.max(...l.map(d=>d.files));
+  let h=`<div class="scroll"><div class="tbl rank" role="table" aria-label="Dependencies">
+  <div class="tr th" role="row">${head('Dependency','name',cur,'c-name')}${head('Scope','scope',cur)}${head('Pulls in','tr',cur,'r c-tr')}${head('Source','src',cur,'r c-src')}${head('Test','tst',cur,'r c-tst')}${head('Breadth','breadth',cur)}${head('Spread','spread',cur,'c-spr')}${head('Depth','depth',cur,'c-dep')}</div>`;
+  show.forEach(d=>{
+    const w=x=>(x/maxF*100).toFixed(1)+'%';
+    h+=`<div class="tr" role="row" data-dep="${d.n}" tabindex="0">
+      <div class="c-name"><i class="dot" style="background:${cat(d)}"></i><span class="nm">${d.n}</span><span class="ver">${d.v}</span></div>
+      <div><span class="pill ${d.s==='runtime'?'rt':''}">${d.s}</span></div>
+      <div class="r cell-n c-tr">${d.tr}</div>
+      <div class="r cell-n c-src">${d.src}</div>
+      <div class="r cell-n c-tst">${d.tst}</div>
+      <div class="used"><div class="bar">${d.src?`<i style="flex:0 0 ${w(d.src)}"></i>`:''}${d.tst?`<i class="t" style="flex:0 0 ${w(d.tst)}"></i>`:''}<span style="flex:1"></span></div><span class="num">${d.files}</span></div>
+      <div class="used c-spr"><div class="bar"><i style="flex:0 0 ${pct(d.sp)}%"></i><span style="flex:1"></span></div><span class="num">${d.spread}/${MODS.length}</span></div>
+      <div class="used c-dep"><div class="bar"><i style="flex:0 0 ${pct(d.dp)}%"></i><span style="flex:1"></span></div><span class="num">${d.sym}</span></div>
+      </div>`;
+  });
+  if(rows.length>LIM)h+=`<button class="more" id="more">${state.all?'Show top '+LIM:'Show '+(rows.length-LIM)+' more'}</button>`;
+  return h+'</div></div>';
+}
+
+/* ---------- module x dependency matrix ---------- */
+function renderMatrix(l){
+  const top=ranked(l).slice(0,12);
+  const dom=d=>{let b=0,bi=0;MODS.forEach((m,i)=>{const s=(d.mods[m.id]||0)/m.files;if(s>b){b=s;bi=i}});return[bi,b]};
+  top.sort((a,b)=>{const[ai,av]=dom(a),[bi,bv]=dom(b);return ai-bi||bv-av});
+  let h=`<div class="scroll"><table class="mx" aria-label="Files per module that import each dependency"><thead><tr><th></th>${top.map(d=>`<th class="col" scope="col"><span>${d.n}</span></th>`).join('')}</tr></thead><tbody>`;
+  MODS.forEach(m=>{
+    h+=`<tr><th scope="row">${m.id}<small>${m.files} files</small></th>`;
+    top.forEach(d=>{
+      const n=d.mods[m.id]||0,s=n/m.files;
+      if(!n){h+=`<td class="z" data-cell="${m.id}|${d.n}">·</td>`;return}
+      const p=Math.min(100,8+s*130);
+      h+=`<td data-cell="${m.id}|${d.n}" style="background:color-mix(in srgb,var(--seq) ${p}%,var(--card));color:${p>52?'#fff':'var(--fg)'}">${n}</td>`;
+    });
+    h+='</tr>';
+  });
+  return h+`</tbody></table></div><div class="ramp"><span>Share of the module's files</span><span>0%</span><i></i><span>80%+</span><span style="margin-left:12px">Cell number = files importing it. Columns are grouped by the module that leans on them most.</span></div>`;
+}
+
+/* ---------- treemap ---------- */
+function squarify(items,x,y,w,h){
+  const total=items.reduce((s,i)=>s+i.value,0),k=w*h/total,out=[];
+  let rest=items.map(i=>({i,a:i.value*k}));
+  const worstOf=(r,s)=>{const sum=r.reduce((t,c)=>t+c.a,0),mx=Math.max(...r.map(c=>c.a)),mn=Math.min(...r.map(c=>c.a));return Math.max(s*s*mx/(sum*sum),sum*sum/(s*s*mn))};
+  while(rest.length){
+    const short=Math.min(w,h);let row=[],worst=Infinity;
+    while(rest.length){const cand=[...row,rest[0]],wv=worstOf(cand,short);if(row.length&&wv>worst)break;row=cand;worst=wv;rest.shift()}
+    const sum=row.reduce((t,c)=>t+c.a,0);
+    if(w>=h){const rw=sum/h;let cy=y;row.forEach(c=>{const ch=c.a/rw;out.push({item:c.i,x,y:cy,w:rw,h:ch});cy+=ch});x+=rw;w-=rw}
+    else{const rh=sum/w;let cx=x;row.forEach(c=>{const cw=c.a/rh;out.push({item:c.i,x:cx,y,w:cw,h:rh});cx+=cw});y+=rh;h-=rh}
+  }
+  return out;
+}
+const catLegend=()=>CATS.map(c=>`<span><i class="dot" style="background:${catv(c)}"></i>${c}</span>`).join('');
+function renderTree(){return `<div class="tm" id="tm"></div><div class="legend" style="margin-top:12px">${catLegend()}<span>Area = ${MEAS[state.measure].toLowerCase()}</span></div>`}
+function layoutTree(){
+  const el=$('#tm');if(!el)return;
+  const W=el.clientWidth,H=el.clientHeight,l=list();
+  const groups=CATS.map(c=>{const ds=l.filter(d=>d.c===c).sort((a,b)=>val(b)-val(a));return{c,ds,value:ds.reduce((s,d)=>s+Math.max(val(d),.01),0)}}).filter(g=>g.ds.length).sort((a,b)=>b.value-a.value);
+  let h='';
+  squarify(groups,0,0,W,H).forEach(g=>{
+    const gr=g.item,gap=3,LH=18;
+    h+=`<div class="g" style="left:${g.x+gap}px;top:${g.y+1}px;width:${g.w-gap*2}px"><i class="dot" style="background:${catv(gr.c)}"></i>${gr.c}</div>`;
+    squarify(gr.ds.map(d=>({d,value:Math.max(val(d),.01)})),g.x+gap,g.y+LH+1,g.w-gap*2,g.h-LH-gap-1).forEach(r=>{
+      const d=r.item.d,w=r.w-3,hh=r.h-3;
+      const lab=w>44&&hh>22?`<b>${d.n}</b>`:'',sub=w>60&&hh>40?`<small>${d.files} files${w>110?' · '+d.spread+' mod':''}</small>`:'';
+      h+=`<div class="cellx" data-dep="${d.n}" style="left:${r.x}px;top:${r.y}px;width:${w}px;height:${hh}px;border-color:${cat(d)};background:color-mix(in srgb,${cat(d)} 22%,var(--card))">${lab}${sub}</div>`;
+    });
+  });
+  el.innerHTML=h;
+}
+
+/* ---------- reliance plot ---------- */
+function renderBubble(l){
+  const W=680,H=380,m={l:52,r:20,t:16,b:44},pw=W-m.l-m.r,ph=H-m.t-m.b;
+  const xm=Math.ceil(Math.max(...l.map(d=>d.files))/20)*20,ym=Math.ceil(Math.max(...l.map(d=>d.sym))/5)*5;
+  const X=v=>m.l+v/xm*pw,Y=v=>m.t+ph-v/ym*ph,R=d=>5+Math.sqrt(d.tr)*2.1;
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:560px" role="img" aria-label="Reliance plot: files importing each dependency against distinct symbols used, sized by packages pulled in">`;
+  for(let i=0;i<=4;i++){const v=xm/4*i,y=ym/4*i;
+    s+=`<line class="grid" x1="${X(v)}" x2="${X(v)}" y1="${m.t}" y2="${m.t+ph}"/><line class="grid" y1="${Y(y)}" y2="${Y(y)}" x1="${m.l}" x2="${m.l+pw}"/>`;
+    s+=`<text x="${X(v)}" y="${m.t+ph+16}" text-anchor="middle">${Math.round(v)}</text><text x="${m.l-8}" y="${Y(y)+4}" text-anchor="end">${Math.round(y)}</text>`;}
+  s+=`<line class="axis" x1="${m.l}" x2="${m.l+pw}" y1="${m.t+ph}" y2="${m.t+ph}"/><line class="axis" x1="${m.l}" x2="${m.l}" y1="${m.t}" y2="${m.t+ph}"/>`;
+  s+=`<text x="${m.l+pw/2}" y="${H-6}" text-anchor="middle">Files importing it</text><text transform="translate(13 ${m.t+ph/2}) rotate(-90)" text-anchor="middle">Distinct symbols used</text>`;
+  s+=`<text x="${m.l+8}" y="${m.t+14}" opacity=".8">Deep, local</text><text x="${m.l+pw-8}" y="${m.t+14}" text-anchor="end" opacity=".8">Load-bearing</text><text x="${m.l+pw-8}" y="${m.t+ph-8}" text-anchor="end" opacity=".8">Wide, shallow</text>`;
+  [...l].sort((a,b)=>b.tr-a.tr).forEach(d=>{
+    s+=`<circle data-dep="${d.n}" cx="${X(d.files)}" cy="${Y(d.sym)}" r="${R(d)}" fill="color-mix(in srgb,${cat(d)} 38%,var(--card))" stroke="${cat(d)}" stroke-width="2"/>`;
+  });
+  const placed=[],hit=(a,b)=>a.x<b.x+b.w&&b.x<a.x+a.w&&a.y<b.y+b.h&&b.y<a.y+a.h;
+  const circles=l.map(d=>({n:d.n,x:X(d.files)-R(d),y:Y(d.sym)-R(d),w:R(d)*2,h:R(d)*2}));
+  ranked(l).slice(0,8).forEach(d=>{const x=X(d.files),y=Y(d.sym),r=R(d),w=d.n.length*7.2;
+    const cands=[[x+r+4,y+4,'start',x+r+4],[x-r-4,y+4,'end',x-r-4-w],[x,y-r-6,'middle',x-w/2],[x,y+r+13,'middle',x-w/2]];
+    let pick=cands[0];
+    for(const c of cands){const box={x:c[3],y:c[1]-11,w,h:14};
+      if(box.x<m.l||box.x+w>W-4)continue;
+      if(placed.some(p=>hit(box,p))||circles.some(ci=>ci.n!==d.n&&hit(box,ci)))continue;pick=c;break}
+    placed.push({x:pick[3],y:pick[1]-11,w,h:14});
+    s+=`<text class="strong mono" x="${pick[0]}" y="${pick[1]}" text-anchor="${pick[2]}" style="pointer-events:none">${d.n}</text>`});
+  return `<div class="scroll">${s}</svg></div><div class="legend" style="margin-top:8px">${catLegend()}<span>Circle size = packages pulled in</span></div>`;
+}
+
+/* ---------- module graph ---------- */
+function renderGraph(l){
+  const top=ranked(l).slice(0,10),W=680,nh=34,Hm=Math.max(MODS.length,top.length)*44+16;
+  const ly=i=>12+i*((Hm-24-nh)/(MODS.length-1)),ry=i=>12+i*((Hm-24-nh)/(top.length-1));
+  const x1=150,x2=W-190;
+  let s=`<svg viewBox="0 0 ${W} ${Hm}" width="100%" style="min-width:560px" role="img" aria-label="Module to dependency graph; line width shows files importing">`;
+  MODS.forEach((m,i)=>top.forEach((d,j)=>{const n=d.mods[m.id];if(!n)return;
+    const y1=ly(i)+nh/2,y2=ry(j)+nh/2,mx=(x1+x2)/2;
+    s+=`<path class="ge" data-m="${m.id}" data-d="${d.n}" data-cell="${m.id}|${d.n}" d="M${x1} ${y1} C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}" stroke="${cat(d)}" stroke-width="${(1.5+Math.sqrt(n)*1.1).toFixed(1)}" opacity=".5"/>`}));
+  MODS.forEach((m,i)=>{s+=`<g class="gn" data-mod="${m.id}" tabindex="0"><rect x="0" y="${ly(i)}" width="${x1}" height="${nh}" rx="6"/><text class="strong" x="12" y="${ly(i)+15}" style="font-weight:500;font-size:12px">${m.id}</text><text x="12" y="${ly(i)+28}">${m.files} files</text></g>`});
+  top.forEach((d,j)=>{s+=`<g class="gn" data-dep="${d.n}" tabindex="0"><rect x="${x2}" y="${ry(j)}" width="${W-x2}" height="${nh}" rx="6"/><rect x="${x2}" y="${ry(j)}" width="4" height="${nh}" style="fill:${cat(d)};stroke:none"/><text class="strong mono" x="${x2+14}" y="${ry(j)+15}" style="font-size:12px">${d.n}</text><text x="${x2+14}" y="${ry(j)+28}">${d.files} files · ${d.spread} modules</text></g>`});
+  return `<div class="scroll">${s}</svg></div><div class="legend" style="margin-top:8px">${catLegend()}<span>Line width = files importing it · top 10 by ${MEAS[state.measure].toLowerCase()}</span></div>`;
+}
+
+/* ---------- by file ---------- */
+let VIS=[],INS=new Set();
+function stat(n,inS){
+  const fs=n.dir?n.files:[n.file],per={},cc={};let imp=0;
+  fs.forEach(f=>f.d.forEach(x=>{if(!inS.has(x))return;imp++;per[x]=(per[x]||0)+1;const c=CAT[x];cc[c]=(cc[c]||0)+1}));
+  return{nf:fs.length,imp,per,cc};
+}
+const ICON_DIR='<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M1.5 4.5a1 1 0 011-1h3.2l1.3 1.5h6.5a1 1 0 011 1v6a1 1 0 01-1 1h-11a1 1 0 01-1-1z"/></svg>';
+const ICON_FILE='<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M4 1.5h5l3.5 3.5v9a.5.5 0 01-.5.5H4a.5.5 0 01-.5-.5v-12a.5.5 0 01.5-.5zM9 1.5V5h3.5"/></svg>';
+const CHEV='<svg class="chev" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3l5 5-5 5"/></svg>';
+function renderFiles(l){
+  INS=new Set(l.map(d=>d.n));
+  if(state.focus&&!INS.has(state.focus))state.focus=null;
+  if(state.show==='touched'&&!state.focus)state.focus=[...l].sort((a,b)=>b.files-a.files)[0].n;
+  const fc=state.focus;
+  VIS=[];(function walk(n){n.kids.forEach(c=>{const s=stat(c,INS);if(state.show==='touched'&&!s.per[fc])return;VIS.push({n:c,s});if(c.dir&&state.open.has(c.id))walk(c)})})(TREE);
+  if(!state.sel||!NODE.has(state.sel)||!VIS.some(v=>v.n.id===state.sel))state.sel=VIS[0].n.id;
+  const rows=VIS.map(({n,s})=>{
+    const has=fc?(s.per[fc]||0):s.imp,p=fc?(s.per[fc]||0)/s.nf:0;
+    let bar,tail;
+    if(fc){bar=`<div class="bar track">${p>0?`<i style="flex:0 0 ${(p*100).toFixed(1)}%;background:${catv(CAT[fc])}"></i>`:''}<span style="flex:1"></span></div><span class="pc">${pct(p)}%</span>`;
+      tail=`<span class="mono">${s.per[fc]||0}</span><span class="cnt">/ ${s.nf} file${s.nf>1?'s':''}</span>`}
+    else{bar=s.imp?`<div class="bar">${CATS.filter(c=>s.cc[c]).map(c=>`<i style="flex:${s.cc[c]};background:${catv(c)}"></i>`).join('')}</div>`:`<div class="bar track"></div>`;
+      bar+=`<span class="pc">${s.imp}</span>`;
+      const top=Object.entries(s.per).sort((a,b)=>b[1]-a[1]);
+      tail=!top.length?'<span class="cnt">none</span>':n.dir?`<span class="mono">${top[0][0]}</span><span class="cnt">${top[0][1]} / ${s.nf}</span>`:`<span class="mono">${top.slice(0,2).map(t=>t[0]).join(', ')}</span>${top.length>2?`<span class="cnt">+${top.length-2}</span>`:''}`}
+    return `<div class="fx${n.dir?' dir':''}${fc&&!has?' dim':''}" role="treeitem" aria-level="${n.depth+1}"${n.dir?` aria-expanded="${state.open.has(n.id)}"`:''} tabindex="${n.id===state.sel?0:-1}" data-path="${n.id}">
+      <div class="p" style="padding-left:${n.depth*14}px">${n.dir?CHEV:'<span style="width:12px;flex:none"></span>'}${n.dir?ICON_DIR:ICON_FILE}<span class="nm">${n.name}</span>${n.dir?`<span class="cnt">${s.nf}</span>`:''}</div>
+      <div class="mix">${bar}</div><div class="top">${tail}</div></div>`}).join('');
+  return `
+  <div class="ftree"><div class="fscroll" id="scroller"><div class="fin"><div class="fhead"><div>Path</div><div>${fc?'Share of files importing '+fc:'Imports by category'}</div><div class="top">${fc?'Files importing':'Top dependency'}</div></div><div id="rows" role="tree" aria-label="Repository files">${rows}</div></div></div><canvas id="mini" aria-hidden="true"></canvas></div>
+  <div class="legend" style="margin-top:12px">${catLegend()}<span>Bar = share of imports by category · number = imports in that path</span></div>`;
+}
+function drawMini(){
+  const cv=$('#mini'),sc=$('#scroller');if(!cv||!sc||!VIS.length)return;
+  const dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;
+  cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
+  const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+  const cs=getComputedStyle(document.documentElement),css=k=>cs.getPropertyValue(k).trim();
+  const n=VIS.length,rh=Math.min(6,H/n),bh=Math.max(1.5,rh-1.5),mapped=n*rh,fc=state.focus;
+  VIS.forEach(({n:nd,s},i)=>{
+    const y=i*rh,x0=3+Math.max(0,nd.depth)*4,av=Math.max(6,W-x0-4),file=!nd.dir;
+    if(fc){const p=(s.per[fc]||0)/s.nf;g.fillStyle=css('--border');g.fillRect(x0,y,av,bh);
+      if(p>0){g.fillStyle=css('--c-'+CAT[fc].toLowerCase());g.fillRect(x0,y,Math.max(2,av*p),bh)}}
+    else{const w=av*(file?.7:1);
+      if(!s.imp){g.fillStyle=css('--border');g.fillRect(x0,y,w,bh);return}
+      let x=x0;CATS.forEach(c=>{const v=s.cc[c];if(!v)return;const ww=w*v/s.imp;g.fillStyle=css('--c-'+c.toLowerCase());g.fillRect(x,y,Math.max(.5,ww-.5),bh);x+=ww})}
+  });
+  const top=sc.scrollTop/sc.scrollHeight*mapped,bx=Math.min(mapped,sc.clientHeight/sc.scrollHeight*mapped);
+  g.fillStyle=css('--fg');g.globalAlpha=.1;g.fillRect(0,top,W,bx);
+  g.globalAlpha=.7;g.strokeStyle=css('--fg');g.lineWidth=1;g.strokeRect(.5,top+.5,W-1,Math.max(2,bx-1));g.globalAlpha=1;
+}
+let miniRO=null,miniRaf=0;
+const sched=()=>{cancelAnimationFrame(miniRaf);miniRaf=requestAnimationFrame(drawMini)};
+function bindMini(){
+  const cv=$('#mini'),sc=$('#scroller');if(!cv||!sc)return;let drag=false;
+  const seek=e=>{const r=cv.getBoundingClientRect(),n=VIS.length||1,mapped=n*Math.min(6,cv.clientHeight/n);sc.scrollTop=(e.clientY-r.top)/mapped*sc.scrollHeight-sc.clientHeight/2};
+  cv.addEventListener('pointerdown',e=>{drag=true;cv.setPointerCapture(e.pointerId);seek(e)});
+  cv.addEventListener('pointermove',e=>{if(drag)seek(e)});
+  cv.addEventListener('pointerup',()=>drag=false);
+  cv.addEventListener('pointercancel',()=>drag=false);
+  sc.addEventListener('scroll',sched,{passive:true});
+  if(miniRO)miniRO.disconnect();miniRO=new ResizeObserver(sched);miniRO.observe(cv);
+}
+new MutationObserver(sched).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',sched);
+
+/* ---------- render ---------- */
+function render(){
+  const l=list(),V=state.view;
+  const old=$('#scroller');const prevTop=(old&&!state.resetScroll)?old.scrollTop:0;state.resetScroll=false;
+  $('#stage').innerHTML=({table:renderTable,matrix:renderMatrix,tree:renderTree,bubble:renderBubble,graph:renderGraph,files:renderFiles})[V](l);
+  if(V==='tree')layoutTree();
+  if(V==='files'){const sc=$('#scroller');sc.scrollTop=prevTop;bindMini();drawMini();
+    if(state.refocus){state.refocus=false;const r=sc.querySelector(`[data-path="${CSS.escape(state.sel)}"]`);if(r)r.focus()}}
+  const set=(id,v)=>document.querySelectorAll(id+' button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===String(v))));
+  set('#view',state.view);set('#measure',state.measure);set('#scope',state.scope);set('#zoom',state.zoom);set('#show',state.show);
+  $('#zoomctl').hidden=V!=='files';$('#showctl').hidden=V!=='files';$('#depctl').hidden=V!=='files';if(V==='files')fillDepSel(l);
+  const m=$('#more');if(m)m.onclick=()=>{state.all=!state.all;render()};
+  try{localStorage.setItem('depcard',JSON.stringify({view:state.view,measure:state.measure,scope:state.scope}))}catch(e){}
+}
+[['view','#view'],['measure','#measure'],['scope','#scope']].forEach(([k,id])=>$(id).addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;state[k]=b.dataset.v;state.all=false;if(k==='measure')tsort.key=null;render()}));
+$('#zoom').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;state.zoom=+b.dataset.v;applyZoom(state.zoom);state.resetScroll=true;render()});
+$('#show').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;state.show=b.dataset.v;
+  if(state.show==='touched'&&!state.focus)state.focus=list().sort((a,b)=>b.files-a.files)[0].n;
+  applyZoom(state.zoom);state.resetScroll=true;render()});
+$('#finds').addEventListener('click',e=>{const b=e.target.closest('.sb');if(!b)return;
+  nextSort(fsort,fsort.key?fsort:{key:null,dir:'asc'},b.dataset.sort);renderFinds()});
+const stage=$('#stage');
+stage.addEventListener('click',e=>{
+  const sb=e.target.closest('.sb');
+  if(sb){const cur={key:tsort.key||state.measure,dir:tsort.key?tsort.dir:'desc'};nextSort(tsort,cur,sb.dataset.sort);render();return}
+  const row=e.target.closest('.fx');
+  if(row){const id=row.dataset.path,n=NODE.get(id);state.sel=id;if(n.dir){state.open.has(id)?state.open.delete(id):state.open.add(id)}state.refocus=true;render()}
+});
+/* searchable dependency picker (combobox + listbox) */
+const combo={open:false,q:'',idx:0,items:[]};
+const depInp=$('#depsel'),depList=$('#deplist');
+function depItems(){
+  const q=combo.q.trim().toLowerCase();
+  let items=[...list()].sort((a,b)=>a.n.localeCompare(b.n)).filter(d=>!q||d.n.toLowerCase().includes(q));
+  if(!q&&state.show!=='touched')items=[{n:'',all:1},...items];
+  return items;
+}
+function drawCombo(){
+  depList.hidden=!combo.open;depInp.setAttribute('aria-expanded',String(combo.open));
+  if(!combo.open){depInp.removeAttribute('aria-activedescendant');return}
+  combo.items=depItems();combo.idx=Math.max(0,Math.min(combo.idx,combo.items.length-1));
+  depList.innerHTML=combo.items.length?combo.items.map((d,i)=>d.all
+    ?`<li id="dopt${i}" role="option" data-v="" aria-selected="${i===combo.idx}"><span>All dependencies</span></li>`
+    :`<li id="dopt${i}" role="option" data-v="${d.n}" aria-selected="${i===combo.idx}" class="${d.n===state.focus?'cur':''}"><i class="dot" style="background:${cat(d)}"></i><span class="nm">${d.n}</span><span class="cnt">${d.files} files</span></li>`).join('')
+    :'<li class="none">No dependency matches</li>';
+  if(combo.items.length){depInp.setAttribute('aria-activedescendant','dopt'+combo.idx);
+    const li=depList.children[combo.idx];if(li){if(li.offsetTop<depList.scrollTop)depList.scrollTop=li.offsetTop-4;else if(li.offsetTop+li.offsetHeight>depList.scrollTop+depList.clientHeight)depList.scrollTop=li.offsetTop+li.offsetHeight-depList.clientHeight+4}}
+}
+function openCombo(){if(combo.open)return;combo.open=true;combo.q='';combo.items=depItems();
+  const k=combo.items.findIndex(d=>d.n===(state.focus||''));combo.idx=k<0?0:k;drawCombo();depInp.select()}
+function closeCombo(){combo.open=false;drawCombo();depInp.value=state.focus||''}
+function pickDep(v){closeCombo();if(!v){state.focus=null;render()}else if(v!==state.focus)focusDep(v)}
+function fillDepSel(){if(!combo.open)depInp.value=state.focus||'';depInp.placeholder=state.show==='touched'?'Search dependencies':'All dependencies'}
+depInp.addEventListener('focus',openCombo);
+depInp.addEventListener('click',openCombo);
+depInp.addEventListener('blur',closeCombo);
+depInp.addEventListener('input',()=>{combo.open=true;combo.q=depInp.value;combo.idx=0;drawCombo()});
+depInp.addEventListener('keydown',e=>{
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();if(!combo.open){openCombo();return}
+    const n=combo.items.length;if(n){combo.idx=(combo.idx+(e.key==='ArrowDown'?1:n-1))%n;drawCombo()}}
+  else if(e.key==='Enter'){if(combo.open&&combo.items[combo.idx]){e.preventDefault();pickDep(combo.items[combo.idx].n)}}
+  else if(e.key==='Escape'){if(combo.open){e.preventDefault();closeCombo()}}
+});
+depList.addEventListener('mousedown',e=>{e.preventDefault();const li=e.target.closest('li[role="option"]');if(li)pickDep(li.dataset.v)});
+function focusDep(n){
+  if(state.show==='touched'){if(state.focus===n)return;state.focus=n;applyZoom(state.zoom);state.resetScroll=true}
+  else state.focus=state.focus===n?null:n;
+  render();
+}
+stage.addEventListener('keydown',e=>{
+  const row=e.target.closest('.fx');if(!row)return;
+  const id=row.dataset.path,n=NODE.get(id),i=VIS.findIndex(v=>v.n.id===id),rowsEl=[...stage.querySelectorAll('.fx')];
+  const go=j=>{if(j<0||j>=rowsEl.length)return;row.tabIndex=-1;rowsEl[j].tabIndex=0;state.sel=VIS[j].n.id;rowsEl[j].focus()};
+  const toggle=open=>{if(open)state.open.add(id);else state.open.delete(id);state.sel=id;state.refocus=true;render()};
+  if(e.key==='ArrowDown'){e.preventDefault();go(i+1)}
+  else if(e.key==='ArrowUp'){e.preventDefault();go(i-1)}
+  else if(e.key==='ArrowRight'){e.preventDefault();if(n.dir&&!state.open.has(id))toggle(true);else if(n.dir)go(i+1)}
+  else if(e.key==='ArrowLeft'){e.preventDefault();if(n.dir&&state.open.has(id))toggle(false);else{for(let j=i-1;j>=0;j--)if(VIS[j].n.depth<n.depth){go(j);break}}}
+  else if((e.key==='Enter'||e.key===' ')&&n.dir){e.preventDefault();toggle(!state.open.has(id))}
+  else if(e.key==='Home'){e.preventDefault();go(0)}
+  else if(e.key==='End'){e.preventDefault();go(rowsEl.length-1)}
+});
+new ResizeObserver(()=>{if(state.view==='tree')layoutTree()}).observe(stage);
+
+/* ---------- tooltip + graph highlight ---------- */
+const tip=$('#tip');
+function depTip(d){
+  const mods=Object.entries(d.mods).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k} ${v}`).join(' · ');
+  return `<b>${d.n}</b> <span class="k">${d.v} · ${d.c} · ${d.s}</span>
+   <div class="row"><span class="k">Files importing</span><span class="num">${d.src} source · ${d.tst} test</span></div>
+   <div class="row"><span class="k">Modules</span><span class="num">${mods}</span></div>
+   <div class="row"><span class="k">Symbols used</span><span class="num">${d.sym}</span></div>
+   <div class="row"><span class="k">Pulls in</span><span class="num">${d.tr} packages</span></div>
+   <div class="row"><span class="k">Breadth · spread · depth</span><span class="num">${pct(d.b)} · ${pct(d.sp)} · ${pct(d.dp)}</span></div>`;
+}
+function tipFor(el){
+  const l=list(),by=n=>l.find(d=>d.n===n)||D.deps.find(d=>d.n===n);
+  if(el.dataset.path){const n=NODE.get(el.dataset.path),s=stat(n,INS);
+    const top=Object.entries(s.per).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    return `<b>${n.id}</b><div class="row"><span class="k">${n.dir?'Files':'File'}</span><span class="num">${s.nf}</span></div><div class="row"><span class="k">Imports</span><span class="num">${s.imp}</span></div>`+
+      top.map(([k,v])=>`<div class="row"><span class="k">${k}</span><span class="num">${v}${n.dir?' / '+s.nf:''}</span></div>`).join('')}
+  if(el.dataset.cell){const[mid,dn]=el.dataset.cell.split('|'),m=MODS.find(x=>x.id===mid),d=by(dn),n=d.mods[mid]||0;
+    return `<b>${dn}</b> in <b>${mid}</b><div class="row"><span class="k">Files importing</span><span class="num">${n} of ${m.files} (${pct(n/m.files)}%)</span></div>`}
+  if(el.dataset.dep){const d=by(el.dataset.dep);return d&&d.b!==undefined?depTip(d):null}
+  if(el.dataset.mod){const m=MODS.find(x=>x.id===el.dataset.mod);const t=D.deps.filter(d=>d.mods[m.id]).sort((a,b)=>b.mods[m.id]-a.mods[m.id]).slice(0,5);
+    return `<b>${m.id}</b> <span class="k">${m.files} files</span>`+t.map(d=>`<div class="row"><span class="k">${d.n}</span><span class="num">${d.mods[m.id]}</span></div>`).join('')}
+  return null;
+}
+function place(e){const pad=14,r=tip.getBoundingClientRect();let x=e.clientX+pad,y=e.clientY+pad;
+  if(x+r.width>innerWidth-8)x=e.clientX-r.width-pad;if(y+r.height>innerHeight-8)y=e.clientY-r.height-pad;
+  tip.style.left=Math.max(8,x)+'px';tip.style.top=Math.max(8,y)+'px'}
+stage.addEventListener('pointermove',e=>{
+  if(e.pointerType==='touch')return;
+  const el=e.target.closest('[data-cell],[data-dep],[data-mod],[data-path]');
+  if(!el){tip.style.display='none';clearHl();return}
+  const h=tipFor(el);if(!h){tip.style.display='none';return}
+  tip.innerHTML=h;tip.style.display='block';place(e);
+  const svg=e.target.closest('svg');if(svg&&state.view==='graph')hl(svg,el);
+});
+stage.addEventListener('pointerleave',()=>{tip.style.display='none';clearHl()});
+addEventListener('scroll',()=>{tip.style.display='none'},{passive:true,capture:true});
+function hl(svg,el){const m=el.dataset.mod||(el.dataset.cell&&el.dataset.cell.split('|')[0]),d=el.dataset.cell?el.dataset.cell.split('|')[1]:el.dataset.dep;
+  svg.classList.add('hl');svg.querySelectorAll('.ge').forEach(p=>p.classList.toggle('on',el.dataset.cell?(p.dataset.m===m&&p.dataset.d===d):(el.dataset.mod?p.dataset.m===m:p.dataset.d===d)))}
+function clearHl(){const s=stage.querySelector('svg.hl');if(s){s.classList.remove('hl');s.querySelectorAll('.on').forEach(p=>p.classList.remove('on'))}}
+
+renderBans();renderFinds();render();
+})();
+</script>

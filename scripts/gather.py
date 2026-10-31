@@ -349,7 +349,7 @@ def parse_manifest(path, text):
             out["ecosystem"] = "gradle"
             for m in re.finditer(r"\b(implementation|api|compileOnly|runtimeOnly|testImplementation|annotationProcessor|kapt)\s*[( ]\s*['\"]([^'\":]+:[^'\":]+)(?::([^'\"]+))?['\"]", text):
                 out["dependencies"].append(_dep(m.group(2), m.group(3) or "", m.group(1).startswith("test")))
-    except Exception as exc:  # a broken manifest must not stop profiling
+    except Exception as exc:  # a broken manifest must not stop the collection
         out["extra"]["parse_error"] = str(exc)[:200]
     out["dependency_count"] = len(out["dependencies"])
     out["dependencies"] = out["dependencies"][:300]
@@ -461,7 +461,7 @@ def plan_chunks(files, budget):
     return chunks
 
 
-# --------------------------------------------------------------------------- main profile
+# --------------------------------------------------------------------------- main collection
 
 
 
@@ -732,7 +732,7 @@ def fit_rows(rows, cap):
 
 
 def knowledge_scan(repo_path, sha, as_of, files, canon, display, ctype):
-    """The git-history half of the knowledge map. It needs no blame, so profile() runs it while the blame is still going."""
+    """The git-history half of the knowledge map. It needs no blame, so collect() runs it while the blame is still going."""
     paths = [f["path"] for f in files if f["lines"]]
     bad = attribute_excluded(repo_path, sha, paths)
     kept = [f for f in files if f["lines"] and f["path"] not in bad]
@@ -802,7 +802,7 @@ def knowledge_map(scan, blamed, sha, as_of, display, ctype):
             "files": rows, "trimmed": trimmed, "approx_files": approx, "attribute_excluded": len(bad)}
 
 
-def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None):
+def collect(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None):
     repo = Repo(repo_path)
     top = repo.git("rev-parse", "--show-toplevel").strip()
     repo = Repo(top)
@@ -816,7 +816,7 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
         branch = ref
     warnings = []
     if ref == "HEAD" and repo.git("status", "--porcelain", check=False).strip():
-        warnings.append("The working tree has uncommitted changes. This profile covers the committed state only.")
+        warnings.append("The working tree has uncommitted changes. This dossier covers the committed state only.")
     if repo.git("rev-parse", "--is-shallow-repository", check=False).strip() == "true":
         warnings.append("This is a shallow clone. History-based figures (commits, contributors, ownership) are incomplete.")
 
@@ -1142,7 +1142,7 @@ def profile(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
     # ---- dependencies
     try:
         dependencies = depscan.analyze(repo, entries, files)
-    except Exception as exc:    # the dependency card is optional: a failure here must not stop the profile
+    except Exception as exc:    # the dependency card is optional: a failure here must not stop the collection
         dependencies = {"error": f"{type(exc).__name__}: {exc}"[:300]}
 
     # ---- chunk plan

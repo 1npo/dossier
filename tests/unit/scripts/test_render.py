@@ -399,11 +399,11 @@ class TestCompact:
         assert [render.compact(n) for n in (999, 15_800, 2_500_000)] == ["999", "15.8k", "2.5M"]
 
 
-class TestProfilerFacts:
-    def test_every_fact_key_points_at_profiler_code(self):
+class TestGathererFacts:
+    def test_every_fact_key_points_at_gatherer_code(self):
         for key in render.FACT_INFO:
-            a, b = render.profiler_range(key)
-            assert 1 <= a < b <= len(render.profiler_source()), key
+            a, b = render.gatherer_range(key)
+            assert 1 <= a < b <= len(render.gatherer_source()), key
 
     def test_every_citable_fact_key_is_explained(self):
         assert set(render.FACT_KEYS) <= set(render.FACT_INFO)
@@ -413,10 +413,10 @@ class TestProfilerFacts:
         marker = refs.mark(["facts:git"])
         assert 'data-fact="git"' in marker and "data-view" not in marker
 
-    def test_fact_reference_offers_the_profiler_code(self, make_cites):
+    def test_fact_reference_offers_the_gatherer_code(self, make_cites):
         refs = render.Refs("overview", make_cites({}))
         refs.mark(["facts:git"])
-        assert f'data-view="{render.PROFILER_PATH}"' in refs.listing()
+        assert f'data-view="{render.GATHERER_PATH}"' in refs.listing()
 
 
 class TestReportLayout:

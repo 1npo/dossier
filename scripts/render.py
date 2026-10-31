@@ -51,11 +51,11 @@ FACT_KEYS["inventory"] = "facts-git"  # retired file-name inventory; old reports
 OPTIONAL_REPORTS = ("domain-logic",)  # reports added after v0.1: a dossier built before them still renders
 DIAGRAM_START = re.compile(r"^\s*(%%\{.*?\}%%\s*)?(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram(-v2)?|erDiagram|journey|gantt|pie|mindmap|timeline|gitGraph|quadrantChart|requirementDiagram|C4\w+|sankey-beta|xychart-beta|block-beta|architecture-beta)\b", re.S)
 INLINE_CITE = re.compile(r"\[\[(.+?)\]\]")
-PROFILER_PATH = "dossier-profiler/gather.py"   # the profiler's source, embedded in the code viewer under this name
-DEPS_PATH = "dossier-profiler/deps.py"         # likewise the dependency analysis, which the Dependencies card cites
-# What each "profiler facts: <key>" citation means: (what it is, how the profiler measured it, first line of its code, line that ends it)
+GATHERER_PATH = "dossier-gatherer/gather.py"   # the gatherer's source, embedded in the code viewer under this name
+DEPS_PATH = "dossier-gatherer/deps.py"         # likewise the dependency analysis, which the Dependencies card cites
+# What each "measured facts: <key>" citation means: (what it is, how the gatherer measured it, first line of its code, line that ends it)
 FACT_INFO = {
-    "git": ("Commit history", "Totals and timelines from the repository's commit history: commits, merges, first and last commit, commits per day and month, release tags, and who made them. Everything is counted by the profiler, not written by Claude.",
+    "git": ("Commit history", "Totals and timelines from the repository's commit history: commits, merges, first and last commit, commits per day and month, release tags, and who made them. Everything is counted by the gatherer, not written by Claude.",
             r"# ---- history pass", r"# ---- assemble contributor"),
     "languages": ("Languages", "How much of the code is written in each language, in non-blank lines. Files are classified by extension, and by content when the extension is ambiguous. Generated, vendored, lock and binary files are left out.",
                   r"# ---- languages", r"own = ownership\("),
@@ -69,18 +69,18 @@ FACT_INFO = {
                        r"^def sensitive_verdict\(", r"^def noise_reason\("),
     "contributors": ("Contributors", "Every author in the history, with identities merged when they share an email address or a full name, and classified as human, agent or bot from names, emails and commit-message markers. The classification is a heuristic.",
                      r"# ---- identities", r"# ---- history pass"),
-    "ownership": ("Code ownership", "Who wrote the lines that exist today. The profiler runs git blame on each file at the pinned commit and credits every surviving line to the author of its last change.",
+    "ownership": ("Code ownership", "Who wrote the lines that exist today. The gatherer runs git blame on each file at the pinned commit and credits every surviving line to the author of its last change.",
                   r"^def blame_file\(", r"^ACTIVITY_CAP"),
     "areas": ("Areas", "The directories the code is grouped into. Large directories are split one or two levels deeper. Each area gets its commit counts, authors and activity dates.",
               r"# -+ areas", r"# -+ chunk planning"),
     "file_activity": ("Files changed by each contributor", "For every commit, the files it touched and how many lines it added and deleted, totalled per contributor and per day. Merge commits add nothing, and bulk commits (imports, reformatting) and vendored, generated and lock files are left out.",
                       r"# ---- history pass", r"# ---- assemble contributor"),
     "knowledge": ("Contributor knowledge map", "Who knows which files, from three measures per file: the lines that survive at the pinned commit (git blame), the commits that touched it, and the commits that touched it in the year before the pinned commit's date. A renamed file keeps its earlier history. Bots are left out, as are bulk commits (imports, reformatting) and vendored, generated, lock and binary files. Whether someone has left is an inference from their last commit.",
-                  r"^# -+ knowledge map", r"^def profile\("),
+                  r"^# -+ knowledge map", r"^def collect\("),
     "dependencies": ("Dependencies", "The packages the repository declares in its manifests (Python, JavaScript and TypeScript, C#, shell) and the files that import them. Each import is matched to a declared package, so import names that differ from package names are mapped by a built-in table; the standard library and the repository's own code are not dependencies. Test files are told apart by path and file name. Versions and packages installed come from a lockfile when there is one. Categories come from a fixed list of known packages, and anything else is Other, which is an inference. Symbols used are counted from named imports and the members used on an imported name; for C# they are the distinct namespaces imported. Packages that only configure tools (linters, bundlers, test plugins) are not reported as unused.",
                      r"^def analyze\(", r'^            "deps": deps, "unused": unused', "deps"),
     "chunks": ("Reading coverage", "How the repository was divided up for reading: file sizes are estimated in tokens (bytes divided by 3.5) and packed into chunks that fit one context window.",
-               r"# -+ chunk planning", r"# -+ main profile"),
+               r"# -+ chunk planning", r"# -+ main collection"),
 }
 FACT_INFO["inventory"] = FACT_INFO["git"]
 E = lambda s: html.escape(str(s if s is not None else ""), quote=True)
@@ -95,7 +95,7 @@ def parse_cite(raw):
         return {"kind": "commit", "sha": sha, "key": f"commit:{sha}", "text": f"commit {sha[:10]}"}
     if raw.startswith("facts:"):
         k = raw[6:].strip()
-        return {"kind": "facts", "name": k, "key": f"facts:{k}", "text": f"profiler facts: {k}"}
+        return {"kind": "facts", "name": k, "key": f"facts:{k}", "text": f"measured facts: {k}"}
     m = re.match(r"^(.+?)(?::(\d+)(?:-(\d+))?)?$", re.sub(r"^(\./|/)+", "", raw))
     path, a, b = m.group(1), m.group(2), m.group(3)
     a, b = (int(a) if a else None), (int(b) if b else (int(a) if a else None))
@@ -104,22 +104,22 @@ def parse_cite(raw):
 
 
 @lru_cache(maxsize=None)
-def profiler_source(which="gather"):
+def gatherer_source(which="gather"):
     return viewer.split_lines(Path((depscan if which == "deps" else gather).__file__).read_bytes())
 
 
-def profiler_path(key):
-    """The name the code viewer knows the profiler code behind a fact by."""
-    return DEPS_PATH if len(FACT_INFO.get(key, ())) > 4 else PROFILER_PATH
+def gatherer_path(key):
+    """The name the code viewer knows the gatherer code behind a fact by."""
+    return DEPS_PATH if len(FACT_INFO.get(key, ())) > 4 else GATHERER_PATH
 
 
 @lru_cache(maxsize=None)
-def profiler_range(key):
-    """(first, last) line of the profiler code that measures a fact, or None."""
+def gatherer_range(key):
+    """(first, last) line of the gatherer code that measures a fact, or None."""
     info = FACT_INFO.get(key)
     if not info:
         return None
-    lines = profiler_source("deps" if len(info) > 4 else "gather")
+    lines = gatherer_source("deps" if len(info) > 4 else "gather")
     first = next((i for i, l in enumerate(lines) if re.search(info[2], l)), None)
     last = next((i for i in range((first or 0) + 1, len(lines)) if re.search(info[3], lines[i])), None)
     if first is None or last is None:
@@ -196,7 +196,7 @@ class Cites:
         return st
 
     def secret_paths(self):
-        """Files the profiler flagged as holding secrets."""
+        """Files the gatherer flagged as holding secrets."""
         if self._secret is None:
             s = self.facts.get("secret_signals") or {}
             files = [x["path"] if isinstance(x, dict) else x for x in s.get("sensitive_files", [])]
@@ -252,10 +252,10 @@ class Cites:
         a, b = viewer.clip(*r) if r else ("", "")
         return f' data-view="{E(c["path"])}" data-a="{a}" data-b="{b}"'
 
-    def profiler_view(self, c):
-        """Attributes that point a profiler-facts citation at the profiler code that measured it, or "" when that code cannot be found."""
-        rng = profiler_range(c["name"])
-        return f' data-view="{profiler_path(c["name"])}" data-a="{rng[0]}" data-b="{rng[1]}"' if rng else ""
+    def gatherer_view(self, c):
+        """Attributes that point a measured-facts citation at the gatherer code that measured it, or "" when that code cannot be found."""
+        rng = gatherer_range(c["name"])
+        return f' data-view="{gatherer_path(c["name"])}" data-a="{rng[0]}" data-b="{rng[1]}"' if rng else ""
 
     def view_counts(self):
         """How many distinct citations open the viewer and how many do not, and how many files were left out for size."""
@@ -330,7 +330,7 @@ class Refs:
             view = self.cites.view_attrs(c)
             fact = c["kind"] == "facts" and c["name"] in FACT_INFO
             if fact:
-                view = self.cites.profiler_view(c)
+                view = self.cites.gatherer_view(c)
             label = E(self.tip(c) if st["type"] == "tree" else c["text"])
             if not st["ok"]:
                 link = f'<span class="bad">{label}</span> <span class="muted">unresolved: {E(st["msg"])}</span>'
@@ -341,7 +341,7 @@ class Refs:
                 link = f'<a href="{E(url)}"{ext}>{label}</a>'
             else:
                 link = f'<code>git show {E(c["sha"][:10])}</code>'
-            kind = {"file": "file", "tree": "directory", "blob": "file", "commit": "commit", "facts": "measured by the profiler"}.get(st["type"], "")
+            kind = {"file": "file", "tree": "directory", "blob": "file", "commit": "commit", "facts": "measured by the gatherer"}.get(st["type"], "")
             btn = f' <button type="button" class="btn ref-btn" data-variant="outline" data-size="sm" data-open="{self.rid}-{i}">View code</button>' if view else ""
             if fact:
                 btn = f' <button type="button" class="btn ref-btn" data-variant="outline" data-size="sm" data-fact="{E(c["name"])}">What is this?</button>' + btn
@@ -842,7 +842,7 @@ def dependency_findings(d):
 def panel_dependencies(f, refs):
     d = f.get("dependencies")
     if d is None and "dependencies" not in f:
-        body = '<p class="muted">Dependencies were not recorded in this profile. Run prepare again to include them.</p>'
+        body = '<p class="muted">Dependencies were not recorded in this dossier. Run prepare again to include them.</p>'
     elif not d:
         body = '<p class="muted">No declared or imported dependencies were found in the languages this analysis reads (Python, JavaScript and TypeScript, C#, shell).</p>'
     elif d.get("error"):
@@ -1074,7 +1074,7 @@ def knowledge_card(f):
     """Who knows which files: a tree with an ownership bar per row. Every share is worked out in the browser (dossier.js) from the embedded per-file figures."""
     k = f.get("knowledge")
     if not k:
-        return '<p class="muted">The knowledge map was not recorded in this profile. Run prepare again to include it.</p>'
+        return '<p class="muted">The knowledge map was not recorded in this dossier. Run prepare again to include it.</p>'
     if not k["contributors"]:
         return '<p class="muted">No commits by people (as opposed to bots) touch the files in this repository, so there is nobody to map.</p>'
     cls = knowledge_palette(k, f)
@@ -1090,7 +1090,7 @@ def knowledge_card(f):
     notes = ""
     if k["approx_files"]:
         notes += alert(f'The line counts are estimates for {fmt(k["approx_files"])} of the {fmt(len(k["files"]) + k["trimmed"])} files, because git blame did not finish within its time limit. '
-                       'For those files the profiler used lines added minus lines deleted in each person\'s commits instead.', "Estimated line shares")
+                       'For those files the gatherer used lines added minus lines deleted in each person\'s commits instead.', "Estimated line shares")
     if k["trimmed"]:
         notes += alert(f'To keep the page small, {fmt(k["trimmed"])} of the smallest and least changed files are left out of this map.', "Some files are not shown")
     controls = '<div class="km-controls">' + km_group("metric", "Measure", KM_MEASURES) + km_group("view", "Show", KM_VIEWS) + km_group("zoom", "Zoom", KM_ZOOMS) + "</div>"
@@ -1132,7 +1132,7 @@ def panel_contributors(f, refs):
         top = ppl[:PALETTE]
         rest = commits_total - sum(p["commits"] for p in top)
         people_items = [(pal[p["id"]], p["name"], p["commits"], "") for p in top] + [("lang-8", "Everyone else", rest, "")]
-        who_bar = f'{share_bar(people_items, commits_total)}<p class="muted">Code ownership was not measured in this profile, so these bars show commits. Run prepare again to measure it.</p>'
+        who_bar = f'{share_bar(people_items, commits_total)}<p class="muted">Code ownership was not measured in this dossier, so these bars show commits. Run prepare again to measure it.</p>'
     names = {p["id"]: p["name"] for p in f["contributors"]["people"]}
     own = {p["id"]: p for p in (o or {}).get("people", [])}
     rows = []
@@ -1147,7 +1147,7 @@ def panel_contributors(f, refs):
                      (fmt(added), added), (fmt(deleted), deleted), (f"{added - deleted:+,}", added - deleted),
                      (fmt(round((added + deleted) / p["commits"])) if p["commits"] else "0", (added + deleted) / max(p["commits"], 1)),
                      fmt(p["active_months"]), (f"{p['commits'] / months:.1f}", p["commits"] / months), mix])
-    more = f'<p class="muted">{f["contributors"]["not_listed"]} more contributors are in the profiler data but not shown. The table shows the top 40.</p>' if f["contributors"]["not_listed"] or len(f["contributors"]["people"]) > 40 else ""
+    more = f'<p class="muted">{f["contributors"]["not_listed"]} more contributors are in the gatherer data but not shown. The table shows the top 40.</p>' if f["contributors"]["not_listed"] or len(f["contributors"]["people"]) > 40 else ""
     table = render_table(["Name", "Type", "Commits", "Code today" if o else "Code today (not measured)", "Active", "Last 12 months", "Agent-assisted",
                           "Lines added", "Lines deleted", "Net lines", "Lines changed per commit", "Active months", "Commits per active month", "Commits by type"],
                          rows, refs, "t-people", True, True)
@@ -1288,7 +1288,7 @@ def panel_dossier(facts, reports, state, ctx, refs):
                         ("Inferred", fmt(n["inferred"]), f"{100 * n['inferred'] / total:.0f}% reasoned from context"),
                         ("Unknown", fmt(n["unknown"]), f"{100 * n['unknown'] / total:.0f}% not found"),
                         ("Citations", fmt(len(st)), f"{sum(1 for v in st.values() if not v['ok'])} unresolved"),
-                        ("Files analyzed / not counted", f"{fmt(c['files'])} / {fmt(skipped)}", "excluded by the profiler: generated, vendored, lock and binary files" if skipped else "nothing was left out"),
+                        ("Files analyzed / not counted", f"{fmt(c['files'])} / {fmt(skipped)}", "excluded by the gatherer: generated, vendored, lock and binary files" if skipped else "nothing was left out"),
                         ("Reading mode / chunks", f"{c['mode'].capitalize()} / {fmt(c['chunk_count'])}", "read in one pass" if c["mode"] == "single" else f"each holds up to {fmt(c['budget'])} tokens"),
                         ("Size", f"~{compact(c['total_tokens'])} tokens", "file bytes divided by 3.5")])
     this = fact_box("Build", [("Built", E(ctx["built"])), ("Skill version", "dossier " + E(ctx["version"]))])
@@ -1359,7 +1359,7 @@ def build_page(rid, reports, facts, state, ctx):
         parts.append(panel_history(ctx["history"], refs))
     elif rid == "corrections":
         headline = "Everything the user has corrected, and whether the correction has been applied."
-        summary_html = "<p>Corrections from the user always win over what the profiler or Claude inferred. They are applied on every later build.</p>"
+        summary_html = "<p>Corrections from the user always win over what the gatherer or Claude inferred. They are applied on every later build.</p>"
         parts.append(panel_corrections(state, refs, {g["id"] for g in ctx["gaps"] if g.get("id")}))
     else:
         headline = rep.get("headline", "This report has not been written yet.")
@@ -1440,9 +1440,9 @@ def render_html(facts, reports, state, history, version, cites):
         print(f"warning: {len(dropped)} cited file(s) are not embedded in the code viewer, to keep the page small: {', '.join(dropped[:5])}{' ...' if len(dropped) > 5 else ''}")
     files = {p: {"lines": cites.source(p)[0]} for p in cites.windows}
     windows = dict(cites.windows)
-    for which, path in (("gather", PROFILER_PATH), ("deps", DEPS_PATH)):      # the profiler's own code, so a "profiler facts" citation can show how its numbers were measured
-        src = profiler_source(which)
-        files[path], windows[path] = {"lines": src}, viewer.pick_window(src, [profiler_range(k) for k in FACT_INFO if profiler_path(k) == path])
+    for which, path in (("gather", GATHERER_PATH), ("deps", DEPS_PATH)):      # the gatherer's own code, so a "measured facts" citation can show how its numbers were measured
+        src = gatherer_source(which)
+        files[path], windows[path] = {"lines": src}, viewer.pick_window(src, [gatherer_range(k) for k in FACT_INFO if gatherer_path(k) == path])
     jsn = lambda d: json.dumps(d, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/").replace("<!--", "<\\u0021--")
     numbered = {rid: i for i, (rid, _, _) in enumerate(REPORTS, 1)}
     groups = "".join(

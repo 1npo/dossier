@@ -1,6 +1,6 @@
 ---
 name: dossier
-description: Build a cited HTML dossier that explains a git repository (capabilities, architecture, data model, code tour, delivery, risks, contributors). Use for /dossier home, /dossier build, /dossier version, /dossier correct, /dossier confirm.
+description: "Build a cited, commit-pinned HTML dossier that explains a git repository: a codebase intelligence report generator that combines measured repository facts, architecture reconstruction, and confidence-labeled analysis (capabilities, architecture, data model, code tour, delivery, risks, contributors). Use for /dossier home, /dossier build, /dossier version, /dossier correct, /dossier confirm."
 argument-hint: home [dir] | build [repo-path] [--ref branch-or-sha] [--full] | version | correct ... | confirm [ids] [--answer|--wrong|--note ...]
 disable-model-invocation: true
 allowed-tools: Bash(uv run *), Read, Grep, Glob, Write, Agent
@@ -8,7 +8,7 @@ allowed-tools: Bash(uv run *), Read, Grep, Glob, Write, Agent
 
 # dossier
 
-Builds a codebase dossier: a single self-contained HTML file of short, cited reports that give a lead engineer a working mental model of a repository at one pinned commit.
+Builds a codebase intelligence dossier: a single self-contained HTML file of short, cited reports that give a lead engineer a working mental model of a repository at one pinned commit.
 
 Python does the counting and the drawing. You do the reading and the writing. Never count what `facts.json` already counts, and never write HTML.
 

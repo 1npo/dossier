@@ -7,7 +7,7 @@
 
   dossier.py version
   dossier.py home [DIR]
-  dossier.py prepare [REPO] [--ref REF] [--chunk-tokens N] [--full]   profile the repo, write facts, a reading plan and an update plan
+  dossier.py prepare [REPO] [--ref REF] [--chunk-tokens N] [--full]   measure the repo, write facts, a reading plan and an update plan
   dossier.py render  [REPO] [--partial] [--allow-errors]      validate the reports and write the HTML
   dossier.py correct [REPO] ...                               record a user correction
   dossier.py confirm [REPO] [IDS] ...                         list open items, or confirm / answer / dispute them
@@ -192,7 +192,7 @@ def cmd_prepare(a):
     state = load_state(out)
     prev_version = state.get("skill_version")
     state["repo"] = {"name": name, "root_commit": root}
-    facts, chunks = gather.profile(top, a.ref, a.chunk_tokens, state.get("contributor_types"))
+    facts, chunks = gather.collect(top, a.ref, a.chunk_tokens, state.get("contributor_types"))
     sha = facts["repo"]["sha"]
     if state.get("last_sha") and state["last_sha"] != sha:
         facts["delta"] = gather.delta(top, state["last_sha"], sha, state.get("snapshot"), facts)
