@@ -299,11 +299,11 @@ class TestCommitCalendar:
 
     DAILY = {"2026-01-05": {"a": 1}, "2026-03-09": {"a": 2, "b": 1}}
 
-    def test_calendar_has_three_zoom_levels_and_starts_on_days(self):
+    def test_calendar_has_two_zoom_levels_and_starts_on_days(self):
         html = render.calendar_html(self.facts(self.DAILY), {"a": "A", "b": "B"}, self.PAL)
-        assert html.count("data-zoom-level=") == 3
+        assert html.count("data-zoom-level=") == 2
         assert 'data-zoom-start="1"' in html
-        assert 'data-zoom-level="0" hidden' in html and 'data-zoom-level="1">' in html and 'data-zoom-level="2" hidden' in html
+        assert 'data-zoom-level="0" hidden' in html and 'data-zoom-level="1">' in html
 
     def test_legend_and_zoom_buttons_come_after_the_calendar(self):
         html = render.calendar_html(self.facts(self.DAILY), {"a": "A", "b": "B"}, self.PAL)
@@ -311,7 +311,7 @@ class TestCommitCalendar:
 
     def test_day_view_boxes_each_week(self):
         html = render.calendar_html(self.facts(self.DAILY), {"a": "A"}, self.PAL)
-        level1 = html.split('data-zoom-level="1">')[1].split('data-zoom-level="2"')[0]
+        level1 = html.split('data-zoom-level="1">')[1].split('class="llegend"')[0]
         assert level1.count('<div class="wk">') in (53, 54)
         assert all(w.count("<span class=\"cc") == 7 for w in level1.split('<div class="wk">')[1:])
 

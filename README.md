@@ -60,7 +60,7 @@ Very large trees show only the rows near the viewport, so the page stays respons
 
 ## Calendars
 
-The commit calendars (on Overview and Contributors) open on days and zoom to months or to the last twelve months as month calendars. Each week is boxed. Hover a cell to see who committed that day or month, how many commits, and the lines added (green) and deleted (red), lined up in columns. Calendar data older than this version has no line counts until you run `prepare` again.
+The commit calendars (on Overview and Contributors) open on days and zoom out to months. Each week is boxed. Hover a cell to see who committed that day or month, how many commits, and the lines added (green) and deleted (red), lined up in columns. Calendar data older than this version has no line counts until you run `prepare` again.
 
 ## Install
 

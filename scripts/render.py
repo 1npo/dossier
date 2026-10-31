@@ -869,7 +869,7 @@ def dependencies_card(d, refs):
         ("Runtime, used only in tests", test_only, "", f"dp-warn {zero(test_only)}"),
     ])
     rows = dependency_findings(d)
-    finds = (render_table(["Package", "Scope", "Finding", "Detail"], rows, refs, "t-dep-findings", False, True)
+    finds = (render_table(["Package", "Scope", "Finding", "Detail"], rows, refs, "t-dep-findings", True, True)
              if rows else '<p class="muted">No findings: every declared package is imported or used through configuration, and every import is declared.</p>')
     notes = ""
     if d.get("trimmed"):
@@ -879,9 +879,8 @@ def dependencies_card(d, refs):
                 + '<div class="dp-ctl" id="dp-dep-ctl" hidden><label class="dp-lbl" for="dp-depsel">Dependency</label><div class="dp-combo">'
                   '<input id="dp-depsel" class="input dp-dsel" type="text" role="combobox" aria-expanded="false" aria-controls="dp-deplist" aria-autocomplete="list" autocomplete="off" spellcheck="false" placeholder="All dependencies">'
                   '<ul id="dp-deplist" class="dp-deplist" role="listbox" aria-label="Dependencies" hidden></ul></div></div></div>')
-    foot = '<div class="dp-foot"><span><i class="dp-sw"></i>source files</span><span><i class="dp-sw t"></i>test files</span></div>'
     jsn = json.dumps(d, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c")
-    return (f'<div class="dp" id="dp-root">{notes}{tiles}{controls}<div id="dp-stage"></div>{foot}<div class="dp-finds">{finds}</div></div>'
+    return (f'<div class="dp" id="dp-root">{notes}{tiles}{controls}<div id="dp-stage"></div><div class="dp-finds">{finds}</div></div>'
             f'<script type="application/json" id="dp-data">{jsn}</script>')
 
 
@@ -929,7 +928,7 @@ def share_bar(items, total):
 
 
 # ---- commit calendar: colour is who made the commits, strength is how many, and the zoom buttons change the granularity
-ZOOMS = ("Months", "Days", "Calendar")
+ZOOMS = ("Months", "Days")
 START_ZOOM = 1   # the page opens on days
 MIX = (0, 35, 55, 78, 100)  # percent of the person's colour at each level, the rest is the muted background
 
@@ -1019,18 +1018,7 @@ def calendar_html(g, names, pal, tags=()):
             wk, n_weeks = wk + timedelta(days=7), n_weeks + 1
         blocks += f'<div class="yr"><b class="hy">{y}</b><div class="weeks" style="--cols:{n_weeks}">{weeks}</div></div>'
     lvl1 = f'<div class="year-scroll">{blocks}</div>'
-    # level 2: the last twelve months as month calendars, one boxed row per week
-    cur, mcal = (end.replace(day=1) - timedelta(days=335)).replace(day=1), ""
-    while cur <= end:
-        nxt = (cur.replace(day=28) + timedelta(days=4)).replace(day=1)
-        wk, weeks = cur - timedelta(days=cur.weekday()), ""
-        while wk < nxt:
-            weeks += '<div class="wk">' + "".join(cell(d) if cur <= d < nxt else blank for d in (wk + timedelta(days=i) for i in range(7))) + "</div>"
-            wk += timedelta(days=7)
-        mcal += f'<div class="mcal"><b>{cur.strftime("%b %Y")}</b><div class="days">{weeks}</div></div>'
-        cur = nxt
-    lvl2 = f'<div class="month-cals">{mcal}</div>'
-    levels = "".join(f'<div class="zoom-lvl" data-zoom-level="{i}"{"" if i == START_ZOOM else " hidden"}>{html_}</div>' for i, html_ in enumerate((lvl0, lvl1, lvl2)))
+    levels = "".join(f'<div class="zoom-lvl" data-zoom-level="{i}"{"" if i == START_ZOOM else " hidden"}>{html_}</div>' for i, html_ in enumerate((lvl0, lvl1)))
     bar = ('<div class="zoom-bar"><span class="muted">Zoom</span>'
            f'<button type="button" class="btn" data-variant="outline" data-size="sm" data-zoom="-1" aria-label="Zoom out: fewer, larger periods" title="Zoom out"{" disabled" if START_ZOOM == 0 else ""}>&minus;</button>'
            f'<button type="button" class="btn" data-variant="outline" data-size="sm" data-zoom="1" aria-label="Zoom in: one cell per day" title="Zoom in"{" disabled" if START_ZOOM == len(ZOOMS) - 1 else ""}>+</button>'
@@ -1139,22 +1127,18 @@ def panel_contributors(f, refs):
         lines = own.get(p["id"])
         who = f'<b class="own-dot {pal.get(p["id"], "own-other")}"></b>{E(p["name"])}'
         code = (f'{fmt(lines["lines"])} <span class="meter"><i class="{pal.get(p["id"], "own-other")}" style="width:{max(lines["share_pct"], 0.4):.1f}%"></i></span> {lines["share_pct"]}%', lines["lines"]) if lines else ("0" if o else "·", 0)
-        added, deleted, months = p["added"], p["deleted"], max(p["active_months"], 1)
-        mix = " · ".join(f"{v} {k}" for k, v in p["commits_by_type"].items() if v)
+        added, deleted = p["added"], p["deleted"]
         rows.append([who, type_badge(p["type"]), (f'{fmt(p["commits"])} ({p["share_pct"]}%)', p["commits"]),
                      code, f'{p["first"]} to {p["last"]}', fmt(p["recent_commits_12m"]), fmt(p["assisted_commits"]),
-                     (fmt(added), added), (fmt(deleted), deleted), (f"{added - deleted:+,}", added - deleted),
-                     (fmt(round((added + deleted) / p["commits"])) if p["commits"] else "0", (added + deleted) / max(p["commits"], 1)),
-                     fmt(p["active_months"]), (f"{p['commits'] / months:.1f}", p["commits"] / months), mix])
+                     (fmt(added), added), (fmt(deleted), deleted), (f"{added - deleted:+,}", added - deleted)])
     more = f'<p class="muted">{f["contributors"]["not_listed"]} more contributors are in the gatherer data but not shown. The table shows the top 40.</p>' if f["contributors"]["not_listed"] or len(f["contributors"]["people"]) > 40 else ""
     table = render_table(["Name", "Type", "Commits", "Code today" if o else "Code today (not measured)", "Active", "Last 12 months", "Agent-assisted",
-                          "Lines added", "Lines deleted", "Net lines", "Lines changed per commit", "Active months", "Commits per active month", "Commits by type"],
+                          "Lines added", "Lines deleted", "Net lines"],
                          rows, refs, "t-people", True, True)
-    when = "<h3>Who committed and when</h3>" + calendar_html(g, names, pal, g.get("tags") or [])
-    know = ("<h3>Contributor knowledge map</h3>"
-            '<p class="muted">Which parts of the repository each person knows best, based on surviving lines, commit history and recent activity.</p>'
+    when = calendar_html(g, names, pal, g.get("tags") or [])
+    know = ('<p class="muted">Which parts of the repository each person knows best, based on surviving lines, commit history and recent activity.</p>'
             + knowledge_card(f, table + more))
-    return card("Contributors", tiles + assisted + when + who_bar + know,
+    return card("Contributors", tiles + assisted + when + f'<div class="who-bar">{who_bar}</div>' + know,
                 "facts-contributors", None, refs, ["facts:contributors", "facts:git", "facts:knowledge"] + (["facts:ownership"] if o else []))
 
 
