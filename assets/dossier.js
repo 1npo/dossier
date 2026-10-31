@@ -493,7 +493,7 @@
       return { i: b, s: s };
     }
 
-    var state = { metric: "lines", focus: null, zoom: 2, view: "full", open: Object.create(null) };
+    var state = { metric: "lines", focus: null, zoom: 99, view: "full", open: Object.create(null) };
     var VIS = [], focusId = null, win = { a: 0, b: 0 };
     function openForZoom(z) { state.open = Object.create(null); Object.keys(MAP).forEach(function (id) { if (MAP[id].type === "dir" && MAP[id].depth < z) state.open[id] = true; }); }
     function openAll() { Object.keys(MAP).forEach(function (id) { if (MAP[id].type === "dir") state.open[id] = true; }); }
@@ -753,7 +753,7 @@
     var MEAS = { breadth: "Breadth", spread: "Spread", depth: "Depth" };
     var HAS_TR = DEPS.some(function (d) { return d.tr != null; });
     var stage = $("#dp-stage", rootEl);
-    var state = { view: "files", measure: "breadth", scope: "all", all: false, zoom: 3, show: "all", focus: null, open: Object.create(null), sel: null };
+    var state = { view: "files", measure: "breadth", scope: "all", all: false, zoom: 99, show: "all", focus: null, open: Object.create(null), sel: null };
     try {
       var sv = JSON.parse(localStorage.getItem(STORE) || "{}");
       if (MEAS[sv.measure]) state.measure = sv.measure;

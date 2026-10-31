@@ -344,7 +344,7 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 
 .km-tree { display: grid; grid-template-columns: minmax(0, 1fr) 68px; height: 468px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--card); }
 .km-scroller { position: relative; overflow: auto; scrollbar-gutter: stable; }
-.km-thead, .km-row { display: grid; grid-template-columns: minmax(0, 1fr) 220px 150px; align-items: center; gap: .75rem; padding: 0 .75rem 0 .5rem; }
+.km-thead, .km-row { display: grid; grid-template-columns: minmax(0, 18rem) minmax(120px, 1fr) 150px; align-items: center; gap: .75rem; padding: 0 .75rem 0 .5rem; }
 .km-thead { position: sticky; top: 0; z-index: 2; height: 30px; background: var(--card); border-bottom: 1px solid var(--border); font-size: .6875rem; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: .06em; }
 .km-rows { position: relative; }
 .km-row { position: absolute; left: 0; right: 0; height: var(--km-rh); cursor: default; }
@@ -464,7 +464,7 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 /* by file */
 .dp-tree { display: grid; grid-template-columns: minmax(0, 1fr) 68px; height: 468px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--card); }
 .dp-scroller { position: relative; overflow: auto; scrollbar-gutter: stable; } .dp-scroller:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
-.dp-thead, .dp-row { display: grid; grid-template-columns: minmax(0, 1fr) 220px 150px; align-items: center; gap: .75rem; padding: 0 .75rem 0 .5rem; min-width: 36rem; }
+.dp-thead, .dp-row { display: grid; grid-template-columns: minmax(0, 18rem) minmax(120px, 1fr) 150px; align-items: center; gap: .75rem; padding: 0 .75rem 0 .5rem; min-width: 36rem; }
 .dp-thead { position: sticky; top: 0; z-index: 2; height: 30px; background: var(--card); border-bottom: 1px solid var(--border); font-size: .6875rem; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: .06em; }
 .dp-rows { position: relative; min-width: 36rem; }
 .dp-row { position: absolute; left: 0; right: 0; height: 28px; font-size: .75rem; cursor: default; } .dp-row:hover { background: var(--accent); }
@@ -490,7 +490,7 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 
 /* contributors: space between the calendar and the ownership bar */
 .who-bar { margin-top: 1.5rem; }
-/* the contributor table and the dependency tables share the look of the By file tree: a bordered box, small capital headings, compact rows */
+/* the contributor table and the dependency tables share the look of the Files tree: a bordered box, small capital headings, compact rows */
 .table-container:has(> #t-people), .table-container:has(> .dp-rank), .dp-finds .table-container { border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); }
 :is(#t-people, .dp-rank, .dp-finds .table) thead th { height: 30px; padding-top: 0; padding-bottom: 0; font-size: .6875rem; font-weight: 400; text-transform: uppercase; letter-spacing: .06em; vertical-align: middle; }
 :is(#t-people, .dp-rank, .dp-finds .table) tbody td { padding-top: .3rem; padding-bottom: .3rem; font-size: .75rem; vertical-align: middle; }
