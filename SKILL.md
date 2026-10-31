@@ -48,7 +48,7 @@ The repository defaults to the current directory. The ref defaults to the checke
 8. **Finish.** Tell the user the path of the HTML file, that it embeds the source of the files it cites (so it should be shared no more widely than the code), and, in a few plain sentences, the headline findings: what the project is, the top risks, and the number of unknowns and inferences. Do not list every step you took.
 
 ### `/dossier confirm`
-For giving the dossier your answers on its open items: inferences, unknowns, assumptions and coverage notes. Every open item has an ID (G001, G002, …) shown in the page's Tracker and beside the statement itself. The ID stays the same across rebuilds.
+For giving the dossier your answers on its open items: inferences, unknowns, assumptions and coverage notes. Every open item has an ID (G001, G002, …) shown in the page's Gap tracker and beside the statement itself. The ID stays the same across rebuilds.
 
 - List what is open: `DOSSIER confirm <repo>` (add `--kind unknown|inference|assumption|coverage`, `--report <id>`, `--all` to include decided ones, `--json` for machine-readable output). Show the user the list in plain words, grouped by report, when they have not named IDs.
 - Confirm an inference or assumption: `DOSSIER confirm <repo> --ids G006 G007 --note "why it is right"`.

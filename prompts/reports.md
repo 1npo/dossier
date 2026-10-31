@@ -93,7 +93,7 @@ Anything you cannot see (for example cloud settings outside the repo) is `unknow
 
 A register of everything risky or doubtful. Give the table block the heading `Tracker`. Use one or more tables with exactly these columns: `ID`, `Risk`, `Category`, `Severity`, `Impact`, `Recommendation`. IDs are R1, R2, and so on. Order by severity; the page counts Critical and High rows and highlights those tiles. Severity is Critical, High, Medium, Low or Info. Categories include security, reliability, data, performance, maintainability, testing, dependencies, delivery, knowledge concentration, compliance.
 
-Rules: every row has citations. A row based on inference is `inferred` with a note, and still goes in the register. Order by severity. Include risks from the scan in `facts.json` (secrets, unpinned or abandoned dependencies, no tests for important areas, single-person areas from `facts:areas`, very large or very hot files). Do not pad with generic advice. Summary: the top three risks in plain words and the overall picture.
+Rules: every row has citations. A row based on inference is `inferred` with a note, and still goes in the register. Order by severity. Include risks from the scan in `facts.json` (secrets, unpinned or abandoned dependencies, no tests for important areas, single-person areas from `facts:areas`, very large or very hot files). Do not pad with generic advice, and do not add a "How to read this register" text block: put anything the reader needs to know in the summary. Summary: the top three risks in plain words and the overall picture.
 
 ## contributors
 
