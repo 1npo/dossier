@@ -435,10 +435,8 @@
     var people = D.contributors.slice(), nOwn = people.length;
     if (D.others) people.push(D.others);
     var K = people.length, FORMULA = {
-      blend: "Familiarity blends surviving lines (50%), commits (30%) and commits in the last 12 months (20%).",
       lines: "Share of lines still attributed to each contributor by git blame.",
-      commits: "Share of commits that touched each path.",
-      recent: "Share of commits that touched each path in the 12 months before HEAD’s commit date. People with no commits in that window score zero." };
+      commits: "Share of commits that touched each path." };
     var scroller = $("#km-scroller"), rowsEl = $("#km-rows"), chipsEl = $("#km-chips"), cv = $("#km-mini");
     var fmt = function (n) { return n.toLocaleString("en-US"); };
     var color = function (i) { return "var(--l" + people[i].cls + ")"; };
@@ -479,24 +477,14 @@
     }
     TOP.forEach(roll); TOP.sort(cmp);
 
-    // familiarity shares for a path under the chosen measure; a component whose total is zero is dropped and the blend renormalised
+    // familiarity shares for a path under the chosen measure
     function norm(a) {
       var t = 0, i;
       for (i = 0; i < a.length; i++) t += a[i];
       return t ? a.map(function (x) { return x / t; }) : null;
     }
     function shares(n, metric) {
-      if (n.sh[metric]) return n.sh[metric];
-      var r = null, parts, tw = 0;
-      if (metric === "lines") r = norm(n.L);
-      else if (metric === "commits") r = norm(n.C);
-      else if (metric === "recent") r = norm(n.R);
-      else {
-        parts = [[norm(n.L), 0.5], [norm(n.C), 0.3], [norm(n.R), 0.2]].filter(function (p) { return p[0]; });
-        parts.forEach(function (p) { tw += p[1]; });
-        if (parts.length) { r = zeros(); parts.forEach(function (p) { p[0].forEach(function (x, i) { r[i] += x * p[1] / tw; }); }); }
-      }
-      n.sh[metric] = r || zeros();
+      if (!n.sh[metric]) n.sh[metric] = norm(metric === "commits" ? n.C : n.L) || zeros();
       return n.sh[metric];
     }
     function topOf(sh) {
@@ -505,7 +493,7 @@
       return { i: b, s: s };
     }
 
-    var state = { metric: "blend", focus: null, zoom: 2, view: "full", open: Object.create(null) };
+    var state = { metric: "lines", focus: null, zoom: 2, view: "full", open: Object.create(null) };
     var VIS = [], focusId = null, win = { a: 0, b: 0 };
     function openForZoom(z) { state.open = Object.create(null); Object.keys(MAP).forEach(function (id) { if (MAP[id].type === "dir" && MAP[id].depth < z) state.open[id] = true; }); }
     function openAll() { Object.keys(MAP).forEach(function (id) { if (MAP[id].type === "dir") state.open[id] = true; }); }
@@ -540,7 +528,7 @@
         for (i = 0; i < K; i++) if (sh[i] >= 0.03) bar += '<i class="' + (people[i].departed ? "g" : "") + '" style="flex:' + (sh[i] * 100).toFixed(2) + ' 1 0;background-color:' + color(i) + '"></i>';
         bar += "</div>";
         t = topOf(sh);
-        if (t.i < 0) top = '<span class="km-none">' + (state.metric === "recent" ? "no recent activity" : "no activity") + "</span>";
+        if (t.i < 0) top = '<span class="km-none">' + "no activity" + "</span>";
         else {
           top = '<span class="km-dot" style="background:' + color(t.i) + '"></span><span class="km-tn">' + esc(people[t.i].short) + '</span><span class="km-pct">' + Math.round(t.s * 100) + "%</span>";
           if (isDir && people[t.i].departed && t.s >= 0.5) top += '<span class="badge basis-inferred" data-variant="outline">at risk</span>';
