@@ -132,3 +132,9 @@ class TestApplyShifts:
         assert out["blocks"][0]["cite"] == ["a.py:14-24"]
         assert out["blocks"][1]["mermaid"] == "flowchart LR\n a[[a.py:10-20]]"
         assert out["blocks"][1]["cite"] == ["a.py:14-24"]
+
+
+def test_cites_in_finds_paths_inside_cards():
+    node = {"cards": [{"card": "x", "na": "none", "cite": ["a.py:1"]},
+                      {"card": "y", "entries": [{"component": "c", "fields": {"purpose": "see [[b.py:2]]"}, "cite": ["c.py"]}]}]}
+    assert set(incremental.cites_in(node)) == {"a.py:1", "b.py:2", "c.py"}

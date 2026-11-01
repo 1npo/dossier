@@ -20,6 +20,7 @@ from urllib.parse import quote
 
 import deps as depscan
 import gather
+import schema
 import viewer
 from gather import Repo
 
@@ -48,7 +49,8 @@ FACT_KEYS["areas"] = "facts-contributors"   # the areas are no longer drawn on t
 FACT_KEYS["hot_files"] = FACT_KEYS["manifests"] = "facts-git"   # their cards were retired; the figures still back statements about the repository
 FACT_KEYS["chunks"] = "dossier-build"
 FACT_KEYS["inventory"] = "facts-git"  # retired file-name inventory; old reports may still cite it
-OPTIONAL_REPORTS = ("domain-logic",)  # reports added after v0.1: a dossier built before them still renders
+OPTIONAL_REPORTS = ()  # reports added after an earlier version: a dossier built before them still renders
+UNRENDERED_BLOCKS = ("overview",)  # overview.json's written blocks are no longer drawn; do not count what is not shown
 DIAGRAM_START = re.compile(r"^\s*(%%\{.*?\}%%\s*)?(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram(-v2)?|erDiagram|journey|gantt|pie|mindmap|timeline|gitGraph|quadrantChart|requirementDiagram|C4\w+|sankey-beta|xychart-beta|block-beta|architecture-beta)\b", re.S)
 INLINE_CITE = re.compile(r"\[\[(.+?)\]\]")
 GATHERER_PATH = "dossier-gatherer/gather.py"   # the gatherer's source, embedded in the code viewer under this name
@@ -502,23 +504,89 @@ def claim(report, where, node, text, cells=None):
             "text": text, "node": node}
 
 
-def claims_of(rid, rep):
+def claims_of_blocks(rid, blocks, where=None):
     out = []
-    for b in rep.get("blocks", []):
-        where = b.get("heading") or ""
+    for b in blocks:
+        if not isinstance(b, dict):
+            continue
+        w = where if where is not None else (b.get("heading") or "")
         t = b.get("type")
         if t == "text":
-            out.append(claim(rid, where, b, b.get("text", "")))
+            out.append(claim(rid, w, b, b.get("text", "")))
         elif t == "diagram":
-            out.append(claim(rid, where, b, b.get("title") or where or "Diagram"))
+            out.append(claim(rid, w, b, b.get("title") or w or "Diagram"))
         elif t == "list":
-            out += [claim(rid, where, it, it.get("text", "")) for it in b.get("items", []) if isinstance(it, dict)]
+            out += [claim(rid, w, it, it.get("text", "")) for it in b.get("items", []) if isinstance(it, dict)]
         elif t == "table":
             for r in b.get("rows", []):
                 if isinstance(r, dict):
                     cells = [str(c) for c in r.get("cells", [])]
-                    out.append(claim(rid, where, r, " · ".join(cells[:2]), cells))
+                    out.append(claim(rid, w, r, " · ".join(cells[:2]), cells))
     return out
+
+
+def claims_of(rid, rep):
+    if rid in UNRENDERED_BLOCKS:
+        return []
+    if isinstance(rep.get("cards"), list):
+        sch = schema.load(rid) or {}
+        titles = {c["id"]: c["title"] for c in sch.get("cards", [])}
+        out = []
+        for entry in rep["cards"]:
+            if not isinstance(entry, dict):
+                continue
+            where = titles.get(entry.get("card"), str(entry.get("card") or ""))
+            if isinstance(entry.get("blocks"), list):
+                out += claims_of_blocks(rid, entry["blocks"], where=where)
+            elif isinstance(entry.get("entries"), list):
+                for e in entry["entries"]:
+                    if not isinstance(e, dict) or not isinstance(e.get("fields"), dict):
+                        continue
+                    vals = [str(v) for v in e["fields"].values()]
+                    name = next((str(v) for k, v in e.items() if k not in ("fields", "conf", "cite", "note", "user", "id") and isinstance(v, str)), "")
+                    out.append(claim(rid, where, e, f"{name} · {vals[0] if vals else ''}", vals))
+            elif isinstance(entry.get("na"), str):
+                out.append(claim(rid, where, {"conf": "confirmed", "cite": entry.get("cite")}, entry["na"]))
+        return out
+    return claims_of_blocks(rid, rep.get("blocks", []))
+
+
+def summary_text(rep):
+    """The executive summary as '- ' lines: a string is returned as is, a list of strings is joined."""
+    s = rep.get("summary")
+    if isinstance(s, list):
+        return "\n".join("- " + str(x) for x in s)
+    return str(s or "")
+
+
+def all_blocks(rep):
+    if isinstance(rep.get("cards"), list):
+        return [b for c in rep["cards"] if isinstance(c, dict) for b in c.get("blocks", []) if isinstance(b, dict)]
+    return [b for b in rep.get("blocks", []) if isinstance(b, dict)]
+
+
+def check_block(tag, b, rid, errors, warnings, schema_card=False):
+    if b.get("type") in BLOCKS and not schema_card and not str(b.get("heading") or "").strip():
+        warnings.append(f"{tag}: add a 'heading'. The contents list names each card by it (the page will call this one '{block_title(b)}').")
+    if b.get("type") not in BLOCKS:
+        errors.append(f"{tag}: 'type' must be one of {', '.join(BLOCKS)}.")
+    elif b["type"] == "table":
+        cols = b.get("columns")
+        if not isinstance(cols, list) or not cols:
+            errors.append(f"{tag}: a table needs 'columns'.")
+            return
+        if rid == "risks":
+            missing = [c for c in RISK_COLUMNS if c not in cols]
+            if missing and any(c in cols for c in ("Risk", "Severity")):
+                errors.append(f"{tag}: risk tables must include the columns {', '.join(RISK_COLUMNS)} (missing: {', '.join(missing)}).")
+        for j, r in enumerate(b.get("rows", [])):
+            if not isinstance(r, dict) or len(r.get("cells", [])) != len(cols):
+                errors.append(f"{tag}, row {j + 1}: each row must be an object whose 'cells' has {len(cols)} entries.")
+    elif b["type"] == "diagram":
+        if not DIAGRAM_START.match(b.get("mermaid", "")):
+            errors.append(f"{tag}: 'mermaid' must start with a Mermaid diagram keyword such as flowchart, sequenceDiagram or erDiagram.")
+    elif b["type"] == "list" and not isinstance(b.get("items"), list):
+        errors.append(f"{tag}: a list needs 'items'.")
 
 
 def validate(reports, facts, cites, partial=False):
@@ -534,41 +602,26 @@ def validate(reports, facts, cites, partial=False):
             errors.append(f"Report '{rid}' must be a JSON object.")
             continue
         for key in ("headline", "summary"):
-            if not str(rep.get(key) or "").strip():
+            if not (summary_text(rep) if key == "summary" else str(rep.get(key) or "")).strip():
                 errors.append(f"Report '{rid}' needs a non-empty '{key}'.")
         if words(rep.get("headline")) > 40:
             warnings.append(f"Report '{rid}': the headline is long. Keep it to one sentence.")
-        if words(rep.get("summary")) > 220:
+        if words(summary_text(rep)) > 220:
             warnings.append(f"Report '{rid}': the summary is over 220 words. Executive summaries should be short.")
-        if rid != "gaps" and not isinstance(rep.get("blocks"), list):
-            errors.append(f"Report '{rid}' needs a 'blocks' list.")
-            continue
-        for i, b in enumerate(rep.get("blocks", [])):
-            tag = f"Report '{rid}', block {i + 1}"
-            if b.get("type") in BLOCKS and not str(b.get("heading") or "").strip():
-                warnings.append(f"{tag}: add a 'heading'. The contents list names each card by it (the page will call this one '{block_title(b)}').")
-            if b.get("type") not in BLOCKS:
-                errors.append(f"{tag}: 'type' must be one of {', '.join(BLOCKS)}.")
-            elif b["type"] == "table":
-                cols = b.get("columns")
-                if not isinstance(cols, list) or not cols:
-                    errors.append(f"{tag}: a table needs 'columns'.")
-                    continue
-                if rid == "capabilities" and "Status" not in cols:
-                    warnings.append(f"{tag}: add a 'Status' column ({', '.join(STATUSES)}) instead of ending the description with the status.")
-                if rid == "risks":
-                    missing = [c for c in RISK_COLUMNS if c not in cols]
-                    if missing and any(c in cols for c in ("Risk", "Severity")):
-                        errors.append(f"{tag}: risk tables must include the columns {', '.join(RISK_COLUMNS)} (missing: {', '.join(missing)}).")
-                for j, r in enumerate(b.get("rows", [])):
-                    if not isinstance(r, dict) or len(r.get("cells", [])) != len(cols):
-                        errors.append(f"{tag}, row {j + 1}: each row must be an object whose 'cells' has {len(cols)} entries.")
-            elif b["type"] == "diagram":
-                src = b.get("mermaid", "")
-                if not DIAGRAM_START.match(src):
-                    errors.append(f"{tag}: 'mermaid' must start with a Mermaid diagram keyword such as flowchart, sequenceDiagram or erDiagram.")
-            elif b["type"] == "list" and not isinstance(b.get("items"), list):
-                errors.append(f"{tag}: a list needs 'items'.")
+        sch = schema.load(rid)
+        if sch:
+            e6, w6 = schema.validate(rid, rep, sch)
+            errors += e6
+            warnings += w6
+            if rid not in UNRENDERED_BLOCKS:
+                for i, b in enumerate(all_blocks(rep)):
+                    check_block(f"Report '{rid}', block {i + 1}", b, rid, errors, warnings, schema_card=True)
+        elif rid != "gaps":
+            if not isinstance(rep.get("blocks"), list):
+                errors.append(f"Report '{rid}' needs a 'blocks' list.")
+                continue
+            for i, b in enumerate(rep.get("blocks", [])):
+                check_block(f"Report '{rid}', block {i + 1}", b, rid, errors, warnings)
         if rid == "gaps":
             for j, it in enumerate(rep.get("items", [])):
                 if it.get("kind") not in GAP_KINDS or not it.get("statement"):
@@ -1339,7 +1392,7 @@ def panel_history(entries, refs):
 
 def panel_risk_counts(rep):
     counts = {s: 0 for s in SEVERITIES}
-    for b in rep.get("blocks", []):
+    for b in all_blocks(rep):
         if b.get("type") == "table" and "Severity" in b.get("columns", []):
             i = b["columns"].index("Severity")
             for r in b.get("rows", []):
@@ -1454,7 +1507,7 @@ def build_page(rid, reports, facts, state, ctx):
         parts.append(panel_corrections(state, refs, {g["id"] for g in ctx["gaps"] if g.get("id")}))
     else:
         headline = rep.get("headline", "This report has not been written yet.")
-        summary_html = md(rep.get("summary", ""), refs) or '<p class="muted">Not generated.</p>'
+        summary_html = md(summary_text(rep), refs) or '<p class="muted">Not generated.</p>'
         if rid == "overview":
             parts.append(panel_git(facts, refs, ctx))
             parts.append(panel_contributors(facts, refs))

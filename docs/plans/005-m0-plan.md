@@ -333,7 +333,7 @@ After **every** task: the full test suite passes. After tasks M0-5, M0-6 and M0-
 
 ### M0-6. Claims and validation for the new layout
 
-- [ ] **Goal.** `claims_of`, `validate` and the summary helper understand `cards`; V6 runs inside `render.validate`.
+- [x] **Goal.** `claims_of`, `validate` and the summary helper understand `cards`; V6 runs inside `render.validate`.
 - **Files.** Edit `scripts/render.py`; edit `tests/unit/scripts/test_incremental.py` (one test); new `tests/unit/scripts/test_render_validate.py`.
 - **Interface and steps.**
   1. `import schema` at the top of `render.py`. Add `UNRENDERED_BLOCKS = ("overview",)  # overview.json's written blocks are no longer drawn; do not count what is not shown`.
