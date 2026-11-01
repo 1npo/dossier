@@ -422,7 +422,7 @@ Independent tasks (may be done in any order relative to each other): **M1-1, M1-
 
 ### M1-4. Run record (`buildlog.py`)
 
-- [ ] **Goal.** Start, append to and read `build.json` crash-safely.
+- [x] **Goal.** Start, append to and read `build.json` crash-safely.
 - **Files.** New `scripts/buildlog.py` (standard library only); new `tests/unit/scripts/test_buildlog.py`.
 - **Interface.**
   ```python
