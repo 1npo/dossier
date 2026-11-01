@@ -27,6 +27,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import config  # noqa: E402
 import gather  # noqa: E402
 import incremental  # noqa: E402
 import migrate  # noqa: E402
@@ -36,7 +37,7 @@ import schema  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 VERSION = (ROOT / "VERSION").read_text().strip()
-CONFIG = Path(os.environ.get("DOSSIER_CONFIG") or Path.home() / ".config" / "dossier" / "config.json")
+CONFIG = config.path()
 
 
 def die(msg, code=1):
@@ -84,10 +85,10 @@ def save_state(out, state):
 
 
 def get_home():
-    h = os.environ.get("DOSSIER_HOME") or (load(CONFIG, {}) or {}).get("home")
+    h = config.home()
     if not h:
         die("No dossier home is set. Run /dossier home <directory> to choose where dossiers are saved.")
-    return Path(h).expanduser()
+    return h
 
 
 def toplevel(repo_arg):
@@ -122,12 +123,12 @@ def cmd_version(_):
 
 def cmd_home(a):
     if not a.dir:
-        h = os.environ.get("DOSSIER_HOME") or (load(CONFIG, {}) or {}).get("home")
+        h = config.home()
         print(f"Dossier home: {h}" if h else "No dossier home is set. Run /dossier home <directory>.")
         return
     d = Path(a.dir).expanduser().resolve()
     d.mkdir(parents=True, exist_ok=True)
-    save(CONFIG, {"home": str(d)})
+    config.update(home=str(d))
     print(f"Dossier home set to {d}")
 
 
