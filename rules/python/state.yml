@@ -1,0 +1,61 @@
+rules:
+  - id: dossier.python.state.db-connect
+    message: Connects to a database or data store
+    languages: [python]
+    severity: INFO
+    metadata: {category: db-connect}
+    pattern-either:
+      - pattern: sqlite3.connect(...)
+      - pattern: create_engine(...)
+      - pattern: psycopg.connect(...)
+      - pattern: psycopg2.connect(...)
+      - pattern: pymongo.MongoClient(...)
+      - pattern: redis.Redis(...)
+      - pattern: redis.from_url(...)
+
+  - id: dossier.python.state.db-access
+    message: Runs a database statement or changes a session
+    languages: [python]
+    severity: INFO
+    metadata: {category: db-access}
+    pattern-either:
+      - pattern: $C.execute(...)
+      - pattern: $C.executemany(...)
+      - pattern: $S.query(...)
+      - pattern: $S.add(...)
+      - pattern: $S.commit()
+
+  - id: dossier.python.state.global-state
+    message: Changes a module-level variable from inside a function
+    languages: [python]
+    severity: INFO
+    metadata: {category: global-state}
+    pattern: global $X
+
+  - id: dossier.python.state.cache
+    message: Remembers results between calls
+    languages: [python]
+    severity: INFO
+    metadata: {category: cache}
+    pattern-either:
+      - pattern: |
+          @functools.lru_cache
+          def $F(...): ...
+      - pattern: |
+          @functools.lru_cache(...)
+          def $F(...): ...
+      - pattern: |
+          @lru_cache
+          def $F(...): ...
+      - pattern: |
+          @lru_cache(...)
+          def $F(...): ...
+      - pattern: |
+          @functools.cache
+          def $F(...): ...
+      - pattern: |
+          @cache
+          def $F(...): ...
+      - pattern: |
+          @cached_property
+          def $F(...): ...

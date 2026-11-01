@@ -1,0 +1,44 @@
+rules:
+  - id: dossier.python.observability.log
+    message: Writes log messages
+    languages: [python]
+    severity: INFO
+    metadata: {category: log}
+    pattern-either:
+      - pattern: logging.getLogger(...)
+      - pattern: logging.basicConfig(...)
+      - pattern: structlog.get_logger(...)
+      - patterns:
+          - pattern-either:
+              - pattern: $L.debug(...)
+              - pattern: $L.info(...)
+              - pattern: $L.warning(...)
+              - pattern: $L.error(...)
+              - pattern: $L.exception(...)
+              - pattern: $L.critical(...)
+          - metavariable-regex:
+              metavariable: $L
+              regex: ^(log|logger|LOG|LOGGER|_log|_logger|logging|loguru\.logger)$
+
+  - id: dossier.python.observability.metric
+    message: Records metrics
+    languages: [python]
+    severity: INFO
+    metadata: {category: metric}
+    pattern-either:
+      - patterns:
+          - pattern: prometheus_client.$C(...)
+          - metavariable-regex:
+              metavariable: $C
+              regex: ^(Counter|Gauge|Histogram|Summary)$
+      - pattern: statsd.$M(...)
+
+  - id: dossier.python.observability.trace
+    message: Sends traces or error reports
+    languages: [python]
+    severity: INFO
+    metadata: {category: trace}
+    pattern-either:
+      - pattern: sentry_sdk.init(...)
+      - pattern: opentelemetry.trace.get_tracer(...)
+      - pattern: trace.get_tracer(...)

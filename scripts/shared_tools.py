@@ -50,3 +50,8 @@ class Semgrep:
         res = _call(self.run, "semgrep", "semgrep_worker.py",
                     {"config": str(Path(config).resolve()), "paths": paths, "timeout": timeout})
         return res["results"]
+
+    def test(self, config: Path, targets: Path) -> dict:
+        """Run `semgrep --test` over a rules folder and its test targets. Returns {"returncode", "output"}."""
+        return _call(self.run, "semgrep-test", "semgrep_worker.py",
+                     {"test": True, "config": str(Path(config).resolve()), "targets": str(Path(targets).resolve())})

@@ -1,0 +1,106 @@
+rules:
+  - id: dossier.python.blindspot.dynamic-import
+    message: Imports a module at run time
+    languages: [python]
+    severity: INFO
+    metadata: {category: blindspot, pattern: dynamic-import}
+    pattern-either:
+      - pattern: importlib.import_module(...)
+      - pattern: __import__(...)
+
+  - id: dossier.python.blindspot.entry-point-loading
+    message: Loads plugins from installed packages
+    languages: [python]
+    severity: INFO
+    metadata: {category: blindspot, pattern: entry-point-loading}
+    pattern-either:
+      - pattern: importlib.metadata.entry_points(...)
+      - pattern: entry_points(...)
+      - pattern: pkg_resources.iter_entry_points(...)
+      - patterns:
+          - pattern: $EP.load()
+          - metavariable-regex:
+              metavariable: $EP
+              regex: (?i)(^ep$|.*entry.*|.*plugin.*)
+
+  - id: dossier.python.blindspot.string-plugin
+    message: Imports a module whose name is built from a string
+    languages: [python]
+    severity: INFO
+    metadata: {category: blindspot, pattern: string-plugin}
+    pattern-either:
+      - pattern: importlib.import_module(f"...")
+      - pattern: importlib.import_module("..." + $X)
+      - pattern: importlib.import_module("...".format(...))
+      - pattern: __import__(f"...")
+      - pattern: __import__("..." + $X)
+      - pattern: __import__("...".format(...))
+
+  - id: dossier.python.blindspot.decorator-registry
+    message: Registers a function with a decorator
+    languages: [python]
+    severity: INFO
+    metadata: {category: blindspot, pattern: decorator-registry}
+    pattern-either:
+      - pattern: |
+          @$R.register(...)
+          def $F(...): ...
+      - pattern: |
+          @$R.register
+          def $F(...): ...
+      - pattern: |
+          @register(...)
+          def $F(...): ...
+      - pattern: |
+          @register
+          def $F(...): ...
+      - pattern: |
+          @$R.handler(...)
+          def $F(...): ...
+      - pattern: |
+          @$R.on(...)
+          def $F(...): ...
+
+  - id: dossier.python.blindspot.getattr-dispatch
+    message: Picks a method by name at run time
+    languages: [python]
+    severity: INFO
+    metadata: {category: blindspot, pattern: getattr-dispatch}
+    patterns:
+      - pattern: getattr($X, $N, ...)
+      - pattern-not: getattr($X, "...", ...)
+
+  - id: dossier.python.blindspot.django-apps
+    message: Django apps listed in settings
+    languages: [python]
+    severity: INFO
+    metadata: {category: blindspot, pattern: django-apps}
+    pattern: INSTALLED_APPS = [...]
+
+  - id: dossier.python.blindspot.django-signals
+    message: Handlers that Django calls on signals
+    languages: [python]
+    severity: INFO
+    metadata: {category: blindspot, pattern: django-signals}
+    pattern-either:
+      - pattern: |
+          @receiver(...)
+          def $F(...): ...
+      - patterns:
+          - pattern: $SIG.connect(...)
+          - metavariable-regex:
+              metavariable: $SIG
+              regex: (.*(_save|_delete|_init)|request_started|request_finished)$
+
+  - id: dossier.python.blindspot.pytest-fixtures
+    message: Fixtures that pytest passes to tests by name
+    languages: [python]
+    severity: INFO
+    metadata: {category: blindspot, pattern: pytest-fixtures}
+    pattern-either:
+      - pattern: |
+          @pytest.fixture
+          def $F(...): ...
+      - pattern: |
+          @pytest.fixture(...)
+          def $F(...): ...

@@ -1,0 +1,80 @@
+rules:
+  - id: dossier.python.output.stdout
+    message: Writes to standard output or error
+    languages: [python]
+    severity: INFO
+    metadata: {category: stdout}
+    pattern-either:
+      - pattern: print(...)
+      - pattern: sys.stdout.write(...)
+      - pattern: sys.stderr.write(...)
+
+  - id: dossier.python.output.file-write
+    message: Writes or copies a file
+    languages: [python]
+    severity: INFO
+    metadata: {category: file-write}
+    pattern-either:
+      - patterns:
+          - pattern: open($F, $M, ...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^["''][^"'']*[waxWAX+][^"'']*["'']$
+      - pattern: $X.write_text(...)
+      - pattern: $X.write_bytes(...)
+      - pattern: shutil.copy(...)
+      - pattern: shutil.copyfile(...)
+      - pattern: shutil.move(...)
+
+  - id: dossier.python.output.outbound-call
+    message: Calls another service over the network
+    languages: [python]
+    severity: INFO
+    metadata: {category: outbound-call}
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: requests.$M(...)
+              - pattern: httpx.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(get|post|put|patch|delete|head|options|request)$
+      - pattern: httpx.Client(...)
+      - pattern: httpx.AsyncClient(...)
+      - pattern: aiohttp.ClientSession(...)
+      - pattern: urllib.request.urlopen(...)
+      - pattern: smtplib.SMTP(...)
+      - pattern: boto3.client(...)
+
+  - id: dossier.python.output.message-produce
+    message: Sends a message to a queue
+    languages: [python]
+    severity: INFO
+    metadata: {category: message-produce}
+    pattern-either:
+      - pattern: $CH.basic_publish(...)
+      - pattern: $P.produce(...)
+      - pattern: $C.publish(...)
+
+  - id: dossier.python.output.exit-code
+    message: Ends the program with an exit code
+    languages: [python]
+    severity: INFO
+    metadata: {category: exit-code}
+    pattern-either:
+      - pattern: sys.exit(...)
+      - pattern: raise SystemExit(...)
+
+  - id: dossier.python.output.error-response
+    message: Answers with an error
+    languages: [python]
+    severity: INFO
+    metadata: {category: error-response}
+    pattern-either:
+      - pattern: abort(...)
+      - pattern: raise HTTPException(...)
+      - patterns:
+          - pattern: return $R, $CODE
+          - metavariable-comparison:
+              metavariable: $CODE
+              comparison: $CODE >= 400

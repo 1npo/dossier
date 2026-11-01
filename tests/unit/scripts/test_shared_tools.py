@@ -104,3 +104,56 @@ class TestPyWorkerPins:
 
     def test_worker_is_locked(self):
         assert (SCRIPTS / "py_worker.py.lock").exists()
+
+
+class TestSemgrepTest:
+    def test_sends_the_test_request_with_absolute_paths(self, tmp_path):
+        run = fake_run(tmp_path, {"returncode": 0, "output": "ok"})
+
+        got = shared_tools.Semgrep(run).test(tmp_path, tmp_path)
+
+        assert got == {"returncode": 0, "output": "ok"}
+        assert run.calls[0]["input"] == {"test": True, "config": str(tmp_path.resolve()), "targets": str(tmp_path.resolve())}
+
+
+class TestWorkerText:
+    def test_matched_text_is_read_between_byte_offsets(self, tmp_path, monkeypatch):
+        (tmp_path / "a.py").write_text("x = os.getenv('K')\n")
+        monkeypatch.chdir(tmp_path)
+
+        assert semgrep_worker.matched_text("a.py", 4, 18) == "os.getenv('K')"
+
+    def test_unreadable_file_gives_empty_text(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+
+        assert semgrep_worker.matched_text("missing.py", 0, 5) == ""
+
+    def test_source_line_is_the_stripped_line_where_the_match_starts(self, tmp_path, monkeypatch):
+        (tmp_path / "a.py").write_text("import os\n    key = os.getenv('K')\n")
+        monkeypatch.chdir(tmp_path)
+
+        assert semgrep_worker.source_line("a.py", 2) == "key = os.getenv('K')"
+
+    def test_source_line_is_cut_at_200_characters(self, tmp_path, monkeypatch):
+        (tmp_path / "a.py").write_text("a" * 500 + "\n")
+        monkeypatch.chdir(tmp_path)
+
+        assert len(semgrep_worker.source_line("a.py", 1)) == 200
+
+    def test_source_line_past_the_end_or_unreadable_is_empty(self, tmp_path, monkeypatch):
+        (tmp_path / "a.py").write_text("x\n")
+        monkeypatch.chdir(tmp_path)
+
+        assert (semgrep_worker.source_line("a.py", 9), semgrep_worker.source_line("nope.py", 1)) == ("", "")
+
+    def test_detail_is_the_first_group(self):
+        assert semgrep_worker.detail_of("os.environ.get('SHOP_DB', 'x')", r"[(\[]\s*[\"']([^\"']+)[\"']") == "SHOP_DB"
+
+    def test_detail_without_a_pattern_is_none(self):
+        assert semgrep_worker.detail_of("x", None) is None
+
+    def test_detail_with_no_match_is_none(self):
+        assert semgrep_worker.detail_of("x", r"(zzz)") is None
+
+    def test_detail_with_a_bad_pattern_is_none(self):
+        assert semgrep_worker.detail_of("x", "(") is None
