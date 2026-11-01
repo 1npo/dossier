@@ -14,7 +14,7 @@ Inside Claude Code:
 /dossier version
 ```
 
-`build` pins the dossier to a commit, writes twelve reports (overview, capabilities, interfaces, architecture, domain logic, data, code tour, failures, delivery, risks, contributors, gaps), and renders them to `<home>/<repo-name>/` as one self-contained HTML page.
+`build` pins the dossier to a commit, writes twelve reports (overview, capabilities, interfaces, architecture, domain logic, data, code tour, failures, delivery, risks, contributors, gaps), and renders them to `<home>/<repo-name>/` as one self-contained HTML page. Version 0.5.0 draws the new card layout; writing dossiers in that layout arrives in a later version.
 
 ## Updating a dossier
 

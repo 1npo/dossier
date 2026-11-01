@@ -496,3 +496,12 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 :is(#t-people, .dp-rank, .dp-finds .table) thead th { height: 30px; padding-top: 0; padding-bottom: 0; font-size: .6875rem; font-weight: 400; text-transform: uppercase; letter-spacing: .06em; vertical-align: middle; }
 :is(#t-people, .dp-rank, .dp-finds .table) tbody td { padding-top: .3rem; padding-bottom: .3rem; font-size: .75rem; vertical-align: middle; }
 :is(#t-people, .dp-rank, .dp-finds .table) tbody tr:hover { background: var(--accent); }
+
+/* schema cards: tier badges, question line, flows, entries */
+.tier { margin-left: .5rem; font-weight: 600; min-width: 1.6rem; justify-content: center; }
+.question { margin: .15rem 0 0; font-size: 1rem; font-style: italic; color: var(--muted-foreground); }
+.tier-key { display: flex; flex-wrap: wrap; gap: .3rem 1.25rem; font-size: .8125rem; color: var(--muted-foreground); margin: 0; }
+.diagram.flow + .diagram.flow { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+.flow-bar { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.entry { border: 1px solid var(--border); border-radius: var(--radius); padding: .6rem .8rem; margin-bottom: .6rem; }
+.entry summary { cursor: pointer; font-weight: 600; }

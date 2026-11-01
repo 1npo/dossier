@@ -1,0 +1,83 @@
+{
+  "report": "reading",
+  "title": "Reading guide",
+  "question": "How do I approach this code?",
+  "cards": [
+    {
+      "id": "reading.order",
+      "title": "Reading order",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Phase",
+            "Step",
+            "Read",
+            "What you learn"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "reading.glossary",
+      "title": "Glossary",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Term",
+            "Meaning",
+            "Where it lives"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "reading.technologies",
+      "title": "Technologies and idioms",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Technology",
+            "Role here",
+            "Idiom to know"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "reading.map",
+      "title": "Where things live",
+      "tier": "M",
+      "priority": "P0",
+      "writer": "script",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Concern",
+            "Location"
+          ]
+        }
+      ],
+      "fixed": null
+    }
+  ]
+}

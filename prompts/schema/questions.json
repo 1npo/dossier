@@ -1,0 +1,301 @@
+[
+  {
+    "id": "1.1",
+    "question": "What do the domain terms mean?",
+    "answers": [
+      "reading.glossary"
+    ]
+  },
+  {
+    "id": "1.2",
+    "question": "What technologies and idioms must I know, and which are probably new to me?",
+    "answers": [
+      "reading.technologies"
+    ]
+  },
+  {
+    "id": "2.1",
+    "question": "Where is execution entered?",
+    "answers": [
+      "entry.catalog"
+    ]
+  },
+  {
+    "id": "2.2",
+    "question": "What happens from entry to ready?",
+    "answers": [
+      "entry.startup"
+    ]
+  },
+  {
+    "id": "2.3",
+    "question": "What are the main components?",
+    "answers": [
+      "components.map",
+      "components.catalog"
+    ]
+  },
+  {
+    "id": "2.4",
+    "question": "What does each do and how does it work, including cross-cutting concerns?",
+    "answers": [
+      "components.detail",
+      "components.cross-cutting"
+    ]
+  },
+  {
+    "id": "2.5",
+    "question": "How do components interact?",
+    "answers": [
+      "interactions.graph",
+      "interactions.flows"
+    ]
+  },
+  {
+    "id": "2.6",
+    "question": "What are all the inputs and outputs?",
+    "answers": [
+      "io.inputs",
+      "io.outputs"
+    ]
+  },
+  {
+    "id": "2.7",
+    "question": "In what order should I read the code, and where do config, tests, build and docs live?",
+    "answers": [
+      "reading.order",
+      "reading.map"
+    ]
+  },
+  {
+    "id": "2.8",
+    "question": "Where does state live, and who writes and reads it?",
+    "answers": [
+      "interactions.state"
+    ]
+  },
+  {
+    "id": "2.9",
+    "question": "What is the concurrency model?",
+    "answers": [
+      "interactions.concurrency"
+    ]
+  },
+  {
+    "id": "2.10",
+    "question": "Where are the layer boundaries and who breaks them?",
+    "answers": [
+      "interactions.violations"
+    ]
+  },
+  {
+    "id": "2.11",
+    "question": "What extension points exist?",
+    "answers": [
+      "components.extension-points"
+    ]
+  },
+  {
+    "id": "2.12",
+    "question": "How do I write code that fits here?",
+    "answers": [
+      "conventions.style",
+      "conventions.recipes",
+      "conventions.tooling"
+    ]
+  },
+  {
+    "id": "3.1",
+    "question": "What contracts do I owe other systems, and who consumes them?",
+    "answers": [
+      "io.contracts"
+    ]
+  },
+  {
+    "id": "3.2",
+    "question": "What third-party code does each part rely on?",
+    "answers": [
+      "overview.dependencies"
+    ]
+  },
+  {
+    "id": "4.1",
+    "question": "What are the data structures and schema?",
+    "answers": [
+      "data.entities",
+      "data.relationships"
+    ]
+  },
+  {
+    "id": "4.2",
+    "question": "What is the source of truth, what is derived, and which stores hold it?",
+    "answers": [
+      "data.truth",
+      "data.stores"
+    ]
+  },
+  {
+    "id": "4.3",
+    "question": "What is the data lifecycle, and where are the sensitive fields?",
+    "answers": [
+      "data.lifecycle"
+    ]
+  },
+  {
+    "id": "5.1",
+    "question": "What are the business rules and invariants?",
+    "answers": [
+      "behavior.rules"
+    ]
+  },
+  {
+    "id": "5.2",
+    "question": "What do the tests cover, and can I trust a green run?",
+    "answers": [
+      "behavior.tests"
+    ]
+  },
+  {
+    "id": "5.3",
+    "question": "How does it fail, and how would I notice in production?",
+    "answers": [
+      "behavior.failures",
+      "behavior.observability"
+    ]
+  },
+  {
+    "id": "6.1",
+    "question": "What changes most, and what never does?",
+    "answers": [
+      "change.hotspots"
+    ]
+  },
+  {
+    "id": "6.2",
+    "question": "What changes together without a code link?",
+    "answers": [
+      "change.cochange"
+    ]
+  },
+  {
+    "id": "6.3",
+    "question": "What breaks if I change X?",
+    "answers": [
+      "change.blast-radius"
+    ]
+  },
+  {
+    "id": "6.4",
+    "question": "Which refactors or migrations are half-finished?",
+    "answers": [
+      "change.unfinished"
+    ]
+  },
+  {
+    "id": "6.5",
+    "question": "Why is it this way? Which decisions and oddities need explaining?",
+    "answers": [
+      "change.decisions"
+    ]
+  },
+  {
+    "id": "6.6",
+    "question": "Does the documentation match the code?",
+    "answers": [
+      "change.docs-drift"
+    ]
+  },
+  {
+    "id": "6.7",
+    "question": "Is there dead code, or are there stale flags and unused endpoints?",
+    "answers": [
+      "change.dead-code"
+    ]
+  },
+  {
+    "id": "6.8",
+    "question": "What is the upgrade burden (end-of-life runtimes, lagging frameworks)?",
+    "answers": [
+      "change.upgrade-burden"
+    ]
+  },
+  {
+    "id": "6.9",
+    "question": "What work is in flight?",
+    "answers": [
+      "change.in-flight"
+    ]
+  },
+  {
+    "id": "7.1",
+    "question": "How do I build, test, run, release, roll back and deploy?",
+    "answers": [
+      "ops.build",
+      "ops.test",
+      "ops.run",
+      "ops.release",
+      "ops.config-secrets"
+    ]
+  },
+  {
+    "id": "7.2",
+    "question": "What do the CI gates guarantee?",
+    "answers": [
+      "ops.ci"
+    ]
+  },
+  {
+    "id": "7.3",
+    "question": "What do I need locally?",
+    "answers": [
+      "ops.local"
+    ]
+  },
+  {
+    "id": "8.1",
+    "question": "Who owns and knows what, and what is the bus factor?",
+    "answers": [
+      "overview.contributors",
+      "contributors.people",
+      "contributors.ask",
+      "contributors.concentration",
+      "contributors.agents",
+      "contributors.doubts"
+    ]
+  },
+  {
+    "id": "8.2",
+    "question": "What are the team's branching, commit and PR conventions?",
+    "answers": [
+      "contributors.workflow"
+    ]
+  },
+  {
+    "id": "10.1",
+    "question": "What was not analysed, and what could not be resolved?",
+    "answers": [
+      "gaps.tracker"
+    ]
+  },
+  {
+    "id": "10.2",
+    "question": "Where might the extractors be wrong?",
+    "answers": [
+      "gaps.tracker"
+    ]
+  },
+  {
+    "id": "10.3",
+    "question": "How fresh is the dossier relative to HEAD?",
+    "answers": [
+      "dossier.about"
+    ]
+  },
+  {
+    "id": "10.4",
+    "question": "How was this dossier produced, step by step, and what did a model do versus a tool?",
+    "answers": [
+      "dossier.process"
+    ]
+  }
+]

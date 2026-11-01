@@ -11,6 +11,7 @@
   dossier.py render  [REPO] [--partial] [--allow-errors]      validate the reports and write the HTML
   dossier.py correct [REPO] ...                               record a user correction
   dossier.py confirm [REPO] [IDS] ...                         list open items, or confirm / answer / dispute them
+  dossier.py migrate [REPO] [--dry-run]                       one-off: convert an old-layout dossier (used for the M0 check)
 """
 from __future__ import annotations
 
@@ -19,6 +20,7 @@ import json
 import os
 import posixpath
 import re
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -27,8 +29,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import gather  # noqa: E402
 import incremental  # noqa: E402
+import migrate  # noqa: E402
 import render  # noqa: E402
 import resolve  # noqa: E402
+import schema  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 VERSION = (ROOT / "VERSION").read_text().strip()
@@ -300,10 +304,54 @@ def cmd_render(a):
     save_state(out, state)
     cites.repo.close()
     print(json.dumps({"html": str(out / name_out), "size_mb": round(len(page.encode()) / 1e6, 1), "sha": sha,
-                      "reports_rendered": len(reports), "citations_checked": len(cites.status),
+                      "reports_rendered": len(reports), "cards_filled": render.card_counts(reports)[0], "cards_pending": render.card_counts(reports)[1], "citations_checked": len(cites.status),
                       "unresolved_citations": sum(1 for s in cites.status.values() if not s["ok"]),
                       "code_viewer": cites.view_counts(),
                       "tracker": counts, "resolved_by_user": len(gaps) - sum(1 for g in gaps if render.is_open(g)), "warnings": len(warnings)}, indent=1))
+
+
+def cmd_migrate(a):
+    top = toplevel(a.repo)
+    out, _, _ = out_dir(top)
+    reports_dir = out / "reports"
+    old = {p.stem: load(p) for p in sorted(reports_dir.glob("*.json"))}
+    mapping = migrate.load_map()
+    schemas = schema.load_all()
+    retired = [r for r in old if r in mapping["retired"] and r not in schemas]
+    stale = [r for r, sch in schemas.items() if r in old and any(c["writer"] == "claude" for c in sch["cards"]) and "cards" not in old[r]]
+    if not retired and not stale:
+        print("Nothing to migrate.")
+        return
+    result = migrate.convert(old, mapping, schemas)
+    gaps_new = migrate.remap_gaps(old["gaps"], mapping["retired"]) if "gaps" in old else None
+    problems = []
+    for rid, rep in result["reports"].items():
+        errs, _ = schema.validate(rid, rep, schemas[rid], allow_pending=True)
+        problems += errs
+    if problems:
+        for e in problems:
+            print(f"error: {e}")
+        sys.exit(1)
+    cards = [c for rep in result["reports"].values() for c in rep["cards"]]
+    state_version = (load(out / "state.json", {}) or {}).get("skill_version") or "unknown"
+    backup = out / f"reports.legacy-v{state_version}"
+    summary = {"backup": str(backup), "written": list(result["reports"]),
+               "cards_filled": sum(1 for c in cards if c.get("blocks")), "cards_pending": sum(1 for c in cards if c.get("pending")),
+               "carried": len(result["carried"]),
+               "not_carried": [{"report": r, "block": i + 1, "heading": h, "reason": why} for r, i, h, why in result["not_carried"]]}
+    if a.dry_run:
+        print(json.dumps(summary, indent=1))
+        return
+    if backup.exists():
+        die(f"{backup} already exists. Move it away first; a backup is never overwritten.")
+    shutil.copytree(reports_dir, backup)
+    for rid, rep in result["reports"].items():
+        save(reports_dir / f"{rid}.json", rep)
+    if gaps_new is not None:
+        save(reports_dir / "gaps.json", gaps_new)
+    for rid in retired:
+        (reports_dir / f"{rid}.json").unlink()
+    print(json.dumps(summary, indent=1))
 
 
 def cmd_correct(a):
@@ -429,6 +477,10 @@ def main():
     p.add_argument("--allow-errors", action="store_true", help="write the HTML even if validation fails")
     p.add_argument("--apply-corrections", action="store_true", help="mark pending corrections as applied")
     p.set_defaults(fn=cmd_render)
+    p = sub.add_parser("migrate")
+    p.add_argument("repo", nargs="?")
+    p.add_argument("--dry-run", action="store_true", help="show what would change and write nothing")
+    p.set_defaults(fn=cmd_migrate)
     p = sub.add_parser("confirm")
     p.add_argument("repo", nargs="?", help="repository path; omit to use the current directory")
     p.add_argument("--ids", nargs="+", metavar="ID", help="item IDs to decide, such as G003 G007")

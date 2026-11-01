@@ -182,7 +182,7 @@ After **every** task: the full test suite passes. After tasks M0-5, M0-6 and M0-
 
 ### M0-1. Report-section tool (baseline for "report 02 unchanged")
 
-- [ ] **Goal.** A small script that cuts one report's section out of a rendered page, prints its SHA-256, and lists the card ids of every report.
+- [x] **Goal.** A small script that cuts one report's section out of a rendered page, prints its SHA-256, and lists the card ids of every report.
 - **Files.** New `tests/tools/report_section.py`; new `tests/unit/scripts/test_report_section.py`.
 - **Interface.** `section(html: str, rid: str) -> str` returns the text from `<section class="report" id="{rid}" hidden>` up to and including its closing `</section>`, found with `re.search(r'<section class="report" id="%s" hidden>.*?</section>(?=<section class="report"|\s*<footer class="foot)' % re.escape(rid), html, re.S)`; raises `SystemExit` with a message when absent. `cards(html: str) -> dict[str, list[str]]` maps each report id to its `data-card="…"` values in page order. CLI: `report_section.py HTML RID --digest` prints the 64-hex SHA-256 of `section(...)` UTF-8 bytes and the length in characters, space-separated; `--normalize` (with `--digest` or `--write`) first applies `normalize(text)`, which removes exactly what D6 lists (every ` data-card="…"` attribute including its leading space, every `<span class="badge tier …">…</span>`, every `<p class="question">…</p>`, every `<p class="tier-key">…</p>`) and nothing else; `--write FILE` saves the section; `--cards` prints `cards()` as JSON.
 - **Steps.** (1) Write the module (standard library only). (2) Test with a small synthetic page of three `<section class="report" …>` elements: `section` returns exactly the middle one; digest is stable; `--normalize` removes a `data-card` attribute, a tier badge span, a question paragraph and a tier-key paragraph and nothing else (a page without them gives the same digest with and without the flag); `cards` finds `data-card` attributes per report; missing report exits. (3) Confirm the baseline (below).
@@ -191,7 +191,7 @@ After **every** task: the full test suite passes. After tasks M0-5, M0-6 and M0-
 
 ### M0-2. Schema loader and V6 validator
 
-- [ ] **Goal.** `scripts/schema.py`: load schema files, lint them, validate a report against its schema.
+- [x] **Goal.** `scripts/schema.py`: load schema files, lint them, validate a report against its schema.
 - **Files.** New `scripts/schema.py`; new `tests/unit/scripts/test_schema.py`. No schema files yet; tests build schemas in memory.
 - **Interface.**
   - `SCHEMA_DIR = Path(__file__).resolve().parent.parent / "prompts" / "schema"`; `ALLOW_PENDING = True  # M0 only: turn off when the M2 prompts can write every card`.
@@ -217,7 +217,7 @@ After **every** task: the full test suite passes. After tasks M0-5, M0-6 and M0-
 
 ### M0-3. Schema files, part 1 (reports 01 to 06, 14 to 16)
 
-- [ ] **Goal.** Write the nine schema files for `dossier`, `overview`, `reading`, `entry`, `components`, `interactions`, `risks`, `gaps`, `corrections`, and the format README.
+- [x] **Goal.** Write the nine schema files for `dossier`, `overview`, `reading`, `entry`, `components`, `interactions`, `risks`, `gaps`, `corrections`, and the format README.
 - **Files.** New `prompts/schema/dossier.json` (five cards, as in the table below), `reading.json`, `entry.json`, `components.json`, `interactions.json`, `overview.json`, `risks.json`, `gaps.json`, `corrections.json`, `prompts/schema/README.md`; new `tests/unit/scripts/test_schema_files.py`.
 - **Interface.** The format of D1. `title` and `question` are copied from the spec (§4); the spec gives no question for reports 01, 02, 14, 15 and 16, so their questions are the texts marked † (accepted by the human), copied exactly. Cards (all `fixed: null` unless a row says otherwise; `writer` follows the rule in D1; columns are written in this exact order):
 
@@ -258,7 +258,7 @@ After **every** task: the full test suite passes. After tasks M0-5, M0-6 and M0-
 
 ### M0-4. Schema files, part 2 (reports 07 to 13)
 
-- [ ] **Goal.** Schema files for `io`, `data`, `behavior`, `change`, `conventions`, `ops`, `contributors`.
+- [x] **Goal.** Schema files for `io`, `data`, `behavior`, `change`, `conventions`, `ops`, `contributors`.
 - **Files.** New `prompts/schema/io.json`, `data.json`, `behavior.json`, `change.json`, `conventions.json`, `ops.json`, `contributors.json`; edit `tests/unit/scripts/test_schema_files.py`.
 - **Interface.** Same format. Defaults chosen where the spec gives no columns are marked †; see section 6 and 7.
 
@@ -309,7 +309,7 @@ After **every** task: the full test suite passes. After tasks M0-5, M0-6 and M0-
 
 ### M0-5. Card drawing helpers (not yet wired into the page)
 
-- [ ] **Goal.** Pure functions in `render.py` that draw one schema card: title, badge, placeholder, "not applicable", blocks, flows, entries.
+- [x] **Goal.** Pure functions in `render.py` that draw one schema card: title, badge, placeholder, "not applicable", blocks, flows, entries.
 - **Files.** Edit `scripts/render.py` (add a section "schema cards" after `render_blocks`); edit `assets/dossier.css`; edit `assets/dossier.js` (search over entries, below); edit `scripts/check_page.py` (search check, below); new `tests/unit/scripts/test_render_cards.py`.
 - **Interface.**
   - `TIER_INFO = {"M": ("Measured", "…tooltip text from D4…"), "A": …, "R": …, "M+A": …}`; `tier_badge(tier) -> str` as in D4 (class `tier tier-<tier lowercased, '+' as 'plus'>`).
@@ -333,7 +333,7 @@ After **every** task: the full test suite passes. After tasks M0-5, M0-6 and M0-
 
 ### M0-6. Claims and validation for the new layout
 
-- [ ] **Goal.** `claims_of`, `validate` and the summary helper understand `cards`; V6 runs inside `render.validate`.
+- [x] **Goal.** `claims_of`, `validate` and the summary helper understand `cards`; V6 runs inside `render.validate`.
 - **Files.** Edit `scripts/render.py`; edit `tests/unit/scripts/test_incremental.py` (one test); new `tests/unit/scripts/test_render_validate.py`.
 - **Interface and steps.**
   1. `import schema` at the top of `render.py`. Add `UNRENDERED_BLOCKS = ("overview",)  # overview.json's written blocks are no longer drawn; do not count what is not shown`.
@@ -352,7 +352,7 @@ After **every** task: the full test suite passes. After tasks M0-5, M0-6 and M0-
 
 ### M0-7. Migration engine and map (pure functions)
 
-- [ ] **Goal.** `scripts/migrate.py` turns old reports into new ones without touching disk; `scripts/migrate_map.json` holds the rules.
+- [x] **Goal.** `scripts/migrate.py` turns old reports into new ones without touching disk; `scripts/migrate_map.json` holds the rules.
 - **Files.** New `scripts/migrate.py`, `scripts/migrate_map.json` (content in Appendix B), `tests/unit/scripts/test_migrate.py`.
 - **Interface.**
   - `MISSING_CELL = "Not yet recorded"`.
@@ -376,7 +376,7 @@ After **every** task: the full test suite passes. After tasks M0-5, M0-6 and M0-
 
 ### M0-9. The `migrate` command
 
-- [ ] **Goal.** `dossier.py migrate [REPO] [--dry-run]`: backup, convert, write, validate. It exists to turn the `FIX` fixture into the new layout for the exit criterion; it is not documented for users (no dossier is migrated for real).
+- [x] **Goal.** `dossier.py migrate [REPO] [--dry-run]`: backup, convert, write, validate. It exists to turn the `FIX` fixture into the new layout for the exit criterion; it is not documented for users (no dossier is migrated for real).
 - **Files.** Edit `scripts/dossier.py`; edit `scripts/migrate.py` (add `remap_gaps`); edit `tests/unit/scripts/test_migrate.py` (add a command-level test using a temporary dossier folder).
 - **Interface.**
   - `migrate.remap_gaps(gaps_report, retired) -> dict`: returns a copy of the report with each item's `report` set to `retired.get(report, report)`.
@@ -393,7 +393,7 @@ After **every** task: the full test suite passes. After tasks M0-5, M0-6 and M0-
 
 ### M0-10. Wire schema cards into the page
 
-- [ ] **Goal.** `build_page` draws schema reports from the schema, adds the question line and tier key, adds the `dossier.process` placeholder to report 01, and stops drawing overview's old blocks. The report list itself is **not** switched yet, so legacy dossiers still render.
+- [x] **Goal.** `build_page` draws schema reports from the schema, adds the question line and tier key, adds the `dossier.process` placeholder to report 01, and stops drawing overview's old blocks. The report list itself is **not** switched yet, so legacy dossiers still render.
 - **Files.** Edit `scripts/render.py`; edit `assets/dossier.css` (only if needed); edit `tests/unit/scripts/test_render_cards.py`.
 - **Steps.**
   1. `CARD_HEAD`: change the pattern to `r'<div class="card (panel|block)([^"]*)"( id="[^"]*")?( data-card="[^"]*")?><header><h([23])>(.*?)</h\5>'`, and in `with_contents` unpack the new group and re-emit it: `f'<div class="card {kind}{extra}" id="{cid}"{dc or ""}><header><h{lvl}>{inner}</h{lvl}>'`. For markup without `data-card` the output is unchanged.
@@ -412,7 +412,7 @@ After **every** task: the full test suite passes. After tasks M0-5, M0-6 and M0-
 
 ### M0-11. Switch to the new report list, and run the migration end to end
 
-- [ ] **Goal.** The 16-report list is live; the encamp dossier (scratch copy) migrates, renders and passes V6.
+- [x] **Goal.** The 16-report list is live; the encamp dossier (scratch copy) migrates, renders and passes V6.
 - **Files.** Edit `scripts/render.py`; edit `scripts/dossier.py`; edit `tests/unit/scripts/test_render.py`, `tests/unit/scripts/test_schema_files.py`.
 - **Steps.**
   1. `REPORTS` becomes (id, title, written by Claude?): `("dossier", "This dossier", False), ("overview", "This repository", True), ("reading", "Reading guide", True), ("entry", "Entry points", True), ("components", "Components", True), ("interactions", "Interactions", True), ("io", "Inputs and outputs", True), ("data", "Data model", True), ("behavior", "Behavior and tests", True), ("change", "Change and history", True), ("conventions", "Conventions", True), ("ops", "Build, run and ship", True), ("contributors", "Contributors", True), ("risks", "Risks", True), ("gaps", "Gaps", True), ("corrections", "Corrections", False)`.
@@ -426,7 +426,7 @@ After **every** task: the full test suite passes. After tasks M0-5, M0-6 and M0-
 
 ### M0-12. Version, interim notice, docs
 
-- [ ] **Goal.** Bump the version and make sure a user running `/dossier build` is not led into a failure.
+- [x] **Goal.** Bump the version and make sure a user running `/dossier build` is not led into a failure.
 - **Files.** Edit `VERSION`; edit `SKILL.md`; edit `prompts/schema/README.md`; edit `README.md` (one line).
 - **Steps.**
   1. `VERSION` contains `0.5.0` (single line, as now).
@@ -438,7 +438,7 @@ After **every** task: the full test suite passes. After tasks M0-5, M0-6 and M0-
 
 ### M0-13. Sign-off run
 
-- [ ] **Goal.** Prove the exit criterion with the real tools and leave a record.
+- [x] **Goal.** Prove the exit criterion with the real tools and leave a record.
 - **Files.** Edit this plan only (tick boxes, paste the output of the commands under "Verification results" at the end).
 - **Steps.** Run every command in section 5 (blocks B, C, D). Open the screenshots named there and look at them. Paste the outputs. Do not run anything against `/home/nick/dev/dossiers/` or write into `FIX`.
 - **Done-check.** Block B prints `OK`; block C prints `"problems": 0`; the full suite passes.
@@ -680,4 +680,21 @@ A table rule's column map is keyed by the **new** column names and must list exa
 
 ## Verification results
 
-(To be pasted by the session that does M0-13.)
+Run 2026-11-01 on branch `feat/dossier-m0`, on scratch copies of `FIX` (nothing under `/home/nick/dev/dossiers/` was read or written, `FIX` was not modified).
+
+**Block B** (migrate, render, digest):
+
+```
+migrate exit 0   "cards_filled": 15, "cards_pending": 27, "carried": 22, 66 blocks not carried
+render exit 0    no error: lines, "unresolved_citations": 0, "cards_filled": 15, "cards_pending": 27
+page written
+OK                                  (normalized report 02 digest equals the baseline)
+skeleton matches the schema for 16 reports, 65 cards
+overview.json unchanged
+```
+
+**Block C** (real browser, with a hand-added `components.detail` test entry): render exit 0; `check_page.py` printed `{"diagrams_checked": 5, "problems": 1}`. The one problem is `FAIL [dark] code viewer: token class 'c' has contrast 4.31:1 on a cited line`. **Accepted by the human (option 1)**: it is not caused by M0 (a fresh render of the unchanged code at the M0-5 start gives the same failure, while the frozen fixture page passes); the theme is to be reviewed after M6. The new search check (`check_search`) found the Installer entry inside the collapsed `<details>` and opened it, so it reported nothing. By hand: the expand button on a Key flows diagram opened it full-screen (box 1368x968) and Esc closed it. Screenshots showed no overlap. Cosmetic: the tier badge wraps below the card title instead of sitting beside it; placeholders read clearly as placeholders.
+
+**Block D**: `227 passed` (168 before M0).
+
+Deviations from the plan, all small: the `with_contents` test moved from M0-5 to M0-10 (it needs the `CARD_HEAD` change); the M0-6 validate tests add `entry` to `render.REPORTS` themselves in the first version and were simplified once M0-11 made that unnecessary; `incremental.cites_in` returns raw citations (`a.py:1`), not bare paths, so its test compares those.

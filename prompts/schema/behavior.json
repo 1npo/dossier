@@ -1,0 +1,119 @@
+{
+  "report": "behavior",
+  "title": "Behavior and tests",
+  "question": "What does it guarantee, how is that checked, and how does it fail?",
+  "cards": [
+    {
+      "id": "behavior.rules",
+      "title": "Business rules and invariants",
+      "tier": "R",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Rule",
+            "What it does",
+            "Where decided",
+            "Edge cases"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "behavior.tests",
+      "title": "Test landscape",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Measure",
+            "Value",
+            "Where"
+          ]
+        },
+        {
+          "type": "table",
+          "columns": [
+            "Question",
+            "Assessment",
+            "Evidence"
+          ]
+        }
+      ],
+      "fixed": {
+        "on": "Measure",
+        "values": [
+          "test counts by kind",
+          "test counts by area",
+          "framework",
+          "skipped and xfail counts",
+          "mock density",
+          "test-to-source mapping",
+          "coverage configuration and thresholds",
+          "CI test commands"
+        ]
+      },
+      "fixed2": {
+        "on": "Question",
+        "values": [
+          "What important code is untested?",
+          "Can a green run be trusted?"
+        ]
+      }
+    },
+    {
+      "id": "behavior.failures",
+      "title": "Failure modes",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "ID",
+            "Failure",
+            "Trigger",
+            "Detection",
+            "Effect",
+            "Recovery"
+          ]
+        },
+        {
+          "type": "text",
+          "min": 0
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "behavior.observability",
+      "title": "Observability",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Signal",
+            "Library",
+            "Where emitted",
+            "Where it goes"
+          ]
+        }
+      ],
+      "fixed": null
+    }
+  ]
+}

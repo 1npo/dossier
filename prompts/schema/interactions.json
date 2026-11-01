@@ -1,0 +1,86 @@
+{
+  "report": "interactions",
+  "title": "Interactions",
+  "question": "How do the parts talk to each other, and where does state live?",
+  "cards": [
+    {
+      "id": "interactions.graph",
+      "title": "Dependency graph",
+      "tier": "M",
+      "priority": "P0",
+      "writer": "script",
+      "shape": "computed",
+      "fixed": null
+    },
+    {
+      "id": "interactions.violations",
+      "title": "Cycles and layer violations",
+      "tier": "M",
+      "priority": "P0",
+      "writer": "script",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Kind",
+            "From",
+            "To",
+            "Evidence"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "interactions.flows",
+      "title": "Key flows",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "flows",
+      "fixed": null
+    },
+    {
+      "id": "interactions.state",
+      "title": "State ownership",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "State",
+            "Held in",
+            "Written by",
+            "Read by",
+            "Lifetime"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "interactions.concurrency",
+      "title": "Concurrency model",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Mechanism",
+            "Where",
+            "Shared state",
+            "Notes"
+          ]
+        }
+      ],
+      "fixed": null
+    }
+  ]
+}

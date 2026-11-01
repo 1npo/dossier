@@ -425,7 +425,8 @@ class TestReportLayout:
 
     def test_renamed_reports_and_tracking_group(self):
         assert render.TITLES["overview"] == "This repository" and render.TITLES["risks"] == "Risks" and render.TITLES["gaps"] == "Gaps"
-        assert dict(render.NAV_GROUPS)["Tracking"] == ["risks", "gaps", "corrections"]
+        assert dict(render.NAV_GROUPS)["Tracking"] == ["gaps", "corrections"]
+        assert "risks" in dict(render.NAV_GROUPS)["Operations and people"]
 
     def test_knowledge_map_offers_lines_and_commits_only(self):
         assert [v for v, _ in render.KM_MEASURES] == ["lines", "commits"] and render.KM_START["metric"] == "lines"

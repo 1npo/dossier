@@ -1,0 +1,17 @@
+{
+  "report": "gaps",
+  "title": "Gaps",
+  "question": "What was not analysed, and what could not be resolved?",
+  "cards": [
+    {
+      "id": "gaps.tracker",
+      "title": "Tracker",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "script",
+      "shape": "computed",
+      "informational": true,
+      "fixed": null
+    }
+  ]
+}

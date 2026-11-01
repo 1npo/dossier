@@ -1,0 +1,86 @@
+{
+  "report": "conventions",
+  "title": "Conventions",
+  "question": "How do I write code that fits in here?",
+  "cards": [
+    {
+      "id": "conventions.style",
+      "title": "Code conventions",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Area",
+            "Convention",
+            "Evidence"
+          ]
+        }
+      ],
+      "fixed": {
+        "on": "Area",
+        "values": [
+          "naming",
+          "error handling",
+          "logging",
+          "dependency injection",
+          "async",
+          "validation",
+          "tests"
+        ]
+      }
+    },
+    {
+      "id": "conventions.recipes",
+      "title": "Recipes",
+      "tier": "R",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "entries",
+      "key": "recipe",
+      "fields": [
+        {
+          "id": "files_to_touch",
+          "label": "Files to touch, in order"
+        },
+        {
+          "id": "worked_example",
+          "label": "Worked example in this repository"
+        }
+      ],
+      "fixed": {
+        "on": "recipe",
+        "values": [
+          "add an endpoint or command",
+          "add a field",
+          "add a migration",
+          "add a test",
+          "add a dependency",
+          "add a config setting"
+        ]
+      }
+    },
+    {
+      "id": "conventions.tooling",
+      "title": "Formatting and tooling",
+      "tier": "M",
+      "priority": "P0",
+      "writer": "script",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Tool",
+            "Config file",
+            "Enforced where"
+          ]
+        }
+      ],
+      "fixed": null
+    }
+  ]
+}

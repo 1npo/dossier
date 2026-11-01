@@ -20,19 +20,19 @@ from urllib.parse import quote
 
 import deps as depscan
 import gather
+import schema
 import viewer
 from gather import Repo
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS, VENDOR = ROOT / "assets", ROOT / "vendor"
 
-REPORTS = [  # id, title, written by Claude?
-    ("dossier", "This dossier", False), ("overview", "This repository", True), ("capabilities", "Capabilities", True),
-    ("interfaces", "Interfaces", True), ("architecture", "Architecture", True), ("domain-logic", "Domain logic", True),
-    ("data", "Data model", True), ("code-tour", "Code tour", True),
-    ("failures", "Failure modes", True), ("delivery", "Delivery, config and secrets", True),
-    ("contributors", "Contributors", True), ("risks", "Risks", True),
-    ("gaps", "Gaps", True), ("corrections", "Corrections", False),
+REPORTS = [  # id, title, written by Claude?  The order is schema.REPORT_ORDER.
+    ("dossier", "This dossier", False), ("overview", "This repository", True), ("reading", "Reading guide", True),
+    ("entry", "Entry points", True), ("components", "Components", True), ("interactions", "Interactions", True),
+    ("io", "Inputs and outputs", True), ("data", "Data model", True), ("behavior", "Behavior and tests", True),
+    ("change", "Change and history", True), ("conventions", "Conventions", True), ("ops", "Build, run and ship", True),
+    ("contributors", "Contributors", True), ("risks", "Risks", True), ("gaps", "Gaps", True), ("corrections", "Corrections", False),
 ]
 TITLES = {r: t for r, t, _ in REPORTS}
 CONF = ("confirmed", "inferred", "unknown")
@@ -46,9 +46,11 @@ FACT_KEYS = {k: f"facts-{k}" for k in ("git", "languages", "hot_files", "manifes
                                        "secret_signals", "contributors", "ownership", "areas", "file_activity", "knowledge", "dependencies", "chunks")}
 FACT_KEYS["areas"] = "facts-contributors"   # the areas are no longer drawn on the page
 FACT_KEYS["hot_files"] = FACT_KEYS["manifests"] = "facts-git"   # their cards were retired; the figures still back statements about the repository
+FACT_KEYS["env_vars"] = FACT_KEYS["secret_signals"] = "facts-git"   # their panels were removed in 0.5.0; the figures still back statements about the repository
 FACT_KEYS["chunks"] = "dossier-build"
 FACT_KEYS["inventory"] = "facts-git"  # retired file-name inventory; old reports may still cite it
-OPTIONAL_REPORTS = ("domain-logic",)  # reports added after v0.1: a dossier built before them still renders
+OPTIONAL_REPORTS = ()  # reports added after an earlier version: a dossier built before them still renders
+UNRENDERED_BLOCKS = ("overview",)  # overview.json's written blocks are no longer drawn; do not count what is not shown
 DIAGRAM_START = re.compile(r"^\s*(%%\{.*?\}%%\s*)?(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram(-v2)?|erDiagram|journey|gantt|pie|mindmap|timeline|gitGraph|quadrantChart|requirementDiagram|C4\w+|sankey-beta|xychart-beta|block-beta|architecture-beta)\b", re.S)
 INLINE_CITE = re.compile(r"\[\[(.+?)\]\]")
 GATHERER_PATH = "dossier-gatherer/gather.py"   # the gatherer's source, embedded in the code viewer under this name
@@ -502,23 +504,89 @@ def claim(report, where, node, text, cells=None):
             "text": text, "node": node}
 
 
-def claims_of(rid, rep):
+def claims_of_blocks(rid, blocks, where=None):
     out = []
-    for b in rep.get("blocks", []):
-        where = b.get("heading") or ""
+    for b in blocks:
+        if not isinstance(b, dict):
+            continue
+        w = where if where is not None else (b.get("heading") or "")
         t = b.get("type")
         if t == "text":
-            out.append(claim(rid, where, b, b.get("text", "")))
+            out.append(claim(rid, w, b, b.get("text", "")))
         elif t == "diagram":
-            out.append(claim(rid, where, b, b.get("title") or where or "Diagram"))
+            out.append(claim(rid, w, b, b.get("title") or w or "Diagram"))
         elif t == "list":
-            out += [claim(rid, where, it, it.get("text", "")) for it in b.get("items", []) if isinstance(it, dict)]
+            out += [claim(rid, w, it, it.get("text", "")) for it in b.get("items", []) if isinstance(it, dict)]
         elif t == "table":
             for r in b.get("rows", []):
                 if isinstance(r, dict):
                     cells = [str(c) for c in r.get("cells", [])]
-                    out.append(claim(rid, where, r, " · ".join(cells[:2]), cells))
+                    out.append(claim(rid, w, r, " · ".join(cells[:2]), cells))
     return out
+
+
+def claims_of(rid, rep):
+    if rid in UNRENDERED_BLOCKS:
+        return []
+    if isinstance(rep.get("cards"), list):
+        sch = schema.load(rid) or {}
+        titles = {c["id"]: c["title"] for c in sch.get("cards", [])}
+        out = []
+        for entry in rep["cards"]:
+            if not isinstance(entry, dict):
+                continue
+            where = titles.get(entry.get("card"), str(entry.get("card") or ""))
+            if isinstance(entry.get("blocks"), list):
+                out += claims_of_blocks(rid, entry["blocks"], where=where)
+            elif isinstance(entry.get("entries"), list):
+                for e in entry["entries"]:
+                    if not isinstance(e, dict) or not isinstance(e.get("fields"), dict):
+                        continue
+                    vals = [str(v) for v in e["fields"].values()]
+                    name = next((str(v) for k, v in e.items() if k not in ("fields", "conf", "cite", "note", "user", "id") and isinstance(v, str)), "")
+                    out.append(claim(rid, where, e, f"{name} · {vals[0] if vals else ''}", vals))
+            elif isinstance(entry.get("na"), str):
+                out.append(claim(rid, where, {"conf": "confirmed", "cite": entry.get("cite")}, entry["na"]))
+        return out
+    return claims_of_blocks(rid, rep.get("blocks", []))
+
+
+def summary_text(rep):
+    """The executive summary as '- ' lines: a string is returned as is, a list of strings is joined."""
+    s = rep.get("summary")
+    if isinstance(s, list):
+        return "\n".join("- " + str(x) for x in s)
+    return str(s or "")
+
+
+def all_blocks(rep):
+    if isinstance(rep.get("cards"), list):
+        return [b for c in rep["cards"] if isinstance(c, dict) for b in c.get("blocks", []) if isinstance(b, dict)]
+    return [b for b in rep.get("blocks", []) if isinstance(b, dict)]
+
+
+def check_block(tag, b, rid, errors, warnings, schema_card=False):
+    if b.get("type") in BLOCKS and not schema_card and not str(b.get("heading") or "").strip():
+        warnings.append(f"{tag}: add a 'heading'. The contents list names each card by it (the page will call this one '{block_title(b)}').")
+    if b.get("type") not in BLOCKS:
+        errors.append(f"{tag}: 'type' must be one of {', '.join(BLOCKS)}.")
+    elif b["type"] == "table":
+        cols = b.get("columns")
+        if not isinstance(cols, list) or not cols:
+            errors.append(f"{tag}: a table needs 'columns'.")
+            return
+        if rid == "risks":
+            missing = [c for c in RISK_COLUMNS if c not in cols]
+            if missing and any(c in cols for c in ("Risk", "Severity")):
+                errors.append(f"{tag}: risk tables must include the columns {', '.join(RISK_COLUMNS)} (missing: {', '.join(missing)}).")
+        for j, r in enumerate(b.get("rows", [])):
+            if not isinstance(r, dict) or len(r.get("cells", [])) != len(cols):
+                errors.append(f"{tag}, row {j + 1}: each row must be an object whose 'cells' has {len(cols)} entries.")
+    elif b["type"] == "diagram":
+        if not DIAGRAM_START.match(b.get("mermaid", "")):
+            errors.append(f"{tag}: 'mermaid' must start with a Mermaid diagram keyword such as flowchart, sequenceDiagram or erDiagram.")
+    elif b["type"] == "list" and not isinstance(b.get("items"), list):
+        errors.append(f"{tag}: a list needs 'items'.")
 
 
 def validate(reports, facts, cites, partial=False):
@@ -534,41 +602,26 @@ def validate(reports, facts, cites, partial=False):
             errors.append(f"Report '{rid}' must be a JSON object.")
             continue
         for key in ("headline", "summary"):
-            if not str(rep.get(key) or "").strip():
+            if not (summary_text(rep) if key == "summary" else str(rep.get(key) or "")).strip():
                 errors.append(f"Report '{rid}' needs a non-empty '{key}'.")
         if words(rep.get("headline")) > 40:
             warnings.append(f"Report '{rid}': the headline is long. Keep it to one sentence.")
-        if words(rep.get("summary")) > 220:
+        if words(summary_text(rep)) > 220:
             warnings.append(f"Report '{rid}': the summary is over 220 words. Executive summaries should be short.")
-        if rid != "gaps" and not isinstance(rep.get("blocks"), list):
-            errors.append(f"Report '{rid}' needs a 'blocks' list.")
-            continue
-        for i, b in enumerate(rep.get("blocks", [])):
-            tag = f"Report '{rid}', block {i + 1}"
-            if b.get("type") in BLOCKS and not str(b.get("heading") or "").strip():
-                warnings.append(f"{tag}: add a 'heading'. The contents list names each card by it (the page will call this one '{block_title(b)}').")
-            if b.get("type") not in BLOCKS:
-                errors.append(f"{tag}: 'type' must be one of {', '.join(BLOCKS)}.")
-            elif b["type"] == "table":
-                cols = b.get("columns")
-                if not isinstance(cols, list) or not cols:
-                    errors.append(f"{tag}: a table needs 'columns'.")
-                    continue
-                if rid == "capabilities" and "Status" not in cols:
-                    warnings.append(f"{tag}: add a 'Status' column ({', '.join(STATUSES)}) instead of ending the description with the status.")
-                if rid == "risks":
-                    missing = [c for c in RISK_COLUMNS if c not in cols]
-                    if missing and any(c in cols for c in ("Risk", "Severity")):
-                        errors.append(f"{tag}: risk tables must include the columns {', '.join(RISK_COLUMNS)} (missing: {', '.join(missing)}).")
-                for j, r in enumerate(b.get("rows", [])):
-                    if not isinstance(r, dict) or len(r.get("cells", [])) != len(cols):
-                        errors.append(f"{tag}, row {j + 1}: each row must be an object whose 'cells' has {len(cols)} entries.")
-            elif b["type"] == "diagram":
-                src = b.get("mermaid", "")
-                if not DIAGRAM_START.match(src):
-                    errors.append(f"{tag}: 'mermaid' must start with a Mermaid diagram keyword such as flowchart, sequenceDiagram or erDiagram.")
-            elif b["type"] == "list" and not isinstance(b.get("items"), list):
-                errors.append(f"{tag}: a list needs 'items'.")
+        sch = schema.load(rid)
+        if sch:
+            e6, w6 = schema.validate(rid, rep, sch)
+            errors += e6
+            warnings += w6
+            if rid not in UNRENDERED_BLOCKS:
+                for i, b in enumerate(all_blocks(rep)):
+                    check_block(f"Report '{rid}', block {i + 1}", b, rid, errors, warnings, schema_card=True)
+        elif rid != "gaps":
+            if not isinstance(rep.get("blocks"), list):
+                errors.append(f"Report '{rid}' needs a 'blocks' list.")
+                continue
+            for i, b in enumerate(rep.get("blocks", [])):
+                check_block(f"Report '{rid}', block {i + 1}", b, rid, errors, warnings)
         if rid == "gaps":
             for j, it in enumerate(rep.get("items", [])):
                 if it.get("kind") not in GAP_KINDS or not it.get("statement"):
@@ -719,15 +772,151 @@ def render_blocks(blocks, refs, rid):
     return "".join(out)
 
 
+# --------------------------------------------------------------------------- schema cards
+
+TIER_INFO = {
+    "M": ("Measured", "Measured: produced by a tool from the repository. No model was involved."),
+    "A": ("Adjudicated", "Adjudicated: a tool found the candidates, and Claude sorted, pruned, added and explained them."),
+    "R": ("Read", "Read: Claude's reading of the code, with citations. Each statement is confirmed, inferred or unknown."),
+    "M+A": ("Measured and adjudicated", "Measured and adjudicated: tool output that Claude then named, merged or explained."),
+}
+
+
+def tier_badge(tier):
+    name, tip = TIER_INFO[tier]
+    cls = "tier-" + tier.lower().replace("+", "plus")
+    return f'<span class="badge tier {cls}" data-variant="outline" tabindex="0" data-tip="{E(tip)}" data-tip-kind="note" aria-label="{E(name + ": " + tip)}">{E(tier)}</span>'
+
+
+def card_counts(reports):
+    """(filled, pending) over the schema cards written by Claude: content or 'na' is filled, 'pending' or absent is pending."""
+    filled = pending = 0
+    for rid, sch in schema.load_all().items():
+        claude = [c["id"] for c in sch["cards"] if c["writer"] == "claude"]
+        if not claude:
+            continue
+        have = {e["card"]: e for e in (reports.get(rid) or {}).get("cards", []) if isinstance(e, dict) and "card" in e}
+        for cid in claude:
+            e = have.get(cid)
+            if e and not e.get("pending") and any(k in e for k in ("blocks", "entries", "na")):
+                filled += 1
+            else:
+                pending += 1
+    return filled, pending
+
+
+def card_dom_id(cid):
+    return "c-" + cid.replace(".", "-")
+
+
+def schema_card(card, body, extra=""):
+    shade = "fact" if card["tier"] == "M" else "llm"
+    return (f'<div class="card block {shade}{extra}" id="{card_dom_id(card["id"])}" data-card="{card["id"]}">'
+            f'<header><h3>{E(card["title"])}</h3>{tier_badge(card["tier"])}</header><section>{body}</section></div>')
+
+
+def placeholder_body(card):
+    first = "<strong>Not yet generated.</strong> This card is part of the standard layout."
+    if card["writer"] == "script":
+        return f'<p class="muted">{first} A tool fills this card in, not Claude. That tool is not part of this version yet.</p>'
+    return f'<p class="muted">{first} Nothing has been written for it in this dossier yet.</p>'
+
+
+def na_body(entry, refs):
+    return f'<p>Not applicable: {inline(entry["na"], refs)}</p>' + provenance({"conf": "confirmed", "cite": entry["cite"]}, refs, entry["na"])
+
+
+def list_html(items, refs):
+    lis = "".join(f'<li>{inline(i["text"], refs)} {basis_for(i) if (i["conf"] != "confirmed" or i.get("user")) else ""}{gid_tag(i)}{refs.mark(new_cites(i.get("cite"), i["text"]))}'
+                  + (f'<div class="muted">{inline(i.get("note"), refs)}</div>' if i.get("note") and i["conf"] != "confirmed" else "") + user_note(i.get("user")) + "</li>"
+                  for i in items)
+    return f'<ul class="claims">{lis}</ul>'
+
+
+def block_body(b, refs, tid):
+    t = b["type"]
+    if t == "table":
+        cap = f'<p class="muted">{inline(b["caption"], refs)}</p>' if b.get("caption") else ""
+        return cap + render_table(b["columns"], b["rows"], refs, tid)
+    if t == "list":
+        return list_html(b["items"], refs)
+    if t == "text":
+        return md(b["text"], refs) + provenance(b, refs, b["text"])
+    src = b["mermaid"].strip()
+    title = f'<h4>{E(b["title"])}</h4>' if b.get("title") else "<h4>Diagram</h4>"
+    return (f'<div class="diagram flow"><div class="flow-bar">{title}<div class="card-action"><button class="btn" data-variant="ghost" data-size="sm" type="button" data-expand title="Expand" aria-label="Expand diagram">{EXPAND_ICONS}</button></div></div>'
+            f'<div class="mermaid-host" data-src="{E(src)}"><pre class="muted">Diagram loads when this report is opened.</pre></div>'
+            f'<details><summary class="muted">Diagram source</summary><pre>{E(src)}</pre></details>{provenance(b, refs, "", "Diagram")}</div>')
+
+
+def blocks_body(card, blocks, refs, tid):
+    """A card's blocks, without a card around each. A text or list block right after a diagram is that diagram's notes."""
+    out = []
+    for i, b in enumerate(blocks):
+        h = block_body(b, refs, f"{tid}-{i}")
+        if b["type"] == "diagram":
+            out.append(h)
+        elif i and blocks[i - 1]["type"] == "diagram" and card["shape"] == "flows":
+            out[-1] = out[-1][:-len("</div>")] + f'<div class="diagram-notes">{h}</div></div>'
+        else:
+            out.append(h)
+    return "".join(out)
+
+
+def entries_body(card, entries, refs, tid):
+    labels = card["fields"]
+    out = []
+    for n, e in enumerate(entries, 1):
+        fl = e["fields"]
+        dl = "".join(f"<dt>{E(f['label'])}</dt><dd>{inline(fl[f['id']], refs)}</dd>" for f in labels)
+        out.append(f'<details class="entry" id="{card_dom_id(card["id"])}-e{n}" open><summary>{E(e[card["key"]])}</summary><dl class="facts">{dl}</dl>'
+                   f'{provenance(e, refs, " ".join(fl.values()))}</details>')
+    return "".join(out)
+
+
+def render_card(card, entry, refs, rid):
+    tid = "t-" + card_dom_id(card["id"])[2:]
+    if card["writer"] == "script" or not isinstance(entry, dict) or entry.get("pending"):
+        return schema_card(card, placeholder_body(card))
+    try:
+        if "na" in entry:
+            body = na_body(entry, refs)
+        elif "blocks" in entry:
+            body = blocks_body(card, entry["blocks"], refs, tid)
+        elif "entries" in entry:
+            body = entries_body(card, entry["entries"], refs, tid)
+        else:
+            body = placeholder_body(card)
+    except (KeyError, TypeError, IndexError, AttributeError):
+        body = placeholder_body(card)  # V6 reports the real error
+    return schema_card(card, body)
+
+
+def schema_cards_html(sch, rep, refs, rid):
+    by_id = {c["card"]: c for c in (rep or {}).get("cards", []) if isinstance(c, dict) and "card" in c}
+    return "".join(render_card(c, by_id.get(c["id"]), refs, rid) for c in sch["cards"])
+
+
 # --------------------------------------------------------------------------- measured panels
 
 
-def card(title, body, pid=None, desc=None, refs=None, cite=None, kind="fact"):
-    """kind is "fact" for a card of figures measured from the repository, "llm" for one that holds statements written by Claude."""
+@lru_cache(maxsize=1)
+def schema_cards_by_id():
+    return {c["id"]: c for sch in schema.load_all().values() for c in sch["cards"]}
+
+
+def card(title, body, pid=None, desc=None, refs=None, cite=None, kind="fact", cid=None):
+    """kind is "fact" for a card of figures measured from the repository, "llm" for one that holds statements written by Claude.
+    With `cid` (a schema card id) the title and tier come from the schema, the card gets a tier badge and its shade follows the tier."""
     mark = refs.mark([cite] if isinstance(cite, str) else cite) if refs and cite else ""
     d = f"<p>{E(desc)}</p>" if desc else ""
     idattr = f' id="{pid}"' if pid else ""
-    return f'<div class="card panel {kind}"{idattr}><header><h2>{E(title)} {mark}</h2>{d}</header><section>{body}</section></div>'
+    badge = dcard = ""
+    if cid:
+        sc = schema_cards_by_id()[cid]
+        title, badge, dcard = sc["title"], tier_badge(sc["tier"]), f' data-card="{cid}"'
+        kind = "fact" if sc["tier"] == "M" else "llm"
+    return f'<div class="card panel {kind}"{idattr}{dcard}><header><h2>{E(title)} {mark}</h2>{badge}{d}</header><section>{body}</section></div>'
 
 
 def path_cell(path, refs, line=None):
@@ -781,7 +970,7 @@ def panel_git(f, refs, ctx):
         rows = "".join(f'<tr><td><code>{E(t["name"])}</code></td><td>{E(t["date"])}</td><td class="muted">{gap(i)}</td></tr>' for i, t in enumerate(tags[:10]))
         rel = f'<div class="activity solo"><div class="activity-side"><h3>Recent releases</h3><table class="table"><thead><tr><th>Tag</th><th>Date</th><th>Gap</th></tr></thead><tbody>{rows}</tbody></table></div></div>'
     notes = "".join(alert(E(w)) for w in f["repo"]["warnings"])
-    return card("Overview", notes + stats + boxes + rel + languages_block(f, refs), "facts-git", refs=refs, cite="facts:git")
+    return card("Overview", notes + stats + boxes + rel + languages_block(f, refs), "facts-git", refs=refs, cite="facts:git", cid="overview.repository")
 
 
 def languages_block(f, refs):
@@ -850,7 +1039,7 @@ def panel_dependencies(f, refs):
         body = alert(E(d["error"]), "The dependency analysis failed")
     else:
         body = dependencies_card(d, refs)
-    return card("Dependencies", body, "facts-dependencies", refs=refs, cite="facts:dependencies")
+    return card("Dependencies", body, "facts-dependencies", refs=refs, cite="facts:dependencies", cid="overview.dependencies")
 
 
 def dependencies_card(d, refs):
@@ -882,22 +1071,6 @@ def dependencies_card(d, refs):
     jsn = json.dumps(d, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c")
     return (f'<div class="dp" id="dp-root">{notes}{tiles}{controls}<div id="dp-stage"></div><div class="dp-finds">{finds}</div></div>'
             f'<script type="application/json" id="dp-data">{jsn}</script>')
-
-
-def panel_env(f, refs):
-    rows = [[f"<code>{E(e['name'])}</code>", fmt(e["count"]), path_cell(e["first"]["path"], refs, e["first"]["line"])] for e in f["env_vars"][:40]]
-    body = render_table(["Variable", "References", "First seen"], rows, refs, "t-env", True, True) if rows else '<p class="muted">No environment variable reads were detected.</p>'
-    more = f'<p class="muted">Showing 40 of {len(f["env_vars"])}.</p>' if len(f["env_vars"]) > 40 else ""
-    return card("Environment variables read by the code", body + more, "facts-env_vars", "Detected with pattern matching, so dynamic names are missed.", refs, "facts:env_vars")
-
-
-def panel_secrets(f, refs):
-    s = f["secret_signals"]
-    hits = [[E(h["kind"]), path_cell(h["path"], refs, h["line"])] for h in s["hits"][:50]]
-    files = [[path_cell(x["path"], refs), E(x["verdict"])] if isinstance(x, dict) else [path_cell(x, refs), '<span class="muted">not inspected</span>'] for x in s["sensitive_files"][:30]]
-    body = (render_table(["Pattern", "Location"], hits, refs, "t-sec", False, True) if hits else '<p>No credential-shaped strings were found.</p>')
-    body += ("<h3>Tracked files that often hold secrets, and what they contain</h3>" + render_table(["File", "What the file contains"], files, refs, "t-sens", False, True)) if files else ""
-    return card("Secret scan", body + f'<p class="muted">{E(s["note"])}</p>', "facts-secret_signals", refs=refs, cite="facts:secret_signals")
 
 
 def type_cls(t):
@@ -1139,7 +1312,7 @@ def panel_contributors(f, refs):
     know = ('<p class="muted">Which parts of the repository each person knows best, based on surviving lines, commit history and recent activity.</p>'
             + knowledge_card(f, table + more))
     return card("Contributors", tiles + assisted + when + f'<div class="who-bar">{who_bar}</div>' + know,
-                "facts-contributors", None, refs, ["facts:contributors", "facts:git", "facts:knowledge"] + (["facts:ownership"] if o else []))
+                "facts-contributors", None, refs, ["facts:contributors", "facts:git", "facts:knowledge"] + (["facts:ownership"] if o else []), cid="overview.contributors")
 
 
 # --------------------------------------------------------------------------- tracker pages
@@ -1193,7 +1366,7 @@ def panel_gaps(gaps, refs):
     rows = [[f'<code class="gid">{E(g.get("id") or "")}</code>', gap_badge(g["kind"]), f'<a href="#{g["report"]}">{E(TITLES.get(g["report"], g["report"]))}</a>', inline(g["statement"], refs),
              decision_cell(g), inline(g["confirm"], refs) or '<span class="muted">not stated</span>', refs.mark(new_cites(g["cites"], g["statement"], g["confirm"]))] for g in gaps]
     hint = '<p class="muted">To confirm an item or give the answer to an unknown, ask Claude to run <code>/dossier confirm</code> with the ID. Your decisions are kept across rebuilds.</p>'
-    return cards + card("Gap tracker", hint + (render_table(["ID", "Type", "Report", "Statement", "Status", "What would confirm it", "Evidence"], rows, refs, "t-gaps", True, True) if rows else '<p>Nothing is outstanding.</p>'), "tracker", kind="llm")
+    return cards + card("Tracker", hint + (render_table(["ID", "Type", "Report", "Statement", "Status", "What would confirm it", "Evidence"], rows, refs, "t-gaps", True, True) if rows else '<p>Nothing is outstanding.</p>'), "tracker", kind="llm", cid="gaps.tracker")
 
 
 def panel_corrections(state, refs, present=frozenset()):
@@ -1206,8 +1379,11 @@ def panel_corrections(state, refs, present=frozenset()):
     types = state.get("contributor_types", {})
     if types:
         body += "<h3>Contributor type overrides</h3>" + render_table(["Identity", "Set to"], [[E(k), E(v)] for k, v in types.items()], refs, "t-ovr", False, True)
-    out = card("Tracker", body, "corrections-list")
+    out = card("Tracker", body, "corrections-list", cid="corrections.tracker")
     res = state.get("resolutions", {})
+    if not res:
+        out += card("Your confirmations and answers", "<p>No confirmations or answers have been recorded yet.</p>", "resolutions-list",
+                    "Decisions about inferences, unknowns and assumptions. They are stored with the dossier and applied on every build.", cid="corrections.decisions")
     if res:
         label = {"confirm": "Confirmed", "answer": "Answered", "wrong": "Disputed"}
         tr = {t["id"]: t for t in state.get("tracked", [])}
@@ -1216,7 +1392,7 @@ def panel_corrections(state, refs, present=frozenset()):
                   "Applied to a statement in this build" if i in present else "No matching statement in this build. Kept, and applied if it returns."]
                  for i, r in sorted(res.items())]
         out += card("Your confirmations and answers", render_table(["ID", "Date", "Report", "Statement", "Decision", "Your note", "State"], rrows, refs, "t-res", True, True),
-                    "resolutions-list", "Decisions about inferences, unknowns and assumptions. They are stored with the dossier and applied on every build.")
+                    "resolutions-list", "Decisions about inferences, unknowns and assumptions. They are stored with the dossier and applied on every build.", cid="corrections.decisions")
     return out
 
 
@@ -1226,12 +1402,12 @@ def panel_history(entries, refs):
              E(h["summary"]) + (f'<div class="muted">{E(h["note"])}</div>' if h.get("note") else ""),
              num(h["gaps"]["unknown"]), num(h["gaps"]["inference"]), num(h["gaps"]["assumption"]), f'<span class="nw">{E(h["skill_version"])}</span>'] for h in reversed(entries)]
     return card("Dossier changelog", render_table(["Built", "Commit", "Branch", "What changed", "Unknown", "Inferred", "Assumed", "Skill version"], rows, refs, "t-hist", False, True,
-                group=[("", 4), ("Open items at that build", 3), ("", 1)]), "history", "Open items are the unknowns, inferences and assumptions listed in the gaps report at the time of each build.")
+                group=[("", 4), ("Open items at that build", 3), ("", 1)]), "history", "Open items are the unknowns, inferences and assumptions listed in the gaps report at the time of each build.", cid="dossier.changelog")
 
 
 def panel_risk_counts(rep):
     counts = {s: 0 for s in SEVERITIES}
-    for b in rep.get("blocks", []):
+    for b in all_blocks(rep):
         if b.get("type") == "table" and "Severity" in b.get("columns", []):
             i = b["columns"].index("Severity")
             for r in b.get("rows", []):
@@ -1244,11 +1420,6 @@ def panel_risk_counts(rep):
 
 
 # --------------------------------------------------------------------------- page assembly
-
-PANELS_AFTER = {
-    "delivery": lambda f, r, ctx: panel_env(f, r) + panel_secrets(f, r),
-}
-
 
 def count_pill(n, kind):
     return f'<span class="count c-{kind}{" zero" if not n else ""}">{n}</span>'
@@ -1276,7 +1447,7 @@ def panel_dossier(facts, reports, state, ctx, refs):
                         ("Size", f"~{compact(c['total_tokens'])} tokens", "file bytes divided by 3.5")])
     this = fact_box("Build", [("Built", E(ctx["built"])), ("Skill version", "dossier " + E(ctx["version"]))])
     return card("About this dossier", tiles + f'<div class="facts-groups one">{this}</div>', "dossier-build",
-                "Everything is pinned to one commit, so every citation stays valid.", refs, "facts:chunks")
+                "Everything is pinned to one commit, so every citation stays valid.", refs, "facts:chunks", cid="dossier.about")
 
 
 def flags_html(rid, reports, state, ctx=None):
@@ -1295,7 +1466,7 @@ def flags_html(rid, reports, state, ctx=None):
     return f'<span class="flags">{out}</span>' if out else ok
 
 
-CARD_HEAD = re.compile(r'<div class="card (panel|block)([^"]*)"( id="[^"]*")?><header><h([23])>(.*?)</h\4>')
+CARD_HEAD = re.compile(r'<div class="card (panel|block)([^"]*)"( id="[^"]*")?( data-card="[^"]*")?><header><h([23])>(.*?)</h\5>')
 
 
 def with_contents(rid, body):
@@ -1303,14 +1474,48 @@ def with_contents(rid, body):
     entries = []
 
     def sub(m):
-        kind, extra, idattr, lvl, inner = m.groups()
+        kind, extra, idattr, dc, lvl, inner = m.groups()
         cid = idattr[5:-1] if idattr else f"{rid}-c{len(entries) + 1}"
         entries.append((cid, re.sub(r"\s*<sup.*$", "", inner).strip()))
-        return f'<div class="card {kind}{extra}" id="{cid}"><header><h{lvl}>{inner}</h{lvl}>'
+        return f'<div class="card {kind}{extra}" id="{cid}"{dc or ""}><header><h{lvl}>{inner}</h{lvl}>'
     body = CARD_HEAD.sub(sub, body)
     entries.append((f"{rid}-refs", "References"))
     items = "".join(f'<li><a href="#{cid}">{title}</a></li>' for cid, title in entries)
     return body, f'<div class="card toc-card" id="{rid}-toc"><header><h2>Contents</h2></header><section><ol class="toc">{items}</ol></section></div>'
+
+
+TIER_KEY = ('<p class="tier-key"><span>Badge on each card:</span><span><b>M</b> measured by a tool</span>'
+            '<span><b>A</b> found by a tool, decided by Claude</span><span><b>R</b> read by Claude</span></p>')
+
+# cards drawn by the existing panels keep their old anchors, so links to them from before still work
+PANEL_ANCHORS = {"dossier.about": "dossier-build", "dossier.reports": "report-index", "dossier.changelog": "history",
+                 "overview.repository": "facts-git", "overview.contributors": "facts-contributors", "overview.dependencies": "facts-dependencies",
+                 "gaps.tracker": "tracker", "corrections.tracker": "corrections-list", "corrections.decisions": "resolutions-list"}
+
+
+def card_anchor(cid):
+    return PANEL_ANCHORS.get(cid) or card_dom_id(cid)
+
+
+def head_html(rid, title, headline_html, sch=None):
+    q = f'<p class="question">{E(sch["question"])}</p>' if sch else ""
+    key = TIER_KEY if sch else ""
+    return f'<header class="report-head"><h1>{E(title)}</h1>{q}<p class="headline">{headline_html}</p>{SHADE_KEY}{key}</header>'
+
+
+def questions_body(refs):
+    cards = schema_cards_by_id()
+    rows = []
+    for q in schema.load_questions():
+        links = []
+        for a in q["answers"]:
+            if isinstance(a, dict):
+                links.append(f'<a href="#{a["report"]}">{E(a["label"])}</a>')
+                continue
+            n = schema.REPORT_ORDER.index(a.split(".")[0]) + 1
+            links.append(f'<a href="#{card_anchor(a)}">{E(cards[a]["title"])}</a> <span class="muted">(report {n:02d})</span>')
+        rows.append([E(q["id"]), E(q["question"]), "<br>".join(links) or '<span class="muted">not answered in this version</span>'])
+    return render_table(["No.", "Question", "Answered in"], rows, refs, "t-questions", True, True)
 
 
 def build_page(rid, reports, facts, state, ctx):
@@ -1318,6 +1523,7 @@ def build_page(rid, reports, facts, state, ctx):
     title = TITLES[rid]
     rep = reports.get(rid) or {}
     parts, pre = [], ""
+    sch = schema.load(rid)
     if rid == "dossier":
         headline = "How this dossier was built, how complete it is, and what changed since the last build."
         allc = [c for r_, _, a_ in REPORTS if a_ for c in claims_of(r_, reports.get(r_) or {})]
@@ -1326,6 +1532,9 @@ def build_page(rid, reports, facts, state, ctx):
                         f"It holds {fmt(len(allc))} statements: {n['confirmed']} confirmed in the code or history, {n['inferred']} inferred from context and {n['unknown']} for which nothing was found.</p>"
                         f"<p>Built {E(ctx['built'])} with dossier {E(ctx['version'])}. {len(ctx['history'])} build{'' if len(ctx['history']) == 1 else 's'} recorded so far.</p>")
         parts.append(panel_dossier(facts, reports, state, ctx, refs))
+        cards = schema_cards_by_id()
+        parts.append(schema_card(cards["dossier.process"], placeholder_body(cards["dossier.process"])))
+        parts.append(schema_card(cards["dossier.questions"], questions_body(refs)))
         idx, tot = [], {k: 0 for k in CONF}
         for r, t, authored in REPORTS[1:]:
             rr = reports.get(r) or {}
@@ -1338,7 +1547,7 @@ def build_page(rid, reports, facts, state, ctx):
         parts.append(card("Reports in this dossier", render_table(["Report", "In one sentence", "Confirmed", "Inferred", "Unknown"], idx, refs, "t-index", False, True,
                      group=[("", 2), ("Statements by basis", 3)],
                      foot=["<strong>Total</strong>", f'<span class="muted">{sum(tot.values())} statements in all</span>', *[count_pill(tot[k], k) for k in CONF]]), "report-index",
-                     "Each count is a number of statements. Confirmed ones are stated in the code or history, inferred ones are reasoned from context, and unknown ones were not found.", kind="llm"))
+                     "Each count is a number of statements. Confirmed ones are stated in the code or history, inferred ones are reasoned from context, and unknown ones were not found.", cid="dossier.reports"))
         parts.append(panel_history(ctx["history"], refs))
     elif rid == "corrections":
         headline = "Everything the user has corrected, and whether the correction has been applied."
@@ -1346,30 +1555,30 @@ def build_page(rid, reports, facts, state, ctx):
         parts.append(panel_corrections(state, refs, {g["id"] for g in ctx["gaps"] if g.get("id")}))
     else:
         headline = rep.get("headline", "This report has not been written yet.")
-        summary_html = md(rep.get("summary", ""), refs) or '<p class="muted">Not generated.</p>'
+        summary_html = md(summary_text(rep), refs) or '<p class="muted">Not generated.</p>'
         if rid == "overview":
             parts.append(panel_git(facts, refs, ctx))
             parts.append(panel_contributors(facts, refs))
             parts.append(panel_dependencies(facts, refs))
         if rid == "risks" and rep:
             parts.append(panel_risk_counts(rep))
-        # the overview's written cards (what to know first, technology, maturity) head the Capabilities report, ahead of its own
-        moved = (reports.get("overview") or {}).get("blocks", []) if rid == "capabilities" else []
-        blocks = render_blocks(moved + (rep.get("blocks", []) if rid != "overview" else []), refs, rid)
-        if blocks:
-            parts.append(f'<div class="findings">{blocks}</div>')
+        if sch and any(c["writer"] == "claude" for c in sch["cards"]):
+            parts.append(f'<div class="findings">{schema_cards_html(sch, rep, refs, rid)}</div>')
+        elif not sch:
+            blocks = render_blocks(rep.get("blocks", []), refs, rid)
+            if blocks:
+                parts.append(f'<div class="findings">{blocks}</div>')
         if rid == "gaps":
             parts.append(panel_gaps(ctx["gaps"], refs))
-        if rid in PANELS_AFTER:
-            parts.append(PANELS_AFTER[rid](facts, refs, ctx))
     body, toc = with_contents(rid, "".join(parts))
     top = "" if rid in BARE_REPORTS else f'<div class="card summary llm"><header><h2>Executive summary</h2></header><section>{summary_html}</section></div>' + toc
-    return (f'<section class="report" id="{rid}" hidden><header class="report-head"><h1>{E(title)}</h1><p class="headline">{inline(headline, refs)}</p>{SHADE_KEY}</header>{pre}'
+    return (f'<section class="report" id="{rid}" hidden>{head_html(rid, title, inline(headline, refs), sch)}{pre}'
             + top + body + f'<div class="card refs-card" id="{rid}-refs"><header><h2>References</h2><p>Links open the source at the pinned commit.</p></header><section>{refs.listing()}</section></div></section>')
 
 
-NAV_GROUPS = [("Orientation", ["dossier", "overview", "capabilities", "interfaces"]), ("Design", ["architecture", "domain-logic", "data", "code-tour"]),
-              ("Operations and people", ["failures", "delivery", "contributors"]), ("Tracking", ["risks", "gaps", "corrections"])]
+NAV_GROUPS = [("Orientation", ["dossier", "overview", "reading", "entry"]), ("Design", ["components", "interactions", "io", "data"]),
+              ("Behaviour and change", ["behavior", "change", "conventions"]), ("Operations and people", ["ops", "contributors", "risks"]),
+              ("Tracking", ["gaps", "corrections"])]
 
 
 PLACEHOLDER = re.compile(r"\{\{|\}\}|\$\{|<%|%>|\[\[|<[A-Za-z_ -]+>$|^(your|my)[ _-]")

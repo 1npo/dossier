@@ -1,0 +1,125 @@
+{
+  "report": "components",
+  "title": "Components",
+  "question": "What are the main parts, what does each do, and how does it work?",
+  "cards": [
+    {
+      "id": "components.map",
+      "title": "Component map",
+      "tier": "M+A",
+      "priority": "P0",
+      "writer": "script",
+      "shape": "computed",
+      "fixed": null
+    },
+    {
+      "id": "components.catalog",
+      "title": "Component catalog",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Component",
+            "Paths",
+            "Responsibility",
+            "Public surface",
+            "Depends on",
+            "Used by",
+            "Size"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "components.detail",
+      "title": "Component details",
+      "tier": "R",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "entries",
+      "key": "component",
+      "fields": [
+        {
+          "id": "purpose",
+          "label": "Purpose"
+        },
+        {
+          "id": "how_it_works",
+          "label": "How it works"
+        },
+        {
+          "id": "public_surface",
+          "label": "Public surface"
+        },
+        {
+          "id": "state_owned",
+          "label": "State owned"
+        },
+        {
+          "id": "key_files",
+          "label": "Key files"
+        },
+        {
+          "id": "gotchas",
+          "label": "Gotchas"
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "components.cross-cutting",
+      "title": "Cross-cutting concerns",
+      "tier": "R",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Concern",
+            "Approach",
+            "Where"
+          ]
+        }
+      ],
+      "fixed": {
+        "on": "Concern",
+        "values": [
+          "configuration",
+          "authentication/authorisation",
+          "logging",
+          "error handling",
+          "caching",
+          "validation",
+          "i18n",
+          "feature flags"
+        ]
+      }
+    },
+    {
+      "id": "components.extension-points",
+      "title": "Extension points",
+      "tier": "R",
+      "priority": "P1",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Point",
+            "How to extend",
+            "Example"
+          ]
+        }
+      ],
+      "fixed": null
+    }
+  ]
+}
