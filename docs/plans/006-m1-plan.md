@@ -615,7 +615,7 @@ Independent tasks (may be done in any order relative to each other): **M1-1, M1-
 
 ### M1-15. Version 0.6.0
 
-- [ ] **Goal.** Bump the version as the `git-release` skill describes for this repository (encamp has no release CI for the skill; the bump is a commit).
+- [x] **Goal.** Bump the version as the `git-release` skill describes for this repository (encamp has no release CI for the skill; the bump is a commit).
 - **Files.** `VERSION`.
 - **Steps.** Follow `git-release`. `VERSION` contains `0.6.0`.
 - **Done-check.** `uv run scripts/dossier.py version` prints `dossier 0.6.0`; full suite passes.
