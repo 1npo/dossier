@@ -46,6 +46,8 @@ A map is not a mental model. The map orients the reader, and the model forms whe
 
 ## 3. Questions, and where they are answered
 
+The list below is shipped as data (`prompts/schema/questions.json`: question id, text, and the cards that answer it) and is shown in every dossier as the card `dossier.questions` in report 01.
+
 Tags: S static extraction, G git history, L Claude reading, X outside the repository.
 
 | # | Question | Tags | Report / card |
@@ -102,11 +104,25 @@ Each report shows its question under the title. Cards show their fixed title onl
 ### 01 This dossier, 02 This repository
 Unchanged apart from the additions below. Report 02 keeps every card it renders today, including the Contributors, knowledge map, commit calendar and Dependencies cards. None of them moves. 01 gains the `freshness` BAN (pinned commit versus current HEAD of the ref) and the extractor list with versions (see 6.2).
 
-New card in 01:
+Their existing cards are part of the schema and of 1.0.0, with their content unchanged. They are treated like every other card: fixed id and title, tier badge, and the shade that goes with the tier (M cards facts shade, A and R cards model shade). The one visible change is that "Reports in this dossier" (tier M) moves to the facts shade. The three tracker cards in 14, 15 and 16 are all titled "Tracker". They are drawn by code, not written by Claude (`computed` shape):
+
+| Card id | Title | Tier | Content today | P |
+|---|---|---|---|---|
+| `dossier.about` | About this dossier | M | Build facts and statistics tiles | P0 |
+| `dossier.reports` | Reports in this dossier | M | One row per report, with its one-sentence headline and counts of confirmed, inferred and unknown statements | P0 |
+| `dossier.changelog` | Dossier changelog | M | One row per build | P0 |
+| `overview.repository` | Overview | M | Repository and project facts, releases, languages | P0 |
+| `overview.contributors` | Contributors | M | Contributor tiles, commit calendar, share-of-code bar, knowledge map, contributor table | P0 |
+| `overview.dependencies` | Dependencies | M | The interactive dependencies card | P0 |
+
+The order of report 01 is: `dossier.about`, `dossier.process`, `dossier.questions`, `dossier.reports`, `dossier.changelog`.
+
+New cards in 01:
 
 | Card id | Title | Tier | Shape | Source | P |
 |---|---|---|---|---|---|
 | `dossier.process` | How this dossier was made | M | A short numbered list of 8 to 10 steps in plain language. Each step has one sentence on what was done and a small run record: counts, tools used, and "skipped: reason" where a step did not run. Ends with one line: how many cards are measured, adjudicated and read | Written by a script from `build.json` (section 5.1), using fixed wording per step. **Claude does not write this card**, because a model's account of its own process drifts from what actually happened |
+| `dossier.questions` | Questions this dossier answers | M | Table: No., Question, Answered in. One row for every question in section 3, in order. "Answered in" lists each card that answers it, as a link to that card (card title and report number), plus any panel outside the schema (for example the report 02 Dependencies card, or the report 01 freshness BAN). A question with no answering card is shown as "not answered in this version". Deferred and removed questions are not listed | Written by a script from `questions.json` and the card schemas. **Claude does not write this card.** A check fails the build if a question names a card id that does not exist, or a schema card answers no question and is not marked `informational` in the schema | P0 |
 
 The fixed steps, in plain words:
 
@@ -249,7 +265,16 @@ In the code today, the Contributors card, the contributor knowledge map and the 
 The old "Reading the knowledge map" text is dropped from this report. It explains a card that lives in 02, so it belongs in that card's help text.
 
 ### 14 Risks, 15 Gaps, 16 Corrections
-Unchanged in shape. Two additions:
+Unchanged in content and look. Their cards are part of the schema and of 1.0.0. The tiles above each tracker (risk counts, gap counts) are not cards; they stay as they are.
+
+| Card id | Title | Tier | Content today | P |
+|---|---|---|---|---|
+| `risks.tracker` | Tracker | A | Table: ID, Risk, Category, Severity, Impact, Recommendation (one or more tables) | P0 |
+| `gaps.tracker` | Tracker | A | Table of every open item (ID, Type, Report, Statement, Status, What would confirm it, Evidence) | P0 |
+| `corrections.tracker` | Tracker | M | Recorded corrections, and contributor type overrides when there are any | P0 |
+| `corrections.decisions` | Your confirmations and answers | M | Decisions you made about open items. Always present; when there are none it says so | P0 |
+
+Two additions:
 - Risks gain a `Source` column value `extractor` when the row comes from a measured finding (cycle, dead code, hotspot with a single owner).
 - Gaps automatically receives: every unassigned file (V4), every undispositioned candidate (V5), every blind-spot hit (V7), every missing tool under `--allow-missing`, and every language run in Tier B.
 
@@ -413,7 +438,7 @@ Build the pipeline end to end for one language first, so the schema and verifica
 
 | M | Content | Exit criterion |
 |---|---|---|
-| M0 | Card schema files, schema validation (V6), `render.py` draws fixed titles, tier badges and question lines. Map the existing content onto the new skeleton. Report 02 and its Contributors, knowledge map, calendar and Dependencies cards are left untouched | Existing encamp dossier re-renders with the new skeleton and passes V6, and report 02 is byte-identical in content to before |
+| M0 | Card schema files, schema validation (V6), `render.py` draws fixed titles, tier badges and question lines, and the `dossier.questions` card (static data, so it is real in M0). Map the existing content onto the new skeleton. Report 02 and its Contributors, knowledge map, calendar and Dependencies cards are left untouched | Existing encamp dossier re-renders with the new skeleton and passes V6, and report 02 is identical in content to before (byte-identical once the schema's card ids and tier badges are removed) |
 | M1 | Checkout, preflight, `doctor`, `clean`, path filter, `build.json` run record, the `dossier.process` card in report 01 rendered from it, V9 and V10, restore hygiene (5.4), adapter interface, shared tree-sitter and semgrep layer | `doctor` lists missing tools correctly; a Python repo gets a verified checkout; the process card renders from a real build and V10 passes; the hygiene tests in section 11 pass |
 | M2 | Python vertical slice: grimp, vulture, scip-python, Python rules and the Python blind-spot list; reports 03 to 09, 11, 12; V2 to V5 and V7 (Python) | A Python repo builds all reports from extractors; candidates reconcile |
 | M3 | Report 10 (git-derived cards, blast radius), report 13 (all six cards: people, ask, concentration, agents, doubts, workflow), the report 14 and 15 additions, `summary.json` and V8 | Golden-set run on the Python repo meets section 11 |
