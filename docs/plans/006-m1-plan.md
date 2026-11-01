@@ -623,7 +623,7 @@ Independent tasks (may be done in any order relative to each other): **M1-1, M1-
 
 ### M1-16. Sign-off run
 
-- [ ] **Goal.** Prove the exit criterion and record it.
+- [x] **Goal.** Prove the exit criterion and record it.
 - **Files.** This plan only (tick boxes; paste outputs under "Verification results").
 - **Steps.** Run every block in section 6 in order. Paste each block's output (trim long JSON to the lines named under "Expected"). List any deviation from this plan under "Deviations".
 - **Done-check.** Every block prints what its "Expected" line says.
@@ -857,4 +857,36 @@ Not worked around in the plan, except where stated.
 
 ## Verification results
 
-(Filled in by the implementing session.)
+Run on 2026-11-01, branch `feat/dossier-m1`, Claude Sonnet 5.5. Q1 to Q9 answered with their defaults. Scratch folder `/tmp/claude-1000/signoff`.
+
+**Block A.** First run: git 2.47.3, uv 0.11.19, node 20.19.2, npm 9.2.0 all `ok`, the six self-installing tools listed, `Nothing is missing.`, `exit 0`. Second run (PATH without node): `MISSING  node` and `MISSING  npm` each with an `Install:` line, `scip-python 0.6.6 via npx (cannot install: needs node, npm)`, `2 tools are missing.`, `exit 1`.
+
+**Block B.** First `prepare` exited 3 with `"stopped": "restore_question"` naming `uv sync --frozen`. Second (`--restore yes`) exited 0. `checkout verified`; trust `tip of the default branch origin/main`; steps `pin ok, tools ok, copy/checkout ok, copy/restore ok, extract skipped, measure ok`; env names all in `ALLOWED_NAMES` (15 names, no credentials); `venv in copy True`; `uv cache private True`; `user repo untouched True` (cannalerts status compared with the status before the run).
+
+**Block C.** `render exit 0`; no `error:`; `info: V9: no extractor ran in this build, so the path filter had nothing to check.`; `process card steps: 10 | placeholder: False`; the second render exits 0 and the card shows `Skipped: No reports were written in this build.` and `Browser check at HH:MM UTC`. **`check_page.py` printed `{"diagrams_checked": 0, "problems": 2}`**: `code viewer: no citation in the page can open it` in the light and the dark theme. This is not the accepted dark-theme contrast failure. It happens because this build has no reports and so no citations; `check_page.py`'s checks are unchanged apart from `--record`. Not fixed (out of scope); M2 should run this block on a build that has reports.
+
+**Block C2.** `prepare --allow-missing --no-restore` with node and npm off the PATH: exit 0; render exit 0; all four `in Gaps:` lines.
+
+**Block D.** 12 passed.
+
+**Block E.** `migrate exit 0`, `render exit 0`, one error line `error: V10: there is no build.json. Run prepare first.`, then `OK`.
+
+**Block F.** 2 passed. Grammar files land in `<cache root>/.dossier-tools/grammars/tree-sitter-language-pack/v1.22.1/libs/` (for example `libtree_sitter_python.so`).
+
+**Block G.** 405 passed, 2 skipped (the slow tests, which block F runs).
+
+**Block H.** `Removed the working area …`, `exit 0`, `area removed`, `dossier kept`; cannalerts status unchanged.
+
+Nothing was dropped from the cut line.
+
+### Deviations
+
+1. **tree-sitter-language-pack ignores `HOME`** and caches grammars under the real `~/.local/cache`. `ts_worker.py` calls `configure(PackConfig(cache_dir=…))` with `<UV_CACHE_DIR's parent>/grammars`, so grammars sit in `<cache root>/.dossier-tools/grammars/` (shared, D12). The API check of M1-9 step 1 passed (`get_parser`, `get_language`, `Query`, `QueryCursor` all exist in 1.22.1 with py-tree-sitter 0.26.0).
+2. **Semgrep prefixes rule ids** with the rules folder (dots for slashes). `semgrep_worker.py` strips that prefix and returns ids starting at `dossier.`.
+3. **`git clone --local` failed across file systems** (`/tmp` to `/home`: "Invalid cross-device link"; risk 8 happened). `ensure_checkout` now retries with `--no-hardlinks`.
+4. **`render_html` takes `coverage=`** as well as `build=`, so the coverage items keep the IDs `resolve.sync` gave them (fresh dicts would lose them).
+5. **`stage_pin` and `stage_extract` take extra arguments** (`sha`; `tree` and `checkout`), because the build record must exist before the pin stage and the extractors need the tree and the copy.
+6. **`check_page.py --record` calls `buildlog.record_browser()`** instead of a helper inside `check_page.py`, so the unit test does not need Playwright.
+7. **`copy`/`restore` skip records carry `details.planned`** (the ecosystems that had a lockfile), so Gaps can say which ecosystem was not installed.
+8. **`VERSION` was written directly** (a bare text file, no bump tool), as a commit on the feature branch; no tag, no push.
+9. The plan's `tests/unit/scripts/test_restore.py` also covers `plans`; `restore_fields()` in `stages.py` is shared by `stage_copy` and the hygiene test.
