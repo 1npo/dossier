@@ -5,8 +5,10 @@ import time
 import pytest
 
 import buildlog
+import process
 import restore
 import sandbox
+import stages
 import workarea
 
 FORBIDDEN = {"SSH_AUTH_SOCK": "forbidden-ssh", "GIT_AUTHOR_NAME": "forbidden-git", "AWS_SECRET_ACCESS_KEY": "forbidden-aws",
@@ -116,6 +118,16 @@ class TestFailures:
         while time.monotonic() < deadline and not all(pid_gone(p) for p in pids):
             time.sleep(0.1)
         assert all(pid_gone(p) for p in pids)
+
+    def test_timed_out_stage_appears_in_gaps(self, stage, tmp_path):
+        area, co = stage
+        res = restore.run(plan(["sh", "sleeper.sh"]), area=area, checkout=co, timeout=1)
+        bpath = buildlog.start(tmp_path / "out", repo="h", sha="a" * 40, ref="main", version="0.6.0", options={})
+        buildlog.append(bpath, {"step": "copy", "part": "restore", "by": "prepare", **stages.restore_fields(res)})
+
+        items = process.coverage_items(buildlog.load(bpath))
+
+        assert len(items) == 1 and "took longer than" in items[0]["statement"]
 
     def test_authentication_failure_names_registry_auth(self, stage):
         area, co = stage

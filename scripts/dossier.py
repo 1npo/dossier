@@ -34,6 +34,7 @@ import config  # noqa: E402
 import gather  # noqa: E402
 import incremental  # noqa: E402
 import migrate  # noqa: E402
+import process  # noqa: E402
 import render  # noqa: E402
 import resolve  # noqa: E402
 import schema  # noqa: E402
@@ -335,20 +336,28 @@ def cmd_render(a):
         if authored and (out / "reports" / f"{rid}.json").exists():
             reports[rid] = load(out / "reports" / f"{rid}.json")
     cites = render.Cites(facts)
+    build = buildlog.load(out)          # None for a dossier made before 0.6.0: no records are written then
+    build_path = out / buildlog.FILE
     errors, warnings = render.validate(reports, facts, cites, a.partial)
     for w in warnings:
         print(f"warning: {w}")
     for e in errors:
         print(f"error: {e}")
+    unresolved = sum(1 for s_ in cites.status.values() if not s_["ok"])
+    if build:
+        buildlog.append(build_path, process.render_records(
+            build, reports=reports, readers=None, v_errors=len(errors), cites_checked=len(cites.status),
+            cites_unresolved=unresolved, gap_counts={}, )[0])
     if errors and not a.allow_errors:
         print(f"\n{len(errors)} error(s). Fix the report files and run render again.")
         sys.exit(1)
 
     sha = facts["repo"]["sha"]
-    items = render.collect_gaps(reports)
+    coverage = process.coverage_items(build)
+    items = render.collect_gaps(reports, coverage)
     resolve.sync(state, items)
     resolve.apply(items, state)       # decisions you made earlier apply to every build
-    gaps = render.collect_gaps(reports)
+    gaps = render.collect_gaps(reports, coverage)
     counts = {k: sum(1 for g in gaps if g["kind"] == k and render.is_open(g)) for k in render.GAP_KINDS}
     entry = {"date": now(), "sha": sha, "short": facts["repo"]["short"], "ref": facts["repo"]["ref"], "branch": facts["repo"]["branch"],
              "skill_version": VERSION, "summary": change_summary(facts, state), "gaps": counts,
@@ -360,7 +369,18 @@ def cmd_render(a):
         history[-1] = entry
     else:
         history.append(entry)
-    page, _ = render.render_html(facts, reports, state, history, VERSION, cites)
+    if build:
+        for rec in process.render_records(build, reports=reports, readers=a.readers, v_errors=len(errors),
+                                          cites_checked=len(cites.status), cites_unresolved=unresolved, gap_counts=counts)[1:]:
+            buildlog.append(build_path, rec)
+        pending = {"step": "render", "part": "render", "by": "render", "status": "ok"}
+        shown = buildlog.load(build_path)
+        shown["records"].append(pending)
+    else:
+        shown = None
+    page, _ = render.render_html(facts, reports, state, history, VERSION, cites, build=shown, coverage=coverage)
+    if build:
+        buildlog.append(build_path, pending)
     name_out = f"dossier-{name}.html"
     (out / name_out).write_text(page, encoding="utf-8")
     state.update(history=history, last_sha=sha, snapshot=gather.snapshot(facts))
@@ -466,7 +486,7 @@ def cmd_confirm(a):
     reports = {rid: load(out / "reports" / f"{rid}.json") for rid, _, w in render.REPORTS if w and (out / "reports" / f"{rid}.json").exists()}
     if not reports:
         die("No reports found. Build the dossier first.")
-    items = render.collect_gaps(reports)
+    items = render.collect_gaps(reports, process.coverage_items(buildlog.load(out)))
     resolve.sync(state, items)
     save_state(out, state)                      # so the IDs shown here stay the same later
     res, tracked = state["resolutions"], {t["id"]: t for t in state["tracked"]}
@@ -553,6 +573,7 @@ def main():
     p.set_defaults(fn=cmd_prepare)
     p = sub.add_parser("render")
     p.add_argument("repo", nargs="?")
+    p.add_argument("--readers", type=int, help="how many parallel readers Claude used (shown on the process card)")
     p.add_argument("--partial", action="store_true", help="allow missing reports")
     p.add_argument("--allow-errors", action="store_true", help="write the HTML even if validation fails")
     p.add_argument("--apply-corrections", action="store_true", help="mark pending corrections as applied")

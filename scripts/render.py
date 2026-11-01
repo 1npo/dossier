@@ -20,6 +20,7 @@ from urllib.parse import quote
 
 import deps as depscan
 import gather
+import process
 import schema
 import viewer
 from gather import Repo
@@ -1322,7 +1323,7 @@ def is_open(g):
     return not g.get("res") or g["res"]["action"] == "wrong"
 
 
-def collect_gaps(reports):
+def collect_gaps(reports, extra=()):
     """Every open item, plus the ones the user has since confirmed or answered (they carry 'res')."""
     rows, order = [], [r for r, _, _ in REPORTS]
     for rid in order:
@@ -1336,6 +1337,10 @@ def collect_gaps(reports):
                 rows.append({"kind": "inference" if conf == "inferred" else "unknown", "report": rid, "statement": c["text"],
                              "confirm": c["note"] or "", "cites": c["cites"], "node": node, "id": node.get("gid"), "res": node.get("user")})
     for it in (reports.get("gaps") or {}).get("items", []):
+        rows.append({"kind": it["kind"], "report": it.get("report") or "gaps", "statement": it["statement"],
+                     "confirm": it.get("how_to_confirm", ""), "cites": list(it.get("cite") or []) + inline_cites(it["statement"]),
+                     "node": it, "id": it.get("gid"), "res": it.get("user")})
+    for it in extra:
         rows.append({"kind": it["kind"], "report": it.get("report") or "gaps", "statement": it["statement"],
                      "confirm": it.get("how_to_confirm", ""), "cites": list(it.get("cite") or []) + inline_cites(it["statement"]),
                      "node": it, "id": it.get("gid"), "res": it.get("user")})
@@ -1533,7 +1538,7 @@ def build_page(rid, reports, facts, state, ctx):
                         f"<p>Built {E(ctx['built'])} with dossier {E(ctx['version'])}. {len(ctx['history'])} build{'' if len(ctx['history']) == 1 else 's'} recorded so far.</p>")
         parts.append(panel_dossier(facts, reports, state, ctx, refs))
         cards = schema_cards_by_id()
-        parts.append(schema_card(cards["dossier.process"], placeholder_body(cards["dossier.process"])))
+        parts.append(schema_card(cards["dossier.process"], process.process_body(ctx["build"]) if ctx.get("build") else placeholder_body(cards["dossier.process"])))
         parts.append(schema_card(cards["dossier.questions"], questions_body(refs)))
         idx, tot = [], {k: 0 for k in CONF}
         for r, t, authored in REPORTS[1:]:
@@ -1619,10 +1624,13 @@ def masthead(facts, reports):
             "remote": link, "date": r["commit_date"]}
 
 
-def render_html(facts, reports, state, history, version, cites):
-    gaps = collect_gaps(reports)
+def render_html(facts, reports, state, history, version, cites, build=None, coverage=None):
+    """`coverage` is the list cmd_render already gave IDs to; without it the items are rebuilt from `build`."""
+    if coverage is None:
+        coverage = process.coverage_items(build) if build else ()
+    gaps = collect_gaps(reports, coverage)
     built = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    ctx = {"cites": cites, "gaps": gaps, "history": history, "built": built, "version": version}
+    ctx = {"cites": cites, "gaps": gaps, "history": history, "built": built, "version": version, "build": build}
     mh = masthead(facts, reports)
     build = lambda: "".join(build_page(rid, reports, facts, state, ctx) for rid, _, _ in REPORTS)
     pages = build()

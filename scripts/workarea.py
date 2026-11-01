@@ -69,7 +69,12 @@ def ensure_checkout(area: Path, top: str, sha: str, submodules: bool = False) ->
         nonlocal created
         if co.exists():
             shutil.rmtree(co)
-        git(area, "clone", "--local", "--no-checkout", "--quiet", top, str(co))
+        try:
+            git(area, "clone", "--local", "--no-checkout", "--quiet", top, str(co))
+        except CheckoutError:   # for example hard links across file systems: copy the objects instead
+            if co.exists():
+                shutil.rmtree(co)
+            git(area, "clone", "--local", "--no-hardlinks", "--no-checkout", "--quiet", top, str(co))
         created = True
 
     if not (co / ".git").exists() or git(co, "config", "--get", "remote.origin.url", check=False).strip() != top:
