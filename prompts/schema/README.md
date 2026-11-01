@@ -29,3 +29,15 @@ One `<report>.json` file per report, listing its cards in page order. A report f
 - `fixed` / `fixed2`: `{"on": "<column or entry key>", "values": [...]}`. A missing value is a warning, not an error. `fixed` applies to the first table slot, `fixed2` to the second.
 - Not applicable, with evidence: `{"card": "<id>", "na": "reason", "cite": ["path:1-30"]}`.
 - Not yet generated: `{"card": "<id>", "pending": true}` (accepted while `schema.ALLOW_PENDING` is true).
+
+## Temporary tools and defaults
+
+`scripts/migrate.py` and `scripts/migrate_map.json` exist only to convert the old encamp fixture for the M0 check. They can be deleted once M2 can write the new layout, together with the fixture folder `tests/fixtures/encamp-m0/` and its line in `.gitignore`.
+
+Defaults the spec did not give (marked † in plan 005), open for review:
+
+- The questions for reports 01 (`dossier`), 02 (`overview`), 13 (`contributors`), 14 (`risks`), 15 (`gaps`) and 16 (`corrections`).
+- `io.outputs` columns: Category, Output, Format, Validation, Where written.
+- `behavior.tests`: the second table (Question, Assessment, Evidence) and its two fixed rows.
+- `conventions.recipes` fields: files to touch, worked example.
+- `ops.local` prerequisites table: Prerequisite, Kind, Version or detail, Where stated.

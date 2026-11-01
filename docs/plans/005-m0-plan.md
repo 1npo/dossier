@@ -426,7 +426,7 @@ After **every** task: the full test suite passes. After tasks M0-5, M0-6 and M0-
 
 ### M0-12. Version, interim notice, docs
 
-- [ ] **Goal.** Bump the version and make sure a user running `/dossier build` is not led into a failure.
+- [x] **Goal.** Bump the version and make sure a user running `/dossier build` is not led into a failure.
 - **Files.** Edit `VERSION`; edit `SKILL.md`; edit `prompts/schema/README.md`; edit `README.md` (one line).
 - **Steps.**
   1. `VERSION` contains `0.5.0` (single line, as now).

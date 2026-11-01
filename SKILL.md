@@ -25,6 +25,8 @@ Run `DOSSIER version` and show the output.
 Run `DOSSIER home [dir]`. With no directory it shows the current home. Dossiers are saved under `<home>/<repo-name>/`.
 
 ### `/dossier build [repo-path] [--ref <branch-or-sha>] [--full]`
+**This version cannot yet write the new report layout.** `render` now needs reports in the card layout described in `prompts/schema/`. The prompts for it are not written yet. Do not start a build. Tell the user this, and offer the previous version of the skill.
+
 The repository defaults to the current directory. The ref defaults to the checked-out commit. `--full` rebuilds every report. Without it, a build of a repository that already has a dossier only redoes the reports whose cited code changed. Follow these steps in order.
 
 1. **Prepare.** Run `DOSSIER prepare <repo> [--ref R]`. If it says no home is set, ask the user for a directory and run `DOSSIER home`. Pass `--full` through if the user gave it. Read the JSON it prints. Show the user one line: repo, branch, short commit, size, and the update plan in plain words (for example "updating 3 of 12 reports; 9 are unchanged" or "full build: first build").
