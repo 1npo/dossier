@@ -92,3 +92,15 @@ class TestRuleId:
 
     def test_keeps_an_unprefixed_id(self):
         assert semgrep_worker.rule_id("dossier.a.b", "/x") == "dossier.a.b"
+
+
+class TestPyWorkerPins:
+    def test_dependencies_name_the_tools_json_versions_of_grimp_and_vulture(self):
+        text = (SCRIPTS / "py_worker.py").read_text()
+        pins = dict(re.findall(r'"([a-z-]+)==([^"]+)"', re.search(r"dependencies = \[(.*)\]", text).group(1)))
+        listed = {t["id"]: t["version"] for t in toolcheck.load_tools()["tools"] if t["id"] in ("grimp", "vulture")}
+
+        assert pins == listed
+
+    def test_worker_is_locked(self):
+        assert (SCRIPTS / "py_worker.py.lock").exists()
