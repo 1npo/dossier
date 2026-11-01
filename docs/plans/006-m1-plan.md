@@ -503,7 +503,7 @@ Independent tasks (may be done in any order relative to each other): **M1-1, M1-
 
 ### M1-7. Restore stage and the hygiene fixture tests
 
-- [ ] **Goal.** The restore stage (D10) and the spec section 11, item 4 tests.
+- [x] **Goal.** The restore stage (D10) and the spec section 11, item 4 tests.
 - **Files.** New `scripts/restore.py`; new `tests/unit/scripts/test_restore.py` (`plans`, `decide`); new `tests/integration/scripts/test_hygiene.py`.
 - **Steps.** (1) Implement D10. (2) Unit tests of `decide`, one per rule in order, including: a stored `yes` that does not cover a new ecosystem asks again; `--restore no` is stored. (3) `test_hygiene.py` drives the real stage on `hygiene_repo`: create an area with `workarea.area_for`, a checkout with `ensure_checkout`, then call `restore.run([{"ecosystem": "python", "lockfile": "uv.lock", "command": ["sh", "install.sh"], "enabled": True}], area=…, checkout=…, timeout=30, parent=<os.environ plus the six forbidden names and HTTPS_PROXY>)`, and append the result to a `build.json` with `buildlog` the way M1-10 will (one `copy`/`restore` record with `env_names`). Assert, as spec section 11 item 4 lists:
   - only allowlisted variable names appear (`env-names.txt` ⊆ `ALLOWED_NAMES`; none of the six forbidden names);
