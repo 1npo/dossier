@@ -526,7 +526,7 @@ Independent tasks (may be done in any order relative to each other): **M1-1, M1-
 
 ### M1-9. Shared tree-sitter and semgrep layer
 
-- [ ] **Goal.** Locked workers and the two clients of D7.
+- [x] **Goal.** Locked workers and the two clients of D7.
 - **Files.** New `scripts/ts_worker.py`, `scripts/ts_worker.py.lock`, `scripts/semgrep_worker.py`, `scripts/semgrep_worker.py.lock`, `scripts/shared_tools.py`, `rules/README.md`, `tests/fixtures/rules/print-call.yml`, `tests/unit/scripts/test_shared_tools.py`, `tests/integration/scripts/test_shared_layer.py`; edit `scripts/adapters.py` (types of `Context.treesitter`/`semgrep`).
 - **Step 1, first: verify the tree-sitter API.** In a scratch folder (not in `SKILL`): `uv run --python 3.13 --with tree-sitter-language-pack==1.22.1 python -c "import tree_sitter_language_pack as t, tree_sitter as ts; print(t.__all__ if hasattr(t,'__all__') else dir(t)); print(ts.__version__ if hasattr(ts,'__version__') else '')"`. Continue only if `get_parser` and `get_language` exist. Then check that `tree_sitter.Query(language, source)` and `tree_sitter.QueryCursor(query).captures(node)` exist (py-tree-sitter 0.25 and later). If either check fails, **stop and report** under "Verification results" with the output; do not design a replacement.
 - **Worker contracts.** Both read one JSON object on stdin and print one JSON object on stdout; they print nothing else on stdout.

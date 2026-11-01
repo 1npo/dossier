@@ -15,6 +15,7 @@ from typing import Callable
 
 import gather
 import sandbox
+import shared_tools
 import workarea
 
 OUTPUTS = ("entry_points", "graph", "symbols", "io_candidates", "models", "tests", "dead", "blindspots")
@@ -31,8 +32,8 @@ class Context:
     area: Path
     restored: dict
     run: Callable
-    treesitter: object
-    semgrep: object
+    treesitter: shared_tools.TreeSitter
+    semgrep: shared_tools.Semgrep
     tool_versions: dict
 
 
