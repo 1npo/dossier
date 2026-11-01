@@ -412,7 +412,7 @@ After **every** task: the full test suite passes. After tasks M0-5, M0-6 and M0-
 
 ### M0-11. Switch to the new report list, and run the migration end to end
 
-- [ ] **Goal.** The 16-report list is live; the encamp dossier (scratch copy) migrates, renders and passes V6.
+- [x] **Goal.** The 16-report list is live; the encamp dossier (scratch copy) migrates, renders and passes V6.
 - **Files.** Edit `scripts/render.py`; edit `scripts/dossier.py`; edit `tests/unit/scripts/test_render.py`, `tests/unit/scripts/test_schema_files.py`.
 - **Steps.**
   1. `REPORTS` becomes (id, title, written by Claude?): `("dossier", "This dossier", False), ("overview", "This repository", True), ("reading", "Reading guide", True), ("entry", "Entry points", True), ("components", "Components", True), ("interactions", "Interactions", True), ("io", "Inputs and outputs", True), ("data", "Data model", True), ("behavior", "Behavior and tests", True), ("change", "Change and history", True), ("conventions", "Conventions", True), ("ops", "Build, run and ship", True), ("contributors", "Contributors", True), ("risks", "Risks", True), ("gaps", "Gaps", True), ("corrections", "Corrections", False)`.

@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2].parent / "scripts"))
+import render  # noqa: E402
 import schema  # noqa: E402
 
 
@@ -54,3 +55,22 @@ def test_questions():
                 assert a["report"] in schema.REPORT_ORDER and a["label"]
     for cid, c in ids.items():
         assert c.get("informational") or cid in named, f"{cid} answers no question"
+
+
+def test_report_list_matches_the_schema_order():
+    assert [r for r, _, _ in render.REPORTS] == list(schema.REPORT_ORDER)
+    for stem, sch in schema.load_all().items():
+        assert sch["title"] == render.TITLES[stem]
+
+
+def test_nav_groups_hold_every_report_once():
+    ids = [r for _, group in render.NAV_GROUPS for r in group]
+    assert sorted(ids) == sorted(schema.REPORT_ORDER)
+    assert render.BARE_REPORTS == ("risks", "gaps", "corrections")
+
+
+def test_card_counts():
+    reports = {"entry": {"cards": [{"card": "entry.catalog", "blocks": []}, {"card": "entry.startup", "pending": True}]},
+               "risks": {"cards": [{"card": "risks.tracker", "na": "x", "cite": ["a"]}]}}
+    filled, pending = render.card_counts(reports)
+    assert filled == 2 and filled + pending == 42

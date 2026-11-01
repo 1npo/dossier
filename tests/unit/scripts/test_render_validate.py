@@ -13,8 +13,6 @@ def report(cards):
 
 
 def run(make_cites, rep, monkeypatch, rid="entry"):
-    # `entry` joins render.REPORTS in M0-11; until then the test adds it
-    monkeypatch.setattr(render, "REPORTS", [*render.REPORTS, (rid, rid.title(), True)])
     cites = make_cites({"a.py": b"x\n"})
     return render.validate({rid: rep}, {}, cites, partial=True)
 

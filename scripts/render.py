@@ -27,13 +27,12 @@ from gather import Repo
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS, VENDOR = ROOT / "assets", ROOT / "vendor"
 
-REPORTS = [  # id, title, written by Claude?
-    ("dossier", "This dossier", False), ("overview", "This repository", True), ("capabilities", "Capabilities", True),
-    ("interfaces", "Interfaces", True), ("architecture", "Architecture", True), ("domain-logic", "Domain logic", True),
-    ("data", "Data model", True), ("code-tour", "Code tour", True),
-    ("failures", "Failure modes", True), ("delivery", "Delivery, config and secrets", True),
-    ("contributors", "Contributors", True), ("risks", "Risks", True),
-    ("gaps", "Gaps", True), ("corrections", "Corrections", False),
+REPORTS = [  # id, title, written by Claude?  The order is schema.REPORT_ORDER.
+    ("dossier", "This dossier", False), ("overview", "This repository", True), ("reading", "Reading guide", True),
+    ("entry", "Entry points", True), ("components", "Components", True), ("interactions", "Interactions", True),
+    ("io", "Inputs and outputs", True), ("data", "Data model", True), ("behavior", "Behavior and tests", True),
+    ("change", "Change and history", True), ("conventions", "Conventions", True), ("ops", "Build, run and ship", True),
+    ("contributors", "Contributors", True), ("risks", "Risks", True), ("gaps", "Gaps", True), ("corrections", "Corrections", False),
 ]
 TITLES = {r: t for r, t, _ in REPORTS}
 CONF = ("confirmed", "inferred", "unknown")
@@ -787,6 +786,23 @@ def tier_badge(tier):
     name, tip = TIER_INFO[tier]
     cls = "tier-" + tier.lower().replace("+", "plus")
     return f'<span class="badge tier {cls}" data-variant="outline" tabindex="0" data-tip="{E(tip)}" data-tip-kind="note" aria-label="{E(name + ": " + tip)}">{E(tier)}</span>'
+
+
+def card_counts(reports):
+    """(filled, pending) over the schema cards written by Claude: content or 'na' is filled, 'pending' or absent is pending."""
+    filled = pending = 0
+    for rid, sch in schema.load_all().items():
+        claude = [c["id"] for c in sch["cards"] if c["writer"] == "claude"]
+        if not claude:
+            continue
+        have = {e["card"]: e for e in (reports.get(rid) or {}).get("cards", []) if isinstance(e, dict) and "card" in e}
+        for cid in claude:
+            e = have.get(cid)
+            if e and not e.get("pending") and any(k in e for k in ("blocks", "entries", "na")):
+                filled += 1
+            else:
+                pending += 1
+    return filled, pending
 
 
 def card_dom_id(cid):
@@ -1560,8 +1576,9 @@ def build_page(rid, reports, facts, state, ctx):
             + top + body + f'<div class="card refs-card" id="{rid}-refs"><header><h2>References</h2><p>Links open the source at the pinned commit.</p></header><section>{refs.listing()}</section></div></section>')
 
 
-NAV_GROUPS = [("Orientation", ["dossier", "overview", "capabilities", "interfaces"]), ("Design", ["architecture", "domain-logic", "data", "code-tour"]),
-              ("Operations and people", ["failures", "delivery", "contributors"]), ("Tracking", ["risks", "gaps", "corrections"])]
+NAV_GROUPS = [("Orientation", ["dossier", "overview", "reading", "entry"]), ("Design", ["components", "interactions", "io", "data"]),
+              ("Behaviour and change", ["behavior", "change", "conventions"]), ("Operations and people", ["ops", "contributors", "risks"]),
+              ("Tracking", ["gaps", "corrections"])]
 
 
 PLACEHOLDER = re.compile(r"\{\{|\}\}|\$\{|<%|%>|\[\[|<[A-Za-z_ -]+>$|^(your|my)[ _-]")
