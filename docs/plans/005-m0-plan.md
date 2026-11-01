@@ -438,7 +438,7 @@ After **every** task: the full test suite passes. After tasks M0-5, M0-6 and M0-
 
 ### M0-13. Sign-off run
 
-- [ ] **Goal.** Prove the exit criterion with the real tools and leave a record.
+- [x] **Goal.** Prove the exit criterion with the real tools and leave a record.
 - **Files.** Edit this plan only (tick boxes, paste the output of the commands under "Verification results" at the end).
 - **Steps.** Run every command in section 5 (blocks B, C, D). Open the screenshots named there and look at them. Paste the outputs. Do not run anything against `/home/nick/dev/dossiers/` or write into `FIX`.
 - **Done-check.** Block B prints `OK`; block C prints `"problems": 0`; the full suite passes.
@@ -680,4 +680,21 @@ A table rule's column map is keyed by the **new** column names and must list exa
 
 ## Verification results
 
-(To be pasted by the session that does M0-13.)
+Run 2026-11-01 on branch `feat/dossier-m0`, on scratch copies of `FIX` (nothing under `/home/nick/dev/dossiers/` was read or written, `FIX` was not modified).
+
+**Block B** (migrate, render, digest):
+
+```
+migrate exit 0   "cards_filled": 15, "cards_pending": 27, "carried": 22, 66 blocks not carried
+render exit 0    no error: lines, "unresolved_citations": 0, "cards_filled": 15, "cards_pending": 27
+page written
+OK                                  (normalized report 02 digest equals the baseline)
+skeleton matches the schema for 16 reports, 65 cards
+overview.json unchanged
+```
+
+**Block C** (real browser, with a hand-added `components.detail` test entry): render exit 0; `check_page.py` printed `{"diagrams_checked": 5, "problems": 1}`. The one problem is `FAIL [dark] code viewer: token class 'c' has contrast 4.31:1 on a cited line`. **Accepted by the human (option 1)**: it is not caused by M0 (a fresh render of the unchanged code at the M0-5 start gives the same failure, while the frozen fixture page passes); the theme is to be reviewed after M6. The new search check (`check_search`) found the Installer entry inside the collapsed `<details>` and opened it, so it reported nothing. By hand: the expand button on a Key flows diagram opened it full-screen (box 1368x968) and Esc closed it. Screenshots showed no overlap. Cosmetic: the tier badge wraps below the card title instead of sitting beside it; placeholders read clearly as placeholders.
+
+**Block D**: `227 passed` (168 before M0).
+
+Deviations from the plan, all small: the `with_contents` test moved from M0-5 to M0-10 (it needs the `CARD_HEAD` change); the M0-6 validate tests add `entry` to `render.REPORTS` themselves in the first version and were simplified once M0-11 made that unnecessary; `incremental.cites_in` returns raw citations (`a.py:1`), not bare paths, so its test compares those.
