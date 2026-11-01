@@ -522,7 +522,7 @@ Independent tasks: M2-3, M2-4, M2-6 and M2-7 need nothing but M2-2 and can be do
 
 ### M2-6. Graph helpers (`graphs.py`)
 
-- [ ] **Goal.** Standard-library graph code used by the adapter, the measured cards and `candidates`.
+- [x] **Goal.** Standard-library graph code used by the adapter, the measured cards and `candidates`.
 - **Files.** New `scripts/graphs.py`, `tests/unit/scripts/test_graphs.py`.
 - **Interface.**
   ```python
