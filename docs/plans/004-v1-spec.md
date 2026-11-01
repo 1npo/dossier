@@ -104,7 +104,7 @@ Each report shows its question under the title. Cards show their fixed title onl
 ### 01 This dossier, 02 This repository
 Unchanged apart from the additions below. Report 02 keeps every card it renders today, including the Contributors, knowledge map, commit calendar and Dependencies cards. None of them moves. 01 gains the `freshness` BAN (pinned commit versus current HEAD of the ref) and the extractor list with versions (see 6.2).
 
-Their existing cards are part of the schema and of 1.0.0, with their content unchanged. They are treated like every other card: fixed id and title, tier badge, and the shade that goes with the tier (M cards facts shade, A and R cards model shade). The one visible change is that "Reports in this dossier" (tier M) moves to the facts shade. The three tracker cards in 14, 15 and 16 are all titled "Tracker". They are drawn by code, not written by Claude (`computed` shape):
+Their existing cards are part of the schema and of 1.0.0, with their content unchanged. They are treated like every other card: fixed id and title, tier badge, and the shade that goes with the tier (M cards facts shade, A and R cards model shade). The one visible change is that "Reports in this dossier" (tier M) moves to the facts shade. The cards in the table below are drawn by code, not written by Claude (`computed` shape):
 
 | Card id | Title | Tier | Content today | P |
 |---|---|---|---|---|
@@ -265,7 +265,12 @@ In the code today, the Contributors card, the contributor knowledge map and the 
 The old "Reading the knowledge map" text is dropped from this report. It explains a card that lives in 02, so it belongs in that card's help text.
 
 ### 14 Risks, 15 Gaps, 16 Corrections
-Unchanged in content and look. Their cards are part of the schema and of 1.0.0. The tiles above each tracker (risk counts, gap counts) are not cards; they stay as they are.
+Unchanged in content and look. Their cards are part of the schema and of 1.0.0. The three tracker cards are all titled "Tracker", but they are not the same kind of card:
+
+- The **Risks** tracker is written by Claude, as one table with fixed columns (below). It is a finding about the code, part of the report schema like any other written card.
+- The **Gaps** and **Corrections** trackers are dossier metadata, drawn by code (`computed` shape): Gaps lists the inferred and unknown statements still open, and Corrections lists the user's corrections and decisions that resolve them into confirmed statements.
+
+The tiles above each tracker (risk counts, gap counts) are not cards; they stay as they are.
 
 | Card id | Title | Tier | Content today | P |
 |---|---|---|---|---|
