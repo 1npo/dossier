@@ -258,7 +258,7 @@ After **every** task: the full test suite passes. After tasks M0-5, M0-6 and M0-
 
 ### M0-4. Schema files, part 2 (reports 07 to 13)
 
-- [ ] **Goal.** Schema files for `io`, `data`, `behavior`, `change`, `conventions`, `ops`, `contributors`.
+- [x] **Goal.** Schema files for `io`, `data`, `behavior`, `change`, `conventions`, `ops`, `contributors`.
 - **Files.** New `prompts/schema/io.json`, `data.json`, `behavior.json`, `change.json`, `conventions.json`, `ops.json`, `contributors.json`; edit `tests/unit/scripts/test_schema_files.py`.
 - **Interface.** Same format. Defaults chosen where the spec gives no columns are marked †; see section 6 and 7.
 

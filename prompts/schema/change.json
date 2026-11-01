@@ -1,0 +1,166 @@
+{
+  "report": "change",
+  "title": "Change and history",
+  "question": "Where is it safe to change, and how did it get here?",
+  "cards": [
+    {
+      "id": "change.hotspots",
+      "title": "Hotspots",
+      "tier": "M",
+      "priority": "P0",
+      "writer": "script",
+      "shape": "computed",
+      "fixed": null
+    },
+    {
+      "id": "change.cochange",
+      "title": "Co-change coupling",
+      "tier": "M",
+      "priority": "P0",
+      "writer": "script",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "A",
+            "B",
+            "Co-commits",
+            "Share",
+            "Linked in code?"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "change.blast-radius",
+      "title": "Blast radius",
+      "tier": "M",
+      "priority": "P0",
+      "writer": "script",
+      "shape": "computed",
+      "fixed": null
+    },
+    {
+      "id": "change.unfinished",
+      "title": "Unfinished migrations",
+      "tier": "R",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Pattern",
+            "Old way",
+            "New way",
+            "Progress",
+            "Evidence"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "change.decisions",
+      "title": "Decisions and oddities",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Item",
+            "Why (as far as known)",
+            "Evidence",
+            "Source"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "change.dead-code",
+      "title": "Dead code and stale flags",
+      "tier": "M",
+      "priority": "P0",
+      "writer": "script",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Item",
+            "Kind",
+            "Evidence"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "change.docs-drift",
+      "title": "Docs versus code",
+      "tier": "R",
+      "priority": "P1",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Claim",
+            "Document",
+            "What the code shows",
+            "Verdict"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "change.upgrade-burden",
+      "title": "Upgrade burden",
+      "tier": "M",
+      "priority": "P1",
+      "writer": "script",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Runtime or package",
+            "Pinned",
+            "Latest or supported",
+            "Gap"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "change.in-flight",
+      "title": "Work in flight",
+      "tier": "M",
+      "priority": "P0",
+      "writer": "script",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Branch",
+            "Last commit",
+            "Ahead/behind",
+            "Author"
+          ]
+        }
+      ],
+      "fixed": null
+    }
+  ]
+}

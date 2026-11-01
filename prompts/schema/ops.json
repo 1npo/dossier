@@ -1,0 +1,155 @@
+{
+  "report": "ops",
+  "title": "Build, run and ship",
+  "question": "How do I get it running and into production?",
+  "cards": [
+    {
+      "id": "ops.local",
+      "title": "Local setup",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "list"
+        },
+        {
+          "type": "table",
+          "columns": [
+            "Prerequisite",
+            "Kind",
+            "Version or detail",
+            "Where stated"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "ops.build",
+      "title": "Build and packaging",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Artifact",
+            "Command",
+            "Output"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "ops.test",
+      "title": "Running tests",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Scope",
+            "Command",
+            "Notes"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "ops.run",
+      "title": "Running it",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Mode",
+            "Command",
+            "Needs"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "ops.ci",
+      "title": "CI gates",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Pipeline",
+            "Trigger",
+            "Steps",
+            "Blocks merge?",
+            "Publishes"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "ops.release",
+      "title": "Release, deploy and rollback",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Environment",
+            "How released",
+            "How rolled back",
+            "Versioning"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "ops.config-secrets",
+      "title": "Configuration and secrets",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Setting",
+            "Default",
+            "Overridden by"
+          ]
+        },
+        {
+          "type": "table",
+          "columns": [
+            "Secret",
+            "Unlocks",
+            "Supplied how"
+          ]
+        }
+      ],
+      "fixed": null
+    }
+  ]
+}

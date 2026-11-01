@@ -1,0 +1,97 @@
+{
+  "report": "io",
+  "title": "Inputs and outputs",
+  "question": "What goes in and what comes out?",
+  "cards": [
+    {
+      "id": "io.inputs",
+      "title": "Inputs",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Category",
+            "Input",
+            "Format",
+            "Validation",
+            "Where read"
+          ]
+        }
+      ],
+      "fixed": {
+        "on": "Category",
+        "values": [
+          "CLI arguments",
+          "environment variables",
+          "config files",
+          "files read",
+          "stdin",
+          "network requests",
+          "messages consumed",
+          "database reads",
+          "scheduled triggers"
+        ]
+      }
+    },
+    {
+      "id": "io.outputs",
+      "title": "Outputs",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Category",
+            "Output",
+            "Format",
+            "Validation",
+            "Where written"
+          ]
+        }
+      ],
+      "fixed": {
+        "on": "Category",
+        "values": [
+          "stdout/stderr",
+          "files written",
+          "network responses",
+          "outbound calls",
+          "messages produced",
+          "database writes",
+          "logs",
+          "metrics",
+          "exit codes",
+          "error responses"
+        ]
+      }
+    },
+    {
+      "id": "io.contracts",
+      "title": "Contracts",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Contract",
+            "Direction",
+            "Counterparty",
+            "Schema location",
+            "Versioning"
+          ]
+        }
+      ],
+      "fixed": null
+    }
+  ]
+}

@@ -1,0 +1,125 @@
+{
+  "report": "contributors",
+  "title": "Contributors",
+  "question": "Who owns and knows what, and what is the bus factor?",
+  "cards": [
+    {
+      "id": "contributors.people",
+      "title": "Who the people are",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Person",
+            "Role in the project",
+            "Areas",
+            "Active?"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "contributors.ask",
+      "title": "Who to ask",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Subsystem",
+            "Ask first",
+            "Then",
+            "Basis"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "contributors.concentration",
+      "title": "Knowledge concentration",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Area",
+            "Owner",
+            "Share",
+            "Status"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "contributors.agents",
+      "title": "Agents and bots",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Identity",
+            "Kind",
+            "Areas touched",
+            "Share of commits"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "contributors.doubts",
+      "title": "Classification doubts",
+      "tier": "R",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Identity",
+            "Doubt",
+            "What would settle it"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "contributors.workflow",
+      "title": "Team workflow",
+      "tier": "M",
+      "priority": "P0",
+      "writer": "script",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Convention",
+            "Observed",
+            "Evidence"
+          ]
+        }
+      ],
+      "fixed": null
+    }
+  ]
+}

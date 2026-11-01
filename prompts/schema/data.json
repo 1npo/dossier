@@ -1,0 +1,104 @@
+{
+  "report": "data",
+  "title": "Data model",
+  "question": "What data exists, and what is true about it?",
+  "cards": [
+    {
+      "id": "data.entities",
+      "title": "Entities and types",
+      "tier": "M+A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Name",
+            "Kind",
+            "Fields",
+            "Defined in",
+            "Owner component"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "data.relationships",
+      "title": "Relationships",
+      "tier": "M+A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "diagram",
+          "max": null
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "data.stores",
+      "title": "Data stores",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Store",
+            "Technology",
+            "Holds",
+            "Migration approach"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "data.truth",
+      "title": "Source of truth",
+      "tier": "R",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Data",
+            "Source of truth",
+            "Derived copies"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "data.lifecycle",
+      "title": "Lifecycle and sensitive fields",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Data",
+            "Created",
+            "Changed",
+            "Retained",
+            "Deleted",
+            "Sensitive?"
+          ]
+        }
+      ],
+      "fixed": null
+    }
+  ]
+}
