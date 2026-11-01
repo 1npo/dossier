@@ -494,7 +494,7 @@ Independent tasks (may be done in any order relative to each other): **M1-1, M1-
 
 ### M1-6. Safe runner
 
-- [ ] **Goal.** `sandbox.run()` as in D4, with a test per rule.
+- [x] **Goal.** `sandbox.run()` as in D4, with a test per rule.
 - **Files.** New `scripts/sandbox.py`; new `tests/unit/scripts/test_sandbox.py` (`build_env` only) and `tests/integration/scripts/test_sandbox_run.py` (real processes).
 - **Interface.** D4, plus `ALLOWED_NAMES: frozenset[str]` = every name `build_env` can set (PATH, LANG, LC_ALL, TERM, HOME, TMPDIR, XDG_CACHE_HOME, XDG_CONFIG_HOME, the six proxy/certificate names, the two telemetry names, UV_CACHE_DIR, npm_config_cache, NUGET_PACKAGES, DOTNET_CLI_HOME, PIP_CACHE_DIR, npm_config_userconfig, UV_PYTHON_INSTALL_DIR). Registry-credential names are added per call and are reported in `env_names` but are not in `ALLOWED_NAMES`. `tools_cache(area) = area.parent / ".dossier-tools"`.
 - **Steps.** (1) Implement `build_env` and `run`. (2) Unit tests of `build_env` with a fake `parent` mapping: the six forbidden names (D4 table) absent; `HTTPS_PROXY` present; `HOME`, `TMPDIR`, `XDG_*` under the area; `restricted` caches under `<area>/cache`; `tool` profile `UV_CACHE_DIR` under `.dossier-tools`; registry name passed only when listed (monkeypatch `config.registry_auth`); a registry file outside home is refused. (3) Integration tests: `run(["sh", "-c", "env | cut -d= -f1 | sort"])` output equals `sorted(result.env_names)`; timeout with `sleeper.sh` from `hygiene_repo` (D4 table); a normal run that leaves a background `sleep 300 &` behind does not leave it alive; stdout and stderr go to separate files; `input=b'{"a":1}'` reaches the child's stdin (`["sh","-c","cat"]`).
