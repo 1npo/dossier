@@ -411,7 +411,7 @@ Independent tasks: M2-3, M2-4, M2-6 and M2-7 need nothing but M2-2 and can be do
 
 ### M2-1. Re-check the Python tools on this machine
 
-- [ ] **Goal.** Prove the D1 facts that the documentation did not state, before any code depends on them.
+- [x] **Goal.** Prove the D1 facts that the documentation did not state, before any code depends on them.
 - **Files.** This plan only ("Results (Phase 1)").
 - **Steps.** In a scratch folder outside `SKILL` (`S=$(mktemp -d)`), with a tiny package `pkg/__init__.py`, `pkg/a.py` (`from pkg import b`), `pkg/b.py` (`import pkg.a\ndef unused():\n    pass\n`):
   1. grimp: `cd $S && uv run --python 3.13 --with grimp==3.17 python -c "import sys; sys.path.insert(0, '.'); import grimp; g = grimp.build_graph('pkg', cache_dir=None); print(sorted(g.modules)); print(g.get_import_details(importer='pkg.a', imported='pkg.b')); print(g.find_illegal_dependencies_for_layers(layers=['pkg.a', 'pkg.b']))"`. Expect the three modules, one detail dict with `line_number`, and a set (possibly empty). Then `ls -a $S` must show no `.grimp_cache`.
@@ -667,7 +667,17 @@ Commit each task on `feat/dossier-m2`. Do not merge or bump the version. At the 
 
 ### Results (Phase 1)
 
-(Filled in by the Phase 1 session.)
+Started 2026-11-01 on branch `feat/dossier-m2`. Baseline: `405 passed, 2 skipped` (matches).
+
+**M2-1 observations (2026-11-01, Node v20.19.2):**
+
+1. grimp 3.17: modules `['pkg', 'pkg.a', 'pkg.b']`; `get_import_details` returns dicts with `importer`, `imported`, `line_number`, `line_contents`, `is_lazy`; `find_illegal_dependencies_for_layers` returns a set of `PackageDependency(importer, imported, routes)`; no `.grimp_cache` created with `cache_dir=None`. OK as planned.
+2. vulture 2.16: `Vulture(verbose=False, ignore_names=None, ignore_decorators=None)`; items have `filename` (a `PosixPath`, absolute), `first_lineno`, `last_lineno`, `typ`, `name`, `confidence`, `message`. All attribute names as planned. `min_confidence` is an argument of `get_unused_code`, not of the constructor.
+3. scip-python 0.6.6: `npm install --ignore-scripts` works (42 packages), bin is `index.js` (`"bin": {"scip-python": "index.js"}`). **Without `--project-version`, in a folder that is not a git repository, it crashes** (`normalizeNameOrVersion` on an undefined version) and leaves a 54-byte `out.scip` behind with exit 1. With `--project-version abc123` it exits 0 and writes a 1,075-byte index. D1's command already passes `--project-version <sha>`, so the plan holds; the adapter must always pass it and must treat a non-zero exit as `failed` even when a file exists.
+4. **semgrep 1.181.0: contradicts the plan.** Without a Semgrep login, `extra.lines` and `extra.fingerprint` are the string `"requires login"` and `extra.metavars` is absent, with or without `--oss-only` and with `--dataflow-traces`. Consequences: (a) D2's `detail` cannot come from metavariables (M2-7 step 3); (b) the M1 worker's `snippet` (`extra.lines`) is `"requires login"` for every result, and D2 ids hash `snippet`, so they would depend on the ordinal only. The result does carry `start`/`end` (line, col, offset), so the real text can be read from the file.
+
+**Stopped here, as section 2 requires.** No code was changed. Waiting for the human's decision on item 4.
+
 
 ---
 
