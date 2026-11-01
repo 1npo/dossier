@@ -376,7 +376,7 @@ After **every** task: the full test suite passes. After tasks M0-5, M0-6 and M0-
 
 ### M0-9. The `migrate` command
 
-- [ ] **Goal.** `dossier.py migrate [REPO] [--dry-run]`: backup, convert, write, validate. It exists to turn the `FIX` fixture into the new layout for the exit criterion; it is not documented for users (no dossier is migrated for real).
+- [x] **Goal.** `dossier.py migrate [REPO] [--dry-run]`: backup, convert, write, validate. It exists to turn the `FIX` fixture into the new layout for the exit criterion; it is not documented for users (no dossier is migrated for real).
 - **Files.** Edit `scripts/dossier.py`; edit `scripts/migrate.py` (add `remap_gaps`); edit `tests/unit/scripts/test_migrate.py` (add a command-level test using a temporary dossier folder).
 - **Interface.**
   - `migrate.remap_gaps(gaps_report, retired) -> dict`: returns a copy of the report with each item's `report` set to `retired.get(report, report)`.

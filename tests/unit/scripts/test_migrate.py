@@ -1,4 +1,9 @@
+import argparse
+import json
+
+import dossier
 import migrate
+import pytest
 import schema
 
 
@@ -104,3 +109,66 @@ def test_shipped_map_is_consistent():
         assert card["writer"] == "claude", rule
         if rule.get("type") == "table":
             assert list(rule["columns"]) in [s["columns"] for s in card["slots"] if s["type"] == "table"], rule
+
+
+# ------------------------------------------------------------------ the command
+
+
+@pytest.fixture
+def old_dossier(tmp_path, git_repo, monkeypatch):
+    home = tmp_path / "home"
+    monkeypatch.setenv("DOSSIER_HOME", str(home))
+    out = home / "repo"
+    (out / "reports").mkdir(parents=True)
+    for rid, rep in OLD.items():
+        (out / "reports" / f"{rid}.json").write_text(json.dumps(rep))
+    (out / "reports" / "data.json").write_text(json.dumps({"headline": "H", "summary": "- s", "blocks": []}))
+    (out / "reports" / "gaps.json").write_text(json.dumps({"items": [{"report": "architecture", "kind": "unknown", "statement": "s"}]}))
+    (out / "state.json").write_text(json.dumps({"skill_version": "0.4.0"}))
+    return out, argparse.Namespace(repo=str(git_repo), dry_run=False)
+
+
+def snapshot(out):
+    return {n: (out / n).read_bytes() for n in ("state.json", "reports/overview.json")}
+
+
+def test_migrate_command(old_dossier, capsys):
+    out, args = old_dossier
+    before = snapshot(out)
+    dossier.cmd_migrate(args)
+    summary = json.loads(capsys.readouterr().out)
+    assert summary["cards_filled"] >= 4
+    assert (out / "reports.legacy-v0.4.0" / "architecture.json").exists()
+    assert not (out / "reports" / "architecture.json").exists()
+    assert "cards" in json.loads((out / "reports" / "data.json").read_text())
+    assert json.loads((out / "reports" / "gaps.json").read_text())["items"][0]["report"] == "components"
+    assert snapshot(out) == before
+
+
+def test_second_run_has_nothing_to_migrate(old_dossier, capsys):
+    _, args = old_dossier
+    dossier.cmd_migrate(args)
+    capsys.readouterr()
+    dossier.cmd_migrate(args)
+    assert "Nothing to migrate." in capsys.readouterr().out
+
+
+def test_dry_run_writes_nothing(old_dossier, capsys):
+    out, args = old_dossier
+    args.dry_run = True
+    dossier.cmd_migrate(args)
+    assert json.loads(capsys.readouterr().out)["cards_filled"] >= 4
+    assert not (out / "reports.legacy-v0.4.0").exists() and (out / "reports" / "architecture.json").exists()
+
+
+def test_existing_backup_stops_the_command(old_dossier):
+    out, args = old_dossier
+    (out / "reports.legacy-v0.4.0").mkdir()
+    with pytest.raises(SystemExit):
+        dossier.cmd_migrate(args)
+    assert (out / "reports" / "architecture.json").exists()
+
+
+def test_remap_gaps():
+    g = migrate.remap_gaps({"items": [{"report": "failures"}, {"report": "risks"}]}, migrate.load_map()["retired"])
+    assert [i["report"] for i in g["items"]] == ["behavior", "risks"]

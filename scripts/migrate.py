@@ -116,3 +116,10 @@ def convert(old, mapping, schemas):
     not_carried.sort(key=lambda n: (n[0], n[1]))
     carried = sorted(((o, i, next((g[2] for g in pending[c] if g[:2] == (o, i)), ""), c) for (o, i), c in used.items()))
     return {"reports": reports, "carried": carried, "not_carried": not_carried}
+
+
+def remap_gaps(gaps_report, retired):
+    """A copy of the gaps report with each item's 'report' set to the report that replaced the retired one."""
+    out = dict(gaps_report)
+    out["items"] = [{**it, "report": retired.get(it.get("report"), it.get("report"))} for it in gaps_report.get("items", [])]
+    return out
