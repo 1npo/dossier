@@ -478,7 +478,7 @@ Independent tasks: M2-3, M2-4, M2-6 and M2-7 need nothing but M2-2 and can be do
 
 ### M2-4. Python project layout parsing (`py_packages.py`)
 
-- [ ] **Goal.** Everything the adapter reads from configuration files, as pure functions.
+- [x] **Goal.** Everything the adapter reads from configuration files, as pure functions.
 - **Files.** New `scripts/py_packages.py`, `tests/unit/scripts/test_py_packages.py`.
 - **Interface.**
   ```python
