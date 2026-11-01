@@ -7,6 +7,7 @@
 
   dossier.py version
   dossier.py home [DIR]
+  dossier.py doctor [REPO] [--all] [--json]                   list the tools a repository needs, which are installed and how to install the rest
   dossier.py prepare [REPO] [--ref REF] [--chunk-tokens N] [--full]   measure the repo, write facts, a reading plan and an update plan
   dossier.py render  [REPO] [--partial] [--allow-errors]      validate the reports and write the HTML
   dossier.py correct [REPO] ...                               record a user correction
@@ -34,6 +35,7 @@ import migrate  # noqa: E402
 import render  # noqa: E402
 import resolve  # noqa: E402
 import schema  # noqa: E402
+import toolcheck  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 VERSION = (ROOT / "VERSION").read_text().strip()
@@ -130,6 +132,17 @@ def cmd_home(a):
     d.mkdir(parents=True, exist_ok=True)
     config.update(home=str(d))
     print(f"Dossier home set to {d}")
+
+
+def cmd_doctor(a):
+    if a.all:
+        report = toolcheck.preflight([], all_scopes=True)
+    else:
+        top = toplevel(a.repo)
+        sha = subprocess.run(["git", "-C", top, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+        report = toolcheck.preflight(toolcheck.languages_at(top, sha))
+    print(json.dumps(report, indent=1) if a.json else toolcheck.format_text(report))
+    sys.exit(1 if report["missing"] else 0)
 
 
 def update_plan(top, out, state, facts, prev_version, full):
@@ -466,6 +479,11 @@ def main():
     p = sub.add_parser("home")
     p.add_argument("dir", nargs="?")
     p.set_defaults(fn=cmd_home)
+    p = sub.add_parser("doctor")
+    p.add_argument("repo", nargs="?")
+    p.add_argument("--all", action="store_true", help="check the tools for every supported language")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(fn=cmd_doctor)
     p = sub.add_parser("prepare")
     p.add_argument("repo", nargs="?")
     p.add_argument("--ref", default="HEAD")

@@ -131,12 +131,12 @@ def format_text(report: dict) -> str:
         why = f", for {', '.join(h['for'])}" if h["for"] and h["status"] != "ok" else ""
         need = f"needs {h['needs']} or later" if h["needs"] else "needs no particular version"
         if h["status"] == "ok":
-            out.append(f"  ok       {h['id']} {h['version']:<9} {need}")
+            out.append(f"  ok       {h['id'] + ' ' + h['version']:<16} {need}")
         elif h["status"] == "old":
             out.append(f"  TOO OLD  {h['id']} {h['version']}  {need}{why}")
             out.append(f"           Install: {h['install']}")
         else:
-            out.append(f"  MISSING  {h['id']:<15} {need}{why}")
+            out.append(f"  MISSING  {h['id']:<16} {need}{why}")
             out.append(f"           Install: {h['install']}")
     selfi = report["self_installing"]
     if selfi:

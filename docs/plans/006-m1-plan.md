@@ -400,7 +400,7 @@ Independent tasks (may be done in any order relative to each other): **M1-1, M1-
 
 ### M1-3. `doctor` command
 
-- [ ] **Goal.** `dossier.py doctor [REPO] [--all] [--json]` prints what is installed and what is missing, with install commands, and needs no dossier home.
+- [x] **Goal.** `dossier.py doctor [REPO] [--all] [--json]` prints what is installed and what is missing, with install commands, and needs no dossier home.
 - **Files.** Edit `scripts/dossier.py` (new `cmd_doctor`, parser entry, module docstring line); new `tests/integration/scripts/test_doctor_cli.py`.
 - **Behaviour.** With `--all`: `preflight([], all_scopes=True)`. Otherwise `top = toplevel(repo)`, `sha = git rev-parse HEAD`, `langs = toolcheck.languages_at(top, sha)`. `--json` prints the report as JSON; otherwise `format_text`:
   ```
