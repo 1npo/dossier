@@ -191,7 +191,7 @@ After **every** task: the full test suite passes. After tasks M0-5, M0-6 and M0-
 
 ### M0-2. Schema loader and V6 validator
 
-- [ ] **Goal.** `scripts/schema.py`: load schema files, lint them, validate a report against its schema.
+- [x] **Goal.** `scripts/schema.py`: load schema files, lint them, validate a report against its schema.
 - **Files.** New `scripts/schema.py`; new `tests/unit/scripts/test_schema.py`. No schema files yet; tests build schemas in memory.
 - **Interface.**
   - `SCHEMA_DIR = Path(__file__).resolve().parent.parent / "prompts" / "schema"`; `ALLOW_PENDING = True  # M0 only: turn off when the M2 prompts can write every card`.

@@ -1,0 +1,103 @@
+import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2].parent / "scripts"))
+import schema  # noqa: E402
+
+
+def card(i, **kw):
+    base = {"id": f"x.{i}", "title": i.title(), "tier": "A", "priority": "P0", "writer": "claude"}
+    base.update(kw)
+    return base
+
+
+TABLE = {"type": "table", "columns": ["A", "B"]}
+SCH = {"report": "x", "title": "X", "question": "Q?", "cards": [
+    card("tab", shape="blocks", slots=[TABLE], fixed={"on": "A", "values": ["one", "two"]}),
+    card("flow", shape="flows", max_diagrams=2),
+    card("ent", shape="entries", key="part", fields=[{"id": "f1", "label": "F1"}, {"id": "f2", "label": "F2"}]),
+    card("comp", tier="M", shape="computed", writer="script"),
+]}
+
+
+def tbl(*rows, cols=("A", "B")):
+    return {"type": "table", "columns": list(cols), "rows": [{"cells": list(r), "conf": "confirmed", "cite": ["a"]} for r in rows]}
+
+
+def dia(): return {"type": "diagram", "mermaid": "flowchart LR\nA-->B"}
+def txt(): return {"type": "text", "text": "hi"}
+def ent(): return {"part": "p", "fields": {"f1": "a", "f2": "b"}, "conf": "confirmed", "cite": ["a"]}
+
+
+def good():
+    return {"cards": [{"card": "x.tab", "blocks": [tbl(("one", "1"), ("two", "2"))]},
+                      {"card": "x.flow", "blocks": [dia(), txt(), dia()]},
+                      {"card": "x.ent", "entries": [ent()]}]}
+
+
+def check(rep, key, **kw):
+    errs, warns = schema.validate("x", rep, SCH, **kw)
+    assert any("V6" in e and key in e for e in errs), (key, errs)
+
+
+def test_passes_one_of_each_shape():
+    assert schema.validate("x", good(), SCH) == ([], [])
+
+
+def test_old_layout():
+    check({"blocks": []}, "old layout")
+
+
+def test_unknown_duplicate_order():
+    r = good(); r["cards"].append({"card": "x.zzz", "pending": True}); check(r, "unknown card")
+    r = good(); r["cards"].append(dict(r["cards"][0])); check(r, "more than once")
+    r = good(); r["cards"].reverse(); check(r, "out of order")
+
+
+def test_missing_required_and_script():
+    r = good(); del r["cards"][2]; check(r, "missing")
+    r = good(); r["cards"].append({"card": "x.comp", "blocks": []}); check(r, "script")
+
+
+def test_columns_rows_blocks():
+    r = good(); r["cards"][0]["blocks"] = [tbl(("a", "b"), cols=("A", "C"))]; check(r, "columns")
+    r = good(); r["cards"][0]["blocks"] = [tbl()]; check(r, "no rows")
+    r = good(); r["cards"][0]["blocks"].append(txt()); check(r, "unexpected block")
+
+
+def test_na_and_pending():
+    r = good(); r["cards"][0] = {"card": "x.tab", "na": "nothing here", "cite": ["a.py:1"]}
+    assert schema.validate("x", r, SCH) == ([], [])
+    r["cards"][0] = {"card": "x.tab", "na": "nothing here"}; check(r, "cite")
+    r = good(); r["cards"][0] = {"card": "x.tab", "pending": True}
+    assert schema.validate("x", r, SCH)[0] == []
+    check(r, "pending", allow_pending=False)
+
+
+def test_entry_fields():
+    r = good(); r["cards"][2]["entries"][0]["fields"] = {"f1": "a"}; check(r, "fields")
+
+
+def test_flows_start_with_diagram():
+    r = good(); r["cards"][1]["blocks"] = [txt()]; check(r, "diagram")
+
+
+def test_fixed_row_is_a_warning():
+    r = good(); r["cards"][0]["blocks"] = [tbl(("`One`", "1"))]
+    errs, warns = schema.validate("x", r, SCH)
+    assert errs == [] and any("'two'" in w for w in warns)
+
+
+def test_lint():
+    assert schema.lint(SCH) == []
+    bad = {"report": "x", "cards": [card("a", id="y.a", shape="computed"), card("b", tier="M", shape="blocks", slots=[TABLE])]}
+    e = schema.lint(bad)
+    assert any("must start" in x for x in e) and any("writer must be script" in x for x in e)
+
+
+def test_load_all_skips_questions(tmp_path):
+    (tmp_path / "a.json").write_text(json.dumps({"report": "a"}))
+    (tmp_path / "questions.json").write_text("[]")
+    assert list(schema.load_all(tmp_path)) == ["a"]
+    assert schema.load("questions", tmp_path) is None and schema.load_questions(tmp_path) == []
