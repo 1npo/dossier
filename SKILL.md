@@ -1,7 +1,7 @@
 ---
 name: dossier
-description: "Build a cited, commit-pinned HTML dossier that explains a git repository: a codebase intelligence report generator that combines measured repository facts, architecture reconstruction, and confidence-labeled analysis (capabilities, architecture, data model, code tour, delivery, risks, contributors). Use for /dossier home, /dossier build, /dossier version, /dossier correct, /dossier confirm."
-argument-hint: home [dir] | build [repo-path] [--ref branch-or-sha] [--full] | version | correct ... | confirm [ids] [--answer|--wrong|--note ...]
+description: "Build a cited, commit-pinned HTML dossier that explains a git repository: a codebase intelligence report generator that combines measured repository facts, architecture reconstruction, and confidence-labeled analysis (capabilities, architecture, data model, code tour, delivery, risks, contributors). Use for /dossier home, /dossier doctor, /dossier clean, /dossier build, /dossier version, /dossier correct, /dossier confirm."
+argument-hint: home [dir] | doctor [repo] | clean [repo] | build [repo-path] [--ref branch-or-sha] [--full] [--allow-missing] [--no-restore] [--allow-ref] [--submodules] | version | correct ... | confirm [ids] [--answer|--wrong|--note ...]
 disable-model-invocation: true
 allowed-tools: Bash(uv run *), Read, Grep, Glob, Write, Agent
 ---
@@ -24,8 +24,18 @@ Run `DOSSIER version` and show the output.
 ### `/dossier home [dir]`
 Run `DOSSIER home [dir]`. With no directory it shows the current home. Dossiers are saved under `<home>/<repo-name>/`.
 
-### `/dossier build [repo-path] [--ref <branch-or-sha>] [--full]`
+### `/dossier doctor [repo]`
+Run `DOSSIER doctor <repo>` and show the output. It lists the tools this repository needs, which are installed, and how to install the missing ones. It installs nothing.
+
+### `/dossier clean [repo]`
+Run `DOSSIER clean <repo>`. It deletes the working copy, the scratch home folder and the package caches dossier keeps for this repository under `~/.local/cache/dossier/`. The dossier itself is not touched.
+
+### `/dossier build [repo-path] [--ref <branch-or-sha>] [--full] [--allow-missing] [--no-restore] [--allow-ref] [--submodules]`
 **This version cannot yet write the new report layout.** `render` now needs reports in the card layout described in `prompts/schema/`. The prompts for it are not written yet. Do not start a build. Tell the user this, and offer the previous version of the skill.
+
+`prepare` checks the tools, makes a clean copy of the code at the pinned commit in a working area, and records each step in `build.json`. Pass `--allow-missing` (carry on without missing tools), `--no-restore` (never install dependencies), `--allow-ref` (install dependencies even when the ref is not a tag or on the default branch) and `--submodules` through to `prepare`. Two results stop it early, and you must act on them:
+- Exit code 2, `"stopped": "missing_tools"`: show the user the `text`, and offer to run `prepare` again with `--allow-missing` once they have installed the tools or chosen to go without.
+- Exit code 3, `"stopped": "restore_question"`: installing the repository's locked dependencies can run the project's own build code on this machine, with the user's rights. Tell the user in plain words what `will_run` lists (the command and where it runs), including the `note`, and ask whether to install. Run `prepare` again with `--restore yes` or `--restore no`. The answer is stored for this repository.
 
 The repository defaults to the current directory. The ref defaults to the checked-out commit. `--full` rebuilds every report. Without it, a build of a repository that already has a dossier only redoes the reports whose cited code changed. Follow these steps in order.
 
@@ -39,14 +49,14 @@ The repository defaults to the current directory. The ref defaults to the checke
 3. **Learn the rules.** Read `${CLAUDE_SKILL_DIR}/prompts/method.md` and `${CLAUDE_SKILL_DIR}/prompts/reports.md`. Read `state.json` for user corrections and for `user_decisions` (what the user has confirmed, answered or disputed; `prepare` prints them), and `facts.json` (use Read with a limit if it is large; start with `repo`, `git`, `files`, `manifests`, `ownership`, `areas`, `chunks`).
 4. **Read the code.** In `incremental` mode do not read the whole repository and do not write chunk notes. Read the stale reports and the files in `update_plan.read` (the changed files they cite or sit next to), plus any other file in `facts.json` `delta.changed` that a stale report needs. Otherwise follow "Reading the repository" in `method.md`. In `single` mode, read the files yourself. In `chunked` mode, write a note for every chunk that is not cached, using subagents in parallel batches of about five when the Agent tool is available. Do not skip chunks and do not truncate files.
 5. **Write the reports.** In `incremental` mode write only the reports in `update_plan.stale`, as `method.md` describes under "Updating". Otherwise write all twelve files to `reports_dir`: overview, capabilities, interfaces, architecture, domain-logic, data, code-tour, failures, delivery, risks, contributors, gaps. For a large repository, give each report to its own subagent with the report name, the paths to `method.md`, `reports.md`, `facts.json`, the notes, and the repository. If this is an update and reports already exist, update them as `method.md` describes.
-6. **Render.** Run `DOSSIER render <repo>`. If it prints errors (unresolved citations, missing columns, bad diagrams), fix the report files and run it again until it succeeds. Warnings are worth fixing but do not block. The summary's `code_viewer` counts the citations that open the code viewer, the ones that do not, and the files left out to keep the page small.
+6. **Render.** Run `DOSSIER render <repo>` (add `--readers N` when subagents read the code, so the process card can say how many). If it prints errors (unresolved citations, missing columns, bad diagrams), fix the report files and run it again until it succeeds. Warnings are worth fixing but do not block. The summary's `code_viewer` counts the citations that open the code viewer, the ones that do not, and the files left out to keep the page small.
 7. **Check the page in a real browser.** (Skip in `render_only` mode.) Mermaid errors, unreadable text and layout faults only show when the page is opened, so never skip this and never judge diagrams by reading their source. `check_page.py` declares its own dependency (Playwright), so `uv` installs it for you:
 
    ```
-   uv run ${CLAUDE_SKILL_DIR}/scripts/check_page.py <html> --shots <dir>
+   uv run ${CLAUDE_SKILL_DIR}/scripts/check_page.py <html> --shots <dir> --record <out_dir>/build.json
    ```
 
-   If it says no browser is installed, run `uv run --with playwright python -m playwright install chromium` once and retry. It opens every report in the light and the dark theme and fails if a diagram does not draw, if any text inside a diagram has a contrast ratio under 4.5:1 against what is painted behind it or is cut off by its label box, if a table column cannot be sorted, if the citation tooltip does not show, or if the code viewer misbehaves (a highlight color under 4.5:1 contrast on the panel or on a cited line; a click on a citation must open the panel on the cited lines; the keys `]`, `p`, `v` and `Esc`, the other-sources row and "Go to reference" must work; directory, commit and secret-looking citations must not open it). Fix every `FAIL` line (usually in the diagram source or the page assets), re-render and re-run until it prints `"problems": 0`. Then open at least the architecture and one flow screenshot from `--shots` with the Read tool and look at them: the script cannot see overlapping boxes, tangled arrows or a diagram too small to read. Fix those too.
+   If it says no browser is installed, run `uv run --with playwright python -m playwright install chromium` once and retry. It opens every report in the light and the dark theme and fails if a diagram does not draw, if any text inside a diagram has a contrast ratio under 4.5:1 against what is painted behind it or is cut off by its label box, if a table column cannot be sorted, if the citation tooltip does not show, or if the code viewer misbehaves (a highlight color under 4.5:1 contrast on the panel or on a cited line; a click on a citation must open the panel on the cited lines; the keys `]`, `p`, `v` and `Esc`, the other-sources row and "Go to reference" must work; directory, commit and secret-looking citations must not open it). Fix every `FAIL` line (usually in the diagram source or the page assets), re-render and re-run until it prints `"problems": 0`. Then open at least the architecture and one flow screenshot from `--shots` with the Read tool and look at them: the script cannot see overlapping boxes, tangled arrows or a diagram too small to read. Fix those too. Once it prints `"problems": 0`, run `DOSSIER render <repo>` once more so the page shows the time of the browser check.
 8. **Finish.** Tell the user the path of the HTML file, that it embeds the source of the files it cites (so it should be shared no more widely than the code), and, in a few plain sentences, the headline findings: what the project is, the top risks, and the number of unknowns and inferences. Do not list every step you took.
 
 ### `/dossier confirm`
@@ -78,4 +88,5 @@ Corrections always win over inference. Read them before writing any report.
 - Everything is pinned to the commit SHA that `prepare` resolved. Never read the working tree for facts; read files at that commit when they differ (`git show <sha>:<path>`).
 - Every file reference is a citation. Every statement is `confirmed`, `inferred` or `unknown`. Details are in `method.md`.
 - Plain language, full sentences, short summaries.
+- Never edit `build.json`. It is the record of what the tools did, written only by the scripts.
 - Do not print secret values found in the repository, in the dossier or in chat.

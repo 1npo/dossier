@@ -11,10 +11,12 @@ Inside Claude Code:
 /dossier build ~/dev/projects/foo   # build a dossier for a repo
 /dossier confirm                    # list open questions, then answer them
 /dossier correct                    # record something the dossier got wrong
+/dossier doctor ~/dev/projects/foo  # check which tools a repo needs are installed
+/dossier clean ~/dev/projects/foo   # delete the working copy and caches for a repo
 /dossier version
 ```
 
-`build` pins the dossier to a commit, writes twelve reports (overview, capabilities, interfaces, architecture, domain logic, data, code tour, failures, delivery, risks, contributors, gaps), and renders them to `<home>/<repo-name>/` as one self-contained HTML page. Version 0.5.0 draws the new card layout; writing dossiers in that layout arrives in a later version.
+`build` pins the dossier to a commit, writes twelve reports (overview, capabilities, interfaces, architecture, domain logic, data, code tour, failures, delivery, risks, contributors, gaps), and renders them to `<home>/<repo-name>/` as one self-contained HTML page. Version 0.5.0 draws the new card layout; writing dossiers in that layout arrives in a later version. Version 0.6.0 adds `doctor`, `clean`, a clean working copy for every build, a run record (`build.json`) and the "How this dossier was made" card.
 
 ## Updating a dossier
 

@@ -9,8 +9,9 @@
   dossier.py home [DIR]
   dossier.py doctor [REPO] [--all] [--json]                   list the tools a repository needs, which are installed and how to install the rest
   dossier.py clean [REPO]                                     remove the working area (clean copy, scratch home, caches) of a repository
-  dossier.py prepare [REPO] [--ref REF] [--chunk-tokens N] [--full]   measure the repo, write facts, a reading plan and an update plan
-  dossier.py render  [REPO] [--partial] [--allow-errors]      validate the reports and write the HTML
+  dossier.py prepare [REPO] [--ref REF] [--chunk-tokens N] [--full] [--allow-missing] [--no-restore] [--allow-ref] [--submodules] [--restore yes|no]
+                                                              check tools, make a clean copy, install locked dependencies if allowed, measure the repo, write facts, a reading plan and an update plan
+  dossier.py render  [REPO] [--partial] [--allow-errors] [--readers N]      validate the reports and write the HTML
   dossier.py correct [REPO] ...                               record a user correction
   dossier.py confirm [REPO] [IDS] ...                         list open items, or confirm / answer / dispute them
   dossier.py migrate [REPO] [--dry-run]                       one-off: convert an old-layout dossier (used for the M0 check)
