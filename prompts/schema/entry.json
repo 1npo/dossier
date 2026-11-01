@@ -1,0 +1,38 @@
+{
+  "report": "entry",
+  "title": "Entry points",
+  "question": "Where does execution start?",
+  "cards": [
+    {
+      "id": "entry.catalog",
+      "title": "Entry points",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "Kind",
+            "Name",
+            "Triggered by",
+            "Starts at",
+            "Notes"
+          ]
+        }
+      ],
+      "fixed": null
+    },
+    {
+      "id": "entry.startup",
+      "title": "Startup sequence",
+      "tier": "R",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "flows",
+      "max_diagrams": 1,
+      "fixed": null
+    }
+  ]
+}

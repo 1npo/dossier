@@ -1,0 +1,27 @@
+{
+  "report": "corrections",
+  "title": "Corrections",
+  "question": "What have I corrected or decided, and has it been applied?",
+  "cards": [
+    {
+      "id": "corrections.tracker",
+      "title": "Tracker",
+      "tier": "M",
+      "priority": "P0",
+      "writer": "script",
+      "shape": "computed",
+      "informational": true,
+      "fixed": null
+    },
+    {
+      "id": "corrections.decisions",
+      "title": "Your confirmations and answers",
+      "tier": "M",
+      "priority": "P0",
+      "writer": "script",
+      "shape": "computed",
+      "informational": true,
+      "fixed": null
+    }
+  ]
+}

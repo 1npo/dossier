@@ -1,0 +1,31 @@
+{
+  "report": "risks",
+  "title": "Risks",
+  "question": "What could go wrong here, and how much would it matter?",
+  "cards": [
+    {
+      "id": "risks.tracker",
+      "title": "Tracker",
+      "tier": "A",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "table",
+          "columns": [
+            "ID",
+            "Risk",
+            "Category",
+            "Severity",
+            "Impact",
+            "Recommendation"
+          ],
+          "max": null
+        }
+      ],
+      "informational": true,
+      "fixed": null
+    }
+  ]
+}

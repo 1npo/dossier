@@ -1,0 +1,35 @@
+{
+  "report": "overview",
+  "title": "This repository",
+  "question": "What is this repository, who works on it, and what does it depend on?",
+  "cards": [
+    {
+      "id": "overview.repository",
+      "title": "Overview",
+      "tier": "M",
+      "priority": "P0",
+      "writer": "script",
+      "shape": "computed",
+      "informational": true,
+      "fixed": null
+    },
+    {
+      "id": "overview.contributors",
+      "title": "Contributors",
+      "tier": "M",
+      "priority": "P0",
+      "writer": "script",
+      "shape": "computed",
+      "fixed": null
+    },
+    {
+      "id": "overview.dependencies",
+      "title": "Dependencies",
+      "tier": "M",
+      "priority": "P0",
+      "writer": "script",
+      "shape": "computed",
+      "fixed": null
+    }
+  ]
+}

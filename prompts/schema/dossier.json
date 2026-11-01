@@ -1,0 +1,55 @@
+{
+  "report": "dossier",
+  "title": "This dossier",
+  "question": "How was this dossier made, and how far can I trust it?",
+  "cards": [
+    {
+      "id": "dossier.about",
+      "title": "About this dossier",
+      "tier": "M",
+      "priority": "P0",
+      "writer": "script",
+      "shape": "computed",
+      "fixed": null
+    },
+    {
+      "id": "dossier.process",
+      "title": "How this dossier was made",
+      "tier": "M",
+      "priority": "P0",
+      "writer": "script",
+      "shape": "computed",
+      "fixed": null
+    },
+    {
+      "id": "dossier.questions",
+      "title": "Questions this dossier answers",
+      "tier": "M",
+      "priority": "P0",
+      "writer": "script",
+      "shape": "computed",
+      "informational": true,
+      "fixed": null
+    },
+    {
+      "id": "dossier.reports",
+      "title": "Reports in this dossier",
+      "tier": "M",
+      "priority": "P0",
+      "writer": "script",
+      "shape": "computed",
+      "informational": true,
+      "fixed": null
+    },
+    {
+      "id": "dossier.changelog",
+      "title": "Dossier changelog",
+      "tier": "M",
+      "priority": "P0",
+      "writer": "script",
+      "shape": "computed",
+      "informational": true,
+      "fixed": null
+    }
+  ]
+}

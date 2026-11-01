@@ -217,7 +217,7 @@ After **every** task: the full test suite passes. After tasks M0-5, M0-6 and M0-
 
 ### M0-3. Schema files, part 1 (reports 01 to 06, 14 to 16)
 
-- [ ] **Goal.** Write the nine schema files for `dossier`, `overview`, `reading`, `entry`, `components`, `interactions`, `risks`, `gaps`, `corrections`, and the format README.
+- [x] **Goal.** Write the nine schema files for `dossier`, `overview`, `reading`, `entry`, `components`, `interactions`, `risks`, `gaps`, `corrections`, and the format README.
 - **Files.** New `prompts/schema/dossier.json` (five cards, as in the table below), `reading.json`, `entry.json`, `components.json`, `interactions.json`, `overview.json`, `risks.json`, `gaps.json`, `corrections.json`, `prompts/schema/README.md`; new `tests/unit/scripts/test_schema_files.py`.
 - **Interface.** The format of D1. `title` and `question` are copied from the spec (§4); the spec gives no question for reports 01, 02, 14, 15 and 16, so their questions are the texts marked † (accepted by the human), copied exactly. Cards (all `fixed: null` unless a row says otherwise; `writer` follows the rule in D1; columns are written in this exact order):
 
