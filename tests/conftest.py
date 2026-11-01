@@ -1,6 +1,9 @@
 import os
+import re
+import shutil
 import subprocess
 import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -10,6 +13,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import render  # noqa: E402
 
 SHA = "a" * 40
+collect_ignore_glob = ["fixtures/*"]
+PYFIX = Path(__file__).resolve().parent / "fixtures" / "pyrepo"
 
 
 class FakeRepo:
@@ -128,3 +133,36 @@ def hygiene_repo(tmp_path):
     feature_sha = commit("four", **{"feature.py": "x = 1\n"})
     git("checkout", "main")
     return types.SimpleNamespace(path=str(repo), tag_sha=tag_sha, middle_sha=middle_sha, main_sha=main_sha, feature_sha=feature_sha)
+
+
+def line_of(root, rel, name):
+    """The 1-based line of `rel` under `root` that holds the marker `@<name>`; raises when absent or repeated."""
+    pattern = re.compile(r"@" + re.escape(name) + r"(?![\w-])")
+    lines = [i for i, text in enumerate((Path(root) / rel).read_text(encoding="utf-8").splitlines(), 1) if pattern.search(text)]
+    if len(lines) != 1:
+        raise LookupError(f"marker @{name} found {len(lines)} times in {rel}")
+    return lines[0]
+
+
+@pytest.fixture(name="line_of")
+def line_of_fixture():
+    return line_of
+
+
+@pytest.fixture
+def py_repo(tmp_path):
+    """The Python fixture repository (tests/fixtures/pyrepo) as a git repository with one commit on main."""
+    repo = tmp_path / "pyrepo"
+    shutil.copytree(PYFIX, repo, ignore=shutil.ignore_patterns("__pycache__"))
+    (repo / "scripts" / "seed.sh").chmod(0o755)
+    env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull,
+           "GIT_AUTHOR_NAME": "T", "GIT_AUTHOR_EMAIL": "t@x.io", "GIT_COMMITTER_NAME": "T", "GIT_COMMITTER_EMAIL": "t@x.io"}
+
+    def git(*args):
+        return subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, text=True, env=env).stdout.strip()
+
+    git("init", "-b", "main")
+    git("add", "-A")
+    git("commit", "-m", "fixture")
+    return types.SimpleNamespace(path=str(repo), sha=git("rev-parse", "HEAD"),
+                                 line_of=lambda rel, name: line_of(repo, rel, name))

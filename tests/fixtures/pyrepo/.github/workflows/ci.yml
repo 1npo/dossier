@@ -1,0 +1,16 @@
+name: ci
+on:
+  push:
+  schedule:
+    - cron: "0 3 * * *"  # @ep-cron
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pytest -q  # @ci-pytest
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ruff check .

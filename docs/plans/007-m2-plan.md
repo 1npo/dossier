@@ -450,7 +450,7 @@ Independent tasks: M2-3, M2-4, M2-6 and M2-7 need nothing but M2-2 and can be do
 
 ### M2-3. The Python fixture repository
 
-- [ ] **Goal.** A small repository with known entry points, imports, a cycle, a layer violation, dead code, I/O, models, tests and blind spots, so each extractor has an exact expected output.
+- [x] **Goal.** A small repository with known entry points, imports, a cycle, a layer violation, dead code, I/O, models, tests and blind spots, so each extractor has an exact expected output.
 - **Files.** New `tests/fixtures/pyrepo/**` (below); edit `tests/conftest.py` (fixture `py_repo`, helper `line_of`).
 - **Content.** Every line that a test must find carries a marker comment `# @<name>` at the end of the line. Tests never hard-code line numbers: `line_of(path, name)` returns the 1-based line holding `# @<name>`. Files (write each with exactly this behaviour; keep each under 40 lines):
   - `pyproject.toml`: `[project]` name `shopcart`, `requires-python = ">=3.11"`, `[project.scripts] shopcart = "shopcart.cli:main"` (`# @ep-script` on that line), `[build-system]` hatchling, `[tool.hatch.build.targets.wheel] packages = ["src/shopcart"]`, `[tool.ruff]` `line-length = 100`, `[tool.pytest.ini_options]` `testpaths = ["tests"]`, `[tool.coverage.report]` `fail_under = 80`, and `[tool.importlinter]` `root_package = "shopcart"` with one `layers` contract `name = "cli above core"`, `layers = ["shopcart.cli", "shopcart.core"]`, plus one `independence` contract `name = "apps apart"`, `modules = ["shopcart.plugins", "shopcart.store"]`.
