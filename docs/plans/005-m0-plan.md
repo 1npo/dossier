@@ -309,7 +309,7 @@ After **every** task: the full test suite passes. After tasks M0-5, M0-6 and M0-
 
 ### M0-5. Card drawing helpers (not yet wired into the page)
 
-- [ ] **Goal.** Pure functions in `render.py` that draw one schema card: title, badge, placeholder, "not applicable", blocks, flows, entries.
+- [x] **Goal.** Pure functions in `render.py` that draw one schema card: title, badge, placeholder, "not applicable", blocks, flows, entries.
 - **Files.** Edit `scripts/render.py` (add a section "schema cards" after `render_blocks`); edit `assets/dossier.css`; edit `assets/dossier.js` (search over entries, below); edit `scripts/check_page.py` (search check, below); new `tests/unit/scripts/test_render_cards.py`.
 - **Interface.**
   - `TIER_INFO = {"M": ("Measured", "…tooltip text from D4…"), "A": …, "R": …, "M+A": …}`; `tier_badge(tier) -> str` as in D4 (class `tier tier-<tier lowercased, '+' as 'plus'>`).

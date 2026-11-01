@@ -719,6 +719,114 @@ def render_blocks(blocks, refs, rid):
     return "".join(out)
 
 
+# --------------------------------------------------------------------------- schema cards
+
+TIER_INFO = {
+    "M": ("Measured", "Measured: produced by a tool from the repository. No model was involved."),
+    "A": ("Adjudicated", "Adjudicated: a tool found the candidates, and Claude sorted, pruned, added and explained them."),
+    "R": ("Read", "Read: Claude's reading of the code, with citations. Each statement is confirmed, inferred or unknown."),
+    "M+A": ("Measured and adjudicated", "Measured and adjudicated: tool output that Claude then named, merged or explained."),
+}
+
+
+def tier_badge(tier):
+    name, tip = TIER_INFO[tier]
+    cls = "tier-" + tier.lower().replace("+", "plus")
+    return f'<span class="badge tier {cls}" data-variant="outline" tabindex="0" data-tip="{E(tip)}" data-tip-kind="note" aria-label="{E(name + ": " + tip)}">{E(tier)}</span>'
+
+
+def card_dom_id(cid):
+    return "c-" + cid.replace(".", "-")
+
+
+def schema_card(card, body, extra=""):
+    shade = "fact" if card["tier"] == "M" else "llm"
+    return (f'<div class="card block {shade}{extra}" id="{card_dom_id(card["id"])}" data-card="{card["id"]}">'
+            f'<header><h3>{E(card["title"])}</h3>{tier_badge(card["tier"])}</header><section>{body}</section></div>')
+
+
+def placeholder_body(card):
+    first = "<strong>Not yet generated.</strong> This card is part of the standard layout."
+    if card["writer"] == "script":
+        return f'<p class="muted">{first} A tool fills this card in, not Claude. That tool is not part of this version yet.</p>'
+    return f'<p class="muted">{first} Nothing has been written for it in this dossier yet.</p>'
+
+
+def na_body(entry, refs):
+    return f'<p>Not applicable: {inline(entry["na"], refs)}</p>' + provenance({"conf": "confirmed", "cite": entry["cite"]}, refs, entry["na"])
+
+
+def list_html(items, refs):
+    lis = "".join(f'<li>{inline(i["text"], refs)} {basis_for(i) if (i["conf"] != "confirmed" or i.get("user")) else ""}{gid_tag(i)}{refs.mark(new_cites(i.get("cite"), i["text"]))}'
+                  + (f'<div class="muted">{inline(i.get("note"), refs)}</div>' if i.get("note") and i["conf"] != "confirmed" else "") + user_note(i.get("user")) + "</li>"
+                  for i in items)
+    return f'<ul class="claims">{lis}</ul>'
+
+
+def block_body(b, refs, tid):
+    t = b["type"]
+    if t == "table":
+        cap = f'<p class="muted">{inline(b["caption"], refs)}</p>' if b.get("caption") else ""
+        return cap + render_table(b["columns"], b["rows"], refs, tid)
+    if t == "list":
+        return list_html(b["items"], refs)
+    if t == "text":
+        return md(b["text"], refs) + provenance(b, refs, b["text"])
+    src = b["mermaid"].strip()
+    title = f'<h4>{E(b["title"])}</h4>' if b.get("title") else "<h4>Diagram</h4>"
+    return (f'<div class="diagram flow"><div class="flow-bar">{title}<div class="card-action"><button class="btn" data-variant="ghost" data-size="sm" type="button" data-expand title="Expand" aria-label="Expand diagram">{EXPAND_ICONS}</button></div></div>'
+            f'<div class="mermaid-host" data-src="{E(src)}"><pre class="muted">Diagram loads when this report is opened.</pre></div>'
+            f'<details><summary class="muted">Diagram source</summary><pre>{E(src)}</pre></details>{provenance(b, refs, "", "Diagram")}</div>')
+
+
+def blocks_body(card, blocks, refs, tid):
+    """A card's blocks, without a card around each. A text or list block right after a diagram is that diagram's notes."""
+    out = []
+    for i, b in enumerate(blocks):
+        h = block_body(b, refs, f"{tid}-{i}")
+        if b["type"] == "diagram":
+            out.append(h)
+        elif i and blocks[i - 1]["type"] == "diagram" and card["shape"] == "flows":
+            out[-1] = out[-1][:-len("</div>")] + f'<div class="diagram-notes">{h}</div></div>'
+        else:
+            out.append(h)
+    return "".join(out)
+
+
+def entries_body(card, entries, refs, tid):
+    labels = card["fields"]
+    out = []
+    for n, e in enumerate(entries, 1):
+        fl = e["fields"]
+        dl = "".join(f"<dt>{E(f['label'])}</dt><dd>{inline(fl[f['id']], refs)}</dd>" for f in labels)
+        out.append(f'<details class="entry" id="{card_dom_id(card["id"])}-e{n}" open><summary>{E(e[card["key"]])}</summary><dl class="facts">{dl}</dl>'
+                   f'{provenance(e, refs, " ".join(fl.values()))}</details>')
+    return "".join(out)
+
+
+def render_card(card, entry, refs, rid):
+    tid = "t-" + card_dom_id(card["id"])[2:]
+    if card["writer"] == "script" or not isinstance(entry, dict) or entry.get("pending"):
+        return schema_card(card, placeholder_body(card))
+    try:
+        if "na" in entry:
+            body = na_body(entry, refs)
+        elif "blocks" in entry:
+            body = blocks_body(card, entry["blocks"], refs, tid)
+        elif "entries" in entry:
+            body = entries_body(card, entry["entries"], refs, tid)
+        else:
+            body = placeholder_body(card)
+    except (KeyError, TypeError, IndexError, AttributeError):
+        body = placeholder_body(card)  # V6 reports the real error
+    return schema_card(card, body)
+
+
+def schema_cards_html(sch, rep, refs, rid):
+    by_id = {c["card"]: c for c in (rep or {}).get("cards", []) if isinstance(c, dict) and "card" in c}
+    return "".join(render_card(c, by_id.get(c["id"]), refs, rid) for c in sch["cards"])
+
+
 # --------------------------------------------------------------------------- measured panels
 
 

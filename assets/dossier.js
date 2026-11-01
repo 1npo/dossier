@@ -79,7 +79,7 @@
   var input = $("#search"), results = $("#search-results"), navGroups = $("#nav-groups"), index = null, shown = [], active = -1;
   function textOf(el, dropTables) {
     var c = el.cloneNode(true);
-    $$("details, sup.cite, script, .mermaid-host svg, button" + (dropTables ? ", .badge, table, .table-container" : ""), c).forEach(function (n) { n.remove(); });
+    $$("details:not(.entry), sup.cite, script, .mermaid-host svg, button" + (dropTables ? ", .badge, table, .table-container" : ""), c).forEach(function (n) { n.remove(); });
     return c.textContent.replace(/\s+/g, " ").trim();
   }
   function buildIndex() {
@@ -95,6 +95,10 @@
           if (!tr.id) tr.id = "r-" + rep.id + "-" + (++n);
           var cells = $$("td", tr).map(function (td) { return textOf(td); });
           index.push({ id: tr.id, report: rtitle, section: title, label: cells.filter(Boolean).slice(0, 2).join(" · "), text: cells.join(" | "), row: true });
+        });
+        $$("details.entry", card).forEach(function (d) {
+          var s = $("summary", d);
+          index.push({ id: d.id, report: rtitle, section: title, label: s ? textOf(s) : title, text: textOf(d), row: true });
         });
       });
     });
@@ -131,7 +135,9 @@
   }
   function open(i) {
     var e = shown[i]; if (!e) return;
-    input.value = ""; runSearch(); input.blur(); go(e.id);
+    input.value = ""; runSearch(); input.blur();
+    var t = document.getElementById(e.id); while (t) { if (t.tagName === "DETAILS") t.open = true; t = t.parentElement && t.parentElement.closest("details"); }
+    go(e.id);
   }
   input.addEventListener("input", runSearch);
   input.addEventListener("keydown", function (e) {

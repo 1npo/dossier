@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -290,6 +291,30 @@ def check_knowledge(page, scheme):
     return out
 
 
+def check_search(page, scheme):
+    """Search finds a component detail entry inside a collapsed <details> and opens it."""
+    if not page.query_selector("details.entry"):
+        return []
+    bad = lambda m: [f"[{scheme}] search: {m}"]
+    rid = page.evaluate("() => { const e = document.querySelector('details.entry'); return e.closest('.report').id; }")
+    page.evaluate("(r) => { location.hash = r; }", rid)
+    page.wait_for_timeout(200)
+    info = page.evaluate("""() => { const e = document.querySelector('details.entry'); e.open = false;
+        const dd = e.querySelector('dd'); return {id: e.id, name: e.querySelector('summary').textContent.trim(), dd: dd ? dd.textContent : ''}; }""")
+    m = re.search(r"[A-Za-z]{6,}", info["dd"])
+    if not m:
+        return bad("the first entry has no word of six letters to search for")
+    page.fill("#search", m.group(0))
+    page.wait_for_timeout(200)
+    hit = page.locator("#search-results .result", has=page.locator(".what", has_text=info["name"]))
+    if not hit.count():
+        return bad(f"searching for {m.group(0)!r} did not find the entry {info['name']!r}")
+    page.press("#search", "Enter")
+    page.wait_for_timeout(400)
+    opened = page.evaluate("(i) => { const e = document.getElementById(i); const b = e.getBoundingClientRect(); return e.open && b.width > 0 && b.height > 0; }", info["id"])
+    return [] if opened else bad("the entry did not open and show after Enter")
+
+
 def check_theme(browser, path, scheme, shots):
     problems = []
     ctx = browser.new_context(color_scheme=scheme, viewport={"width": 1500, "height": 1000})
@@ -345,6 +370,7 @@ def check_theme(browser, path, scheme, shots):
                 page.mouse.move(0, 0)
     problems += check_viewer(page, scheme, shots)
     problems += check_knowledge(page, scheme)
+    problems += check_search(page, scheme)
     problems += [f"[{scheme}] browser error: {e}" for e in errors]
     ctx.close()
     return problems, n_diagrams
