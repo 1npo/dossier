@@ -7,8 +7,11 @@
 
   dossier.py version
   dossier.py home [DIR]
-  dossier.py prepare [REPO] [--ref REF] [--chunk-tokens N] [--full]   measure the repo, write facts, a reading plan and an update plan
-  dossier.py render  [REPO] [--partial] [--allow-errors]      validate the reports and write the HTML
+  dossier.py doctor [REPO] [--all] [--json]                   list the tools a repository needs, which are installed and how to install the rest
+  dossier.py clean [REPO]                                     remove the working area (clean copy, scratch home, caches) of a repository
+  dossier.py prepare [REPO] [--ref REF] [--chunk-tokens N] [--full] [--allow-missing] [--no-restore] [--allow-ref] [--submodules] [--restore yes|no]
+                                                              check tools, make a clean copy, install locked dependencies if allowed, measure the repo, write facts, a reading plan and an update plan
+  dossier.py render  [REPO] [--partial] [--allow-errors] [--readers N]      validate the reports and write the HTML
   dossier.py correct [REPO] ...                               record a user correction
   dossier.py confirm [REPO] [IDS] ...                         list open items, or confirm / answer / dispute them
   dossier.py migrate [REPO] [--dry-run]                       one-off: convert an old-layout dossier (used for the M0 check)
@@ -27,16 +30,22 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import buildlog  # noqa: E402
+import config  # noqa: E402
 import gather  # noqa: E402
 import incremental  # noqa: E402
 import migrate  # noqa: E402
+import process  # noqa: E402
 import render  # noqa: E402
 import resolve  # noqa: E402
 import schema  # noqa: E402
+import stages  # noqa: E402
+import toolcheck  # noqa: E402
+import workarea  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 VERSION = (ROOT / "VERSION").read_text().strip()
-CONFIG = Path(os.environ.get("DOSSIER_CONFIG") or Path.home() / ".config" / "dossier" / "config.json")
+CONFIG = config.path()
 
 
 def die(msg, code=1):
@@ -84,10 +93,10 @@ def save_state(out, state):
 
 
 def get_home():
-    h = os.environ.get("DOSSIER_HOME") or (load(CONFIG, {}) or {}).get("home")
+    h = config.home()
     if not h:
         die("No dossier home is set. Run /dossier home <directory> to choose where dossiers are saved.")
-    return Path(h).expanduser()
+    return h
 
 
 def toplevel(repo_arg):
@@ -122,13 +131,36 @@ def cmd_version(_):
 
 def cmd_home(a):
     if not a.dir:
-        h = os.environ.get("DOSSIER_HOME") or (load(CONFIG, {}) or {}).get("home")
+        h = config.home()
         print(f"Dossier home: {h}" if h else "No dossier home is set. Run /dossier home <directory>.")
         return
     d = Path(a.dir).expanduser().resolve()
     d.mkdir(parents=True, exist_ok=True)
-    save(CONFIG, {"home": str(d)})
+    config.update(home=str(d))
     print(f"Dossier home set to {d}")
+
+
+def cmd_doctor(a):
+    if a.all:
+        report = toolcheck.preflight([], all_scopes=True)
+    else:
+        top = toplevel(a.repo)
+        sha = subprocess.run(["git", "-C", top, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+        report = toolcheck.preflight(toolcheck.languages_at(top, sha))
+    print(json.dumps(report, indent=1) if a.json else toolcheck.format_text(report))
+    sys.exit(1 if report["missing"] else 0)
+
+
+def cmd_clean(a):
+    top = toplevel(a.repo)
+    out, name, _ = out_dir(top)
+    root = config.cache_root()
+    area = root / out.name
+    try:
+        removed = workarea.clean(area, root)
+    except workarea.CheckoutError as e:
+        die(str(e))
+    print(f"Removed the working area {area}. The dossier in {out} was not touched." if removed else f"Nothing to clean for {name}.")
 
 
 def update_plan(top, out, state, facts, prev_version, full):
@@ -196,15 +228,48 @@ def cmd_prepare(a):
     state = load_state(out)
     prev_version = state.get("skill_version")
     state["repo"] = {"name": name, "root_commit": root}
-    facts, chunks = gather.collect(top, a.ref, a.chunk_tokens, state.get("contributor_types"))
-    sha = facts["repo"]["sha"]
-    if state.get("last_sha") and state["last_sha"] != sha:
-        facts["delta"] = gather.delta(top, state["last_sha"], sha, state.get("snapshot"), facts)
-    plan = update_plan(top, out, state, facts, prev_version, a.full)
-    cached = 0
-    for c in chunks["chunks"]:
-        c["cached"] = (out / "notes" / f"{c['fingerprint']}.json").exists()
-        cached += c["cached"]
+    opts = stages.Options(ref=a.ref, allow_missing=a.allow_missing, no_restore=a.no_restore, allow_ref=a.allow_ref,
+                          submodules=a.submodules, restore=a.restore, full=a.full)
+    try:
+        sha = stages.resolve_ref(top, a.ref)
+        area = workarea.area_for(out.name, top, root)
+    except (stages.PrepareError, workarea.CheckoutError) as e:
+        die(str(e))
+    build = buildlog.start(out, repo=name, sha=sha, ref=a.ref, version=VERSION,
+                           options={"allow_missing": a.allow_missing, "no_restore": a.no_restore, "allow_ref": a.allow_ref,
+                                    "submodules": a.submodules, "full": a.full})
+    try:
+        pin = stages.stage_pin(build, top, a.ref, sha)
+        report = stages.stage_tools(build, top, sha, opts)
+        tree = stages.tree_at(top, sha)
+        copy = stages.stage_copy(build, top, sha, area, state, opts, tree, pin["trust"])
+        langs = [l["name"] for l in report["languages"]]
+        extract = stages.stage_extract(build, top, sha, area, out, langs, pin["trust"], opts, copy["restored"], tree,
+                                       copy["checkout"]["path"])
+    except stages.Stop as stop:
+        save_state(out, state)
+        print(json.dumps(stop.payload, indent=1))
+        sys.exit(stop.code)
+    try:
+        with buildlog.step(build, "measure") as rec:
+            facts, chunks = gather.collect(top, a.ref, a.chunk_tokens, state.get("contributor_types"))
+            if facts["repo"]["sha"] != sha:
+                raise stages.PrepareError("The ref moved while prepare was running. Run it again.")
+            if state.get("last_sha") and state["last_sha"] != sha:
+                facts["delta"] = gather.delta(top, state["last_sha"], sha, state.get("snapshot"), facts)
+            plan = update_plan(top, out, state, facts, prev_version, a.full)
+            cached = 0
+            for c in chunks["chunks"]:
+                c["cached"] = (out / "notes" / f"{c['fingerprint']}.json").exists()
+                cached += c["cached"]
+            rec["counts"] = {"files": facts["files"]["analyzed"],
+                             "languages": len([l for l in facts["languages"] if l["kind"] == "code"]),
+                             "commits": facts["git"]["commits"], "contributors": facts["git"]["contributors"]["total"]}
+            rec["details"] = {"reading_mode": facts["chunks"]["mode"], "chunks": len(chunks["chunks"]),
+                              "chunks_with_current_notes": cached, "plan_mode": plan["mode"],
+                              "stale": sorted(plan["stale"]), "fresh": plan["fresh"]}
+    except stages.PrepareError as e:
+        die(str(e))
     (out / "reports").mkdir(parents=True, exist_ok=True)
     (out / "notes").mkdir(parents=True, exist_ok=True)
     (out / "activity.json").write_text(json.dumps(facts.pop("file_activity", None), separators=(",", ":")))
@@ -229,6 +294,10 @@ def cmd_prepare(a):
         "user_decisions": [{"id": i, "decision": r["action"], "report": r.get("report"), "statement": r.get("statement"), "note": r.get("text")} for i, r in sorted(state["resolutions"].items())], "warnings": facts["repo"]["warnings"],
         "files": {"facts": str(out / "facts.json"), "chunks": str(out / "chunks.json"), "notes_dir": str(out / "notes"),
                   "reports_dir": str(out / "reports"), "state": str(out / "state.json")},
+        "build": str(build), "working_area": str(area), "checkout": copy["checkout"], "trust": pin["trust"],
+        "preflight": {"languages": report["languages"], "missing": report["missing"]},
+        "restore": copy["restore"],
+        "extract": {"status": extract["status"], "reason": extract["reason"]},
     }, indent=1))
 
 
@@ -268,20 +337,28 @@ def cmd_render(a):
         if authored and (out / "reports" / f"{rid}.json").exists():
             reports[rid] = load(out / "reports" / f"{rid}.json")
     cites = render.Cites(facts)
+    build = buildlog.load(out)          # None for a dossier made before 0.6.0: no records are written then
+    build_path = out / buildlog.FILE
     errors, warnings = render.validate(reports, facts, cites, a.partial)
     for w in warnings:
         print(f"warning: {w}")
     for e in errors:
         print(f"error: {e}")
+    unresolved = sum(1 for s_ in cites.status.values() if not s_["ok"])
+    if build:
+        buildlog.append(build_path, process.render_records(
+            build, reports=reports, readers=None, v_errors=len(errors), cites_checked=len(cites.status),
+            cites_unresolved=unresolved, gap_counts={}, )[0])
     if errors and not a.allow_errors:
         print(f"\n{len(errors)} error(s). Fix the report files and run render again.")
         sys.exit(1)
 
     sha = facts["repo"]["sha"]
-    items = render.collect_gaps(reports)
+    coverage = process.coverage_items(build)
+    items = render.collect_gaps(reports, coverage)
     resolve.sync(state, items)
     resolve.apply(items, state)       # decisions you made earlier apply to every build
-    gaps = render.collect_gaps(reports)
+    gaps = render.collect_gaps(reports, coverage)
     counts = {k: sum(1 for g in gaps if g["kind"] == k and render.is_open(g)) for k in render.GAP_KINDS}
     entry = {"date": now(), "sha": sha, "short": facts["repo"]["short"], "ref": facts["repo"]["ref"], "branch": facts["repo"]["branch"],
              "skill_version": VERSION, "summary": change_summary(facts, state), "gaps": counts,
@@ -293,7 +370,26 @@ def cmd_render(a):
         history[-1] = entry
     else:
         history.append(entry)
-    page, _ = render.render_html(facts, reports, state, history, VERSION, cites)
+    if build:
+        for rec in process.render_records(build, reports=reports, readers=a.readers, v_errors=len(errors),
+                                          cites_checked=len(cites.status), cites_unresolved=unresolved, gap_counts=counts)[1:]:
+            buildlog.append(build_path, rec)
+        pending = {"step": "render", "part": "render", "by": "render", "status": "ok"}
+        shown = buildlog.load(build_path)
+        shown["records"].append(pending)
+    else:
+        shown = None
+    v_errors, v_infos = process.validate_build(shown, [])
+    for line in v_infos:
+        print(f"info: {line}")
+    for line in v_errors:
+        print(f"error: {line}")
+    if v_errors and not a.allow_errors:
+        print(f"\n{len(v_errors)} error(s). Run prepare so build.json is complete, then render again.")
+        sys.exit(1)
+    page, _ = render.render_html(facts, reports, state, history, VERSION, cites, build=shown, coverage=coverage)
+    if build:
+        buildlog.append(build_path, pending)
     name_out = f"dossier-{name}.html"
     (out / name_out).write_text(page, encoding="utf-8")
     state.update(history=history, last_sha=sha, snapshot=gather.snapshot(facts))
@@ -399,7 +495,7 @@ def cmd_confirm(a):
     reports = {rid: load(out / "reports" / f"{rid}.json") for rid, _, w in render.REPORTS if w and (out / "reports" / f"{rid}.json").exists()}
     if not reports:
         die("No reports found. Build the dossier first.")
-    items = render.collect_gaps(reports)
+    items = render.collect_gaps(reports, process.coverage_items(buildlog.load(out)))
     resolve.sync(state, items)
     save_state(out, state)                      # so the IDs shown here stay the same later
     res, tracked = state["resolutions"], {t["id"]: t for t in state["tracked"]}
@@ -465,14 +561,28 @@ def main():
     p = sub.add_parser("home")
     p.add_argument("dir", nargs="?")
     p.set_defaults(fn=cmd_home)
+    p = sub.add_parser("doctor")
+    p.add_argument("repo", nargs="?")
+    p.add_argument("--all", action="store_true", help="check the tools for every supported language")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(fn=cmd_doctor)
+    p = sub.add_parser("clean")
+    p.add_argument("repo", nargs="?")
+    p.set_defaults(fn=cmd_clean)
     p = sub.add_parser("prepare")
     p.add_argument("repo", nargs="?")
     p.add_argument("--ref", default="HEAD")
     p.add_argument("--chunk-tokens", type=int, default=400_000)
     p.add_argument("--full", action="store_true", help="rebuild every report instead of only the stale ones")
+    p.add_argument("--allow-missing", action="store_true", help="carry on when tools are missing, in reduced mode")
+    p.add_argument("--no-restore", action="store_true", help="do not install the repository's locked dependencies")
+    p.add_argument("--allow-ref", action="store_true", help="install dependencies and run repository code even when the ref is not a tag or the default branch")
+    p.add_argument("--submodules", action="store_true", help="also check out and analyse submodules")
+    p.add_argument("--restore", choices=["yes", "no"], help="answer the question about installing dependencies (stored per repository)")
     p.set_defaults(fn=cmd_prepare)
     p = sub.add_parser("render")
     p.add_argument("repo", nargs="?")
+    p.add_argument("--readers", type=int, help="how many parallel readers Claude used (shown on the process card)")
     p.add_argument("--partial", action="store_true", help="allow missing reports")
     p.add_argument("--allow-errors", action="store_true", help="write the HTML even if validation fails")
     p.add_argument("--apply-corrections", action="store_true", help="mark pending corrections as applied")

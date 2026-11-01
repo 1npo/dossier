@@ -1,0 +1,299 @@
+{
+ "schema": 1,
+ "verified": "2026-11-01",
+ "pin_rule": "Newest stable release published at least 14 days before the verified date. Re-check at the start of the milestone that first runs the tool.",
+ "python": "3.13",
+ "languages": {
+  "Python": "python",
+  "JavaScript": "js",
+  "TypeScript": "js",
+  "C#": "csharp"
+ },
+ "host": [
+  {
+   "id": "git",
+   "scope": [
+    "all"
+   ],
+   "command": [
+    "git",
+    "--version"
+   ],
+   "pattern": "git version (\\d+\\.\\d+(?:\\.\\d+)?)",
+   "min": "2.30",
+   "install": {
+    "linux": "sudo apt install git",
+    "darwin": "brew install git"
+   },
+   "source": "https://git-scm.com/docs/git-clone"
+  },
+  {
+   "id": "uv",
+   "scope": [
+    "all"
+   ],
+   "command": [
+    "uv",
+    "--version"
+   ],
+   "pattern": "uv (\\d+\\.\\d+\\.\\d+)",
+   "min": "0.6.0",
+   "install": {
+    "linux": "curl -LsSf https://astral.sh/uv/install.sh | sh",
+    "darwin": "curl -LsSf https://astral.sh/uv/install.sh | sh"
+   },
+   "source": "https://docs.astral.sh/uv/reference/cli/"
+  },
+  {
+   "id": "node",
+   "scope": [
+    "python",
+    "js"
+   ],
+   "command": [
+    "node",
+    "--version"
+   ],
+   "pattern": "v(\\d+\\.\\d+\\.\\d+)",
+   "min": {
+    "python": "16.0.0",
+    "js": "22.0.0"
+   },
+   "install": {
+    "linux": "Install Node.js (version shown above or later) from https://nodejs.org/en/download, or with your version manager",
+    "darwin": "brew install node"
+   },
+   "source": "https://github.com/sourcegraph/scip-typescript"
+  },
+  {
+   "id": "npm",
+   "scope": [
+    "python",
+    "js"
+   ],
+   "command": [
+    "npm",
+    "--version"
+   ],
+   "pattern": "(\\d+\\.\\d+\\.\\d+)",
+   "min": "7.0.0",
+   "install": {
+    "linux": "Install Node.js (version shown above or later) from https://nodejs.org/en/download, or with your version manager",
+    "darwin": "brew install node"
+   },
+   "source": "https://docs.npmjs.com/cli/v10/commands/npm-ci"
+  },
+  {
+   "id": "dotnet",
+   "scope": [
+    "csharp"
+   ],
+   "command": [
+    "dotnet",
+    "--list-sdks"
+   ],
+   "pattern": "(?m)^(\\d+\\.\\d+\\.\\d+)",
+   "min": "8.0.100",
+   "install": {
+    "linux": "Install the .NET SDK 8 or later: https://learn.microsoft.com/dotnet/core/install/linux",
+    "darwin": "brew install --cask dotnet-sdk"
+   },
+   "source": "https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-restore"
+  }
+ ],
+ "tools": [
+  {
+   "id": "tree-sitter-language-pack",
+   "scope": [
+    "all"
+   ],
+   "via": "uv",
+   "package": "tree-sitter-language-pack",
+   "version": "1.22.1",
+   "published": "2026-10-12",
+   "gives": "syntax-tree queries for any language",
+   "source": "https://github.com/xberg-io/tree-sitter-language-pack",
+   "first_used": "M1"
+  },
+  {
+   "id": "semgrep",
+   "scope": [
+    "all"
+   ],
+   "via": "uv",
+   "package": "semgrep",
+   "version": "1.181.0",
+   "published": "2026-10-14",
+   "gives": "pattern rules for inputs and outputs",
+   "source": "https://docs.semgrep.dev/cli-reference",
+   "first_used": "M1"
+  },
+  {
+   "id": "grimp",
+   "scope": [
+    "python"
+   ],
+   "via": "uv",
+   "package": "grimp",
+   "version": "3.17",
+   "published": "2026-09-04",
+   "gives": "Python import graph",
+   "source": "https://grimp.readthedocs.io/en/stable/usage.html",
+   "first_used": "M2"
+  },
+  {
+   "id": "vulture",
+   "scope": [
+    "python"
+   ],
+   "via": "uv",
+   "package": "vulture",
+   "version": "2.16",
+   "published": "2026-03-25",
+   "gives": "unused Python code",
+   "source": "https://github.com/jendrikseipp/vulture",
+   "first_used": "M2"
+  },
+  {
+   "id": "import-linter",
+   "scope": [
+    "python"
+   ],
+   "via": "repo-config",
+   "package": "import-linter",
+   "version": "2.15",
+   "published": "2026-09-04",
+   "gives": "the repository's own import rules (read only)",
+   "source": "https://import-linter.readthedocs.io/en/stable/",
+   "first_used": "M2"
+  },
+  {
+   "id": "scip-python",
+   "scope": [
+    "python"
+   ],
+   "via": "npx",
+   "package": "@sourcegraph/scip-python",
+   "version": "0.6.6",
+   "published": "2025-09-05",
+   "gives": "Python symbols and references",
+   "source": "https://github.com/sourcegraph/scip-python",
+   "first_used": "M2"
+  },
+  {
+   "id": "dependency-cruiser",
+   "scope": [
+    "js"
+   ],
+   "via": "npx",
+   "package": "dependency-cruiser",
+   "version": "18.6.0",
+   "published": "2026-10-11",
+   "gives": "JavaScript and TypeScript import graph",
+   "source": "https://github.com/sverweij/dependency-cruiser/blob/main/doc/cli.md",
+   "first_used": "M4"
+  },
+  {
+   "id": "knip",
+   "scope": [
+    "js"
+   ],
+   "via": "npx",
+   "package": "knip",
+   "version": "6.42.0",
+   "published": "2026-10-18",
+   "gives": "unused JavaScript and TypeScript code",
+   "source": "https://knip.dev/reference/cli",
+   "first_used": "M4"
+  },
+  {
+   "id": "scip-typescript",
+   "scope": [
+    "js"
+   ],
+   "via": "npx",
+   "package": "@sourcegraph/scip-typescript",
+   "version": "0.4.0",
+   "published": "2025-10-02",
+   "gives": "JavaScript and TypeScript symbols and references",
+   "source": "https://github.com/sourcegraph/scip-typescript",
+   "first_used": "M4"
+  },
+  {
+   "id": "typescript",
+   "scope": [
+    "js"
+   ],
+   "via": "npx",
+   "package": "typescript",
+   "version": null,
+   "published": null,
+   "gives": "the TypeScript compiler API",
+   "source": "https://www.npmjs.com/package/typescript",
+   "first_used": "M4",
+   "open": "TypeScript 7 is the native port; choose 5.9.x, 6.0.x or the new API in M4."
+  },
+  {
+   "id": "scip-dotnet",
+   "scope": [
+    "csharp"
+   ],
+   "via": "dotnet-tool",
+   "package": "scip-dotnet",
+   "version": "0.2.14",
+   "published": "2026-05-05",
+   "gives": "C# symbols and references",
+   "source": "https://github.com/sourcegraph/scip-dotnet",
+   "first_used": "M5"
+  },
+  {
+   "id": "dotnet-package-list",
+   "scope": [
+    "csharp"
+   ],
+   "via": "sdk",
+   "package": "dotnet package list",
+   "version": null,
+   "published": null,
+   "gives": "NuGet packages, including indirect ones",
+   "source": "https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-package-list",
+   "first_used": "M5",
+   "open": "Part of the .NET SDK; its version is the SDK's."
+  }
+ ],
+ "restore": [
+  {
+   "ecosystem": "python",
+   "lockfile": "uv.lock",
+   "command": [
+    "uv",
+    "sync",
+    "--frozen"
+   ],
+   "enabled": true,
+   "source": "https://docs.astral.sh/uv/reference/cli/"
+  },
+  {
+   "ecosystem": "npm",
+   "lockfile": "package-lock.json",
+   "command": [
+    "npm",
+    "ci",
+    "--ignore-scripts"
+   ],
+   "enabled": false,
+   "source": "https://docs.npmjs.com/cli/v10/commands/npm-ci"
+  },
+  {
+   "ecosystem": "nuget",
+   "lockfile": "packages.lock.json",
+   "command": [
+    "dotnet",
+    "restore",
+    "--locked-mode"
+   ],
+   "enabled": false,
+   "source": "https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-restore"
+  }
+ ]
+}

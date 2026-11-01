@@ -1,0 +1,6 @@
+rules:
+  - id: dossier.test.io.print-call
+    pattern: print(...)
+    languages: [python]
+    severity: INFO
+    message: print call
