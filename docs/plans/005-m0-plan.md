@@ -393,7 +393,7 @@ After **every** task: the full test suite passes. After tasks M0-5, M0-6 and M0-
 
 ### M0-10. Wire schema cards into the page
 
-- [ ] **Goal.** `build_page` draws schema reports from the schema, adds the question line and tier key, adds the `dossier.process` placeholder to report 01, and stops drawing overview's old blocks. The report list itself is **not** switched yet, so legacy dossiers still render.
+- [x] **Goal.** `build_page` draws schema reports from the schema, adds the question line and tier key, adds the `dossier.process` placeholder to report 01, and stops drawing overview's old blocks. The report list itself is **not** switched yet, so legacy dossiers still render.
 - **Files.** Edit `scripts/render.py`; edit `assets/dossier.css` (only if needed); edit `tests/unit/scripts/test_render_cards.py`.
 - **Steps.**
   1. `CARD_HEAD`: change the pattern to `r'<div class="card (panel|block)([^"]*)"( id="[^"]*")?( data-card="[^"]*")?><header><h([23])>(.*?)</h\5>'`, and in `with_contents` unpack the new group and re-emit it: `f'<div class="card {kind}{extra}" id="{cid}"{dc or ""}><header><h{lvl}>{inner}</h{lvl}>'`. For markup without `data-card` the output is unchanged.

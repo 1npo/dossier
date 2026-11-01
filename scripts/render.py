@@ -47,6 +47,7 @@ FACT_KEYS = {k: f"facts-{k}" for k in ("git", "languages", "hot_files", "manifes
                                        "secret_signals", "contributors", "ownership", "areas", "file_activity", "knowledge", "dependencies", "chunks")}
 FACT_KEYS["areas"] = "facts-contributors"   # the areas are no longer drawn on the page
 FACT_KEYS["hot_files"] = FACT_KEYS["manifests"] = "facts-git"   # their cards were retired; the figures still back statements about the repository
+FACT_KEYS["env_vars"] = FACT_KEYS["secret_signals"] = "facts-git"   # their panels were removed in 0.5.0; the figures still back statements about the repository
 FACT_KEYS["chunks"] = "dossier-build"
 FACT_KEYS["inventory"] = "facts-git"  # retired file-name inventory; old reports may still cite it
 OPTIONAL_REPORTS = ()  # reports added after an earlier version: a dossier built before them still renders
@@ -883,12 +884,23 @@ def schema_cards_html(sch, rep, refs, rid):
 # --------------------------------------------------------------------------- measured panels
 
 
-def card(title, body, pid=None, desc=None, refs=None, cite=None, kind="fact"):
-    """kind is "fact" for a card of figures measured from the repository, "llm" for one that holds statements written by Claude."""
+@lru_cache(maxsize=1)
+def schema_cards_by_id():
+    return {c["id"]: c for sch in schema.load_all().values() for c in sch["cards"]}
+
+
+def card(title, body, pid=None, desc=None, refs=None, cite=None, kind="fact", cid=None):
+    """kind is "fact" for a card of figures measured from the repository, "llm" for one that holds statements written by Claude.
+    With `cid` (a schema card id) the title and tier come from the schema, the card gets a tier badge and its shade follows the tier."""
     mark = refs.mark([cite] if isinstance(cite, str) else cite) if refs and cite else ""
     d = f"<p>{E(desc)}</p>" if desc else ""
     idattr = f' id="{pid}"' if pid else ""
-    return f'<div class="card panel {kind}"{idattr}><header><h2>{E(title)} {mark}</h2>{d}</header><section>{body}</section></div>'
+    badge = dcard = ""
+    if cid:
+        sc = schema_cards_by_id()[cid]
+        title, badge, dcard = sc["title"], tier_badge(sc["tier"]), f' data-card="{cid}"'
+        kind = "fact" if sc["tier"] == "M" else "llm"
+    return f'<div class="card panel {kind}"{idattr}{dcard}><header><h2>{E(title)} {mark}</h2>{badge}{d}</header><section>{body}</section></div>'
 
 
 def path_cell(path, refs, line=None):
@@ -942,7 +954,7 @@ def panel_git(f, refs, ctx):
         rows = "".join(f'<tr><td><code>{E(t["name"])}</code></td><td>{E(t["date"])}</td><td class="muted">{gap(i)}</td></tr>' for i, t in enumerate(tags[:10]))
         rel = f'<div class="activity solo"><div class="activity-side"><h3>Recent releases</h3><table class="table"><thead><tr><th>Tag</th><th>Date</th><th>Gap</th></tr></thead><tbody>{rows}</tbody></table></div></div>'
     notes = "".join(alert(E(w)) for w in f["repo"]["warnings"])
-    return card("Overview", notes + stats + boxes + rel + languages_block(f, refs), "facts-git", refs=refs, cite="facts:git")
+    return card("Overview", notes + stats + boxes + rel + languages_block(f, refs), "facts-git", refs=refs, cite="facts:git", cid="overview.repository")
 
 
 def languages_block(f, refs):
@@ -1011,7 +1023,7 @@ def panel_dependencies(f, refs):
         body = alert(E(d["error"]), "The dependency analysis failed")
     else:
         body = dependencies_card(d, refs)
-    return card("Dependencies", body, "facts-dependencies", refs=refs, cite="facts:dependencies")
+    return card("Dependencies", body, "facts-dependencies", refs=refs, cite="facts:dependencies", cid="overview.dependencies")
 
 
 def dependencies_card(d, refs):
@@ -1043,22 +1055,6 @@ def dependencies_card(d, refs):
     jsn = json.dumps(d, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c")
     return (f'<div class="dp" id="dp-root">{notes}{tiles}{controls}<div id="dp-stage"></div><div class="dp-finds">{finds}</div></div>'
             f'<script type="application/json" id="dp-data">{jsn}</script>')
-
-
-def panel_env(f, refs):
-    rows = [[f"<code>{E(e['name'])}</code>", fmt(e["count"]), path_cell(e["first"]["path"], refs, e["first"]["line"])] for e in f["env_vars"][:40]]
-    body = render_table(["Variable", "References", "First seen"], rows, refs, "t-env", True, True) if rows else '<p class="muted">No environment variable reads were detected.</p>'
-    more = f'<p class="muted">Showing 40 of {len(f["env_vars"])}.</p>' if len(f["env_vars"]) > 40 else ""
-    return card("Environment variables read by the code", body + more, "facts-env_vars", "Detected with pattern matching, so dynamic names are missed.", refs, "facts:env_vars")
-
-
-def panel_secrets(f, refs):
-    s = f["secret_signals"]
-    hits = [[E(h["kind"]), path_cell(h["path"], refs, h["line"])] for h in s["hits"][:50]]
-    files = [[path_cell(x["path"], refs), E(x["verdict"])] if isinstance(x, dict) else [path_cell(x, refs), '<span class="muted">not inspected</span>'] for x in s["sensitive_files"][:30]]
-    body = (render_table(["Pattern", "Location"], hits, refs, "t-sec", False, True) if hits else '<p>No credential-shaped strings were found.</p>')
-    body += ("<h3>Tracked files that often hold secrets, and what they contain</h3>" + render_table(["File", "What the file contains"], files, refs, "t-sens", False, True)) if files else ""
-    return card("Secret scan", body + f'<p class="muted">{E(s["note"])}</p>', "facts-secret_signals", refs=refs, cite="facts:secret_signals")
 
 
 def type_cls(t):
@@ -1300,7 +1296,7 @@ def panel_contributors(f, refs):
     know = ('<p class="muted">Which parts of the repository each person knows best, based on surviving lines, commit history and recent activity.</p>'
             + knowledge_card(f, table + more))
     return card("Contributors", tiles + assisted + when + f'<div class="who-bar">{who_bar}</div>' + know,
-                "facts-contributors", None, refs, ["facts:contributors", "facts:git", "facts:knowledge"] + (["facts:ownership"] if o else []))
+                "facts-contributors", None, refs, ["facts:contributors", "facts:git", "facts:knowledge"] + (["facts:ownership"] if o else []), cid="overview.contributors")
 
 
 # --------------------------------------------------------------------------- tracker pages
@@ -1354,7 +1350,7 @@ def panel_gaps(gaps, refs):
     rows = [[f'<code class="gid">{E(g.get("id") or "")}</code>', gap_badge(g["kind"]), f'<a href="#{g["report"]}">{E(TITLES.get(g["report"], g["report"]))}</a>', inline(g["statement"], refs),
              decision_cell(g), inline(g["confirm"], refs) or '<span class="muted">not stated</span>', refs.mark(new_cites(g["cites"], g["statement"], g["confirm"]))] for g in gaps]
     hint = '<p class="muted">To confirm an item or give the answer to an unknown, ask Claude to run <code>/dossier confirm</code> with the ID. Your decisions are kept across rebuilds.</p>'
-    return cards + card("Gap tracker", hint + (render_table(["ID", "Type", "Report", "Statement", "Status", "What would confirm it", "Evidence"], rows, refs, "t-gaps", True, True) if rows else '<p>Nothing is outstanding.</p>'), "tracker", kind="llm")
+    return cards + card("Tracker", hint + (render_table(["ID", "Type", "Report", "Statement", "Status", "What would confirm it", "Evidence"], rows, refs, "t-gaps", True, True) if rows else '<p>Nothing is outstanding.</p>'), "tracker", kind="llm", cid="gaps.tracker")
 
 
 def panel_corrections(state, refs, present=frozenset()):
@@ -1367,8 +1363,11 @@ def panel_corrections(state, refs, present=frozenset()):
     types = state.get("contributor_types", {})
     if types:
         body += "<h3>Contributor type overrides</h3>" + render_table(["Identity", "Set to"], [[E(k), E(v)] for k, v in types.items()], refs, "t-ovr", False, True)
-    out = card("Tracker", body, "corrections-list")
+    out = card("Tracker", body, "corrections-list", cid="corrections.tracker")
     res = state.get("resolutions", {})
+    if not res:
+        out += card("Your confirmations and answers", "<p>No confirmations or answers have been recorded yet.</p>", "resolutions-list",
+                    "Decisions about inferences, unknowns and assumptions. They are stored with the dossier and applied on every build.", cid="corrections.decisions")
     if res:
         label = {"confirm": "Confirmed", "answer": "Answered", "wrong": "Disputed"}
         tr = {t["id"]: t for t in state.get("tracked", [])}
@@ -1377,7 +1376,7 @@ def panel_corrections(state, refs, present=frozenset()):
                   "Applied to a statement in this build" if i in present else "No matching statement in this build. Kept, and applied if it returns."]
                  for i, r in sorted(res.items())]
         out += card("Your confirmations and answers", render_table(["ID", "Date", "Report", "Statement", "Decision", "Your note", "State"], rrows, refs, "t-res", True, True),
-                    "resolutions-list", "Decisions about inferences, unknowns and assumptions. They are stored with the dossier and applied on every build.")
+                    "resolutions-list", "Decisions about inferences, unknowns and assumptions. They are stored with the dossier and applied on every build.", cid="corrections.decisions")
     return out
 
 
@@ -1387,7 +1386,7 @@ def panel_history(entries, refs):
              E(h["summary"]) + (f'<div class="muted">{E(h["note"])}</div>' if h.get("note") else ""),
              num(h["gaps"]["unknown"]), num(h["gaps"]["inference"]), num(h["gaps"]["assumption"]), f'<span class="nw">{E(h["skill_version"])}</span>'] for h in reversed(entries)]
     return card("Dossier changelog", render_table(["Built", "Commit", "Branch", "What changed", "Unknown", "Inferred", "Assumed", "Skill version"], rows, refs, "t-hist", False, True,
-                group=[("", 4), ("Open items at that build", 3), ("", 1)]), "history", "Open items are the unknowns, inferences and assumptions listed in the gaps report at the time of each build.")
+                group=[("", 4), ("Open items at that build", 3), ("", 1)]), "history", "Open items are the unknowns, inferences and assumptions listed in the gaps report at the time of each build.", cid="dossier.changelog")
 
 
 def panel_risk_counts(rep):
@@ -1405,11 +1404,6 @@ def panel_risk_counts(rep):
 
 
 # --------------------------------------------------------------------------- page assembly
-
-PANELS_AFTER = {
-    "delivery": lambda f, r, ctx: panel_env(f, r) + panel_secrets(f, r),
-}
-
 
 def count_pill(n, kind):
     return f'<span class="count c-{kind}{" zero" if not n else ""}">{n}</span>'
@@ -1437,7 +1431,7 @@ def panel_dossier(facts, reports, state, ctx, refs):
                         ("Size", f"~{compact(c['total_tokens'])} tokens", "file bytes divided by 3.5")])
     this = fact_box("Build", [("Built", E(ctx["built"])), ("Skill version", "dossier " + E(ctx["version"]))])
     return card("About this dossier", tiles + f'<div class="facts-groups one">{this}</div>', "dossier-build",
-                "Everything is pinned to one commit, so every citation stays valid.", refs, "facts:chunks")
+                "Everything is pinned to one commit, so every citation stays valid.", refs, "facts:chunks", cid="dossier.about")
 
 
 def flags_html(rid, reports, state, ctx=None):
@@ -1456,7 +1450,7 @@ def flags_html(rid, reports, state, ctx=None):
     return f'<span class="flags">{out}</span>' if out else ok
 
 
-CARD_HEAD = re.compile(r'<div class="card (panel|block)([^"]*)"( id="[^"]*")?><header><h([23])>(.*?)</h\4>')
+CARD_HEAD = re.compile(r'<div class="card (panel|block)([^"]*)"( id="[^"]*")?( data-card="[^"]*")?><header><h([23])>(.*?)</h\5>')
 
 
 def with_contents(rid, body):
@@ -1464,14 +1458,48 @@ def with_contents(rid, body):
     entries = []
 
     def sub(m):
-        kind, extra, idattr, lvl, inner = m.groups()
+        kind, extra, idattr, dc, lvl, inner = m.groups()
         cid = idattr[5:-1] if idattr else f"{rid}-c{len(entries) + 1}"
         entries.append((cid, re.sub(r"\s*<sup.*$", "", inner).strip()))
-        return f'<div class="card {kind}{extra}" id="{cid}"><header><h{lvl}>{inner}</h{lvl}>'
+        return f'<div class="card {kind}{extra}" id="{cid}"{dc or ""}><header><h{lvl}>{inner}</h{lvl}>'
     body = CARD_HEAD.sub(sub, body)
     entries.append((f"{rid}-refs", "References"))
     items = "".join(f'<li><a href="#{cid}">{title}</a></li>' for cid, title in entries)
     return body, f'<div class="card toc-card" id="{rid}-toc"><header><h2>Contents</h2></header><section><ol class="toc">{items}</ol></section></div>'
+
+
+TIER_KEY = ('<p class="tier-key"><span>Badge on each card:</span><span><b>M</b> measured by a tool</span>'
+            '<span><b>A</b> found by a tool, decided by Claude</span><span><b>R</b> read by Claude</span></p>')
+
+# cards drawn by the existing panels keep their old anchors, so links to them from before still work
+PANEL_ANCHORS = {"dossier.about": "dossier-build", "dossier.reports": "report-index", "dossier.changelog": "history",
+                 "overview.repository": "facts-git", "overview.contributors": "facts-contributors", "overview.dependencies": "facts-dependencies",
+                 "gaps.tracker": "tracker", "corrections.tracker": "corrections-list", "corrections.decisions": "resolutions-list"}
+
+
+def card_anchor(cid):
+    return PANEL_ANCHORS.get(cid) or card_dom_id(cid)
+
+
+def head_html(rid, title, headline_html, sch=None):
+    q = f'<p class="question">{E(sch["question"])}</p>' if sch else ""
+    key = TIER_KEY if sch else ""
+    return f'<header class="report-head"><h1>{E(title)}</h1>{q}<p class="headline">{headline_html}</p>{SHADE_KEY}{key}</header>'
+
+
+def questions_body(refs):
+    cards = schema_cards_by_id()
+    rows = []
+    for q in schema.load_questions():
+        links = []
+        for a in q["answers"]:
+            if isinstance(a, dict):
+                links.append(f'<a href="#{a["report"]}">{E(a["label"])}</a>')
+                continue
+            n = schema.REPORT_ORDER.index(a.split(".")[0]) + 1
+            links.append(f'<a href="#{card_anchor(a)}">{E(cards[a]["title"])}</a> <span class="muted">(report {n:02d})</span>')
+        rows.append([E(q["id"]), E(q["question"]), "<br>".join(links) or '<span class="muted">not answered in this version</span>'])
+    return render_table(["No.", "Question", "Answered in"], rows, refs, "t-questions", True, True)
 
 
 def build_page(rid, reports, facts, state, ctx):
@@ -1479,6 +1507,7 @@ def build_page(rid, reports, facts, state, ctx):
     title = TITLES[rid]
     rep = reports.get(rid) or {}
     parts, pre = [], ""
+    sch = schema.load(rid)
     if rid == "dossier":
         headline = "How this dossier was built, how complete it is, and what changed since the last build."
         allc = [c for r_, _, a_ in REPORTS if a_ for c in claims_of(r_, reports.get(r_) or {})]
@@ -1487,6 +1516,9 @@ def build_page(rid, reports, facts, state, ctx):
                         f"It holds {fmt(len(allc))} statements: {n['confirmed']} confirmed in the code or history, {n['inferred']} inferred from context and {n['unknown']} for which nothing was found.</p>"
                         f"<p>Built {E(ctx['built'])} with dossier {E(ctx['version'])}. {len(ctx['history'])} build{'' if len(ctx['history']) == 1 else 's'} recorded so far.</p>")
         parts.append(panel_dossier(facts, reports, state, ctx, refs))
+        cards = schema_cards_by_id()
+        parts.append(schema_card(cards["dossier.process"], placeholder_body(cards["dossier.process"])))
+        parts.append(schema_card(cards["dossier.questions"], questions_body(refs)))
         idx, tot = [], {k: 0 for k in CONF}
         for r, t, authored in REPORTS[1:]:
             rr = reports.get(r) or {}
@@ -1499,7 +1531,7 @@ def build_page(rid, reports, facts, state, ctx):
         parts.append(card("Reports in this dossier", render_table(["Report", "In one sentence", "Confirmed", "Inferred", "Unknown"], idx, refs, "t-index", False, True,
                      group=[("", 2), ("Statements by basis", 3)],
                      foot=["<strong>Total</strong>", f'<span class="muted">{sum(tot.values())} statements in all</span>', *[count_pill(tot[k], k) for k in CONF]]), "report-index",
-                     "Each count is a number of statements. Confirmed ones are stated in the code or history, inferred ones are reasoned from context, and unknown ones were not found.", kind="llm"))
+                     "Each count is a number of statements. Confirmed ones are stated in the code or history, inferred ones are reasoned from context, and unknown ones were not found.", cid="dossier.reports"))
         parts.append(panel_history(ctx["history"], refs))
     elif rid == "corrections":
         headline = "Everything the user has corrected, and whether the correction has been applied."
@@ -1514,18 +1546,17 @@ def build_page(rid, reports, facts, state, ctx):
             parts.append(panel_dependencies(facts, refs))
         if rid == "risks" and rep:
             parts.append(panel_risk_counts(rep))
-        # the overview's written cards (what to know first, technology, maturity) head the Capabilities report, ahead of its own
-        moved = (reports.get("overview") or {}).get("blocks", []) if rid == "capabilities" else []
-        blocks = render_blocks(moved + (rep.get("blocks", []) if rid != "overview" else []), refs, rid)
-        if blocks:
-            parts.append(f'<div class="findings">{blocks}</div>')
+        if sch and any(c["writer"] == "claude" for c in sch["cards"]):
+            parts.append(f'<div class="findings">{schema_cards_html(sch, rep, refs, rid)}</div>')
+        elif not sch:
+            blocks = render_blocks(rep.get("blocks", []), refs, rid)
+            if blocks:
+                parts.append(f'<div class="findings">{blocks}</div>')
         if rid == "gaps":
             parts.append(panel_gaps(ctx["gaps"], refs))
-        if rid in PANELS_AFTER:
-            parts.append(PANELS_AFTER[rid](facts, refs, ctx))
     body, toc = with_contents(rid, "".join(parts))
     top = "" if rid in BARE_REPORTS else f'<div class="card summary llm"><header><h2>Executive summary</h2></header><section>{summary_html}</section></div>' + toc
-    return (f'<section class="report" id="{rid}" hidden><header class="report-head"><h1>{E(title)}</h1><p class="headline">{inline(headline, refs)}</p>{SHADE_KEY}</header>{pre}'
+    return (f'<section class="report" id="{rid}" hidden>{head_html(rid, title, inline(headline, refs), sch)}{pre}'
             + top + body + f'<div class="card refs-card" id="{rid}-refs"><header><h2>References</h2><p>Links open the source at the pinned commit.</p></header><section>{refs.listing()}</section></div></section>')
 
 

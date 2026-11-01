@@ -80,3 +80,71 @@ def test_cards_in_schema_order(make_cites):
 def test_bad_content_falls_back_to_placeholder(make_cites):
     h = render.render_card(SCH["cards"][0], {"card": "x.tab", "blocks": [{"type": "table"}]}, refs(make_cites), "x")
     assert "Not yet generated" in h
+
+
+# ------------------------------------------------------------------ page wiring (M0-10)
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
+import report_section  # noqa: E402
+
+
+def legacy_head(title, headline_html):
+    return f'<header class="report-head"><h1>{title}</h1><p class="headline">{headline_html}</p>{render.SHADE_KEY}</header>'
+
+
+def test_head_without_schema_is_the_legacy_string():
+    assert render.head_html("capabilities", "Capabilities", "Hello") == legacy_head("Capabilities", "Hello")
+
+
+def test_head_with_schema_adds_question_and_tier_key():
+    sch = schema.load("entry")
+    h = render.head_html("entry", "Entry points", "Hello", sch)
+    assert sch["question"] in h and render.TIER_KEY in h and render.SHADE_KEY in h
+
+
+def test_head_for_overview_differs_from_legacy_only_by_the_additions():
+    h = render.head_html("overview", "This repository", "Hello", schema.load("overview"))
+    assert report_section.normalize(h) == legacy_head("This repository", "Hello")
+
+
+def test_with_contents_keeps_data_card_and_lists_title_only():
+    html = render.schema_cards_html(schema.load("entry"), {}, None, "entry")
+    body, toc = render.with_contents("entry", html)
+    assert 'id="c-entry-catalog" data-card="entry.catalog"' in body
+    assert '<a href="#c-entry-catalog">Entry points</a>' in toc and ">AEntry" not in toc and "<li><a href=\"#c-entry-startup\">Startup sequence</a>" in toc
+
+
+def test_schema_cards_html_for_entry_order(make_cites):
+    rep = {"cards": [{"card": "entry.catalog", "blocks": [{"type": "table", "columns": ["Kind", "Name", "Triggered by", "Starts at", "Notes"],
+                                                            "rows": [{"cells": list("abcde"), "conf": "confirmed", "cite": ["a.py:1"]}]}]},
+                     {"card": "entry.startup", "pending": True}]}
+    h = render.schema_cards_html(schema.load("entry"), rep, refs(make_cites), "entry")
+    assert re.findall(r' id="(c-[^"]+)"', h)[:2] == ["c-entry-catalog", "c-entry-startup"]
+
+
+def test_existing_panel_titles_match_the_schema():
+    import ast
+    tree = ast.parse(Path(render.__file__).read_text())
+    found = []
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Call) and getattr(n.func, "id", "") == "card":
+            kw = {k.arg: k.value for k in n.keywords}
+            if "cid" in kw and isinstance(n.args[0], ast.Constant):
+                found.append((n.args[0].value, kw["cid"].value))
+    assert {cid for _, cid in found} >= set(render.PANEL_ANCHORS)
+    cards = render.schema_cards_by_id()
+    for title, cid in found:
+        assert cards[cid]["title"] == title, (title, cid)
+
+
+def test_questions_links_point_at_real_ids(make_cites):
+    ids = set(render.PANEL_ANCHORS.values()) | set(schema.REPORT_ORDER)
+    for rid, sch in schema.load_all().items():
+        ids |= {render.card_dom_id(c["id"]) for c in sch["cards"]}
+    h = render.questions_body(refs(make_cites))
+    hrefs = re.findall(r'href="#([^"]+)"', h)
+    assert hrefs and all(x in ids for x in hrefs)
+    assert "(report 03)" in h
