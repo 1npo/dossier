@@ -352,7 +352,7 @@ After **every** task: the full test suite passes. After tasks M0-5, M0-6 and M0-
 
 ### M0-7. Migration engine and map (pure functions)
 
-- [ ] **Goal.** `scripts/migrate.py` turns old reports into new ones without touching disk; `scripts/migrate_map.json` holds the rules.
+- [x] **Goal.** `scripts/migrate.py` turns old reports into new ones without touching disk; `scripts/migrate_map.json` holds the rules.
 - **Files.** New `scripts/migrate.py`, `scripts/migrate_map.json` (content in Appendix B), `tests/unit/scripts/test_migrate.py`.
 - **Interface.**
   - `MISSING_CELL = "Not yet recorded"`.
