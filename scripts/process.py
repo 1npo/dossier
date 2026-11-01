@@ -226,3 +226,37 @@ def coverage_items(build) -> list[dict]:
         if r["status"] == "failed" and (step, part) not in {("tools", None), ("copy", "checkout"), ("copy", "restore"), ("extract", None)}:
             items.append(_item(f"Step '{step}' failed: {r['reason']}", "Fix the problem and build again."))
     return items
+
+
+# ------------------------------------------------------------------ V9 and V10
+
+
+def validate_build(build, pending=()) -> tuple[list[str], list[str]]:
+    """V10 (errors): every fixed step has a record, and a skipped or failed one says why. V9 (info): the path filter."""
+    if build is None:
+        return ["V10: there is no build.json. Run prepare first."], []
+    recs = list(build["records"]) + list(pending)
+    errors = []
+    for n, step in enumerate(buildlog.STEPS, 1):
+        mine = [r for r in recs if r["step"] == step]
+        if not mine:
+            errors.append(f"V10: build.json has no record for step {n} '{step}' ({PLAIN[step]}).")
+        for r in mine:
+            if r.get("status") not in buildlog.STATUSES:
+                errors.append(f"V10: step '{step}' has an unknown status '{r.get('status')}'.")
+            elif r["status"] in ("skipped", "failed") and not r.get("reason"):
+                errors.append(f"V10: step '{step}' was {r['status']} without a reason.")
+    infos = []
+    ex = next((r for r in reversed(recs) if r["step"] == "extract"), None)
+    if ex is not None:
+        if ex["status"] in ("skipped", "failed"):
+            infos.append("V9: no extractor ran in this build, so the path filter had nothing to check.")
+        else:
+            c, unexpected = ex.get("counts") or {}, (ex.get("details") or {}).get("unexpected") or []
+            infos.append(f"V9: the path filter removed {c.get('paths_dropped', 0)} of {c.get('paths_seen', 0)} extracted paths "
+                         f"({c.get('dropped_expected', 0)} generated or installed, {c.get('dropped_outside', 0)} outside the copy, "
+                         f"{c.get('dropped_unexpected', 0)} unexpected).")
+            if unexpected:
+                more = f", and {len(unexpected) - 20} more (see build.json)" if len(unexpected) > 20 else ""
+                infos.append(f"V9: unexpected paths: {', '.join(unexpected[:20])}{more}")
+    return errors, infos

@@ -378,6 +378,14 @@ def cmd_render(a):
         shown["records"].append(pending)
     else:
         shown = None
+    v_errors, v_infos = process.validate_build(shown, [])
+    for line in v_infos:
+        print(f"info: {line}")
+    for line in v_errors:
+        print(f"error: {line}")
+    if v_errors and not a.allow_errors:
+        print(f"\n{len(v_errors)} error(s). Run prepare so build.json is complete, then render again.")
+        sys.exit(1)
     page, _ = render.render_html(facts, reports, state, history, VERSION, cites, build=shown, coverage=coverage)
     if build:
         buildlog.append(build_path, pending)

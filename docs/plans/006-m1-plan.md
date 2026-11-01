@@ -591,7 +591,7 @@ Independent tasks (may be done in any order relative to each other): **M1-1, M1-
 
 ### M1-12. V9 and V10
 
-- [ ] **Goal.** `render` checks the run record (D8) and prints V9 as info.
+- [x] **Goal.** `render` checks the run record (D8) and prints V9 as info.
 - **Files.** Edit `scripts/process.py` (`validate_build`), `scripts/dossier.py` (`cmd_render` calls it, prints `info:` lines, adds V10 errors to the blocking errors); edit `tests/unit/scripts/test_process.py`.
 - **Steps.** (1) Implement D8 and D6's V9 text. (2) In `cmd_render`, at the point M1-11 left for it: `errs, infos = process.validate_build(build, [pending])`; print each info as `info: …`; each error as `error: …`; if errors and not `--allow-errors`, print the usual "{n} error(s)…" line and exit 1 without writing the page or the `render` record. (3) Tests: no build → the "no build.json" error; a build missing `extract` → error naming step 5 and its sentence; a `skipped` record with an empty reason → error; all ten present → no errors; V9 texts for skipped extract, for a run with 0 unexpected, and for 25 unexpected (lists 20 and "and 5 more").
 - **Done-check.** Full suite passes; section 6 block E prints `OK` and its render log has exactly one `error:` line, starting `error: V10: there is no build.json`.

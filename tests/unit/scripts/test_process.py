@@ -219,3 +219,63 @@ class TestCollectGapsExtra:
         got = render.collect_gaps({}, [item])
 
         assert [(g["kind"], g["statement"], g["confirm"]) for g in got] == [("coverage", "Shell has basic support only.", "Nothing.")]
+
+
+class TestValidateBuild:
+    def test_no_build_is_an_error(self):
+        assert process.validate_build(None) == (["V10: there is no build.json. Run prepare first."], [])
+
+    def test_missing_step_names_its_number_and_sentence(self):
+        recs = [r for r in FULL if r["step"] != "extract"]
+
+        errors, _ = process.validate_build(build_with(*recs))
+
+        assert errors == ["V10: build.json has no record for step 5 'extract' (ran the extractors to find entry points, imports, "
+                          "inputs and outputs, data structures and tests)."]
+
+    def test_skipped_without_reason_is_an_error(self):
+        recs = [r if r["step"] != "extract" else rec("extract", "skipped") for r in FULL]
+
+        errors, _ = process.validate_build(build_with(*recs))
+
+        assert errors == ["V10: step 'extract' was skipped without a reason."]
+
+    def test_unknown_status_is_an_error(self):
+        recs = [r if r["step"] != "pin" else rec("pin", "maybe") for r in FULL]
+
+        errors, _ = process.validate_build(build_with(*recs))
+
+        assert "unknown status 'maybe'" in errors[0]
+
+    def test_complete_build_has_no_errors(self):
+        assert process.validate_build(build_with(*FULL))[0] == []
+
+    def test_pending_record_counts(self):
+        recs = [r for r in FULL if r["step"] != "render"]
+
+        errors, _ = process.validate_build(build_with(*recs), [rec("render", by="render")])
+
+        assert errors == []
+
+
+class TestV9:
+    def infos(self, extract):
+        recs = [r if r["step"] != "extract" else extract for r in FULL]
+        return process.validate_build(build_with(*recs))[1]
+
+    def test_skipped_extract_says_nothing_ran(self):
+        assert self.infos(rec("extract", "skipped", reason="x")) == ["V9: no extractor ran in this build, so the path filter had nothing to check."]
+
+    def test_counts_line_without_unexpected(self):
+        counts = {"paths_seen": 10, "paths_dropped": 3, "dropped_expected": 2, "dropped_outside": 1, "dropped_unexpected": 0}
+
+        got = self.infos(rec("extract", counts=counts, details={"unexpected": []}))
+
+        assert got == ["V9: the path filter removed 3 of 10 extracted paths (2 generated or installed, 1 outside the copy, 0 unexpected)."]
+
+    def test_many_unexpected_paths_list_twenty_and_count_the_rest(self):
+        paths = [f"p{i:02d}.py" for i in range(25)]
+
+        got = self.infos(rec("extract", counts={"dropped_unexpected": 25}, details={"unexpected": paths}))
+
+        assert got[1].endswith("p19.py, and 5 more (see build.json)") and "p20.py" not in got[1]
