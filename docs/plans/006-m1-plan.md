@@ -541,7 +541,7 @@ Independent tasks (may be done in any order relative to each other): **M1-1, M1-
 
 ### M1-10. Wire the stages into `prepare`
 
-- [ ] **Goal.** `prepare` runs pin, tools, copy (checkout and restore), extract, then measure, and records each in `build.json`; the new flags work.
+- [x] **Goal.** `prepare` runs pin, tools, copy (checkout and restore), extract, then measure, and records each in `build.json`; the new flags work.
 - **Files.** New `scripts/stages.py`; edit `scripts/dossier.py` (`cmd_prepare`, parser); new `tests/integration/scripts/test_prepare_cli.py`.
 - **Interface.**
   ```python

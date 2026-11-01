@@ -29,6 +29,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import buildlog  # noqa: E402
 import config  # noqa: E402
 import gather  # noqa: E402
 import incremental  # noqa: E402
@@ -36,6 +37,7 @@ import migrate  # noqa: E402
 import render  # noqa: E402
 import resolve  # noqa: E402
 import schema  # noqa: E402
+import stages  # noqa: E402
 import toolcheck  # noqa: E402
 import workarea  # noqa: E402
 
@@ -224,15 +226,48 @@ def cmd_prepare(a):
     state = load_state(out)
     prev_version = state.get("skill_version")
     state["repo"] = {"name": name, "root_commit": root}
-    facts, chunks = gather.collect(top, a.ref, a.chunk_tokens, state.get("contributor_types"))
-    sha = facts["repo"]["sha"]
-    if state.get("last_sha") and state["last_sha"] != sha:
-        facts["delta"] = gather.delta(top, state["last_sha"], sha, state.get("snapshot"), facts)
-    plan = update_plan(top, out, state, facts, prev_version, a.full)
-    cached = 0
-    for c in chunks["chunks"]:
-        c["cached"] = (out / "notes" / f"{c['fingerprint']}.json").exists()
-        cached += c["cached"]
+    opts = stages.Options(ref=a.ref, allow_missing=a.allow_missing, no_restore=a.no_restore, allow_ref=a.allow_ref,
+                          submodules=a.submodules, restore=a.restore, full=a.full)
+    try:
+        sha = stages.resolve_ref(top, a.ref)
+        area = workarea.area_for(out.name, top, root)
+    except (stages.PrepareError, workarea.CheckoutError) as e:
+        die(str(e))
+    build = buildlog.start(out, repo=name, sha=sha, ref=a.ref, version=VERSION,
+                           options={"allow_missing": a.allow_missing, "no_restore": a.no_restore, "allow_ref": a.allow_ref,
+                                    "submodules": a.submodules, "full": a.full})
+    try:
+        pin = stages.stage_pin(build, top, a.ref, sha)
+        report = stages.stage_tools(build, top, sha, opts)
+        tree = stages.tree_at(top, sha)
+        copy = stages.stage_copy(build, top, sha, area, state, opts, tree, pin["trust"])
+        langs = [l["name"] for l in report["languages"]]
+        extract = stages.stage_extract(build, top, sha, area, out, langs, pin["trust"], opts, copy["restored"], tree,
+                                       copy["checkout"]["path"])
+    except stages.Stop as stop:
+        save_state(out, state)
+        print(json.dumps(stop.payload, indent=1))
+        sys.exit(stop.code)
+    try:
+        with buildlog.step(build, "measure") as rec:
+            facts, chunks = gather.collect(top, a.ref, a.chunk_tokens, state.get("contributor_types"))
+            if facts["repo"]["sha"] != sha:
+                raise stages.PrepareError("The ref moved while prepare was running. Run it again.")
+            if state.get("last_sha") and state["last_sha"] != sha:
+                facts["delta"] = gather.delta(top, state["last_sha"], sha, state.get("snapshot"), facts)
+            plan = update_plan(top, out, state, facts, prev_version, a.full)
+            cached = 0
+            for c in chunks["chunks"]:
+                c["cached"] = (out / "notes" / f"{c['fingerprint']}.json").exists()
+                cached += c["cached"]
+            rec["counts"] = {"files": facts["files"]["analyzed"],
+                             "languages": len([l for l in facts["languages"] if l["kind"] == "code"]),
+                             "commits": facts["git"]["commits"], "contributors": facts["git"]["contributors"]["total"]}
+            rec["details"] = {"reading_mode": facts["chunks"]["mode"], "chunks": len(chunks["chunks"]),
+                              "chunks_with_current_notes": cached, "plan_mode": plan["mode"],
+                              "stale": sorted(plan["stale"]), "fresh": plan["fresh"]}
+    except stages.PrepareError as e:
+        die(str(e))
     (out / "reports").mkdir(parents=True, exist_ok=True)
     (out / "notes").mkdir(parents=True, exist_ok=True)
     (out / "activity.json").write_text(json.dumps(facts.pop("file_activity", None), separators=(",", ":")))
@@ -257,6 +292,10 @@ def cmd_prepare(a):
         "user_decisions": [{"id": i, "decision": r["action"], "report": r.get("report"), "statement": r.get("statement"), "note": r.get("text")} for i, r in sorted(state["resolutions"].items())], "warnings": facts["repo"]["warnings"],
         "files": {"facts": str(out / "facts.json"), "chunks": str(out / "chunks.json"), "notes_dir": str(out / "notes"),
                   "reports_dir": str(out / "reports"), "state": str(out / "state.json")},
+        "build": str(build), "working_area": str(area), "checkout": copy["checkout"], "trust": pin["trust"],
+        "preflight": {"languages": report["languages"], "missing": report["missing"]},
+        "restore": copy["restore"],
+        "extract": {"status": extract["status"], "reason": extract["reason"]},
     }, indent=1))
 
 
@@ -506,6 +545,11 @@ def main():
     p.add_argument("--ref", default="HEAD")
     p.add_argument("--chunk-tokens", type=int, default=400_000)
     p.add_argument("--full", action="store_true", help="rebuild every report instead of only the stale ones")
+    p.add_argument("--allow-missing", action="store_true", help="carry on when tools are missing, in reduced mode")
+    p.add_argument("--no-restore", action="store_true", help="do not install the repository's locked dependencies")
+    p.add_argument("--allow-ref", action="store_true", help="install dependencies and run repository code even when the ref is not a tag or the default branch")
+    p.add_argument("--submodules", action="store_true", help="also check out and analyse submodules")
+    p.add_argument("--restore", choices=["yes", "no"], help="answer the question about installing dependencies (stored per repository)")
     p.set_defaults(fn=cmd_prepare)
     p = sub.add_parser("render")
     p.add_argument("repo", nargs="?")
