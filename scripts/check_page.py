@@ -31,6 +31,8 @@ import re
 import sys
 from pathlib import Path
 
+import buildlog
+
 from viewer import TOKEN_CLASSES
 
 from playwright.sync_api import sync_playwright
@@ -380,6 +382,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("html")
     ap.add_argument("--shots", help="directory for one screenshot per diagram and theme")
+    ap.add_argument("--record", help="build.json to append the result to")
     a = ap.parse_args()
     if a.shots:
         Path(a.shots).mkdir(parents=True, exist_ok=True)
@@ -393,6 +396,8 @@ def main():
     print(json.dumps({"diagrams_checked": n, "problems": len(problems)}))
     for line in problems:
         print("FAIL", line)
+    if a.record:
+        buildlog.record_browser(a.record, len(problems), n)
     sys.exit(1 if problems else 0)
 
 

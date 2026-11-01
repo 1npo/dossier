@@ -101,3 +101,18 @@ class TestLatest:
 class TestLoad:
     def test_absent_is_none(self, tmp_path):
         assert buildlog.load(tmp_path) is None
+
+
+class TestRecordBrowser:
+    def test_clean_run_is_ok(self, path):
+        buildlog.record_browser(path, 0, 12)
+
+        last = buildlog.load(path)["records"][-1]
+        assert (last["step"], last["part"], last["by"], last["status"]) == ("check", "browser", "check_page", "ok")
+        assert last["counts"] == {"problems": 0, "diagrams_checked": 12}
+
+    def test_problems_fail_with_a_reason(self, path):
+        buildlog.record_browser(path, 2, 12)
+
+        last = buildlog.load(path)["records"][-1]
+        assert (last["status"], last["reason"]) == ("failed", "2 problems in the browser check.")

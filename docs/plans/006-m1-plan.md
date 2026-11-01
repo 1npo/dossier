@@ -599,7 +599,7 @@ Independent tasks (may be done in any order relative to each other): **M1-1, M1-
 
 ### M1-13. Browser check record
 
-- [ ] **Goal.** `check_page.py --record BUILD_JSON` appends the `check`/`browser` record.
+- [x] **Goal.** `check_page.py --record BUILD_JSON` appends the `check`/`browser` record.
 - **Files.** Edit `scripts/check_page.py` (`main`); new test in `tests/unit/scripts/test_buildlog.py` for the record shape it writes (call the small helper below directly; do not start a browser in tests).
 - **Steps.** (1) Add `ap.add_argument("--record", help="build.json to append the result to")`. (2) Add a helper `record_result(path, problems, n)` that imports `buildlog` (the script's folder is first on `sys.path` when run as a script) and appends `{"step": "check", "part": "browser", "by": "check_page", "status": "ok" if not problems else "failed", "reason": None if not problems else f"{len(problems)} problems in the browser check.", "counts": {"problems": len(problems), "diagrams_checked": n}}`. (3) Call it in `main` after printing, before `sys.exit`, when `--record` is given.
 - **Done-check.** Full suite passes; `uv run scripts/check_page.py --help` lists `--record`.

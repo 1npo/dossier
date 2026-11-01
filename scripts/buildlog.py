@@ -109,3 +109,11 @@ def latest(build: dict, step: str, part=_ANY) -> dict | None:
 
 def records(build: dict, step: str) -> list[dict]:
     return [r for r in build["records"] if r["step"] == step]
+
+
+def record_browser(path, problems: int, diagrams_checked: int) -> dict:
+    """Append the result of the real-browser check (written by check_page.py --record)."""
+    return append(Path(path), {"step": "check", "part": "browser", "by": "check_page",
+                               "status": "ok" if not problems else "failed",
+                               "reason": None if not problems else f"{problems} problems in the browser check.",
+                               "counts": {"problems": problems, "diagrams_checked": diagrams_checked}})
