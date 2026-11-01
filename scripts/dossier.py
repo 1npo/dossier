@@ -8,6 +8,7 @@
   dossier.py version
   dossier.py home [DIR]
   dossier.py doctor [REPO] [--all] [--json]                   list the tools a repository needs, which are installed and how to install the rest
+  dossier.py clean [REPO]                                     remove the working area (clean copy, scratch home, caches) of a repository
   dossier.py prepare [REPO] [--ref REF] [--chunk-tokens N] [--full]   measure the repo, write facts, a reading plan and an update plan
   dossier.py render  [REPO] [--partial] [--allow-errors]      validate the reports and write the HTML
   dossier.py correct [REPO] ...                               record a user correction
@@ -36,6 +37,7 @@ import render  # noqa: E402
 import resolve  # noqa: E402
 import schema  # noqa: E402
 import toolcheck  # noqa: E402
+import workarea  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 VERSION = (ROOT / "VERSION").read_text().strip()
@@ -143,6 +145,18 @@ def cmd_doctor(a):
         report = toolcheck.preflight(toolcheck.languages_at(top, sha))
     print(json.dumps(report, indent=1) if a.json else toolcheck.format_text(report))
     sys.exit(1 if report["missing"] else 0)
+
+
+def cmd_clean(a):
+    top = toplevel(a.repo)
+    out, name, _ = out_dir(top)
+    root = config.cache_root()
+    area = root / out.name
+    try:
+        removed = workarea.clean(area, root)
+    except workarea.CheckoutError as e:
+        die(str(e))
+    print(f"Removed the working area {area}. The dossier in {out} was not touched." if removed else f"Nothing to clean for {name}.")
 
 
 def update_plan(top, out, state, facts, prev_version, full):
@@ -484,6 +498,9 @@ def main():
     p.add_argument("--all", action="store_true", help="check the tools for every supported language")
     p.add_argument("--json", action="store_true")
     p.set_defaults(fn=cmd_doctor)
+    p = sub.add_parser("clean")
+    p.add_argument("repo", nargs="?")
+    p.set_defaults(fn=cmd_clean)
     p = sub.add_parser("prepare")
     p.add_argument("repo", nargs="?")
     p.add_argument("--ref", default="HEAD")

@@ -450,7 +450,7 @@ Independent tasks (may be done in any order relative to each other): **M1-1, M1-
 
 ### M1-5. Working area, checkout, trusted ref, `clean`
 
-- [ ] **Goal.** A verified clean copy at the pinned commit in the working area, reused between builds; the trusted-ref check; the `clean` command.
+- [x] **Goal.** A verified clean copy at the pinned commit in the working area, reused between builds; the trusted-ref check; the `clean` command.
 - **Files.** New `scripts/workarea.py`; edit `scripts/dossier.py` (`cmd_clean`, parser, docstring); new `tests/integration/scripts/test_workarea.py`; edit `tests/conftest.py` (new fixture `hygiene_repo`, below — also used by M1-7).
 - **Interface.**
   ```python

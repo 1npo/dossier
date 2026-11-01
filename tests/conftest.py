@@ -69,3 +69,62 @@ def git_repo(tmp_path):
     commit(ann, "2026-03-01", "rename", **{})
     commit(ann, "2026-06-01", "edit", src__main_py="1\n2\n3\n4\n5\n")
     return repo
+
+
+INSTALL_SH = """#!/bin/sh
+# install.sh: writes out what a restore can see
+mkdir -p "$HOME/report"
+env | cut -d= -f1 | sort > "$HOME/report/env-names.txt"
+printf '%s\\n' "$HOME" > "$HOME/report/home.txt"
+pwd > "$HOME/report/cwd.txt"
+for v in UV_CACHE_DIR npm_config_cache NUGET_PACKAGES DOTNET_CLI_HOME PIP_CACHE_DIR; do
+  eval d=\\$$v
+  mkdir -p "$d" && : > "$d/written-by-install" && echo "$d/written-by-install" >> "$HOME/report/cache-markers.txt"
+done
+"""
+
+SLEEPER_SH = """#!/bin/sh
+# sleeper.sh: starts a background child and never finishes on its own
+sleep 300 &
+echo $! > "$HOME/child.pid"
+echo $$ > "$HOME/parent.pid"
+wait
+"""
+
+
+@pytest.fixture
+def hygiene_repo(tmp_path):
+    """A repository with a tag, a default branch with two later commits, and a side branch.
+
+    tag_sha: commit 1 (tagged v1.0). middle_sha: commit 2 on main. main_sha: commit 3 (tip of main).
+    feature_sha: commit 4 on feature/x, not on main.
+    """
+    import types
+
+    repo = tmp_path / "hygiene"
+    repo.mkdir()
+    env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull,
+           "GIT_AUTHOR_NAME": "T", "GIT_AUTHOR_EMAIL": "t@x.io", "GIT_COMMITTER_NAME": "T", "GIT_COMMITTER_EMAIL": "t@x.io"}
+
+    def git(*args):
+        return subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, text=True, env=env).stdout.strip()
+
+    def commit(message, **files):
+        for path, text in files.items():
+            f = repo / path
+            f.write_text(text)
+            if path.endswith(".sh"):
+                f.chmod(0o755)
+        git("add", "-A")
+        git("commit", "-m", message)
+        return git("rev-parse", "HEAD")
+
+    git("init", "-b", "main")
+    tag_sha = commit("one", **{"install.sh": INSTALL_SH, "sleeper.sh": SLEEPER_SH, "app.py": 'print("hi")\n', "uv.lock": "version = 1\n"})
+    git("tag", "v1.0")
+    middle_sha = commit("two", **{"app.py": 'print("two")\n'})
+    main_sha = commit("three", **{"app.py": 'print("three")\n'})
+    git("checkout", "-b", "feature/x")
+    feature_sha = commit("four", **{"feature.py": "x = 1\n"})
+    git("checkout", "main")
+    return types.SimpleNamespace(path=str(repo), tag_sha=tag_sha, middle_sha=middle_sha, main_sha=main_sha, feature_sha=feature_sha)
