@@ -70,7 +70,9 @@ class TestRunExtract:
         rec = env([FixtureAdapter()])
 
         data = json.loads((env.out / "extract/entry_points.json").read_text())
-        assert data["adapters"]["fixture"]["items"] == [{"path": "app.py", "kind": "script"}]
+        items = data["adapters"]["fixture"]["items"]
+        assert [(i["path"], i["kind"]) for i in items] == [("app.py", "script")]
+        assert items[0]["id"].startswith("ep-") and items[0]["group"].startswith("epg-")
         assert (rec["counts"]["paths_seen"], rec["counts"]["dropped_expected"], rec["counts"]["dropped_unexpected"]) == (3, 1, 1)
         assert rec["status"] == "ok"
 
@@ -122,3 +124,52 @@ class TestRunExtract:
         rec = env([])
 
         assert rec["status"] == "skipped" and rec["reason"] == adapters.NO_EXTRACTORS
+
+
+class Failing(FixtureAdapter):
+    name = "failing"
+
+    def extract(self, ctx):
+        ctx.tool_status["x"] = {"status": "failed", "reason": "boom"}
+        return {"entry_points": [{"path": "app.py", "kind": "script"}]}
+
+
+class Healthy(FixtureAdapter):
+    name = "healthy"
+
+    def extract(self, ctx):
+        ctx.tool_status["x"] = {"status": "ok", "reason": None}
+        return {"io_candidates": [{"path": "app.py", "rule": "r", "snippet": "os.getenv('A')", "category": "env-var"}]}
+
+
+class TestToolStatus:
+    def test_failed_tool_status_is_written_into_the_section(self, env):
+        env([Failing()])
+
+        data = json.loads((env.out / "extract/entry_points.json").read_text())
+        assert data["adapters"]["failing"]["tool_status"] == {"x": {"status": "failed", "reason": "boom"}}
+
+    def test_section_with_a_failed_tool_is_not_reused(self, env):
+        env([Failing()])
+
+        rec = env([Failing()])
+
+        assert rec["status"] == "ok"
+
+    def test_section_with_all_tools_ok_is_reused(self, env):
+        env([Healthy()])
+
+        rec = env([Healthy()])
+
+        assert rec["status"] == "reused"
+
+    def test_io_candidates_get_id_and_group_in_the_file(self, env):
+        env([Healthy()])
+
+        item = json.loads((env.out / "extract/io_candidates.json").read_text())["adapters"]["healthy"]["items"][0]
+        assert item["id"].startswith("io-") and item["group"].startswith("iog-")
+
+    def test_record_lists_each_adapters_tool_status(self, env):
+        rec = env([Healthy()])
+
+        assert rec["details"]["adapters"][0]["tools"] == {"x": {"status": "ok", "reason": None}}

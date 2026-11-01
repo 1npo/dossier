@@ -9,10 +9,11 @@ import fnmatch
 import functools
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Callable
 
+import candidates
 import gather
 import sandbox
 import shared_tools
@@ -35,6 +36,9 @@ class Context:
     treesitter: shared_tools.TreeSitter
     semgrep: shared_tools.Semgrep
     tool_versions: dict
+    trusted: bool = True
+    repo_name: str = "repo"
+    tool_status: dict = field(default_factory=dict)
 
 
 class Adapter:
@@ -55,7 +59,7 @@ ADAPTERS: tuple = ()
 
 
 def detect(languages: list, adapters=ADAPTERS) -> list:
-    return [a() if isinstance(a, type) else a for a in adapters if set(a.languages) & set(languages)]
+    return [a() if isinstance(a, type) else a for a in adapters if "*" in a.languages or set(a.languages) & set(languages)]
 
 
 # ------------------------------------------------------------------ path filter
@@ -147,6 +151,8 @@ def _reusable(out: Path, adapter, key) -> bool:
         found = True
         if {"sha": sec.get("sha"), "version": sec.get("version"), "tools": sec.get("tools")} != key:
             return False
+        if any(t.get("status") != "ok" for t in (sec.get("tool_status") or {}).values()):
+            return False
     return found
 
 
@@ -179,17 +185,21 @@ def run_extract(*, adapters, checkout, sha, tree, area, out, trusted, allow_ref,
         files = sorted(p for p in tree if not gather.noise_reason(p) and (gather.lang_of(p) or ("",))[0] in ad.languages)
         run = functools.partial(sandbox.run, area=area, cwd=checkout, timeout=timeout,
                                 profile="restricted" if ad.loads_repo_code else "tool")
-        ctx = Context(checkout, sha, tree, files, Path(area), restored, run, treesitter, semgrep, tool_versions)
+        ctx = Context(checkout=checkout, sha=sha, tree=tree, files=files, area=Path(area), restored=restored, run=run,
+                      treesitter=treesitter, semgrep=semgrep, tool_versions=tool_versions,
+                      trusted=bool(trusted["trusted"] or allow_ref), repo_name=out.name)
         try:
             raw = ad.extract(ctx)
             unknown = set(raw) - set(OUTPUTS)
             if unknown:
                 raise ValueError(f"unknown output {sorted(unknown)[0]}")
             kept, stats = filter_paths(raw, tree, checkout, ad.expected_untracked)
+            kept = {o: (candidates.assign_ids(o, its) if o in candidates.ID_OUTPUTS else its) for o, its in kept.items()}
         except Exception as e:  # one adapter failing must not stop the others
             res.update(status="failed", reason=((str(e).splitlines() or [""])[0] or type(e).__name__))
             continue
-        produced[ad.name] = (key, kept)
+        res["tools"] = ctx.tool_status
+        produced[ad.name] = (key, kept, ctx.tool_status)
         for k in totals:
             totals[k] += stats[k]
         unexpected += stats["unexpected"]
@@ -201,9 +211,9 @@ def run_extract(*, adapters, checkout, sha, tree, area, out, trusted, allow_ref,
     for o in OUTPUTS:
         data = _read(out, o)
         changed = False
-        for name, (key, kept) in produced.items():
+        for name, (key, kept, tool_status) in produced.items():
             if o in kept:
-                data["adapters"][name] = {**key, "items": kept[o]}
+                data["adapters"][name] = {**key, "tool_status": tool_status, "items": kept[o]}
                 changed = True
             elif name in data["adapters"]:
                 del data["adapters"][name]

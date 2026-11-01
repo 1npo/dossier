@@ -424,7 +424,7 @@ Independent tasks: M2-3, M2-4, M2-6 and M2-7 need nothing but M2-2 and can be do
 
 ### M2-2. Adapter framework: wildcard adapters, tool status, ids, the candidates module
 
-- [ ] **Goal.** The framework changes every later task relies on (sections 3 items 2, 6, 7; D2).
+- [x] **Goal.** The framework changes every later task relies on (sections 3 items 2, 6, 7; D2).
 - **Files.** Edit `scripts/adapters.py`; new `scripts/candidates.py` (first part); edit `tests/unit/scripts/test_adapters.py`, `tests/integration/scripts/test_extract.py`; new `tests/unit/scripts/test_candidates.py`.
 - **Interface.**
   ```python
