@@ -71,7 +71,8 @@ def test_na_and_pending():
     assert schema.validate("x", r, SCH) == ([], [])
     r["cards"][0] = {"card": "x.tab", "na": "nothing here"}; check(r, "cite")
     r = good(); r["cards"][0] = {"card": "x.tab", "pending": True}
-    assert schema.validate("x", r, SCH)[0] == []
+    assert schema.validate("x", r, SCH, allow_pending=True)[0] == []
+    check(r, "pending")
     check(r, "pending", allow_pending=False)
 
 

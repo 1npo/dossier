@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 SCHEMA_DIR = Path(__file__).resolve().parent.parent / "prompts" / "schema"
-ALLOW_PENDING = True  # M0 only: turn off when the M2 prompts can write every card
+ALLOW_PENDING = False  # every card of a report Claude writes must be filled; only migration (allow_pending=True) may leave one pending
 REPORT_ORDER = ("dossier", "overview", "reading", "entry", "components", "interactions", "io", "data",
                 "behavior", "change", "conventions", "ops", "contributors", "risks", "gaps", "corrections")
 QUESTIONS_FILE = "questions.json"  # question list for the dossier.questions card; not a report schema

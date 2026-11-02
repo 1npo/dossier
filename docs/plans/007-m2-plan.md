@@ -878,7 +878,7 @@ Independent tasks: M2-21, M2-22 and M2-23 are independent of each other. M2-24 n
 
 ### M2-24. Reports 10 and 13 optional, pending no longer allowed
 
-- [ ] **Goal.** Section 3 item 23.
+- [x] **Goal.** Section 3 item 23.
 - **Files.** Edit `scripts/render.py` (`OPTIONAL_REPORTS = ("change", "contributors")`, with a comment "M3 writes these"), `scripts/schema.py` (`ALLOW_PENDING = False`; update its comment), tests that relied on pending being allowed by default (pass `allow_pending=True` explicitly where a test is about the pending form itself; search with `grep -rn "pending" tests/unit`).
 - **Done-check.** Full suite passes; block E now prints V6 "pending is not allowed" errors for `FIX` (expected, `--allow-errors`) and still `OK`. Update block E's expectation text in section 6 if the wording differs.
 - **Commit.** `feat(dossier): require every card of the written reports and leave reports 10 and 13 to M3`
