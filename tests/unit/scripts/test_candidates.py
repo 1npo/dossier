@@ -104,3 +104,62 @@ class TestByIdAndGroups:
 
     def test_group_members_lists_ids_per_group(self):
         assert candidates.group_members(self.EXTRACT) == {"iog-1": ["io-1", "io-2"]}
+
+
+def mod(name):
+    return {"kind": "module", "path": name + ".py", "module": name, "package": None, "is_package": False}
+
+
+def edge(a, b, lines=(1,)):
+    return {"kind": "import", "path": a + ".py", "paths": [b + ".py"], "from": a, "to": b, "lines": list(lines), "via": "grimp"}
+
+
+def cand(i, category="env-var", line=3):
+    return {"id": i, "group": "iog-" + i, "path": "a.py", "line": line, "category": category, "rule": "r", "snippet": "x"}
+
+
+BASE = {"graph": [mod("a"), mod("b"), edge("a", "b")], "io_candidates": [cand("io-1"), cand("io-2", "log")],
+        "entry_points": [{"id": "ep-1", "group": "g", "path": "a.py", "line": 1, "kind": "main-guard"}],
+        "tests": [{"kind": "test-file", "path": "t.py", "tests": 2, "skips": 0, "xfails": 0}]}
+
+
+def changed(before, after):
+    old, new = candidates.digests(before), candidates.digests(after)
+    return {rid for rid in old if old[rid] != new[rid]}
+
+
+class TestDigest:
+    def test_shifting_every_line_keeps_every_digest(self):
+        shifted = {**BASE, "graph": [mod("a"), mod("b"), edge("a", "b", (40,))], "io_candidates": [cand("io-1", line=30), cand("io-2", "log", line=31)]}
+
+        assert changed(BASE, shifted) == set()
+
+    def test_new_candidate_changes_only_its_home_report(self):
+        after = {**BASE, "io_candidates": BASE["io_candidates"] + [cand("io-3", "log")]}
+
+        assert changed(BASE, after) == {"behavior", "conventions"}
+
+    def test_new_input_changes_io_and_conventions(self):
+        after = {**BASE, "io_candidates": BASE["io_candidates"] + [cand("io-3", "env-var")]}
+
+        assert changed(BASE, after) == {"io", "conventions"}
+
+    def test_new_import_changes_the_reports_built_from_the_graph(self):
+        after = {**BASE, "graph": BASE["graph"] + [edge("b", "a")]}
+
+        assert changed(BASE, after) == {"reading", "components", "interactions"}
+
+    def test_new_module_also_changes_conventions(self):
+        after = {**BASE, "graph": BASE["graph"] + [mod("c")]}
+
+        assert changed(BASE, after) == {"reading", "components", "interactions", "conventions"}
+
+    def test_new_entry_point_changes_entry_reading_io_and_ops(self):
+        after = {**BASE, "entry_points": BASE["entry_points"] + [{"id": "ep-2", "group": "g2", "path": "b.py", "line": 1, "kind": "cli-command"}]}
+
+        assert changed(BASE, after) == {"reading", "entry", "io", "ops"}
+
+    def test_a_skipped_test_changes_behavior_and_reading(self):
+        after = {**BASE, "tests": [{"kind": "test-file", "path": "t.py", "tests": 2, "skips": 1, "xfails": 0}]}
+
+        assert changed(BASE, after) == {"reading", "behavior"}

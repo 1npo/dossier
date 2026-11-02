@@ -168,6 +168,63 @@ def open_items(rid: str, extract: dict, reports: dict) -> list:
             if it["id"] not in decided and it["group"] not in decided]
 
 
+# ------------------------------------------------------------------ which tool findings each report is built from (D10)
+
+FEEDS = {
+    "reading": ("modules", "imports", "entry_points", "test_files"),
+    "entry": ("entry_points",),
+    "components": ("modules", "imports", "defs"),
+    "interactions": ("modules", "imports", "cycles", "contracts", "ref_edges", "cand:interactions"),
+    "io": ("cand:io", "entry_points"),
+    "data": ("models", "cand:data"),
+    "behavior": ("test_files", "cand:behavior"),
+    "conventions": ("cand:all", "modules"),
+    "ops": ("entry_points", "test_configs"),
+}
+
+
+def _graph(extract, kind):
+    return [g for g in extract.get("graph", []) if g.get("kind") == kind]
+
+
+def _feed(name, extract):
+    """Line-free keys of one kind of finding, so moving code never changes a digest."""
+    if name == "modules":
+        return [["module", g["module"]] for g in _graph(extract, "module")]
+    if name == "imports":
+        return [["import", g["from"], g["to"]] for g in _graph(extract, "import")]
+    if name == "cycles":
+        return [["cycle", g["modules"]] for g in _graph(extract, "cycle")]
+    if name == "contracts":
+        return [["contract", g["contract"], g["status"], [[v["from"], v["to"]] for v in g.get("violations") or []]] for g in _graph(extract, "contract")]
+    if name == "defs":
+        return [["def", g["path"], g["symbol"], g.get("public")] for g in extract.get("symbols", []) if g.get("kind") == "def"]
+    if name == "ref_edges":
+        return [["ref", g["path"], (g.get("paths") or [""])[0]] for g in extract.get("symbols", []) if g.get("kind") == "ref-edge"]
+    if name == "test_files":
+        return [["test", t["path"], t.get("tests"), t.get("skips"), t.get("xfails")] for t in extract.get("tests", []) if t.get("kind") == "test-file"]
+    if name == "test_configs":
+        return ([["config", t["path"], t.get("tool"), t.get("settings")] for t in extract.get("tests", []) if t.get("kind") == "config"]
+                + [["ci", t["path"], t.get("command")] for t in extract.get("tests", []) if t.get("kind") == "ci-command"])
+    if name in ("entry_points", "models"):
+        return [[name, i["id"]] for i in extract.get(name, []) if "id" in i]
+    if name.startswith("cand:"):
+        scope = name[5:]
+        return [["cand", i["id"]] for i in extract.get("io_candidates", []) if "id" in i
+                and (scope == "all" or (CATEGORY_CARD.get(i.get("category")) or "").startswith(scope + "."))]
+    return []
+
+
+def digest(rid: str, extract: dict) -> str:
+    """A fingerprint of the tool findings a report is built from. It ignores line numbers."""
+    keys = sorted(json.dumps(k, sort_keys=True) for name in FEEDS.get(rid, ()) for k in _feed(name, extract))
+    return hashlib.sha1("\n".join(keys).encode("utf-8")).hexdigest()[:16]
+
+
+def digests(extract: dict) -> dict:
+    return {rid: digest(rid, extract) for rid in FEEDS}
+
+
 # ------------------------------------------------------------------ the `dossier candidates` view
 
 

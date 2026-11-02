@@ -138,3 +138,22 @@ def test_cites_in_finds_paths_inside_cards():
     node = {"cards": [{"card": "x", "na": "none", "cite": ["a.py:1"]},
                       {"card": "y", "entries": [{"component": "c", "fields": {"purpose": "see [[b.py:2]]"}, "cite": ["c.py"]}]}]}
     assert set(incremental.cites_in(node)) == {"a.py:1", "b.py:2", "c.py"}
+
+
+class TestDigestChanged:
+    def test_a_changed_digest_makes_the_report_stale_with_the_fixed_reason(self):
+        res = incremental.plan({"io": report("src/db.py:1-5"), "data": report("src/db.py:1-5")}, ["io", "data"], {}, hunks_of({}), False, {}, 0,
+                               digest_changed=frozenset({"io"}))
+
+        assert res["stale"] == {"io": ["the tool findings it is built from changed"]}
+
+    def test_reports_with_equal_or_unknown_digests_stay_fresh(self):
+        res = incremental.plan({"io": report("src/db.py:1-5")}, ["io"], {}, hunks_of({}), False, {}, 0, digest_changed=frozenset())
+
+        assert res["stale"] == {}
+
+    def test_gaps_follows_a_stale_report(self):
+        res = incremental.plan({"io": report("a.py:1"), "gaps": report("a.py:1")}, ["io", "gaps"], {}, hunks_of({}), False, {}, 0,
+                               digest_changed=frozenset({"io"}))
+
+        assert set(res["stale"]) == {"io", "gaps"}

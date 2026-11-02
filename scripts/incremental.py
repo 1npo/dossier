@@ -14,6 +14,7 @@ from render import INLINE_CITE, parse_cite
 
 HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", re.M)
 REPO_WIDE = ("overview", "contributors")   # restate things that move with every commit
+DIGEST_REASON = "the tool findings it is built from changed"
 AGGREGATE = "gaps"                         # lists the open items of the other reports
 MAX_CHANGED = 2000                         # facts.delta keeps no more paths than this
 
@@ -109,7 +110,7 @@ def assess(rep, changed, hunks_of, deps_changed=False, allow_shift=True):
     return list(dict.fromkeys(reasons)), shifts
 
 
-def plan(reports, expected, changed, hunks_of, deps_changed, pending_corrections, commits_added, allow_shift=True):
+def plan(reports, expected, changed, hunks_of, deps_changed, pending_corrections, commits_added, allow_shift=True, digest_changed=frozenset()):
     """Decide the stale reports.
 
     reports: {id: report dict} that exist; expected: ids that should exist; changed: {path: status letter};
@@ -127,6 +128,8 @@ def plan(reports, expected, changed, hunks_of, deps_changed, pending_corrections
             why.append("pending correction " + ", ".join(pending_corrections[rid]))
         if rid in REPO_WIDE and commits_added:
             why.append("it summarises the whole repository, which has new commits")
+        if rid in digest_changed:
+            why.append(DIGEST_REASON)
         if why:
             stale[rid] = why
         elif moves:

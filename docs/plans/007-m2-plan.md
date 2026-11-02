@@ -774,7 +774,7 @@ Independent tasks: M2-13 and M2-16 (measured cards) and M2-18 (partial) are inde
 
 ### M2-19. Staleness when tool findings change
 
-- [ ] **Goal.** D10.
+- [x] **Goal.** D10.
 - **Files.** Edit `scripts/candidates.py` (`FEEDS`, `digest`, `digests`), `scripts/incremental.py` (`plan(..., digest_changed=frozenset())`: each report in it gets the fixed reason), `scripts/dossier.py` (`cmd_prepare` computes `digests = candidates.digests(candidates.load(out))` after `stage_extract` and passes them to `update_plan`; `update_plan(top, out, state, facts, prev_version, full, digests=None)` compares with `state.get("extract_digests", {})`; `cmd_render` stores `state["extract_digests"]` for the reports it rendered), `tests/unit/scripts/test_candidates.py`, `tests/unit/scripts/test_incremental.py`.
 - **Tests.** The digest ignores line numbers (shift every line: same digest); a new candidate changes the digest of its home report only; a new import changes `components`, `interactions`, `reading` and `conventions` (graph modules only when a module is added); `plan` adds the reason for a changed digest and not for an equal or missing one; `gaps` follows as today.
 - **Done-check.** Full suite passes.

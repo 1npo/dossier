@@ -167,7 +167,7 @@ def cmd_clean(a):
     print(f"Removed the working area {area}. The dossier in {out} was not touched." if removed else f"Nothing to clean for {name}.")
 
 
-def update_plan(top, out, state, facts, prev_version, full):
+def update_plan(top, out, state, facts, prev_version, full, digests=None):
     """Which reports an update must rewrite. Shifts the line numbers of citations the last commits did not touch."""
     sha = facts["repo"]["sha"]
     expected = [rid for rid, _, w in render.REPORTS if w]
@@ -207,7 +207,8 @@ def update_plan(top, out, state, facts, prev_version, full):
             return incremental.parse_hunks(gather.Repo(top).git("diff", "-U0", "--no-renames", last, sha, "--", path))
         deps_changed = bool((d or {}).get("dependencies_added") or (d or {}).get("dependencies_removed"))
         res = incremental.plan(reports, expected, changed, hunks_of, deps_changed, corrections,
-                               (d or {}).get("commits_added", 0), allow_shift=not pending)
+                               (d or {}).get("commits_added", 0), allow_shift=not pending,
+                               digest_changed=frozenset(rid for rid, dg in (digests or {}).items() if rid in (state.get("extract_digests") or {}) and state["extract_digests"][rid] != dg))
         stale, shifts = res["stale"], res["shifts"]
         for rid, moves in shifts.items():
             save(paths[rid], incremental.apply_shifts(reports[rid], moves))
@@ -261,7 +262,7 @@ def cmd_prepare(a):
                 raise stages.PrepareError("The ref moved while prepare was running. Run it again.")
             if state.get("last_sha") and state["last_sha"] != sha:
                 facts["delta"] = gather.delta(top, state["last_sha"], sha, state.get("snapshot"), facts)
-            plan = update_plan(top, out, state, facts, prev_version, a.full)
+            plan = update_plan(top, out, state, facts, prev_version, a.full, candidates.digests(candidates.load(out)))
             cached = 0
             for c in chunks["chunks"]:
                 c["cached"] = (out / "notes" / f"{c['fingerprint']}.json").exists()
@@ -401,6 +402,7 @@ def cmd_render(a):
     name_out = f"dossier-{name}.html"
     (out / name_out).write_text(page, encoding="utf-8")
     state.update(history=history, last_sha=sha, snapshot=gather.snapshot(facts))
+    state["extract_digests"] = {rid: dg for rid, dg in candidates.digests(extract).items() if rid in reports}
     state.pop("pending_update", None)
     for c in state.get("corrections", []):
         if c.get("status") != "applied" and a.apply_corrections:
