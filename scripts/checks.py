@@ -45,6 +45,50 @@ def _tied(item: dict) -> str:
     return f"{item['id']} ({where}, {item.get('rule') or item.get('kind')})"
 
 
+ONE_ROW_CARDS = {"entry.catalog": ("entry_points", "entry point", "epg-"), "data.entities": ("models", "entity", "mdg-")}
+
+
+def _word_in(name: str, text: str) -> bool:
+    return re.search(rf"(?<![A-Za-z0-9_]){re.escape(name)}(?![A-Za-z0-9_])", text) is not None
+
+
+def _same_entry_point(items: list) -> bool:
+    """Several findings are one entry point when they are in the same file under the same name (found twice by two rules)."""
+    return len({(it["path"], it.get("name") or "") for it in items}) == 1
+
+
+def one_row_per_item(reports: dict, extract: dict, titles: dict) -> list:
+    """D8: an entity or an entry point is decided on its own row, and a row lists every field of its entity."""
+    errors, known, members = [], candidates.by_id(extract), candidates.group_members(extract)
+    for rid, card, entry in _cards(reports):
+        if card not in ONE_ROW_CARDS:
+            continue
+        output, noun, group_prefix = ONE_ROW_CARDS[card]
+        title = titles.get(card, card)
+        lists = [_as_list(node.get("cand")) for node in _nodes(entry)] + [_as_list(entry.get("cand"))] + [
+            _as_list(d.get("cand")) for d in entry.get("dismissed") or [] if isinstance(d, dict)]
+        for gid in sorted({i for ids in lists for i in ids if i.startswith(group_prefix) and i in members}):
+            errors.append(f"V5: {title} decides the group {gid}; decide each {noun} on its own row: {', '.join(members[gid])}.")
+        for block in entry.get("blocks") or []:
+            if not isinstance(block, dict) or block.get("type") != "table":
+                continue
+            columns = [str(c) for c in block.get("columns") or []]
+            for r in block.get("rows") or []:
+                if not isinstance(r, dict):
+                    continue
+                items = [known[i] for i in _as_list(r.get("cand")) if i in known and not i.startswith(group_prefix)]
+                names = [it.get("name") or it["path"] for it in items]
+                if len(items) > 1 and not (card == "entry.catalog" and _same_entry_point(items)):
+                    errors.append(f"V5: {title} puts {len(items)} {'entities' if card == 'data.entities' else 'entry points'} in one row ({', '.join(dict.fromkeys(names))}); give each its own row.")
+                elif len(items) == 1 and card == "data.entities" and "Fields" in columns:
+                    cells = r.get("cells") or []
+                    text = str(cells[columns.index("Fields")]) if columns.index("Fields") < len(cells) else ""
+                    left = [f["name"] for f in items[0].get("fields") or [] if f.get("name") and not _word_in(f["name"], text)]
+                    if left:
+                        errors.append(f"V5: {title}, {names[0]}: the Fields cell leaves out {', '.join(left)}.")
+    return errors
+
+
 def v5(reports: dict, extract: dict) -> tuple[list, list, list, dict]:
     """Every candidate in entry_points, io_candidates and entity models is kept, merged or dismissed (D3)."""
     errors, warnings, gaps = [], [], []
@@ -108,6 +152,7 @@ def v5(reports: dict, extract: dict) -> tuple[list, list, list, dict]:
         for it in left:
             open_groups.setdefault((card, it["group"]), []).append(it)
     counts["v5_open"] = open_total
+    errors += one_row_per_item(reports, extract, titles)
     for (card, _), v in sorted(open_groups.items()):
         first = v[0]
         line = f":{first['line']}" if first.get("line") else ""

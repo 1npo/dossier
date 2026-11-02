@@ -92,3 +92,83 @@ class TestValidate:
         res = checks.validate({"io": {"cards": [{"card": "io.inputs", "blocks": "bad", "dismissed": 3}]}}, EXTRACT)
 
         assert set(res) == {"errors", "warnings", "gaps", "counts", "unbacked", "info"}
+
+
+def entity(i, group, name, fields=()):
+    return {"id": i, "group": group, "path": "src/models.py", "line": 3, "kind": "dataclass", "rule": "dataclass", "snippet": f"class {name}:",
+            "name": name, "fields": [{"name": f, "type": "str", "line": 4, "ref": None} for f in fields]}
+
+
+def ep(i, name, path, group="epg-2"):
+    return {"id": i, "group": group, "path": path, "line": 1, "kind": "cli-command", "rule": "r.cli", "name": name}
+
+
+MODELS = {"models": [entity("md-1", "mdg-1", "Config", ["path", "debug"]), entity("md-2", "mdg-1", "Settings", ["name"]), entity("md-3", "mdg-1", "Watch")],
+          "entry_points": [ep("ep-1", "init", "cli.py"), ep("ep-2", "run", "cli.py"), ep("ep-3", "init", "cli.py", group="epg-3")]}
+
+
+def entities_card(*rows, **kw):
+    return {"card": "data.entities", "blocks": [{"type": "table", "columns": ["Name", "Kind", "Fields", "Defined in", "Owner component"], "rows": list(rows)}], **kw}
+
+
+def entity_row(name, fields, **kw):
+    return row(name, "dataclass", fields, "src/models.py", "Core", **kw)
+
+
+class TestV5OneRowPerItem:
+    def run(self, *cards, extract=None):
+        errors, _, _, _ = checks.v5(reports(*cards), extract or MODELS)
+        return errors
+
+    def test_a_group_id_for_entities_is_an_error_naming_every_member(self):
+        errors = self.run(entities_card(entity_row("Config and related", "path, debug", cand=["mdg-1"])))
+
+        assert any("decides the group mdg-1" in e and "md-1, md-2, md-3" in e and "entity" in e for e in errors)
+
+    def test_a_group_id_for_entry_points_is_an_error(self):
+        errors = self.run(card("entry.catalog", [row("init", cand=["epg-2"])]))
+
+        assert any("decides the group epg-2" in e and "ep-1, ep-2" in e and "entry point" in e for e in errors)
+
+    def test_a_group_id_in_a_dismissal_of_entities_is_an_error(self):
+        errors = self.run(entities_card(dismissed=[{"cand": ["mdg-1"], "reason": "Test doubles."}]))
+
+        assert any("decides the group mdg-1" in e for e in errors)
+
+    def test_two_entities_in_one_row_is_an_error_naming_them(self):
+        errors = self.run(entities_card(entity_row("Config, Settings", "path, debug, name", cand=["md-1", "md-2"])))
+
+        assert any("puts 2 entities in one row (Config, Settings); give each its own row." in e for e in errors)
+
+    def test_an_entity_row_that_leaves_a_field_out_is_an_error_listing_it(self):
+        errors = self.run(entities_card(entity_row("Config", "path", cand=["md-1"])))
+
+        assert any("Config: the Fields cell leaves out debug." in e for e in errors)
+
+    def test_a_field_name_inside_a_longer_word_does_not_count(self):
+        errors = self.run(entities_card(entity_row("Settings", "username", cand=["md-2"])))
+
+        assert any("Settings: the Fields cell leaves out name." in e for e in errors)
+
+    def test_a_complete_one_to_one_row_passes(self):
+        errors = self.run(entities_card(entity_row("Config", "`path`, `debug`", cand=["md-1"]), entity_row("Settings", "name", cand=["md-2"]),
+                                        entity_row("Watch", "-", cand=["md-3"])))
+
+        assert [e for e in errors if "Fields cell" in e or "one row" in e or "group" in e] == []
+
+    def test_one_entry_point_found_twice_may_share_a_row(self):
+        errors = self.run(card("entry.catalog", [row("init", cand=["ep-1", "ep-3"]), row("run", cand=["ep-2"])]))
+
+        assert [e for e in errors if "one row" in e or "group" in e] == []
+
+    def test_two_different_entry_points_in_one_row_is_an_error(self):
+        errors = self.run(card("entry.catalog", [row("init and run", cand=["ep-1", "ep-2"])]))
+
+        assert any("puts 2 entry points in one row (init, run)" in e for e in errors)
+
+    def test_a_group_id_for_io_call_sites_still_passes(self):
+        calls = {"io_candidates": [item("io-1", "iog-1"), item("io-2", "iog-1", line=9)]}
+
+        errors = self.run(card("io.inputs", [row("env", "x", cand=["iog-1"])]), extract=calls)
+
+        assert errors == []
