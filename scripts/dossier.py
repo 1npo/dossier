@@ -171,7 +171,8 @@ def cmd_clean(a):
 def update_plan(top, out, state, facts, prev_version, full, digests=None):
     """Which reports an update must rewrite. Shifts the line numbers of citations the last commits did not touch."""
     sha = facts["repo"]["sha"]
-    expected = [rid for rid, _, w in render.REPORTS if w]
+    authored = [rid for rid, _, w in render.REPORTS if w]
+    expected = incremental.expected_reports(authored, {rid for rid in authored if (out / "reports" / f"{rid}.json").exists()}, render.OPTIONAL_REPORTS)
     paths = {rid: out / "reports" / f"{rid}.json" for rid in expected}
     reports = {rid: load(p) for rid, p in paths.items() if p.exists()}
     d, last, pending = facts["delta"], state.get("last_sha"), state.get("pending_update")

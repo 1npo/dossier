@@ -110,6 +110,11 @@ def assess(rep, changed, hunks_of, deps_changed=False, allow_shift=True):
     return list(dict.fromkeys(reasons)), shifts
 
 
+def expected_reports(authored, existing, optional):
+    """The reports an update must have: every authored one, except an optional report nobody has written."""
+    return [rid for rid in authored if rid not in optional or rid in existing]
+
+
 def plan(reports, expected, changed, hunks_of, deps_changed, pending_corrections, commits_added, allow_shift=True, digest_changed=frozenset()):
     """Decide the stale reports.
 

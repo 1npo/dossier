@@ -121,6 +121,23 @@ class TestPlan:
         assert "delivery" in res["stale"]
 
 
+class TestExpectedReports:
+    def test_an_optional_report_nobody_wrote_is_not_expected(self):
+        got = incremental.expected_reports(["entry", "change", "gaps"], {"entry", "gaps"}, ("change", "contributors"))
+
+        assert got == ["entry", "gaps"]
+
+    def test_an_optional_report_that_exists_is_expected(self):
+        got = incremental.expected_reports(["entry", "change"], {"entry", "change"}, ("change",))
+
+        assert got == ["entry", "change"]
+
+    def test_a_required_report_is_expected_even_when_missing(self):
+        got = incremental.expected_reports(["entry", "io"], {"entry"}, ("change",))
+
+        assert got == ["entry", "io"]
+
+
 class TestApplyShifts:
     def test_rewrites_cite_lists_and_inline_citations_but_not_diagrams(self):
         rep = {"blocks": [{"type": "text", "text": "See [[a.py:10-20, b.py:3|label]].", "cite": ["a.py:10-20"]},
