@@ -5,6 +5,7 @@ Each check returns `(errors, warnings, gap_items, counts)`. Gaps wording is fixe
 from __future__ import annotations
 
 import candidates
+import components
 import process
 
 FIXED_ROW_CARDS = ("io.inputs", "io.outputs")
@@ -119,6 +120,70 @@ def v5(reports: dict, extract: dict) -> tuple[list, list, list, dict]:
     return errors, warnings, gaps, counts
 
 
+parse_paths = components.parse_paths
+
+
+def best_component(path: str, rows: list) -> tuple:
+    """(winning component or None, the other components that match equally well). `rows`: [{"name", "paths": [...]}]."""
+    return components.component_of(path, rows)
+
+
+def _entry(reports: dict, card_id: str):
+    for _, card, entry in _cards(reports):
+        if card == card_id:
+            return entry
+    return None
+
+
+def _name(text) -> str:
+    return str(text or "").replace("`", "").strip().casefold()
+
+
+def v4(reports: dict, tree, facts=None) -> tuple[list, list, list, dict]:
+    """Every tracked source file belongs to one component, or is listed as unassigned (D4)."""
+    errors, warnings, gaps = [], [], []
+    counts = {"v4": 0}
+    cat = _entry(reports, "components.catalog")
+    if not cat or "blocks" not in cat:  # missing, na or pending: V6 reports it
+        return errors, warnings, gaps, counts
+    rows = components.catalog_rows({"cards": [cat]})
+    files = components.source_files(tree, {})
+    unassigned = [u for u in cat.get("unassigned") or [] if isinstance(u, dict)]
+    covers = [(u, parse_paths(str(u.get("paths", "")))) for u in unassigned]
+    free: dict = {i: [] for i in range(len(covers))}
+    missing = []
+    for path in files:
+        owner, tied = best_component(path, rows)
+        if owner:
+            if tied:
+                errors.append(f"V4: {path} belongs to both {owner} and {', '.join(tied[:-1]) + ' and ' + tied[-1] if len(tied) > 1 else tied[0]}.")
+            continue
+        hit = [i for i, (_, pats) in enumerate(covers) if any(components.match_score(path, p) for p in pats)]
+        if hit:
+            free[hit[0]].append(path)
+        else:
+            missing.append(path)
+    if missing:
+        shown = ", ".join(missing[:5]) + (f" and {len(missing) - 5} more" if len(missing) > 5 else "")
+        errors.append(f"V4: {len(missing)} source files belong to no component and are not listed as unassigned, for example {shown}.")
+    for i, (u, _) in enumerate(covers):
+        gaps.append({"kind": "coverage", "report": "components",
+                     "statement": f"{len(free[i])} source file(s) in {u.get('paths', '')} belong to no component: {u.get('reason', '')}",
+                     "how_to_confirm": "Check that these files really are not part of any component."})
+    det = _entry(reports, "components.detail")
+    if det and isinstance(det.get("entries"), list):
+        have = {_name(e.get("component")) for e in det["entries"] if isinstance(e, dict)}
+        want = {_name(r["name"]): r["name"] for r in rows}
+        for key, name in want.items():
+            if key not in have:
+                errors.append(f"V4: the component {name} has no entry in Component details.")
+        for e in det["entries"]:
+            if isinstance(e, dict) and _name(e.get("component")) not in want:
+                warnings.append(f"V4: Component details has an entry for {e.get('component')}, which is not in the Component catalog.")
+    counts["v4"] = sum(1 for x in errors if x.startswith("V4"))
+    return errors, warnings, gaps, counts
+
+
 def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None) -> dict:
     """Run every check. {"errors", "warnings", "gaps", "counts", "unbacked"}."""
     result = {"errors": [], "warnings": [], "gaps": [], "counts": {}, "unbacked": {}}
@@ -130,6 +195,20 @@ def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None)
     result["warnings"] += w
     result["gaps"] += g
     result["counts"].update(c)
+    tree = None
+    try:
+        tree = cites.tree()[0] if cites else None
+    except Exception:  # noqa: BLE001 - a repository that cannot be listed: V4 then has nothing to check
+        tree = None
+    if tree:
+        try:
+            e, w, g, c = v4(reports, tree, facts)
+            result["errors"] += e
+            result["warnings"] += w
+            result["gaps"] += g
+            result["counts"].update(c)
+        except (AttributeError, TypeError, KeyError):
+            pass
     return result
 
 

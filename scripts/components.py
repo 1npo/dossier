@@ -12,8 +12,16 @@ import graphs
 
 
 def parse_paths(cell: str) -> list:
-    """['src/app/', 'scripts/*.sh'] from a `Paths` cell such as "`src/app/`, `scripts/*.sh`"."""
-    return [p.strip().strip("`").strip() for p in re.split(r",\s*", cell or "") if p.strip().strip("`").strip()]
+    """['src/app/', 'scripts/*.sh'] from a `Paths` cell such as "`src/app/`, `scripts/*.sh`".
+    Entries are split on commas and newlines; backticks are dropped, and a `[[path:lines|label]]` citation becomes its path."""
+    found = []
+    for part in re.split(r"[,\n]+", cell or ""):
+        part = part.strip().strip("`").strip()
+        m = re.fullmatch(r"\[\[([^\]|]+?)(?::[\d\-]+)?(?:\|[^\]]*)?\]\]", part)
+        part = m.group(1) if m else part
+        if part:
+            found.append(part)
+    return found
 
 
 def match_score(path: str, pattern: str):

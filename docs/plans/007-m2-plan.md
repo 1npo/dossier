@@ -739,7 +739,7 @@ Independent tasks: M2-13 and M2-16 (measured cards) and M2-18 (partial) are inde
 
 ### M2-15. V4 (`checks.py`, second part)
 
-- [ ] **Goal.** D4's V4 and its Gaps items.
+- [x] **Goal.** D4's V4 and its Gaps items.
 - **Files.** Edit `scripts/checks.py` (`v4`, called from `validate`), new `tests/unit/scripts/test_checks_v4.py`.
 - **Interface.** `def v4(reports, tree, facts) -> tuple[list, list, list, dict]`; `def parse_paths(cell: str) -> list[str]` (split on `,` and newlines, strip backticks, `[[...]]` citations become their path); `def best_component(path, patterns) -> tuple[str|None, list[str]]` (the winning component, or the tied ones). The tree comes from `cites.tree()[0]`.
 - **Tests.** Most specific wins (`src/app/` versus `src/app/api/`); file beats glob beats directory; a tie between two components errors with the fixed text; an unmatched file errors and the message lists at most five; `unassigned` covers files and adds one Gaps item per entry; a missing detail entry errors; an extra detail entry warns; `na` and `pending` catalogs skip V4; noise files (lock files, generated) are not counted.
