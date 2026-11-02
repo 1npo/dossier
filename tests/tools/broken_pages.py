@@ -103,6 +103,54 @@ def drop_er_field(html: str) -> str:
     return html[:at] + _drop_last_row(html[at:])
 
 
+def _first_card_body(html: str) -> int:
+    """Where the first card's `<section>` opens its content (just after the tag)."""
+    card = html.index('data-card="')
+    return html.index("<section>", card) + len("<section>")
+
+
+def wide_element(html: str) -> str:
+    """A 2000 px wide block in the first card."""
+    at = _first_card_body(html)
+    return html[:at] + '<div style="width:2000px;height:20px;background:#ccc">a wide block</div>' + html[at:]
+
+
+def icon_unsized(html: str) -> str:
+    """An icon that draws at 300 px, as an icon with no size does."""
+    at = _first_card_body(html)
+    return html[:at] + '<svg viewBox="0 0 24 24" style="width:300px;height:300px"><circle cx="12" cy="12" r="10"/></svg>' + html[at:]
+
+
+def tiny_diagram(html: str) -> str:
+    """A flowchart of 60 nodes at the top of the first report."""
+    source = "flowchart LR\n" + "".join(f"    N{i}[Node {i}] --> N{i + 1}[Node {i + 1}]\n" for i in range(60))
+    return inject_diagrams(html, [("Injected big flowchart", source)])
+
+
+def flow_no_notes(html: str) -> str:
+    """The first set of notes under a flow diagram is not drawn (the class is renamed so nothing finds it)."""
+    if 'class="diagram-notes"' not in html:
+        raise ValueError("the page has no flow notes to remove")
+    return html.replace('class="diagram-notes"', 'class="notes-gone" hidden', 1)
+
+
+def overlap(html: str) -> str:
+    """Two paragraphs, the second pulled up over the first."""
+    at = _first_card_body(html)
+    return html[:at] + '<p>The first paragraph of text in this card.</p><p style="margin-top:-1.4rem">The second paragraph, drawn over it.</p>' + html[at:]
+
+
+def table_hidden(html: str, cards=()) -> str:
+    """The first table of a card that has content and a table in its layout is not shown."""
+    marks = [m for m in re.finditer(r'data-card="([^"]+)"', html)]
+    for m, nxt in zip(marks, marks[1:] + [None]):
+        segment = html[m.end():nxt.start() if nxt else len(html)]
+        if m.group(1) in cards and '<table class="table"' in segment and "Not yet generated" not in segment:
+            at = m.end() + segment.index('<table class="table"') + len('<table class="table"')
+            return html[:at] + ' style="display:none"' + html[at:]
+    raise ValueError("no card with content and a table was found")
+
+
 def inject_diagrams(html: str, diagrams: list) -> str:
     """Diagrams [(title, mermaid source)] at the top of the first report."""
     first = re.search(r'<section class="report"[^>]*>', html)
@@ -111,9 +159,10 @@ def inject_diagrams(html: str, diagrams: list) -> str:
     return html[:first.end()] + blocks + html[first.end():]
 
 
-MUTATIONS = {"drop-row": drop_row, "drop-column": drop_column, "table-as-text": table_as_text, "entry-no-kv": entry_no_kv,
+MUTATIONS = {"wide-element": wide_element, "icon-unsized": icon_unsized, "tiny-diagram": tiny_diagram, "flow-no-notes": flow_no_notes,
+             "overlap": overlap, "table-hidden": table_hidden, "drop-row": drop_row, "drop-column": drop_column, "table-as-text": table_as_text, "entry-no-kv": entry_no_kv,
              "drop-entry": drop_entry, "drop-er-field": drop_er_field, "conflict-css": conflict_css, "no-js-sentinel": no_js_sentinel, "big-diagrams": big_diagrams, "wide-tables": wide_tables}
 
 
-def mutate(html: str, name: str) -> str:
-    return MUTATIONS[name](html)
+def mutate(html: str, name: str, **kw) -> str:
+    return MUTATIONS[name](html, **kw)

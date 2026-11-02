@@ -18,7 +18,10 @@ Checks, in both the light and the dark theme:
   - the code viewer: every highlight color has a contrast ratio of at least 4.5:1 on the panel and on a
     cited line; a click on a citation opens the panel with the cited lines marked, the keys and buttons
     (]  [  p  v  Esc, other sources, Go to reference) work, and citations of directories, commits and
-    secret-looking files do not open it.
+    secret-looking files do not open it;
+  - layout and readability (V12, see check_layout.py), at 1500 and 400 px wide: no sideways page scroll or element
+    sticking out of the window, no icon over 48 px, diagram text at least 11 px, diagram budgets, numbered notes under
+    every flow, a table in every card that has one, and no overlapping text.
 
 Exits 1 and prints one line per problem. With --shots it also saves a screenshot of each diagram,
 which is worth opening: a script cannot judge layout, overlap or clipping.
@@ -34,6 +37,7 @@ import sys
 from pathlib import Path
 
 import buildlog
+import check_layout
 
 from viewer import TOKEN_CLASSES
 
@@ -413,6 +417,26 @@ def check_theme(browser, path, scheme, shots):
     return problems, counter[0]
 
 
+def check_layouts(browser, path, scheme):
+    """V12: every report at each window size, in this theme (see check_layout.py)."""
+    problems, args = [], check_layout.arguments()
+    for width, height in check_layout.SIZES:
+        ctx = browser.new_context(color_scheme=scheme, viewport={"width": width, "height": height})
+        page = ctx.new_page()
+        page.goto(Path(path).resolve().as_uri())
+        page.wait_for_timeout(300)
+        if page.evaluate(ASSETS_JS) != {"css": True, "js": True}:
+            ctx.close()
+            continue  # check_theme says the stylesheet or script did not load
+        for rid in page.eval_on_selector_all(".report", "els => els.map(e => e.id)"):
+            page.evaluate("id => { location.hash = id; }", rid)
+            page.wait_for_timeout(150)
+            got = safe(f"{scheme} {width}px", f"layout of {rid}", check_layout.check_report, page, args)
+            problems += [line if line.startswith("[") else f"[{scheme} {width}px] {rid} / {line}" for line in got]
+        ctx.close()
+    return problems
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("html")
@@ -428,6 +452,7 @@ def main():
         for scheme in ("light", "dark"):
             try:
                 got, n_theme = check_theme(browser, a.html, scheme, a.shots)
+                got += safe(scheme, "layout", check_layouts, browser, a.html, scheme)
             except Exception as e:  # noqa: BLE001
                 got, n_theme = [f"[{scheme}] the page could not be checked ({type(e).__name__}: {str(e).splitlines()[0] if str(e) else ''})"], 0
             problems += got
