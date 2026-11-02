@@ -5,6 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2].parent / "scripts"))
 import measured  # noqa: E402
+import measured_graph  # noqa: E402
 
 
 class Refs:
@@ -107,3 +108,84 @@ class TestViolations:
 class TestBody:
     def test_unknown_card_is_not_drawn(self):
         assert measured.body("data.entities", CTX, Refs()) is None
+
+
+class TestMermaidId:
+    def test_unsafe_characters_become_underscores(self):
+        assert measured_graph.mermaid_id("a-b.c") == "a_b_c"
+
+    def test_leading_digit_gets_a_prefix(self):
+        assert measured_graph.mermaid_id("3d") == "n_3d"
+
+    def test_two_names_never_share_an_id(self):
+        taken = {}
+
+        first = measured_graph.mermaid_id("a-b", taken)
+        second = measured_graph.mermaid_id("a.b", taken)
+
+        assert first != second
+
+
+def imp(a, b, lines=(1,)):
+    return {"kind": "import", "path": a, "paths": [b], "from": a[:-3].replace("/", "."), "to": b[:-3].replace("/", "."), "lines": list(lines)}
+
+
+MAP_EXTRACT = {"graph": [
+    {"kind": "module", "path": "src/app/__init__.py", "module": "app", "package": "app", "is_package": True},
+    imp("src/app/api/x.py", "src/app/core/y.py", (2, 9)), imp("src/app/api/x.py", "src/app/db/z.py"), imp("src/app/db/z.py", "src/app/core/y.py"),
+    imp("src/app/core/y.py", "loose.py", (4,)),
+]}
+MAP_CTX = {"extract": MAP_EXTRACT, "tree": {"src/app/api/x.py", "src/app/core/y.py", "src/app/db/z.py", "loose.py"},
+           "catalog": [{"name": "Api", "paths": ["src/app/api/"]}, {"name": "Core", "paths": ["src/app/core/"]}, {"name": "Db", "paths": ["src/app/db/"]}],
+           "facts": {"chunks": {"chunks": [{"files": [{"path": "src/app/api/x.py", "lines": 10}]}]}}}
+
+
+def mermaid_source(html):
+    return htmllib.unescape(re.search(r'data-src="([^"]*)"', html).group(1))
+
+
+class TestComponentMap:
+    def test_one_subgraph_per_area_and_one_node_per_component(self):
+        src = mermaid_source(measured.body("components.map", MAP_CTX, Refs()))
+
+        assert src.startswith("flowchart LR")
+        assert src.count("subgraph") == 4  # api, core, db and the unassigned loose module
+        assert 'Api["Api"]' in src and 'Core["Core"]' in src and 'Db["Db"]' in src
+
+    def test_arrows_carry_the_import_counts_and_unassigned_is_a_group(self):
+        src = mermaid_source(measured.body("components.map", MAP_CTX, Refs()))
+
+        assert 'Api -->|"1 import"| Core' in src and 'Core -->|"1 import"| unassigned' in src
+
+    def test_table_has_files_lines_and_neighbours(self):
+        rows = {r[0]: r for r in rows_of(measured.body("components.map", MAP_CTX, Refs()).split("</details></div>")[-1])}
+
+        assert rows["Api"][1:] == ["api", "1", "10", "Core, Db", "-"]
+        assert rows["Core"][5] == "Api, Db"
+
+    def test_without_a_catalog_the_placeholder_is_used(self):
+        assert measured.body("components.map", {"extract": MAP_EXTRACT}, Refs()) is None
+
+
+class TestDependencyGraph:
+    def test_table_has_one_row_per_import(self):
+        html = measured.body("interactions.graph", MAP_CTX, Refs())
+
+        rows = rows_of(html.split("</details></div>")[-1])
+        assert len(rows) == 4
+        assert rows[0][2] == "2" and rows[0][3] == "src/app/api/x.py:2, src/app/api/x.py:9"
+
+    def test_without_a_catalog_nodes_are_areas(self):
+        src = mermaid_source(measured.body("interactions.graph", {"extract": MAP_EXTRACT}, Refs()))
+
+        assert 'api["api"]' in src and 'api -->|"1 import"| core' in src
+
+    def test_a_single_node_draws_only_the_table(self):
+        extract = {"graph": [imp("a.py", "b.py")]}
+
+        html = measured.body("interactions.graph", {"extract": extract}, Refs())
+
+        assert "mermaid-host" not in html and "<table" in html
+
+    def test_no_imports_says_so(self):
+        assert "No imports between modules were found." in measured.body("interactions.graph", {"extract": {"graph": []}}, Refs())

@@ -757,7 +757,7 @@ Independent tasks: M2-13 and M2-16 (measured cards) and M2-18 (partial) are inde
 
 ### M2-17. Measured cards: Dependency graph and Component map
 
-- [ ] **Goal.** D8 for `interactions.graph` and `components.map`.
+- [x] **Goal.** D8 for `interactions.graph` and `components.map`.
 - **Files.** Edit `scripts/measured.py`, `tests/unit/scripts/test_measured.py`.
 - **Steps.** Component of a module: `checks.best_component(module path, catalog patterns)` (reuse it). Arrows from `graphs.aggregate`. Mermaid: `flowchart LR`; `subgraph` per area with a quoted label; nodes `mermaid_id(component)["Component name"]`; arrows `A -->|"n imports"| B`; no styling (the page themes it). The edge table lists every import item (sortable, filterable; `render_table(..., plain=True)` with `filterable=True`).
 - **Tests.** The Mermaid source for two areas and three components has two `subgraph` lines, three nodes and the right arrows; a module in no component is grouped under "unassigned"; ids are safe (`a-b.c` → `a_b_c`); the table has one row per import.

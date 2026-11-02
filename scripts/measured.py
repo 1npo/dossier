@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 
 import gather
+import measured_graph
 
 
 def _render():
@@ -175,7 +176,7 @@ def _violations(cid, ctx, refs):
     return f'<p class="muted">No import cycles were found{tail}.</p>'
 
 
-DRAWN = {"reading.map": _reading_map, "conventions.tooling": _tooling, "interactions.violations": _violations}
+DRAWN = {"reading.map": _reading_map, "conventions.tooling": _tooling, "interactions.violations": _violations, **measured_graph.DRAWN}
 
 
 def body(cid: str, ctx: dict, refs):
