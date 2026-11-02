@@ -1,6 +1,6 @@
 # Semgrep rules
 
-Semgrep rules shipped with dossier live here, one folder per scope (`all/`, `python/`, `js/`, `csharp/`). Rule files are YAML and end in `.yml`. Rule ids are `dossier.<scope>.<family>.<name>`.
+Semgrep rules shipped with dossier live here, one folder per scope. The `python/` and `all/` rules exist and are used by the Python and repository adapters; the `js/` and `csharp/` folders arrive with those languages. Rule files are YAML and end in `.yml`. Rule ids are `dossier.<scope>.<family>.<name>`.
 
 Every rule has `metadata`:
 
@@ -11,4 +11,4 @@ Categories: `cli-args`, `env-var`, `config-file`, `file-read`, `stdin`, `message
 
 Blind-spot ids (code that static analysis may miss): `dynamic-import`, `entry-point-loading`, `string-plugin`, `decorator-registry`, `getattr-dispatch`, `django-apps`, `django-signals`, `pytest-fixtures` (Python) and `codegen`, `feature-flag` (all languages).
 
-Each rule file has a test file under `tests/fixtures/semgrep/` with the same name; run `semgrep --test` through the worker (see `tests/integration/scripts/test_shared_layer.py`).
+Each rule file has a test file under `tests/fixtures/semgrep/` with the same name; run them all with `DOSSIER_SLOW=1 uv run --with pytest --with pygments python -m pytest tests/integration/scripts/test_shared_layer.py -q` from the skill folder (it runs `semgrep --test` through the worker).

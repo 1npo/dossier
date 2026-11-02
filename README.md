@@ -16,7 +16,7 @@ Inside Claude Code:
 /dossier version
 ```
 
-`build` pins the dossier to a commit, writes twelve reports (overview, capabilities, interfaces, architecture, domain logic, data, code tour, failures, delivery, risks, contributors, gaps), and renders them to `<home>/<repo-name>/` as one self-contained HTML page. Version 0.5.0 draws the new card layout; writing dossiers in that layout arrives in a later version. Version 0.6.0 adds `doctor`, `clean`, a clean working copy for every build, a run record (`build.json`) and the "How this dossier was made" card.
+`build` pins the dossier to a commit, writes twelve reports (overview, capabilities, interfaces, architecture, domain logic, data, code tour, failures, delivery, risks, contributors, gaps), and renders them to `<home>/<repo-name>/` as one self-contained HTML page. Version 0.5.0 draws the new card layout; writing dossiers in that layout arrives in a later version. Version 0.6.0 adds `doctor`, `clean`, a clean working copy for every build, a run record (`build.json`) and the "How this dossier was made" card. Version 0.7.0 extracts Python entry points, imports, inputs and outputs, data models and tests with tools, writes the reading guide, entry points, components, interactions, inputs and outputs, data model, behaviour, conventions and build reports from them, and checks that every tool finding is accounted for.
 
 ## Updating a dossier
 

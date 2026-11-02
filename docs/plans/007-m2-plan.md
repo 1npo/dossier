@@ -901,7 +901,7 @@ Independent tasks: M2-21, M2-22 and M2-23 are independent of each other. M2-24 n
 
 ### M2-27. SKILL.md, README, rules README
 
-- [ ] **Goal.** `/dossier build` works again for Python repositories.
+- [x] **Goal.** `/dossier build` works again for Python repositories.
 - **Files.** `SKILL.md`, `README.md`, `rules/README.md`, `scripts/dossier.py` (module docstring line for `candidates`, if not already there).
 - **Steps.** SKILL.md: remove the interim notice; step 5 lists the D11 order and says reports 10 and 13 are not written in this version; step 3 adds "Run `DOSSIER candidates <repo> --report <id>` before writing each report"; step 6 says render errors starting `V4:` or `V5:` are fixed in the reports (never with `--allow-errors`); the `description` front matter names the new reports in plain words (entry points, components, interactions, inputs and outputs, data, behaviour and tests, conventions, build and run, risks). README: one sentence after the 0.6.0 sentence: "Version 0.7.0 extracts Python entry points, imports, inputs and outputs, data models and tests with tools, writes the reading guide, entry points, components, interactions, inputs and outputs, data model, behaviour, conventions and build reports from them, and checks that every tool finding is accounted for." (Follow `docs-readme`; no other README change, that is M6.) `rules/README.md`: say the rules now exist and point at the test command.
 - **Done-check.** `grep -n "cannot yet write" SKILL.md` prints nothing; `grep -n "candidates" SKILL.md` shows the new lines; full suite passes.
