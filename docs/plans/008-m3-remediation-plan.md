@@ -442,7 +442,7 @@ Read first: R2, R3, R8 to R14, R19, section 3.4 and decisions D8, D9, D13, D14.
   - Tests first in `tests/unit/scripts/test_checks_v5.py`: (a) a `data.entities` row with `cand: ["mdg-…"]` is an error naming each member; (b) a row with two `md-` ids is an error; (c) a row with one `md-` id whose Fields cell omits a field is an error listing it; (d) an `entry.catalog` row holding two `ep-` ids with the same `path` passes, with different paths fails; (e) an `io.inputs` row with an `iog-` group id still passes. Run them against `LIVE/reports/data.json` (copied) to show they now fail with 25 or more errors; record the count in the commit body.
   - Verify: `pytest tests/unit/scripts/test_checks_v5.py -q`.
   - Commit: `fix(dossier): require one row per entity and entry point, with every field`.
-- [ ] **F2-4. Every gathered environment variable reaches Inputs; lift the env-var caps (R13).**
+- [x] **F2-4. Every gathered environment variable reaches Inputs; lift the env-var caps (R13).**
   - Files: `scripts/checks.py` (new `v5_env(reports, facts)`: every name in `facts["env_vars"]` appears in a cell of `io.inputs`, else error `V5: Inputs does not list the environment variable NAME (found in [[path:line]]).`), `scripts/gather.py:902` and `:1186` (remove `[:60]` and `[:300]`).
   - Tests first: `test_checks_v5.py` with facts `CANNALERTS_SKIP_AYR` and an `io.inputs` table without it gives the error; `test_gather.py` with 70 env reads in one file returns 70 names.
   - Block E must print `OK` (report 02 does not draw env vars).

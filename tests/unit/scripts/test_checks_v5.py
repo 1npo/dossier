@@ -172,3 +172,34 @@ class TestV5OneRowPerItem:
         errors = self.run(card("io.inputs", [row("env", "x", cand=["iog-1"])]), extract=calls)
 
         assert errors == []
+
+
+FACTS = {"env_vars": [{"name": "APP_HOME", "count": 2, "first": {"path": "src/config.py", "line": 58}},
+                      {"name": "APP_SKIP", "count": 1, "first": {"path": "tests/live/test_x.py", "line": 26}}]}
+
+
+class TestV5Env:
+    def inputs(self, *cells):
+        return reports(card("io.inputs", [row(*cells)]))
+
+    def test_an_environment_variable_missing_from_inputs_is_an_error_with_its_place(self):
+        errors = checks.v5_env(self.inputs("Environment variable", "`APP_HOME` sets the folder"), FACTS)
+
+        assert errors == ["V5: Inputs does not list the environment variable APP_SKIP (found in [[tests/live/test_x.py:26]])."]
+
+    def test_every_variable_listed_is_no_error(self):
+        assert checks.v5_env(self.inputs("env", "APP_HOME", "APP_SKIP"), FACTS) == []
+
+    def test_a_name_inside_a_longer_name_does_not_count(self):
+        errors = checks.v5_env(self.inputs("env", "APP_HOME_DIR", "APP_SKIP"), FACTS)
+
+        assert [e.split("variable ")[1].split(" ")[0] for e in errors] == ["APP_HOME"]
+
+    def test_without_an_inputs_table_nothing_is_checked(self):
+        assert checks.v5_env(reports({"card": "io.inputs", "na": "none", "cite": ["a.py"]}), FACTS) == []
+        assert checks.v5_env({}, FACTS) == []
+
+    def test_validate_includes_it(self):
+        res = checks.validate(self.inputs("env", "APP_HOME"), {}, None, FACTS)
+
+        assert any("APP_SKIP" in e for e in res["errors"])

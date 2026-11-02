@@ -89,6 +89,22 @@ def one_row_per_item(reports: dict, extract: dict, titles: dict) -> list:
     return errors
 
 
+def v5_env(reports: dict, facts: dict) -> list:
+    """Every environment variable the gatherer found is named in a cell of the Inputs table."""
+    entry = _entry(reports, "io.inputs")
+    if not entry or "blocks" not in entry:  # missing, na or pending: V6 reports it
+        return []
+    text = " ".join(str(c) for node in _nodes(entry) for c in node.get("cells") or [])
+    title = candidates.card_titles().get("io.inputs", "Inputs")
+    out = []
+    for var in (facts or {}).get("env_vars") or []:
+        if not _word_in(var["name"], text):
+            first = var.get("first") or {}
+            where = f" (found in [[{first['path']}:{first['line']}]])" if first.get("path") and first.get("line") else ""
+            out.append(f"V5: {title} does not list the environment variable {var['name']}{where}.")
+    return out
+
+
 def v5(reports: dict, extract: dict) -> tuple[list, list, list, dict]:
     """Every candidate in entry_points, io_candidates and entity models is kept, merged or dismissed (D3)."""
     errors, warnings, gaps = [], [], []
@@ -313,6 +329,12 @@ def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None)
     result["warnings"] += w
     result["gaps"] += g
     result["counts"].update(c)
+    try:
+        env_errors = v5_env(reports, facts or {})
+    except (AttributeError, TypeError, KeyError):
+        env_errors = []
+    result["errors"] += env_errors
+    result["counts"]["v5_env"] = len(env_errors)
     tree = None
     try:
         tree = cites.tree()[0] if cites else None
