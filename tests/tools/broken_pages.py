@@ -24,6 +24,12 @@ def conflict_css(html: str) -> str:
     return html[:at] + CONFLICT + html[at:]
 
 
+def km_row_taller(html: str) -> str:
+    """One CSS rule that report 02's knowledge map uses is changed."""
+    at = html.index("</style>", html.index("<style"))
+    return html[:at] + "\n.km-row { height: 40px }\n" + html[at:]
+
+
 def no_js_sentinel(html: str) -> str:
     if SENTINEL_JS not in html:
         raise ValueError("the page has no script sentinel to remove")
@@ -159,7 +165,7 @@ def inject_diagrams(html: str, diagrams: list) -> str:
     return html[:first.end()] + blocks + html[first.end():]
 
 
-MUTATIONS = {"wide-element": wide_element, "icon-unsized": icon_unsized, "tiny-diagram": tiny_diagram, "flow-no-notes": flow_no_notes,
+MUTATIONS = {"km-row-taller": km_row_taller, "wide-element": wide_element, "icon-unsized": icon_unsized, "tiny-diagram": tiny_diagram, "flow-no-notes": flow_no_notes,
              "overlap": overlap, "table-hidden": table_hidden, "drop-row": drop_row, "drop-column": drop_column, "table-as-text": table_as_text, "entry-no-kv": entry_no_kv,
              "drop-entry": drop_entry, "drop-er-field": drop_er_field, "conflict-css": conflict_css, "no-js-sentinel": no_js_sentinel, "big-diagrams": big_diagrams, "wide-tables": wide_tables}
 

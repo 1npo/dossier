@@ -494,7 +494,7 @@ Read first: R20 to R25, section 3.6 and decisions D10, D11, D12, D15. Also load 
   - Also: the module docstring of `check_page.py` lists every check (it is what SKILL.md quotes).
   - Verify: `DOSSIER_SLOW=1 … pytest tests/integration/scripts/test_check_page_slow.py -q`; then `check_page.py` on the author's original page (copy `LIVE/dossier-cannalerts.html` to scratch) exits 1 with the stylesheet line and no traceback; record the output in Results.
   - Commit: `feat(dossier): check page layout and diagram readability in the browser (V12)`.
-- [ ] **F3-3. Report 02 visual golden (R22; D12).**
+- [x] **F3-3. Report 02 visual golden (R22; D12).**
   - Files: new `tests/tools/golden02.py`; new `tests/fixtures/golden02/README.md`; `.gitignore` entry for `tests/fixtures/golden02/*.png`; new slow test `tests/integration/scripts/test_golden02_slow.py` (skips with a clear reason when the baselines are absent).
   - Make the baselines once: `git -C /home/nick/dev/projects/encamp worktree add --detach $SCR/wt-pre fc916d6`; copy `FIX` to `$SCR/pre/home/encamp`; in the worktree's skill folder run `DOSSIER_HOME=$SCR/pre/home python3 scripts/dossier.py render /home/nick/dev/projects/encamp --allow-errors` (the fixture is in the pre-M0 layout already, so no `migrate`); run `golden02.py --write-baseline $SCR/pre/home/encamp/dossier-encamp.html tests/fixtures/golden02/`; remove the worktree with `git worktree remove --force`. Record the commands in the README.
   - Tests: the current render of `FIX` (block E's page) matches; `mutate(page, "conflict-css")` does not; a page with one CSS rule of report 02 changed (`.km-row { height: 40px }` appended) does not.

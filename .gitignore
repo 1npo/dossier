@@ -1,3 +1,4 @@
 # Frozen copy of the encamp dossier (9 MB), the test fixture for milestone M0 (docs/plans/005-m0-plan.md).
 # Kept out of git; delete the folder once M2 no longer needs it.
 tests/fixtures/encamp-m0/
+tests/fixtures/golden02/*.png
