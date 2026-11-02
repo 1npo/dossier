@@ -1,0 +1,76 @@
+rules:
+  - id: dossier.python.resilience.retry
+    message: Tries again after a failure
+    languages: [python]
+    severity: INFO
+    metadata: {category: retry}
+    pattern-either:
+      - pattern: |
+          @retry(...)
+          def $F(...): ...
+      - pattern: |
+          @retry
+          def $F(...): ...
+      - pattern: |
+          @tenacity.retry(...)
+          def $F(...): ...
+      - pattern: |
+          @backoff.on_exception(...)
+          def $F(...): ...
+      - pattern: |
+          @backoff.on_predicate(...)
+          def $F(...): ...
+      - pattern: Retry(...)
+
+  - id: dossier.python.resilience.timeout
+    message: Sets a time limit on a call
+    languages: [python]
+    severity: INFO
+    metadata: {category: timeout}
+    pattern: $F(..., timeout=$T, ...)
+
+  - id: dossier.python.resilience.catch-all
+    message: Catches every kind of error
+    languages: [python]
+    severity: INFO
+    metadata: {category: catch-all}
+    pattern-either:
+      - pattern: |
+          try:
+              ...
+          except:
+              ...
+      - pattern: |
+          try:
+              ...
+          except Exception:
+              ...
+      - pattern: |
+          try:
+              ...
+          except Exception as $E:
+              ...
+      - pattern: |
+          try:
+              ...
+          except BaseException:
+              ...
+      - pattern: |
+          try:
+              ...
+          except BaseException as $E:
+              ...
+
+  - id: dossier.python.resilience.transaction
+    message: Groups database changes so they succeed or fail together
+    languages: [python]
+    severity: INFO
+    metadata: {category: transaction}
+    pattern-either:
+      - pattern: |
+          with $X.begin():
+              ...
+      - pattern: |
+          with transaction.atomic():
+              ...
+      - pattern: $C.rollback()

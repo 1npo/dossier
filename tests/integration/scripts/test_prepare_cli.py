@@ -67,7 +67,9 @@ class TestPrepareRuns:
         state = json.loads((world.out / "state.json").read_text())
         assert state["restore"]["answer"] == "no"
         assert [s[0] for s in steps(build_of(world))] == ["pin", "tools", "copy", "copy", "extract", "measure"]
-        assert payload["checkout"]["verified"] and payload["extract"]["status"] == "skipped"
+        assert payload["checkout"]["verified"] and payload["extract"]["status"] == "ok"
+        extract = next(r for r in build_of(world)["records"] if r["step"] == "extract")
+        assert [a["name"] for a in extract["details"]["adapters"]] == ["python", "repo"]
 
     def test_stored_no_is_used_next_time(self, world):
         world.prepare("--ref", "main", "--allow-missing", "--restore", "no")

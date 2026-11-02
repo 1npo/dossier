@@ -12,6 +12,8 @@
   dossier.py prepare [REPO] [--ref REF] [--chunk-tokens N] [--full] [--allow-missing] [--no-restore] [--allow-ref] [--submodules] [--restore yes|no]
                                                               check tools, make a clean copy, install locked dependencies if allowed, measure the repo, write facts, a reading plan and an update plan
   dossier.py render  [REPO] [--partial] [--allow-errors] [--readers N]      validate the reports and write the HTML
+  dossier.py candidates [REPO] --report ID [--open] [--catalog FILE] [--json]
+                                                              list the tool findings a report must keep, merge or dismiss (--open: only the undecided ones)
   dossier.py correct [REPO] ...                               record a user correction
   dossier.py confirm [REPO] [IDS] ...                         list open items, or confirm / answer / dispute them
   dossier.py migrate [REPO] [--dry-run]                       one-off: convert an old-layout dossier (used for the M0 check)
@@ -31,6 +33,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import buildlog  # noqa: E402
+import candidates  # noqa: E402
+import checks  # noqa: E402
+import components  # noqa: E402
 import config  # noqa: E402
 import gather  # noqa: E402
 import incremental  # noqa: E402
@@ -163,10 +168,11 @@ def cmd_clean(a):
     print(f"Removed the working area {area}. The dossier in {out} was not touched." if removed else f"Nothing to clean for {name}.")
 
 
-def update_plan(top, out, state, facts, prev_version, full):
+def update_plan(top, out, state, facts, prev_version, full, digests=None):
     """Which reports an update must rewrite. Shifts the line numbers of citations the last commits did not touch."""
     sha = facts["repo"]["sha"]
-    expected = [rid for rid, _, w in render.REPORTS if w]
+    authored = [rid for rid, _, w in render.REPORTS if w]
+    expected = incremental.expected_reports(authored, {rid for rid in authored if (out / "reports" / f"{rid}.json").exists()}, render.OPTIONAL_REPORTS)
     paths = {rid: out / "reports" / f"{rid}.json" for rid in expected}
     reports = {rid: load(p) for rid, p in paths.items() if p.exists()}
     d, last, pending = facts["delta"], state.get("last_sha"), state.get("pending_update")
@@ -203,7 +209,8 @@ def update_plan(top, out, state, facts, prev_version, full):
             return incremental.parse_hunks(gather.Repo(top).git("diff", "-U0", "--no-renames", last, sha, "--", path))
         deps_changed = bool((d or {}).get("dependencies_added") or (d or {}).get("dependencies_removed"))
         res = incremental.plan(reports, expected, changed, hunks_of, deps_changed, corrections,
-                               (d or {}).get("commits_added", 0), allow_shift=not pending)
+                               (d or {}).get("commits_added", 0), allow_shift=not pending,
+                               digest_changed=frozenset(rid for rid, dg in (digests or {}).items() if rid in (state.get("extract_digests") or {}) and state["extract_digests"][rid] != dg))
         stale, shifts = res["stale"], res["shifts"]
         for rid, moves in shifts.items():
             save(paths[rid], incremental.apply_shifts(reports[rid], moves))
@@ -257,7 +264,7 @@ def cmd_prepare(a):
                 raise stages.PrepareError("The ref moved while prepare was running. Run it again.")
             if state.get("last_sha") and state["last_sha"] != sha:
                 facts["delta"] = gather.delta(top, state["last_sha"], sha, state.get("snapshot"), facts)
-            plan = update_plan(top, out, state, facts, prev_version, a.full)
+            plan = update_plan(top, out, state, facts, prev_version, a.full, candidates.digests(candidates.load(out)))
             cached = 0
             for c in chunks["chunks"]:
                 c["cached"] = (out / "notes" / f"{c['fingerprint']}.json").exists()
@@ -331,6 +338,7 @@ def cmd_render(a):
     facts["file_activity"] = load(out / "activity.json")
     facts["knowledge"] = load(out / "knowledge.json")
     facts["dependencies"] = load(out / "dependencies.json")
+    facts["file_lines"] = components.chunk_lines(load(out / "chunks.json", {}))
     state = load_state(out)
     reports = {}
     for rid, _, authored in render.REPORTS:
@@ -340,6 +348,12 @@ def cmd_render(a):
     build = buildlog.load(out)          # None for a dossier made before 0.6.0: no records are written then
     build_path = out / buildlog.FILE
     errors, warnings = render.validate(reports, facts, cites, a.partial)
+    extract = candidates.load(out)
+    res = checks.validate(reports, extract, cites, facts)
+    errors += res["errors"]
+    warnings += res["warnings"]
+    for i in res.get("info", []):
+        print(f"info: {i}")
     for w in warnings:
         print(f"warning: {w}")
     for e in errors:
@@ -348,13 +362,13 @@ def cmd_render(a):
     if build:
         buildlog.append(build_path, process.render_records(
             build, reports=reports, readers=None, v_errors=len(errors), cites_checked=len(cites.status),
-            cites_unresolved=unresolved, gap_counts={}, )[0])
+            cites_unresolved=unresolved, gap_counts={}, check_counts=res["counts"])[0])
     if errors and not a.allow_errors:
         print(f"\n{len(errors)} error(s). Fix the report files and run render again.")
         sys.exit(1)
 
     sha = facts["repo"]["sha"]
-    coverage = process.coverage_items(build)
+    coverage = checks.gap_extras(build, reports, extract, cites, facts, res)
     items = render.collect_gaps(reports, coverage)
     resolve.sync(state, items)
     resolve.apply(items, state)       # decisions you made earlier apply to every build
@@ -372,7 +386,7 @@ def cmd_render(a):
         history.append(entry)
     if build:
         for rec in process.render_records(build, reports=reports, readers=a.readers, v_errors=len(errors),
-                                          cites_checked=len(cites.status), cites_unresolved=unresolved, gap_counts=counts)[1:]:
+                                          cites_checked=len(cites.status), cites_unresolved=unresolved, gap_counts=counts, check_counts=res["counts"])[1:]:
             buildlog.append(build_path, rec)
         pending = {"step": "render", "part": "render", "by": "render", "status": "ok"}
         shown = buildlog.load(build_path)
@@ -387,12 +401,13 @@ def cmd_render(a):
     if v_errors and not a.allow_errors:
         print(f"\n{len(v_errors)} error(s). Run prepare so build.json is complete, then render again.")
         sys.exit(1)
-    page, _ = render.render_html(facts, reports, state, history, VERSION, cites, build=shown, coverage=coverage)
+    page, _ = render.render_html(facts, reports, state, history, VERSION, cites, build=shown, coverage=coverage, extract=extract, checks=res)
     if build:
         buildlog.append(build_path, pending)
     name_out = f"dossier-{name}.html"
     (out / name_out).write_text(page, encoding="utf-8")
     state.update(history=history, last_sha=sha, snapshot=gather.snapshot(facts))
+    state["extract_digests"] = {rid: dg for rid, dg in candidates.digests(extract).items() if rid in reports}
     state.pop("pending_update", None)
     for c in state.get("corrections", []):
         if c.get("status") != "applied" and a.apply_corrections:
@@ -404,6 +419,27 @@ def cmd_render(a):
                       "unresolved_citations": sum(1 for s in cites.status.values() if not s["ok"]),
                       "code_viewer": cites.view_counts(),
                       "tracker": counts, "resolved_by_user": len(gaps) - sum(1 for g in gaps if render.is_open(g)), "warnings": len(warnings)}, indent=1))
+
+
+def cmd_candidates(a):
+    top = toplevel(a.repo)
+    out, _, _ = out_dir(top)
+    ids = [rid for rid, _, authored in render.REPORTS if authored]
+    if a.report not in ids:
+        die(f"'{a.report}' is not a report Claude writes. Use one of: {', '.join(ids)}.")
+    extract = candidates.load(out)
+    if not extract:
+        die("No extractor output found. Run prepare first.")
+    facts = load(out / "facts.json", {})
+    facts["file_lines"] = components.chunk_lines(load(out / "chunks.json", {}))
+    reports = {rid: load(out / "reports" / f"{rid}.json") for rid in ids if (out / "reports" / f"{rid}.json").exists()}
+    catalog = load(a.catalog) if a.catalog else None
+    sha = facts.get("repo", {}).get("sha")
+    tree = stages.tree_at(top, sha) if sha else None
+    if a.json:
+        print(json.dumps(candidates.report_data(a.report, extract, reports, facts, only_open=a.open, catalog=catalog, tree=tree), indent=1))
+    else:
+        sys.stdout.write(candidates.text(a.report, extract, reports, facts, only_open=a.open, catalog=catalog, tree=tree))
 
 
 def cmd_migrate(a):
@@ -495,7 +531,9 @@ def cmd_confirm(a):
     reports = {rid: load(out / "reports" / f"{rid}.json") for rid, _, w in render.REPORTS if w and (out / "reports" / f"{rid}.json").exists()}
     if not reports:
         die("No reports found. Build the dossier first.")
-    items = render.collect_gaps(reports, process.coverage_items(buildlog.load(out)))
+    facts = load(out / "facts.json")
+    cites = render.Cites(facts) if facts else None
+    items = render.collect_gaps(reports, checks.gap_extras(buildlog.load(out), reports, candidates.load(out), cites, facts))
     resolve.sync(state, items)
     save_state(out, state)                      # so the IDs shown here stay the same later
     res, tracked = state["resolutions"], {t["id"]: t for t in state["tracked"]}
@@ -587,6 +625,13 @@ def main():
     p.add_argument("--allow-errors", action="store_true", help="write the HTML even if validation fails")
     p.add_argument("--apply-corrections", action="store_true", help="mark pending corrections as applied")
     p.set_defaults(fn=cmd_render)
+    p = sub.add_parser("candidates")
+    p.add_argument("repo", nargs="?")
+    p.add_argument("--report", required=True, metavar="ID", help="the report to list findings for, such as io or components")
+    p.add_argument("--open", action="store_true", help="only findings no report has decided; prints nothing when there are none")
+    p.add_argument("--catalog", metavar="FILE", help="a drafted reports/components.json: show its sizes, edges and files in no component")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(fn=cmd_candidates)
     p = sub.add_parser("migrate")
     p.add_argument("repo", nargs="?")
     p.add_argument("--dry-run", action="store_true", help="show what would change and write nothing")

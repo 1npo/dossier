@@ -86,8 +86,14 @@ def _ok_line(step, build):
         b = buildlog.latest(build, "check", "browser")
         browser = (f"Browser check at {_clock(b.get('started'))} UTC: {(b.get('counts') or {}).get('problems', 0)} problems."
                    if b else "Browser check: not run yet.")
+        found = (f" Tool findings: {rc.get('v5_candidates', 0)} found, {rc.get('v5_open', 0)} without a decision. "
+                 f"Components: {rc.get('v4', 0)} problems.") if "v5_candidates" in rc else ""
+        if "v2" in rc:
+            found += f" Names: {rc['v2']} not found in the code they cite."
+        if "v3_checked" in rc:
+            found += f" Diagram arrows: {rc.get('v3', 0)} of {rc['v3_checked']} have no import or call behind them."
         return (f"{rc.get('citations', 0)} citations checked, {rc.get('unresolved', 0)} unresolved; "
-                f"layout check: {rc.get('errors', 0)} errors. {browser}")
+                f"layout check: {rc.get('errors', 0)} errors.{found} {browser}")
     if step == "gaps":
         return (f"{sum(c.values())} open items: {c.get('unknown', 0)} unknown, {c.get('inference', 0)} inferred, "
                 f"{c.get('assumption', 0)} assumed, {c.get('coverage', 0)} coverage.")
@@ -137,13 +143,14 @@ def process_body(build) -> str:
 # ------------------------------------------------------------------ records render adds
 
 
-def render_records(build, *, reports, readers, v_errors, cites_checked, cites_unresolved, gap_counts) -> list[dict]:
+def render_records(build, *, reports, readers, v_errors, cites_checked, cites_unresolved, gap_counts, check_counts=None) -> list[dict]:
     """The read, write, check and gaps records for this render. `check` comes first; it is part 'render'."""
     m = buildlog.latest(build, "measure") or {}
     d, c = m.get("details") or {}, m.get("counts") or {}
     out = [{"step": "check", "part": "render", "by": "render", "status": "failed" if v_errors else "ok",
             "reason": f"{v_errors} errors in the reports." if v_errors else None,
-            "counts": {"citations": cites_checked, "unresolved": cites_unresolved, "errors": v_errors}}]
+            "counts": {"citations": cites_checked, "unresolved": cites_unresolved, "errors": v_errors,
+                       **{k: v for k, v in (check_counts or {}).items() if isinstance(v, int)}}}]
     if d.get("plan_mode") == "render_only":
         for step in ("read", "write"):
             out.append({"step": step, "by": "render", "status": "reused", "reason": "Nothing changed since the previous build."})
@@ -226,6 +233,41 @@ def coverage_items(build) -> list[dict]:
         if r["status"] == "failed" and (step, part) not in {("tools", None), ("copy", "checkout"), ("copy", "restore"), ("extract", None)}:
             items.append(_item(f"Step '{step}' failed: {r['reason']}", "Fix the problem and build again."))
     return items
+
+
+def partial_cards(build, tools=None) -> dict:
+    """Card id -> why it was made without one of its tools (D7). Empty without a build record."""
+    if not build:
+        return {}
+    import toolcheck  # late: toolcheck does not import this module, but keeps process light for the page
+
+    tools = tools or toolcheck.load_tools()
+    mine = {(r["step"], r.get("part")): r for r in build["records"] if r.get("by") == "prepare"}
+    seen = ((mine.get(("tools", None)) or {}).get("details") or {})
+    in_scope = {t["id"] for t in seen.get("self_installing", [])} or {t["id"] for t in tools["tools"]}
+    cards_of = {t["id"]: t.get("cards") or [] for t in tools["tools"] if t["id"] in in_scope and t.get("cards")}
+    absent: dict = {}
+
+    def add(tool, why):
+        if tool in cards_of:
+            absent.setdefault(tool, why.rstrip("."))
+
+    for tool in seen.get("missing", []):
+        add(tool, "it is not installed")
+    ex = mine.get(("extract", None))
+    if ex and ex["status"] in ("skipped", "failed"):
+        for tool in cards_of:
+            add(tool, ex.get("reason") or "the extractors did not run")
+    elif ex:
+        for adapter in (ex.get("details") or {}).get("adapters", []):
+            for tool, st in sorted((adapter.get("tools") or {}).items()):
+                if st.get("status") in ("failed", "skipped"):
+                    add(tool, st.get("reason") or "it did not run")
+    reasons: dict = {}
+    for tool, why in sorted(absent.items()):
+        for card in cards_of[tool]:
+            reasons.setdefault(card, []).append(f"Made without {tool}: {why}.")
+    return {card: " ".join(r) for card, r in reasons.items()}
 
 
 # ------------------------------------------------------------------ V9 and V10

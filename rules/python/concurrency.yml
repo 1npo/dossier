@@ -1,0 +1,53 @@
+rules:
+  - id: dossier.python.concurrency.thread
+    message: Starts threads
+    languages: [python]
+    severity: INFO
+    metadata: {category: thread}
+    pattern-either:
+      - pattern: threading.Thread(...)
+      - pattern: ThreadPoolExecutor(...)
+      - pattern: concurrent.futures.ThreadPoolExecutor(...)
+
+  - id: dossier.python.concurrency.process-pool
+    message: Starts other processes
+    languages: [python]
+    severity: INFO
+    metadata: {category: process-pool}
+    pattern-either:
+      - pattern: ProcessPoolExecutor(...)
+      - pattern: concurrent.futures.ProcessPoolExecutor(...)
+      - pattern: multiprocessing.Process(...)
+      - pattern: multiprocessing.Pool(...)
+
+  - id: dossier.python.concurrency.async
+    message: Runs asynchronous tasks
+    languages: [python]
+    severity: INFO
+    metadata: {category: async}
+    pattern-either:
+      - pattern: asyncio.run(...)
+      - pattern: asyncio.create_task(...)
+      - pattern: asyncio.gather(...)
+      - pattern: $LOOP.run_until_complete(...)
+
+  - id: dossier.python.concurrency.lock
+    message: Takes a lock or limits parallel work
+    languages: [python]
+    severity: INFO
+    metadata: {category: lock}
+    pattern-either:
+      - pattern: threading.Lock()
+      - pattern: threading.RLock()
+      - pattern: asyncio.Lock()
+      - pattern: asyncio.Semaphore(...)
+
+  - id: dossier.python.concurrency.queue
+    message: Passes work through a queue
+    languages: [python]
+    severity: INFO
+    metadata: {category: queue}
+    pattern-either:
+      - pattern: queue.Queue(...)
+      - pattern: asyncio.Queue(...)
+      - pattern: multiprocessing.Queue(...)

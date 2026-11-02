@@ -1,0 +1,94 @@
+rules:
+  - id: dossier.python.entry.main-guard
+    message: Code that runs when the file is run as a script
+    languages: [python]
+    severity: INFO
+    metadata: {category: entry, kind: main-guard}
+    pattern: |
+      if __name__ == "__main__":
+          ...
+
+  - id: dossier.python.entry.click-command
+    message: A command-line command defined with click or typer
+    languages: [python]
+    severity: INFO
+    metadata: {category: entry, kind: cli-command, detail: 'def\s+(\w+)'}
+    pattern-either:
+      - pattern: |
+          @click.command(...)
+          def $F(...): ...
+      - pattern: |
+          @click.command
+          def $F(...): ...
+      - pattern: |
+          @click.group(...)
+          def $F(...): ...
+      - pattern: |
+          @click.group
+          def $F(...): ...
+      - pattern: |
+          @$G.command(...)
+          def $F(...): ...
+      - pattern: |
+          @$G.group(...)
+          def $F(...): ...
+
+  - id: dossier.python.entry.http-route
+    message: A web route
+    languages: [python]
+    severity: INFO
+    metadata: {category: entry, kind: http-route, detail: '@\w+\.\w+\(\s*[rf]?["'']([^"'']*)["'']'}
+    patterns:
+      - pattern-either:
+          - pattern: |
+              @$APP.route($PATH, ...)
+              def $F(...): ...
+          - pattern: |
+              @$APP.$M($PATH, ...)
+              def $F(...): ...
+      - metavariable-regex:
+          metavariable: $M
+          regex: ^(route|get|post|put|patch|delete|websocket)$
+
+  - id: dossier.python.entry.django-url
+    message: A Django URL pattern
+    languages: [python]
+    severity: INFO
+    metadata: {category: entry, kind: http-route, detail: '\(\s*[rf]?["'']([^"'']*)["'']'}
+    patterns:
+      - pattern-inside: |
+          urlpatterns = [...]
+      - pattern-either:
+          - pattern: path($PATH, $VIEW, ...)
+          - pattern: re_path($PATH, $VIEW, ...)
+
+  - id: dossier.python.entry.celery-task
+    message: A background task that a queue worker runs
+    languages: [python]
+    severity: INFO
+    metadata: {category: entry, kind: queue-consumer, detail: 'def\s+(\w+)'}
+    pattern-either:
+      - pattern: |
+          @$APP.task(...)
+          def $F(...): ...
+      - pattern: |
+          @$APP.task
+          def $F(...): ...
+      - pattern: |
+          @shared_task(...)
+          def $F(...): ...
+      - pattern: |
+          @shared_task
+          def $F(...): ...
+
+  - id: dossier.python.entry.scheduled-job
+    message: A job that runs on a schedule
+    languages: [python]
+    severity: INFO
+    metadata: {category: entry, kind: scheduled-job}
+    pattern-either:
+      - pattern: $S.add_job(...)
+      - pattern: schedule.every(...)
+      - pattern: |
+          @$S.scheduled_job(...)
+          def $F(...): ...

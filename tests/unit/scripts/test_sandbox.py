@@ -50,6 +50,11 @@ class TestBuildEnv:
 
         assert Path(env["UV_CACHE_DIR"]).is_relative_to(area.parent / ".dossier-tools")
 
+    def test_tool_profile_shares_the_npm_cache(self, area):
+        env = env_for(area, profile="tool")
+
+        assert Path(env["npm_config_cache"]) == area.parent / ".dossier-tools" / "npm"
+
     def test_registry_name_passes_only_when_listed(self, area):
         config.update(registry_auth={"python": ["MY_INDEX_TOKEN"]})
         parent = {"MY_INDEX_TOKEN": "tok"}

@@ -4,6 +4,7 @@ import subprocess
 
 import pytest
 
+import candidates
 import toolcheck
 
 TOOLS = toolcheck.load_tools()
@@ -132,3 +133,15 @@ class TestFormatText:
         report = toolcheck.preflight(["Python"], path=fake_bin(tmp_path, **ALL))
 
         assert toolcheck.format_text(report).endswith("Nothing is missing.")
+
+
+class TestToolCards:
+    def test_every_card_named_in_tools_json_exists_in_the_schemas(self):
+        known = candidates.card_titles()
+
+        unknown = [(t["id"], c) for t in TOOLS["tools"] for c in t["cards"] if c not in known]
+
+        assert unknown == []
+
+    def test_every_tool_declares_its_cards(self):
+        assert all(isinstance(t.get("cards"), list) for t in TOOLS["tools"])

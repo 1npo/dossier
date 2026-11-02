@@ -121,6 +121,23 @@ class TestPlan:
         assert "delivery" in res["stale"]
 
 
+class TestExpectedReports:
+    def test_an_optional_report_nobody_wrote_is_not_expected(self):
+        got = incremental.expected_reports(["entry", "change", "gaps"], {"entry", "gaps"}, ("change", "contributors"))
+
+        assert got == ["entry", "gaps"]
+
+    def test_an_optional_report_that_exists_is_expected(self):
+        got = incremental.expected_reports(["entry", "change"], {"entry", "change"}, ("change",))
+
+        assert got == ["entry", "change"]
+
+    def test_a_required_report_is_expected_even_when_missing(self):
+        got = incremental.expected_reports(["entry", "io"], {"entry"}, ("change",))
+
+        assert got == ["entry", "io"]
+
+
 class TestApplyShifts:
     def test_rewrites_cite_lists_and_inline_citations_but_not_diagrams(self):
         rep = {"blocks": [{"type": "text", "text": "See [[a.py:10-20, b.py:3|label]].", "cite": ["a.py:10-20"]},
@@ -138,3 +155,22 @@ def test_cites_in_finds_paths_inside_cards():
     node = {"cards": [{"card": "x", "na": "none", "cite": ["a.py:1"]},
                       {"card": "y", "entries": [{"component": "c", "fields": {"purpose": "see [[b.py:2]]"}, "cite": ["c.py"]}]}]}
     assert set(incremental.cites_in(node)) == {"a.py:1", "b.py:2", "c.py"}
+
+
+class TestDigestChanged:
+    def test_a_changed_digest_makes_the_report_stale_with_the_fixed_reason(self):
+        res = incremental.plan({"io": report("src/db.py:1-5"), "data": report("src/db.py:1-5")}, ["io", "data"], {}, hunks_of({}), False, {}, 0,
+                               digest_changed=frozenset({"io"}))
+
+        assert res["stale"] == {"io": ["the tool findings it is built from changed"]}
+
+    def test_reports_with_equal_or_unknown_digests_stay_fresh(self):
+        res = incremental.plan({"io": report("src/db.py:1-5")}, ["io"], {}, hunks_of({}), False, {}, 0, digest_changed=frozenset())
+
+        assert res["stale"] == {}
+
+    def test_gaps_follows_a_stale_report(self):
+        res = incremental.plan({"io": report("a.py:1"), "gaps": report("a.py:1")}, ["io", "gaps"], {}, hunks_of({}), False, {}, 0,
+                               digest_changed=frozenset({"io"}))
+
+        assert set(res["stale"]) == {"io", "gaps"}

@@ -64,3 +64,20 @@ class TestDetect:
 
     def test_other_language_gives_nothing(self):
         assert adapters.detect(["Shell"], (A1,)) == []
+
+
+class Wild(adapters.Adapter):
+    name = "wild"
+    languages = ("*",)
+
+
+class TestDetectWildcard:
+    def test_wildcard_adapter_matches_any_language(self):
+        got = adapters.detect(["Shell"], (Wild,))
+
+        assert [type(g) for g in got] == [Wild]
+
+    def test_wildcard_adapter_matches_no_languages(self):
+        got = adapters.detect([], (Wild,))
+
+        assert [type(g) for g in got] == [Wild]

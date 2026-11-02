@@ -17,9 +17,16 @@ def run(make_cites, rep, monkeypatch, rid="entry"):
     return render.validate({rid: rep}, {}, cites, partial=True)
 
 
-def test_valid_report_with_table_and_pending(make_cites, monkeypatch):
+def test_pending_card_is_an_error(make_cites, monkeypatch):
     rep = report([{"card": "entry.catalog", "blocks": [table(CAT, [["cli", "run", "user", "a.py", "n"]])]},
                   {"card": "entry.startup", "pending": True}])
+    errs, _ = run(make_cites, rep, monkeypatch)
+    assert errs == ["V6: entry: card entry.startup: pending is not allowed"]
+
+
+def test_valid_report_with_table_and_na(make_cites, monkeypatch):
+    rep = report([{"card": "entry.catalog", "blocks": [table(CAT, [["cli", "run", "user", "a.py", "n"]])]},
+                  {"card": "entry.startup", "na": "Nothing starts here.", "cite": ["a.py"]}])
     errs, _ = run(make_cites, rep, monkeypatch)
     assert errs == []
 

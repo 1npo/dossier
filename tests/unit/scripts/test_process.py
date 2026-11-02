@@ -279,3 +279,77 @@ class TestV9:
         got = self.infos(rec("extract", counts={"dropped_unexpected": 25}, details={"unexpected": paths}))
 
         assert got[1].endswith("p19.py, and 5 more (see build.json)") and "p20.py" not in got[1]
+
+
+class TestPartialCards:
+    SELF = [{"id": "grimp"}, {"id": "scip-python"}, {"id": "semgrep"}, {"id": "tree-sitter-language-pack"}, {"id": "vulture"}, {"id": "import-linter"}]
+
+    def tools(self, missing=()):
+        return rec("tools", details={"self_installing": self.SELF, "missing": list(missing), "languages": []})
+
+    def extract(self, status="ok", reason=None, **tools):
+        return rec("extract", status=status, reason=reason, details={"adapters": [{"name": "python", "status": "ok", "tools": tools}]})
+
+    def test_no_build_means_no_badges(self):
+        assert process.partial_cards(None) == {}
+
+    def test_missing_tool_marks_the_cards_that_need_it(self):
+        got = process.partial_cards(build_with(self.tools(["scip-python"]), self.extract()))
+
+        assert {c for c in got} == {"components.catalog", "interactions.flows", "interactions.graph"}
+        assert got["components.catalog"] == "Made without scip-python: it is not installed."
+
+    def test_failed_tool_gives_its_own_reason(self):
+        status = {"grimp": {"status": "failed", "reason": "No module named foo."}}
+
+        got = process.partial_cards(build_with(self.tools(), self.extract(**status)))
+
+        assert got["reading.order"] == "Made without grimp: No module named foo."
+
+    def test_cards_with_two_absent_tools_list_both(self):
+        status = {"grimp": {"status": "failed", "reason": "boom"}, "scip-python": {"status": "skipped", "reason": "Node is missing"}}
+
+        got = process.partial_cards(build_with(self.tools(), self.extract(**status)))
+
+        assert got["interactions.graph"] == "Made without grimp: boom. Made without scip-python: Node is missing."
+
+    def test_skipped_extract_marks_every_card_with_a_tool(self):
+        got = process.partial_cards(build_with(self.tools(), self.extract("skipped", "No extractors exist.")))
+
+        assert got["entry.catalog"] == "Made without semgrep: No extractors exist."
+        assert "change.dead-code" in got and "reading.order" in got
+
+    def test_a_missing_tool_for_another_language_marks_nothing(self):
+        got = process.partial_cards(build_with(self.tools(["dependency-cruiser", "scip-typescript"]), self.extract()))
+
+        assert got == {}
+
+    def test_ok_tools_mark_nothing(self):
+        status = {"grimp": {"status": "ok", "reason": None}}
+
+        assert process.partial_cards(build_with(self.tools(), self.extract(**status))) == {}
+
+
+class TestCheckLine:
+    def line(self, **counts):
+        build = build_with(rec("check", part="render", by="render", counts={"citations": 4, "unresolved": 1, "errors": 0, **counts}))
+        return process.run_line("check", build)
+
+    def test_tool_finding_and_component_counts_are_said_when_present(self):
+        got = self.line(v5_candidates=12, v5_open=3, v4=2)
+
+        assert "Tool findings: 12 found, 3 without a decision. Components: 2 problems." in got
+
+    def test_name_count_is_said_when_present(self):
+        assert "Names: 3 not found in the code they cite." in self.line(v2=3)
+
+    def test_old_records_without_the_counts_read_as_before(self):
+        assert "Tool findings" not in self.line()
+
+    def test_render_records_store_the_counts_on_the_check_record(self):
+        build = build_with(rec("measure", details={"plan_mode": "full"}))
+
+        got = process.render_records(build, reports={}, readers=None, v_errors=0, cites_checked=1, cites_unresolved=0, gap_counts={},
+                                     check_counts={"v5_candidates": 5, "v5_open": 0, "v4": 0, "unbacked": {}})
+
+        assert got[0]["counts"]["v5_candidates"] == 5 and "unbacked" not in got[0]["counts"]

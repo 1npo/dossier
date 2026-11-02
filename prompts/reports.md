@@ -1,107 +1,316 @@
 # Report specifications
 
-Write one file per report to `reports/<id>.json`, following `method.md`. Every report needs `headline`, `summary` and `blocks`, and every block needs a `heading`, because the page builds a contents list from the card names. Aim for the smallest report that fully serves a lead engineer. A short report is fine when the topic is small.
+Write one file per report to `reports/<id>.json`, following `method.md`: `headline`, `summary` and `cards`. Each report below lists its cards in schema order. Write every card marked as written by you, in that order, and leave out the cards that code draws. Reports `change` (10) and `contributors` (13) are not written in this version.
 
-**Executive summaries are short and plain.** Write `summary` as 3 to 5 bullets (`- ` lines), each one sentence of about 20 words or fewer, in everyday words. Lead with the answer. No filler, no restating the headline, no jargon the reader has to look up.
+Before each report, run `DOSSIER candidates <repo> --report <id>`. It lists the tool findings that feed the report, grouped by the card they belong to. After the report, run it again with `--open`; it must print nothing.
 
-The page also shows measured tables from `facts.json` (languages, environment variables, secret scan, code ownership, contributor and area tables). Do not repeat those tables. Refer to them with `[[facts:...]]` and add what only reading the code can tell.
+**Write the reports in this order:** `entry`, `components`, `interactions`, `io`, `data`, `behavior`, `conventions`, `ops`, then `reading` (it needs the entry points and components), then `overview`, `risks` and `gaps`.
 
-## overview
+Aim for the smallest report that fully serves a lead engineer. A short report is fine when the topic is small.
 
-The one-page answer to "what is this?". Summary: what the project is, who it serves, how big and mature it looks, and the three things to know first. Blocks: a list "What to know first"; a table "Technology" (language, frameworks, datastores, build, test, deploy); optional text on maturity and health. Optional `update_note`.
+**Executive summaries are short and plain.** Write `summary` as 3 to 5 bullets (`- ` lines or list items), each one sentence of about 20 words or fewer, in everyday words. Lead with the answer. No filler, no restating the headline, no jargon the reader has to look up.
 
-## capabilities
+The page also shows measured tables from `facts.json` (languages, environment variables, secret scan, code ownership). Do not repeat those tables. Refer to them with `[[facts:...]]` and add what only reading the code can tell.
 
-What the application can do, in user terms. One table with the columns `Capability`, `What it does` and `Status`. Group related items. `Status` is exactly one of Implemented, Partial, Stubbed, Planned, Documented only or Dead code; never put the status at the end of `What it does`. Features seen only in docs, not code, are `inferred` or `unknown`.
+## entry
 
-## interfaces
+Report 04: Entry points. Question: *Where does execution start?*
 
-Where the system meets the world: everything it offers, calls, takes in and sends out. Everything here must come from reading the code, never from file names alone: a file called `main.py` or `api.yaml` is evidence only once you have read it and can say what it does. Cover: interfaces it offers (HTTP routes, CLI commands, library exports, events, scheduled jobs, webhooks); interfaces it calls (external APIs, databases, queues, file systems); inputs (formats, validation, authentication) and outputs (responses, files, messages, logs, metrics). One table per direction, with columns such as Interface, Protocol or format, Inputs, Outputs, Authentication. Add a context diagram if there is more than one external party. Note where authentication and authorization are enforced and where they are not.
+### Entry points (`entry.catalog`)
 
-## architecture
+Every way execution can start. Decide about each finding: console scripts, `__main__` modules, CLI commands, HTTP routes (one row per route group), scheduled jobs, queue consumers, container commands, CI schedules, Makefile targets, systemd units, shebang scripts. `Starts at` names the function or file.
 
-How the system is built, in enough depth that an engineer could find where any change belongs. This is the longest report. Include everything below that applies. When something does not apply (for example a library has no deployed services), say so as `confirmed` with the evidence, rather than leaving it out.
+Shape: a table with columns Kind, Name, Triggered by, Starts at, Notes.
 
-Required diagrams (Mermaid flowcharts in C4 style, see `method.md`):
+Tool findings that arrive here (home card): entry points. Decide about each (see "Tool findings" in `method.md`).
 
-1. **Level 1, system context.** The system as one box, the people and roles who use it, and every external system it talks to. Label an arrow with what flows only when it is not obvious.
-2. **Level 2, containers.** Each separately runnable or deployable part (services, web apps, workers, databases, queues, caches, CLIs, scheduled jobs). Label technology and responsibility on each box, and protocol and purpose on each arrow.
-3. **Level 3, components.** One diagram for each important container (up to about four), showing its modules or components and how they depend on each other.
-4. **Dynamic or deployment view, if the code shows one.** For example how containers are deployed across environments, or how a key collaboration plays out step by step.
+### Startup sequence (`entry.startup`)
 
-Required tables:
+One sequence diagram of the main entry point: configuration load, wiring, readiness. Name each participant after a real module. Follow it with a text block of numbered notes.
 
-- **Containers:** Name, Kind, Technology, Responsibility, Runs as.
-- **Modules and components:** Name (write every file, directory or glob in backticks, for example `scripts/lib`, `scripts/targets/*.sh`), Responsibility, Key public entry points, Depends on, Used by, Approximate size. Cover every top-level module, and go deeper for the important ones.
-- **External dependencies and integrations:** Name, Kind (database, API, queue, cloud service, SaaS, library with a runtime role), Purpose, Direction, Protocol, Authentication, What happens if it is down. Include databases, caches, message brokers, third-party APIs, identity providers, cloud services and file stores. List only major libraries and frameworks separately as "Key libraries" with their role.
-- **Cross-cutting concerns:** how the system handles configuration, authentication and authorization, logging and tracing, error handling, caching, concurrency, feature flags and internationalization, each with where it lives.
+Shape: diagram blocks (at most 1), each optionally followed by one text or list block.
 
-Also write short text on: the main design patterns and decisions you can see (each with evidence), the layering or dependency rules and any violations or cycles (these become risks), and the quality attributes the design favours (for example simplicity, throughput, extensibility). Records of decisions in the repository (ADRs, design docs) should be cited and summarised.
-## domain-logic
+## components
 
-The core business or domain logic of the application: the rules, calculations, decisions and workflows that make this program *this* program, as opposed to plumbing (HTTP, storage, CLI parsing, config). Write it by reading the code that implements those rules. Cover, where they apply:
+Report 05: Components. Question: *What are the main parts, what does each do, and how does it work?*
 
-- **Domain concepts:** the central nouns and what each means in this domain (not the database schema; see `data`), with where each lives.
-- **Rules and decisions:** the business rules, validations, matching or scoring logic, state machines, pricing or eligibility calculations, scheduling or ordering rules, each with the file and lines that implement it and any edge cases the code handles. A table works well: Rule or decision, What it does, Where it is decided, Edge cases or caveats.
-- **Workflows:** the main sequences the domain goes through end to end (for example "a new item is detected, matched against subscriptions, then notified"), with a diagram when there are more than three steps.
-- **Boundaries:** where domain logic is cleanly separated from infrastructure and where it leaks into it (SQL in handlers, rules in templates).
-- **Invariants and assumptions** the code relies on but does not enforce.
+### Component map (`components.map`)
 
-Skip anything that is generic. If the project has no real domain logic (a pure infrastructure or configuration repository, a thin wrapper, a library of utilities), still write the report: set the headline to say so, state it as `confirmed` with the evidence you used, and keep the blocks to that one statement.
+Drawn by code from the tool findings. **Do not write this card:** leave it out of the file.
+
+### Component catalog (`components.catalog`)
+
+One row per component, drafted from the component candidates (see "Components" in `method.md`). `Paths` lists the component's folders, files or globs in backticks. `Depends on`, `Used by` and `Size` come from the measured edges and line counts. List files that belong to no component in the entry's `unassigned` list.
+
+Shape: a table with columns Component, Paths, Responsibility, Public surface, Depends on, Used by, Size.
+
+### Component details (`components.detail`)
+
+One entry for every row of the catalog, with the component's name as the `component` key. A repository with more than 12 components gives this card to one subagent per area.
+
+Shape: `entries`, keyed by `component`, each with the fields: `purpose` (Purpose), `how_it_works` (How it works), `public_surface` (Public surface), `state_owned` (State owned), `key_files` (Key files), `gotchas` (Gotchas).
+
+### Cross-cutting concerns (`components.cross-cutting`)
+
+How the code handles each concern, and where. Keep every fixed row; write that it does not apply as `confirmed`, with evidence, when it does not.
+
+Shape: a table with columns Concern, Approach, Where.
+
+Fixed rows (column Concern): configuration; authentication/authorisation; logging; error handling; caching; validation; i18n; feature flags.
+
+### Extension points (`components.extension-points`)
+
+Where and how a developer plugs something in (registries, base classes, hooks, plugin folders), with an example from the repository. Use `na` with evidence if there is no such mechanism.
+
+Shape: a table with columns Point, How to extend, Example.
+
+## interactions
+
+Report 06: Interactions. Question: *How do the parts talk to each other, and where does state live?*
+
+### Dependency graph (`interactions.graph`)
+
+Drawn by code from the tool findings. **Do not write this card:** leave it out of the file.
+
+### Cycles and layer violations (`interactions.violations`)
+
+Drawn by code from the tool findings. **Do not write this card:** leave it out of the file.
+
+### Key flows (`interactions.flows`)
+
+One sequence diagram for each kind of entry point, each followed by notes, and more wherever a flow teaches something the others do not. Name each participant after a real module or component. `render` checks that every arrow has an import or a call behind it (V3).
+
+Shape: diagram blocks, each optionally followed by one text or list block.
+
+### State ownership (`interactions.state`)
+
+Where state lives: databases, caches, files, module-level variables and globals. Decide about each finding. `Lifetime` says how long it lives (process, request, forever).
+
+Shape: a table with columns State, Held in, Written by, Read by, Lifetime.
+
+Tool findings that arrive here (home card): db-access, global-state, cache. Decide about each (see "Tool findings" in `method.md`).
+
+### Concurrency model (`interactions.concurrency`)
+
+Threads, async code, process pools, workers, queues and locks, and the shared state they touch. Use `na` with evidence if the code is single-threaded and synchronous.
+
+Shape: a table with columns Mechanism, Where, Shared state, Notes.
+
+Tool findings that arrive here (home card): thread, async, process-pool, lock, queue. Decide about each (see "Tool findings" in `method.md`).
+
+## io
+
+Report 07: Inputs and outputs. Question: *What goes in and what comes out?*
+
+### Inputs (`io.inputs`)
+
+Everything the program takes in. Decide about every finding. The fixed categories stay as rows; a category that does not apply is a row whose input is `none`, with evidence. Network routes are one row per route group.
+
+Shape: a table with columns Category, Input, Format, Validation, Where read.
+
+Fixed rows (column Category): CLI arguments; environment variables; config files; files read; stdin; network requests; messages consumed; database reads; scheduled triggers.
+
+Tool findings that arrive here (home card): cli-args, env-var, config-file, file-read, stdin, message-consume. Decide about each (see "Tool findings" in `method.md`).
+
+### Outputs (`io.outputs`)
+
+Everything the program puts out, including exit codes and error responses (the error catalog lives here). Decide about every finding. Keep the fixed categories.
+
+Shape: a table with columns Category, Output, Format, Validation, Where written.
+
+Fixed rows (column Category): stdout/stderr; files written; network responses; outbound calls; messages produced; database writes; logs; metrics; exit codes; error responses.
+
+Tool findings that arrive here (home card): stdout, file-write, outbound-call, message-produce, exit-code, error-response. Decide about each (see "Tool findings" in `method.md`).
+
+### Contracts (`io.contracts`)
+
+Written agreements with other systems: OpenAPI, protobuf, GraphQL and JSON-schema files, public exports, route tables, client SDK use. Consumers outside the repository are `unknown` unless declared.
+
+Shape: a table with columns Contract, Direction, Counterparty, Schema location, Versioning.
 
 ## data
 
-What data the system holds and moves.
+Report 08: Data model. Question: *What data exists, and what is true about it?*
 
-- An `erDiagram` of the main entities from schema, migrations, models or types, with key fields and relationships including cardinality. Split into several diagrams if there are more than about twelve entities, grouped by area.
-- **Data flow diagrams.** Draw one diagram per major flow (for example: user input to storage, read path, background processing, authentication). Keep each to about 6 to 10 nodes: the source, the main processing steps by module or function name, any data store, and the destination. Add one failure or rejection branch where the code has one. Label an arrow only when what moves is not obvious. Put the detail (fields, formats, sensitive data, trust boundaries) in a table beside the diagram, one row per step, rather than in the boxes.
-- A table of entities: Name, Purpose, Key fields, Owner module, Sensitivity.
-- A table of data stores: Store, Technology, What it holds, Retention or lifecycle, Backup or migration approach.
-- Text on how data is validated, transformed, migrated and deleted, and which data looks sensitive, with evidence.
+### Entities and types (`data.entities`)
 
-If there is no persistent data, say so and describe the in-memory or message shapes instead, still with a detailed flow diagram of how values move through the code.
-## code-tour
+Every entity the code defines: dataclasses, Pydantic and ORM models, SQL tables, typed dictionaries, enums. Decide about each finding (migrations are not entities). `Owner component` names a catalog component.
 
-How to read the code. Required: a reading order, written as a table with the columns `Step` (1, 2, 3), `Read` (one file, directory or glob in backticks, for example `scripts/main.sh`) and `What you learn` (one sentence of about 15 words saying what that file teaches, with no history or detail; the step's citations go in `cite`). Keep it to 5 to 9 steps. Also required: a table of entry points, and one sequence or flow diagram per main execution path (for example a request, a job run, a CLI command), each listing the modules it passes through in order. Put the notes for a path in a text block headed "Notes on path N" directly after that path's diagram; the page folds it into the diagram's card. Include where to find configuration, tests and the build. Pick paths that teach the most, usually three or fewer. Point out the hardest-to-read or most-changed areas.
+Shape: a table with columns Name, Kind, Fields, Defined in, Owner component.
 
+Tool findings that arrive here (home card): data models. Decide about each (see "Tool findings" in `method.md`).
 
-## failures
+### Relationships (`data.relationships`)
 
-How the system fails and what it says when it does. This report owns every failure output: error responses, exceptions, error codes, exit codes and failure messages. Cover:
+An `erDiagram` of the entities and how they relate (foreign keys, ORM relations, type references). Split by component beyond 12 entities.
 
-- **Error handling strategy:** where errors are caught, wrapped, logged and reported, and whether the code fails fast or tries to continue.
-- **Error catalog:** one table of every error type, exception class, error code, HTTP status or exit code that the code defines or returns. Columns: `Code or type`, `Meaning`, `Seen by` (caller, user, operator), `Handling`. Include messages shown to users when they are fixed text. If there are many, group them and cover them all.
-- **Failure modes:** one table of ways the system can fail. Columns: `ID` (F1, F2), `Failure`, `Trigger`, `Detection` (how anyone finds out), `Effect`, `Recovery`. Include dependency outages, bad input, timeouts, resource exhaustion, partial writes, concurrency conflicts, misconfiguration, expired credentials or certificates, and data corruption, where the code gives evidence.
-- **Resilience mechanisms:** retries, backoff, timeouts, circuit breakers, idempotency, transactions, queues with dead-letter handling, health checks, graceful shutdown.
-- **Observability of failure:** logging, metrics, alerts, tracing, error reporting services, and what an operator would see.
-- A diagram (flowchart or state diagram) of the most important failure and recovery path, if there is one.
+Shape: a diagram.
 
-Things the code does not handle, such as no timeout on an outbound call, belong here as `inferred` or `confirmed` rows and also in `risks`.
-## delivery
+### Data stores (`data.stores`)
 
-How the application is built, packaged, released, deployed, configured, and how secrets are handled. Read the files; do not infer from names. Cover these as separate, headed sections:
+Each database, cache or file store, its technology, what it holds, and how its schema is changed. Decide about each connection finding.
 
-- **Build and packaging:** build tooling; packaging (container image, package, binary, static bundle).
-- **CI and CD:** the steps each pipeline runs, what triggers it, and what it publishes or deploys.
-- **Environments and infrastructure:** how environments differ and any infrastructure as code.
-- **Configuration** (its own table): every setting the application reads, whether from a file, an environment variable, a flag or a default. Columns: Setting, Purpose, Where it is read, Default, How it is overridden. Use the environment variable table in `facts.json` as a starting list, then add what only the code shows (config files and what loads them). A setting is configuration only if changing it changes behaviour and it is not sensitive.
-- **Secrets** (its own table, never any values): every credential, key, token or password the system needs. Columns: Secret, What it unlocks, How it is supplied, Where it is stored, How it is rotated. Include secrets that live outside the repository (for example in a password manager or a cloud secret store) and say `unknown` where the code does not show how they arrive. Then say what the secret scan and the sensitive-file contents in `facts.json` found, and whether each hit is real, a test fixture or a false match.
+Shape: a table with columns Store, Technology, Holds, Migration approach.
 
-Anything you cannot see (for example cloud settings outside the repo) is `unknown`.
+Tool findings that arrive here (home card): db-connect. Decide about each (see "Tool findings" in `method.md`).
+
+### Source of truth (`data.truth`)
+
+For each kind of data, which store is the source of truth and which copies are derived.
+
+Shape: a table with columns Data, Source of truth, Derived copies.
+
+### Lifecycle and sensitive fields (`data.lifecycle`)
+
+When data is created, changed, retained and deleted, and which fields look sensitive (identification only, not an audit).
+
+Shape: a table with columns Data, Created, Changed, Retained, Deleted, Sensitive?.
+
+## behavior
+
+Report 09: Behavior and tests. Question: *What does it guarantee, how is that checked, and how does it fail?*
+
+### Business rules and invariants (`behavior.rules`)
+
+The business rules and invariants that make this program this program, with where they are decided and their edge cases. If there is no real domain logic, write one `confirmed` row that says so.
+
+Shape: a table with columns Rule, What it does, Where decided, Edge cases.
+
+### Test landscape (`behavior.tests`)
+
+The test landscape. The first table is measured: use the test findings for counts by kind, frameworks, skips, mocks and coverage settings, and add what only reading tells (what is untested that matters). The second table asks whether a green run can be trusted. No test is executed.
+
+Shape: a table with columns Measure, Value, Where; then a table with columns Question, Assessment, Evidence.
+
+Fixed rows (column Measure): test counts by kind; test counts by area; framework; skipped and xfail counts; mock density; test-to-source mapping; coverage configuration and thresholds; CI test commands.
+
+Second table, fixed rows (column Question): What important code is untested?; Can a green run be trusted?.
+
+### Failure modes (`behavior.failures`)
+
+How the system fails: one row per failure mode, with trigger, detection, effect and recovery. Decide about each finding (retries, timeouts, catch-all handlers, transactions). Mention idempotency.
+
+Shape: a table with columns ID, Failure, Trigger, Detection, Effect, Recovery; then a text.
+
+Tool findings that arrive here (home card): retry, timeout, catch-all, transaction. Decide about each (see "Tool findings" in `method.md`).
+
+### Observability (`behavior.observability`)
+
+Logging, metrics and tracing: the library, where each signal is emitted and where it goes. Decide about each finding; log call sites are grouped, so one decision covers a rule in a file.
+
+Shape: a table with columns Signal, Library, Where emitted, Where it goes.
+
+Tool findings that arrive here (home card): log, metric, trace. Decide about each (see "Tool findings" in `method.md`).
+
+## conventions
+
+Report 11: Conventions. Question: *How do I write code that fits in here?*
+
+### Code conventions (`conventions.style`)
+
+The code conventions a newcomer must follow, with evidence and how consistent the code is. Keep the fixed areas.
+
+Shape: a table with columns Area, Convention, Evidence.
+
+Fixed rows (column Area): naming; error handling; logging; dependency injection; async; validation; tests.
+
+### Recipes (`conventions.recipes`)
+
+A numbered recipe for each fixed task: the files to touch in order, and a worked example from the repository's history. A recipe that does not apply says so with evidence.
+
+Shape: `entries`, keyed by `recipe`, each with the fields: `files_to_touch` (Files to touch, in order), `worked_example` (Worked example in this repository).
+
+Fixed rows (column recipe): add an endpoint or command; add a field; add a migration; add a test; add a dependency; add a config setting.
+
+### Formatting and tooling (`conventions.tooling`)
+
+Drawn by code from the tool findings. **Do not write this card:** leave it out of the file.
+
+## ops
+
+Report 12: Build, run and ship. Question: *How do I get it running and into production?*
+
+### Local setup (`ops.local`)
+
+How to set up a machine: ordered steps, then a table of prerequisites (runtimes and versions, services, data, secret names).
+
+Shape: a list; then a table with columns Prerequisite, Kind, Version or detail, Where stated.
+
+### Build and packaging (`ops.build`)
+
+What gets built, with the command and the output.
+
+Shape: a table with columns Artifact, Command, Output.
+
+### Running tests (`ops.test`)
+
+How to run the tests: command and notes for each scope (all, unit, one file).
+
+Shape: a table with columns Scope, Command, Notes.
+
+### Running it (`ops.run`)
+
+How to run the program: command and needs for each mode.
+
+Shape: a table with columns Mode, Command, Needs.
+
+### CI gates (`ops.ci`)
+
+Each pipeline: trigger, steps, whether it blocks a merge, what it publishes. Say what the gates do and do not guarantee.
+
+Shape: a table with columns Pipeline, Trigger, Steps, Blocks merge?, Publishes.
+
+### Release, deploy and rollback (`ops.release`)
+
+How each environment is released and rolled back, and how versions are set. Anything outside the repository is `unknown`.
+
+Shape: a table with columns Environment, How released, How rolled back, Versioning.
+
+### Configuration and secrets (`ops.config-secrets`)
+
+Two tables: settings (default, what overrides it) and secrets by name only, never values. Start from `facts:env_vars` and `facts:secret_signals`.
+
+Shape: a table with columns Setting, Default, Overridden by; then a table with columns Secret, Unlocks, Supplied how.
+
+## reading
+
+Report 03: Reading guide. Question: *How do I approach this code?*
+
+### Reading order (`reading.order`)
+
+The order to read the code in, grouped into phases (for example orientation, core, periphery); there is no step limit. Start from the entry points and move outward; the findings list shows which modules are imported most, so read those early. Include tests where they explain behaviour. `Read` is one file, directory or glob in backticks; `What you learn` is one sentence of about 15 words.
+
+Shape: a table with columns Phase, Step, Read, What you learn.
+
+### Glossary (`reading.glossary`)
+
+The domain terms a newcomer will meet in class, type and table names. Define each in one sentence and say where it lives. Skip generic programming words.
+
+Shape: a table with columns Term, Meaning, Where it lives.
+
+### Technologies and idioms (`reading.technologies`)
+
+Each language, framework and library with a role in the code (from the manifests and imports), what it does here, and the idiom a newcomer needs to know (DI container, ORM style, state management).
+
+Shape: a table with columns Technology, Role here, Idiom to know.
+
+### Where things live (`reading.map`)
+
+Drawn by code from the tool findings. **Do not write this card:** leave it out of the file.
+
+## overview
+
+The one-page answer to "what is this?". It has no cards to write: the page draws the repository, contributors and dependencies cards from measurements. Write `headline` and `summary` (what the project is, who it serves, how big and mature it looks, and the three things to know first), and optionally `update_note`: one plain sentence on what changed in the analysis this time. `cards` is not needed.
 
 ## risks
 
-A register of everything risky or doubtful. Give the table block the heading `Tracker`. Use one or more tables with exactly these columns: `ID`, `Risk`, `Category`, `Severity`, `Impact`, `Recommendation`. IDs are R1, R2, and so on. Order by severity; the page counts Critical and High rows and highlights those tiles. Severity is Critical, High, Medium, Low or Info. Categories include security, reliability, data, performance, maintainability, testing, dependencies, delivery, knowledge concentration, compliance.
+A register of everything risky or doubtful: the card `risks.tracker`. Use one or more tables with exactly the columns `ID`, `Risk`, `Category`, `Severity`, `Impact`, `Recommendation`. IDs are R1, R2, and so on. Order by severity; the page counts Critical and High rows and highlights those tiles. Severity is Critical, High, Medium, Low or Info. Categories include security, reliability, data, performance, maintainability, testing, dependencies, delivery, knowledge concentration, compliance.
 
-Rules: every row has citations. A row based on inference is `inferred` with a note, and still goes in the register. Order by severity. Include risks from the scan in `facts.json` (secrets, unpinned or abandoned dependencies, no tests for important areas, single-person areas from `facts:areas`, very large or very hot files). Do not pad with generic advice, and do not add a "How to read this register" text block: put anything the reader needs to know in the summary. Summary: the top three risks in plain words and the overall picture.
-
-## contributors
-
-Who knows what. The page already shows contributor and area tables. Write interpretation: who the key people are by area, where knowledge is concentrated or has left (people with no recent commits), how much work comes from agents and bots and in which areas, and who to ask about which subsystem. The page shows three cards: Contributors (a share-of-code bar by contributor with one detail table; `facts:ownership`, from git blame), Contributor knowledge map (a repository tree showing who knows each directory and file, by surviving lines, commits and recent commits, with departed people hatched and directories whose top contributor has left marked "at risk"; `facts:knowledge`), and Who committed and when (a calendar that zooms between days and months). Do not restate the shares or the table rows. "Departed" and "at risk" on the map are inferences from the last commit date, so when you discuss who has left, say that is how it was judged and treat it as `inferred`. Interpret them instead: where ownership differs from commit share, where bulk imports or reformats moved ownership, and which areas are owned by one person. Name areas by what they do, not just by directory. Discuss classification doubts (a person who looks like a bot, shared accounts, unmerged identities). Use `facts:contributors` and `facts:areas` as citations. If the user has given overrides, they appear in `state.json`.
+Rules: every row has citations. A row based on inference is `inferred` with a note, and still goes in the register. Include risks from the tool findings and from the scan in `facts.json` (cycles and layer violations in `interactions.violations`, unused code, secrets, unpinned or abandoned dependencies, no tests for important areas, single-person areas from `facts:areas`, very large or very hot files). Do not pad with generic advice, and do not add a "How to read this register" text block: put anything the reader needs to know in the summary. Summary: the top three risks in plain words and the overall picture.
 
 ## gaps
 
-Items not already listed by the page. The page already collects every `inferred` and `unknown` statement from all reports automatically. This report adds the rest in `items`:
+Items not already listed by the page. The page already collects every `inferred` and `unknown` statement from all reports automatically, and it adds the checks' own items: files in no component, tool findings with no decision, blind-spot places, names that are not in the code they cite, and diagram arrows with no import or call behind them. This report adds the rest in `items`:
 
 ```json
 {"items": [{"kind": "assumption|unknown|inference|coverage", "statement": "...", "how_to_confirm": "...", "report": "overview", "cite": []}]}

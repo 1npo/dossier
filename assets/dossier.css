@@ -230,7 +230,7 @@ details.deps { margin: .5rem 0; } details.deps summary { cursor: pointer; overfl
 /* code viewer: a panel on the right with the code behind a citation. Token colors reach 4.5:1 on the panel and on a cited line (check_page.py) */
 :root { --tk-c: oklch(.45 .02 260); --tk-k: oklch(.44 .18 300); --tk-s: oklch(.42 .12 155); --tk-m: oklch(.44 .14 50); --tk-nf: oklch(.43 .16 255); --tk-nb: oklch(.42 .1 200);
   --tk-nt: oklch(.44 .18 20); --tk-na: oklch(.44 .1 85); --tk-no: oklch(.44 .16 330); --tk-gd: oklch(.44 .18 25); --tk-gi: oklch(.42 .12 155); --tk-gh: var(--foreground); }
-.dark { --tk-c: oklch(.74 .02 260); --tk-k: oklch(.8 .13 300); --tk-s: oklch(.8 .12 155); --tk-m: oklch(.82 .11 60); --tk-nf: oklch(.8 .11 255); --tk-nb: oklch(.8 .09 200);
+.dark { --tk-c: oklch(.8 .02 260); --tk-k: oklch(.8 .13 300); --tk-s: oklch(.8 .12 155); --tk-m: oklch(.82 .11 60); --tk-nf: oklch(.8 .11 255); --tk-nb: oklch(.8 .09 200);
   --tk-nt: oklch(.8 .12 20); --tk-na: oklch(.82 .1 90); --tk-no: oklch(.8 .12 330); --tk-gd: oklch(.8 .13 25); --tk-gi: oklch(.8 .12 155); --tk-gh: var(--foreground); }
 .code-panel { position: fixed; top: 0; right: 0; bottom: 0; z-index: 55; width: min(90ch, 100vw); display: flex; flex-direction: column; background: var(--card); color: var(--card-foreground);
   border-left: 1px solid var(--border); box-shadow: -8px 0 24px rgb(0 0 0 / .18); font-family: var(--font-mono, ui-monospace, Menlo, Consolas, monospace); font-size: .8125rem; }

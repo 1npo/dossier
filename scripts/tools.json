@@ -113,7 +113,13 @@
    "published": "2026-10-12",
    "gives": "syntax-tree queries for any language",
    "source": "https://github.com/xberg-io/tree-sitter-language-pack",
-   "first_used": "M1"
+   "first_used": "M1",
+   "cards": [
+    "data.entities",
+    "data.relationships",
+    "behavior.tests",
+    "interactions.state"
+   ]
   },
   {
    "id": "semgrep",
@@ -126,7 +132,17 @@
    "published": "2026-10-14",
    "gives": "pattern rules for inputs and outputs",
    "source": "https://docs.semgrep.dev/cli-reference",
-   "first_used": "M1"
+   "first_used": "M1",
+   "cards": [
+    "entry.catalog",
+    "io.inputs",
+    "io.outputs",
+    "interactions.state",
+    "interactions.concurrency",
+    "data.stores",
+    "behavior.failures",
+    "behavior.observability"
+   ]
   },
   {
    "id": "grimp",
@@ -139,7 +155,15 @@
    "published": "2026-09-04",
    "gives": "Python import graph",
    "source": "https://grimp.readthedocs.io/en/stable/usage.html",
-   "first_used": "M2"
+   "first_used": "M2",
+   "cards": [
+    "reading.order",
+    "components.map",
+    "components.catalog",
+    "interactions.graph",
+    "interactions.violations",
+    "interactions.flows"
+   ]
   },
   {
    "id": "vulture",
@@ -152,7 +176,10 @@
    "published": "2026-03-25",
    "gives": "unused Python code",
    "source": "https://github.com/jendrikseipp/vulture",
-   "first_used": "M2"
+   "first_used": "M2",
+   "cards": [
+    "change.dead-code"
+   ]
   },
   {
    "id": "import-linter",
@@ -165,7 +192,10 @@
    "published": "2026-09-04",
    "gives": "the repository's own import rules (read only)",
    "source": "https://import-linter.readthedocs.io/en/stable/",
-   "first_used": "M2"
+   "first_used": "M2",
+   "cards": [
+    "interactions.violations"
+   ]
   },
   {
    "id": "scip-python",
@@ -174,11 +204,17 @@
    ],
    "via": "npx",
    "package": "@sourcegraph/scip-python",
+   "node_lock": "node/scip-python",
    "version": "0.6.6",
    "published": "2025-09-05",
    "gives": "Python symbols and references",
    "source": "https://github.com/sourcegraph/scip-python",
-   "first_used": "M2"
+   "first_used": "M2",
+   "cards": [
+    "components.catalog",
+    "interactions.flows",
+    "interactions.graph"
+   ]
   },
   {
    "id": "dependency-cruiser",
@@ -191,7 +227,8 @@
    "published": "2026-10-11",
    "gives": "JavaScript and TypeScript import graph",
    "source": "https://github.com/sverweij/dependency-cruiser/blob/main/doc/cli.md",
-   "first_used": "M4"
+   "first_used": "M4",
+   "cards": []
   },
   {
    "id": "knip",
@@ -204,7 +241,8 @@
    "published": "2026-10-18",
    "gives": "unused JavaScript and TypeScript code",
    "source": "https://knip.dev/reference/cli",
-   "first_used": "M4"
+   "first_used": "M4",
+   "cards": []
   },
   {
    "id": "scip-typescript",
@@ -217,7 +255,8 @@
    "published": "2025-10-02",
    "gives": "JavaScript and TypeScript symbols and references",
    "source": "https://github.com/sourcegraph/scip-typescript",
-   "first_used": "M4"
+   "first_used": "M4",
+   "cards": []
   },
   {
    "id": "typescript",
@@ -231,7 +270,8 @@
    "gives": "the TypeScript compiler API",
    "source": "https://www.npmjs.com/package/typescript",
    "first_used": "M4",
-   "open": "TypeScript 7 is the native port; choose 5.9.x, 6.0.x or the new API in M4."
+   "open": "TypeScript 7 is the native port; choose 5.9.x, 6.0.x or the new API in M4.",
+   "cards": []
   },
   {
    "id": "scip-dotnet",
@@ -244,7 +284,8 @@
    "published": "2026-05-05",
    "gives": "C# symbols and references",
    "source": "https://github.com/sourcegraph/scip-dotnet",
-   "first_used": "M5"
+   "first_used": "M5",
+   "cards": []
   },
   {
    "id": "dotnet-package-list",
@@ -258,7 +299,8 @@
    "gives": "NuGet packages, including indirect ones",
    "source": "https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-package-list",
    "first_used": "M5",
-   "open": "Part of the .NET SDK; its version is the SDK's."
+   "open": "Part of the .NET SDK; its version is the SDK's.",
+   "cards": []
   }
  ],
  "restore": [

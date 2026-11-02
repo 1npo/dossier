@@ -71,7 +71,8 @@ def test_na_and_pending():
     assert schema.validate("x", r, SCH) == ([], [])
     r["cards"][0] = {"card": "x.tab", "na": "nothing here"}; check(r, "cite")
     r = good(); r["cards"][0] = {"card": "x.tab", "pending": True}
-    assert schema.validate("x", r, SCH)[0] == []
+    assert schema.validate("x", r, SCH, allow_pending=True)[0] == []
+    check(r, "pending")
     check(r, "pending", allow_pending=False)
 
 
@@ -101,3 +102,12 @@ def test_load_all_skips_questions(tmp_path):
     (tmp_path / "questions.json").write_text("[]")
     assert list(schema.load_all(tmp_path)) == ["a"]
     assert schema.load("questions", tmp_path) is None and schema.load_questions(tmp_path) == []
+
+
+def test_card_entry_accepts_dismissed_and_unassigned_but_not_other_keys():
+    r = good()
+    r["cards"][0]["dismissed"] = [{"cand": ["io-1"], "reason": "Test helper."}]
+    r["cards"][0]["unassigned"] = [{"paths": "docs/", "reason": "Docs."}]
+    assert schema.validate("x", r, SCH) == ([], [])
+    r["cards"][0]["bogus"] = 1
+    check(r, "unknown keys")

@@ -1,6 +1,6 @@
 # dossier 1.0.0 specification
 
-Status: draft for review. Supersedes the middle-report design in `prompts/reports.md` (everything between "This repository" and "Risks"). The decisions in plans 001 to 003 (renames, colours, card clean-ups, Dependencies card, gatherer terminology) still apply unless this document says otherwise.
+Status: draft for review. Amended on 2026-11-01 after the review of the M2 plan (`plans/007-m2-plan.md`, section 8); the amendments are listed in section 12 under "Settled in the M2 plan review". Supersedes the middle-report design in `prompts/reports.md` (everything between "This repository" and "Risks"). The decisions in plans 001 to 003 (renames, colours, card clean-ups, Dependencies card, gatherer terminology) still apply unless this document says otherwise.
 
 ## 1. Purpose and boundaries
 
@@ -32,7 +32,7 @@ A map is not a mental model. The map orients the reader, and the model forms whe
 ## 2. Design principles
 
 1. **Tools find, Claude explains.** Anything that can be enumerated (entry points, routes, imports, I/O sites, models, tests) is extracted by a tool. Claude never has to remember it.
-2. **Candidate, adjudicate, reconcile.** For every extracted list, each candidate gets a recorded disposition: included, merged, or dismissed with a reason. Claude may add items the tool missed, marked as such. A candidate with no disposition fails the build.
+2. **Candidate, adjudicate, reconcile.** For every candidate list, each candidate gets a recorded disposition: included, merged, or dismissed with a reason. Claude may add items the tool missed, marked as such. A candidate with no disposition fails the build. The candidate lists are entry points, input/output and related sites (`io_candidates`: inputs, outputs, state, concurrency, failure handling, observability, data-store connections) and data entities. Measured outputs are not candidate lists and are never pruned by a model: the import graph, symbols, test counts, dead code (drawn by code) and blind-spot hits (which go to Gaps). Neither are the computed suggestions for components, reading order and glossary terms, since V4 already reconciles components file by file. Each kind of candidate has one home card where it is decided (6.1); a decision on any other card counts too, and a candidate kept on one card and dismissed on another is an error.
 3. **Three provenance tiers**, shown on every card as a small badge:
    - **M, measured:** tool output only, no model involved.
    - **A, adjudicated:** tool candidates, with Claude classifying, pruning, adding and explaining.
@@ -162,20 +162,20 @@ Question: *What are the main parts, what does each do, and how does it work?*
 
 | Card id | Title | Tier | Shape | Source | P |
 |---|---|---|---|---|---|
-| `components.map` | Component map | M+A | Interactive hierarchical graph of every component, grouped by area. Groups collapse and expand, so any number of components stays readable | Candidates from package and folder boundaries plus import-graph community detection. Claude names, merges and splits them. The layout is computed, not drawn by Claude | P0 |
+| `components.map` | Component map | M+A | Interactive hierarchical graph of every component, grouped by area. Groups collapse and expand, so any number of components stays readable. Until M6 delivers the interactive graph, the card shows a component diagram grouped by area plus a table of every component and its edges | Candidates from package and folder boundaries plus import-graph community detection. Claude names, merges and splits them (through `components.catalog`). The layout is computed, not drawn by Claude | P0 |
 | `components.catalog` | Component catalog | A | Table: Component, Paths, Responsibility, Public surface, Depends on, Used by, Size | Paths, edges and size are measured. Responsibility is read | P0 |
 | `components.detail` | Component details | R | One card holding one entry for every component in the catalog, each with the same fixed template: Purpose, How it works, Public surface, State owned, Key files, Gotchas. Entries are collapsible and searchable | Claude, with one subagent per group of components. V4 requires an entry for every component | P0 |
 | `components.cross-cutting` | Cross-cutting concerns | R | Table: Concern, Approach, Where. Fixed rows: configuration, authentication/authorisation, logging, error handling, caching, validation, i18n, feature flags | Claude | P0 |
 | `components.extension-points` | Extension points | R | Table: Point, How to extend, Example | Claude | P1 |
 
-Invariant (V4): every tracked, non-excluded source file belongs to exactly one component or appears in an explicit "unassigned" list.
+Invariant (V4): every tracked, non-excluded source file belongs to exactly one component or appears in an explicit "unassigned" list. When paths of several components match a file, the most specific path wins (a file beats a glob, a glob beats a directory, a deeper directory beats a shallower one), so a component and its sub-component can both be described by path. Only a tie between two different components is an error.
 
 ### 06 Interactions
 Question: *How do the parts talk to each other, and where does state live?*
 
 | Card id | Title | Tier | Shape | Source | P |
 |---|---|---|---|---|---|
-| `interactions.graph` | Dependency graph | M | Interactive module graph, edges weighted by import count | grimp, dependency-cruiser, Roslyn/SCIP | P0 |
+| `interactions.graph` | Dependency graph | M | Interactive module graph, edges weighted by import count. Until M6 delivers the interactive graph, the card shows a component-level diagram plus a sortable, filterable table of every module import | grimp, dependency-cruiser, Roslyn/SCIP | P0 |
 | `interactions.violations` | Cycles and layer violations | M | Table: Kind, From, To, Evidence | Cycles from the graph. Layer rules taken from the repo's own config if present (import-linter contracts, dependency-cruiser rules, folder conventions). Otherwise only cycles | P0 |
 | `interactions.flows` | Key flows | A | Sequence diagrams, one entry per flow, each followed by notes. At least one flow per kind of entry point; Claude adds more wherever a flow teaches something the others do not | Claude chooses flows from the entry points. V3 checks every arrow against a graph or call edge | P0 |
 | `interactions.state` | State ownership | A | Table: State, Held in, Written by, Read by, Lifetime | Candidates: DB access sites, caches, globals, module-level mutables, files. Claude adjudicates | P0 |
@@ -281,7 +281,7 @@ The tiles above each tracker (risk counts, gap counts) are not cards; they stay 
 
 Two additions:
 - Risks gain a `Source` column value `extractor` when the row comes from a measured finding (cycle, dead code, hotspot with a single owner).
-- Gaps automatically receives: every unassigned file (V4), every undispositioned candidate (V5), every blind-spot hit (V7), every missing tool under `--allow-missing`, and every language run in Tier B.
+- Gaps automatically receives: every unassigned file (V4), every undispositioned candidate (V5), every blind-spot hit (V7), every missing tool under `--allow-missing`, and every language run in Tier B. Because V5 is an error that stops `render`, undispositioned candidates only reach a rendered page under `render --allow-errors`.
 
 ### Retired from the old design
 Capabilities (folded into `components.catalog`), Interfaces (split into 04 and 07), Architecture (05 and 06), Domain logic (`behavior.rules` and `reading.glossary`), Data (08), Code tour (03 and 04), Failures (`behavior.failures`, `io.outputs`), Delivery (12, `io.inputs`).
@@ -305,7 +305,7 @@ Capabilities (folded into `components.catalog`), Interfaces (split into 04 and 0
 - `build` and `prepare` gain `--allow-missing`, `--no-restore`, `--allow-ref` (build restores for a ref that is not a tag or a default-branch commit) and `--submodules`.
 
 ### 5.3 Incremental builds
-Extractor outputs are keyed by `(sha, extractor version)`. A report is stale if a cited file changed, as today, or if its extractor output changed. M-tier cards are always recomputed. They are cheap, and they stay correct this way.
+Extractor outputs are keyed by `(sha, extractor version, tool versions)`, and output from a build where one of the adapter's tools failed or was skipped is never reused. A report is stale if a cited file changed, as today, or if the extractor findings it is built from changed. That comparison uses a digest of those findings without line numbers (finding ids, module and import names, test counts), so code that only moved does not make a report stale. M-tier cards are always recomputed. They are cheap, and they stay correct this way.
 
 ### 5.4 Restore hygiene
 
@@ -329,13 +329,13 @@ These rules reduce the damage a bad install or build script can do. They are not
 
 ### 6.1 What each extractor produces
 
-All extractors write normalized JSON that `render.py` and the prompts consume. One adapter class per language, in the style of `deps.py` (`ADAPTERS`), implements:
+All extractors write normalized JSON that `render.py` and the prompts consume. One adapter class per language, in the style of `deps.py` (`ADAPTERS`), implements the outputs below. One more adapter, `repo`, handles files that belong to no language and runs for every repository: Dockerfiles, Makefiles, CI definitions, systemd units, shebang scripts and SQL files.
 
 | Output file | Contents | Feeds |
 |---|---|---|
-| `entry_points.json` | Kind, name, location, trigger | 04 |
+| `entry_points.json` | Kind, name, location, trigger. Kinds: console scripts and package bins, `__main__` modules and guards, CLI commands, HTTP routes, queue consumers, scheduled jobs, container `CMD`/`ENTRYPOINT`, CI schedules, Makefile targets, shebang scripts, systemd units (and `Main`/`Program.cs` for C#). Entry-point recall (section 11) is measured over these kinds | 04 |
 | `graph.json` | Nodes (modules, files), edges (import, call where SCIP gives it), cycles | 05, 06, 10 |
-| `symbols.json` | Definitions and references (SCIP), public surface per module | 05, 07, 10 |
+| `symbols.json` | Definitions and references (SCIP), public surface per module. For Python a name is public when no part of it starts with `_` and it is top-level or a class member; `__all__` is not used | 05, 07, 10 |
 | `io_candidates.json` | Category, location, snippet, rule id | 07, 06 |
 | `models.json` | Entities, fields, relations, migrations | 08 |
 | `tests.json` | Test files, counts, skip markers, mock use, fixtures, config | 09 |
@@ -344,6 +344,20 @@ All extractors write normalized JSON that `render.py` and the prompts consume. O
 
 Git-derived outputs (`hotspots`, `cochange`, `workflow`, `branches`) are computed in `gather.py`.
 
+**Home cards.** Every candidate (principle 2) has exactly one home card, where `dossier candidates` lists it and where its disposition is expected. Other cards that cover the same thing hold one summary row that points to the home card (principle 5); a disposition recorded there also counts.
+
+| Candidates | Home card |
+|---|---|
+| Entry points, including HTTP routes, scheduled jobs and queue consumers | `entry.catalog` |
+| Environment variables, CLI arguments, config files, files read, stdin, messages consumed | `io.inputs` |
+| stdout and stderr, files written, outbound calls, messages produced, exit codes, error responses | `io.outputs` |
+| Logs, metrics, tracing | `behavior.observability` |
+| Retries, timeouts, catch-all handlers, transactions | `behavior.failures` |
+| Database connections | `data.stores` |
+| Database reads and writes, global and module-level mutable state, caches | `interactions.state` |
+| Threads, async, process pools, locks, queues | `interactions.concurrency` |
+| Data entities | `data.entities` |
+
 ### 6.2 Tools
 
 All tools run at pinned versions, recorded in 01 This dossier. Python tools run through `uv` with a pinned interpreter, as declared inline in the script (the way `check_page.py` already does). Names and invocations below are from memory and must be verified when implementing.
@@ -351,12 +365,12 @@ All tools run at pinned versions, recorded in 01 This dossier. Python tools run 
 | Scope | Tool | Gives | How installed |
 |---|---|---|---|
 | All | tree-sitter (`tree-sitter-language-pack`) | Symbols, structure, complexity proxy, rule queries | `uv` |
-| All | semgrep, with rules bundled under `rules/` | Routes, I/O sites, DI registration, retries, timeouts, flags | `uv` |
+| All | semgrep, with rules bundled under `rules/` | Routes, I/O sites, DI registration (where the language has a common container: C# and TS; Python has none), retries, timeouts. Feature flags are a blind-spot pattern (6.4), not an I/O category | `uv` |
 | All | git | History, blame, co-change | preflight check |
 | Python | grimp | Import graph, cycles | `uv` |
 | Python | vulture | Dead code | `uv` |
-| Python | import-linter config (read only) | Declared layer rules | parsed from repo config |
-| Python | scip-python | References and call data | `npx`, needs Node |
+| Python | import-linter config (read only) | Declared layer rules. import-linter itself is never run: dossier evaluates `layers` and `forbidden` contracts with grimp and lists every other contract type as "not checked" | parsed from repo config |
+| Python | scip-python | References and call data | Installed once from a lockfile shipped with the skill (`npm ci --ignore-scripts`) into the shared tool cache, then run with Node; bare `npx` would leave its dependencies unpinned (5.4 rule 7). Needs Node. Installed packages are passed in an environment file written from the restored `.venv`, because uv environments have no `pip` for scip-python to ask |
 | JS/TS | dependency-cruiser | Import graph, cycles, rule violations | `npx`, needs Node |
 | JS/TS | knip | Unused files, exports, dependencies | `npx`, needs Node |
 | JS/TS | scip-typescript | References and call data | `npx`, needs Node |
@@ -369,7 +383,7 @@ Preflight therefore expects on the host: `git` and `uv` always; Node and npm for
 
 ### 6.3 Language tiers
 
-- **Tier A (Python, TS/JS/React, C#):** all extractors. Cards are badged "full".
+- **Tier A (Python, TS/JS/React, C#):** all extractors. A card is full unless it is badged "partial"; there is no separate "full" badge.
 - **Tier B (everything else, including C, Rust, Zig, shell, HTML/CSS):** tree-sitter symbols and structure, `deps.py` where an adapter exists, git facts, and Claude reading. No call or import graph unless tree-sitter can produce one. The affected reports are badged "no static graph" and Gaps lists the language.
 
 ### 6.4 Blind spots (V7)
@@ -379,7 +393,7 @@ Each adapter ships a list of patterns that static edges miss and a rule that fin
 - **Python:** `importlib`, `__import__`, string-based plugin or entry-point loading, decorator-registered handlers, `getattr` dispatch, Django `INSTALLED_APPS` and signals, pytest fixtures resolved by name.
 - **TS/JS:** dynamic `import()`, `require` with variables, barrel-file re-exports, React context and hooks wiring, string-based routes, module federation.
 - **C#:** DI container registrations and resolution, reflection, attribute-based routing and filters, `MediatR`-style handlers, source generators, `partial` classes.
-- **All:** codegen output, runtime config selecting implementations, feature flags.
+- **All:** codegen output, runtime config selecting implementations, feature flags. "Runtime config selecting implementations" has no rule (no pattern finds it without many false matches); every build lists it in Gaps once as a fixed coverage item instead.
 
 ## 7. Verification (run by `render`)
 
@@ -387,8 +401,8 @@ Each adapter ships a list of patterns that static edges miss and a rule that fin
 |---|---|---|
 | V1 | Every citation resolves | error (exists today) |
 | V2 | Identifiers named in backticks in a cited statement appear in the cited range | warning, counted in Gaps |
-| V3 | Every arrow in a flow diagram corresponds to a graph or call edge | warning, arrow marked `inferred` |
-| V4 | Every tracked non-excluded source file has exactly one component, and every component in the catalog has an entry in `components.detail` | error if unaccounted; unassigned list is allowed |
+| V3 | Every arrow in a flow diagram corresponds to a graph or call edge | warning; Mermaid cannot style one arrow, so each unbacked arrow is listed under its diagram as inferred and added to Gaps as an `inference` item |
+| V4 | Every tracked non-excluded source file has exactly one component (the most specific matching path wins, see 05), and every component in the catalog has an entry in `components.detail` | error if unaccounted or tied between two components; unassigned list is allowed |
 | V5 | Every extractor candidate has a disposition | error |
 | V6 | Report matches the card schema: ids, order, titles, columns, required cards | error |
 | V7 | Blind-spot hits are recorded in Gaps | automatic |
@@ -445,11 +459,11 @@ Build the pipeline end to end for one language first, so the schema and verifica
 |---|---|---|
 | M0 | Card schema files, schema validation (V6), `render.py` draws fixed titles, tier badges and question lines, and the `dossier.questions` card (static data, so it is real in M0). Map the existing content onto the new skeleton. Report 02 and its Contributors, knowledge map, calendar and Dependencies cards are left untouched | Existing encamp dossier re-renders with the new skeleton and passes V6, and report 02 is identical in content to before (byte-identical once the schema's card ids and tier badges are removed) |
 | M1 | Checkout, preflight, `doctor`, `clean`, path filter, `build.json` run record, the `dossier.process` card in report 01 rendered from it, V9 and V10, restore hygiene (5.4), adapter interface, shared tree-sitter and semgrep layer | `doctor` lists missing tools correctly; a Python repo gets a verified checkout; the process card renders from a real build and V10 passes; the hygiene tests in section 11 pass |
-| M2 | Python vertical slice: grimp, vulture, scip-python, Python rules and the Python blind-spot list; reports 03 to 09, 11, 12; V2 to V5 and V7 (Python) | A Python repo builds all reports from extractors; candidates reconcile |
-| M3 | Report 10 (git-derived cards, blast radius), report 13 (all six cards: people, ask, concentration, agents, doubts, workflow), the report 14 and 15 additions, `summary.json` and V8 | Golden-set run on the Python repo meets section 11 |
+| M2 | Python vertical slice: grimp, vulture, scip-python, Python rules and the Python blind-spot list, the repository-wide adapter; reports 03 to 09, 11, 12; V2 to V5 and V7 (Python). Reports 10 and 13 are not written: their absence is a warning, not an error | A Python repo builds all reports from extractors; candidates reconcile |
+| M3 | Report 10 (git-derived cards, blast radius), report 13 (all six cards: people, ask, concentration, agents, doubts, workflow), the report 14 and 15 additions, `summary.json` and V8. Reports 10 and 13 become required again | Golden-set run on the Python repo meets section 11 |
 | M4 | TS/JS/React adapter, rules and blind-spot list (V7 for TS/JS) | Same checks on the golden TS repo |
 | M5 | C# adapter, rules and blind-spot list (V7 for C#). Starts by verifying scip-dotnet (decision 2) | Same checks on the golden C# repo |
-| M6 | Tier B fallback badges, review of the blind-spot lists across all languages, `--verify`, docs, README rewrite (including the stale description of where the Contributors cards live), version bump | Definition of done below |
+| M6 | Tier B fallback badges, review of the blind-spot lists across all languages, the interactive collapsible graphs for `components.map` and `interactions.graph`, `--verify`, docs, README rewrite (including the stale description of where the Contributors cards live), version bump | Definition of done below |
 
 Cut line: if time runs short, drop P1 cards first, then Tier B polish. Do not drop V2 to V5, since they are what make the answers trustworthy.
 
@@ -458,7 +472,7 @@ Cut line: if time runs short, drop P1 cards first, then Tier B polish. Do not dr
 1. All P0 cards in section 4 exist, validate against the schema, and render with the correct tier badge.
 2. Three of your own solo-built apps (one Python, one TS/React, one C#) build without manual intervention, and their reports have **identical card skeletons**, checked mechanically.
 3. Measured against your own knowledge of those apps (you are the ground truth):
-   - entry points: recall 100%, precision at least 95%;
+   - entry points: recall 100%, precision at least 95%, over the entry-point kinds listed in 6.1 (for a library, its public functions are not entry points);
    - inputs and outputs: recall at least 95%;
    - components: you agree with the component map after at most minor renaming;
    - zero fabricated citations (V1 and V2 failures);
@@ -484,3 +498,25 @@ Settled:
 Still to do in M1:
 
 7. Pin the versions of every tool in 6.2, and verify the names, flags and behaviour against current documentation.
+
+Settled in the M2 plan review (2026-11-01; the numbers are the spec issues in `plans/007-m2-plan.md`, section 8):
+
+8. **Interactive graphs** for `components.map` and `interactions.graph` move to M6. Until then both cards show a component diagram and a full edge table (issue 1).
+9. **V3 marking:** an unbacked arrow is listed under its diagram as inferred and added to Gaps (issue 2).
+10. **V4 nesting:** the most specific matching path wins; only a tie between two components is an error (issue 3).
+11. **DI and feature flags:** no DI rule for Python; feature flags are a blind-spot pattern (issue 6).
+12. **Repository-wide adapter** `repo` for files that belong to no language (issue 7).
+13. **`components.map`** keeps its M+A badge although Claude's part arrives only through `components.catalog` (issue 8).
+14. **Runtime config selecting implementations** has no rule and is one fixed Gaps item per build (issue 9).
+15. **scip-python** is installed from a shipped lockfile and given an environment file written from `.venv` (issue 10).
+16. **Staleness** compares line-free digests of the findings each report is built from (issue 11).
+17. **Reports 10 and 13** are optional in M2 and required again in M3 (issue 12).
+18. **Undispositioned candidates in Gaps** appear only under `render --allow-errors`, since V5 is an error (issue 13).
+19. **`behavior.tests`** stays tier A with Claude copying the measured values; no schema change (issue 14).
+20. **import-linter** contracts of type `layers` and `forbidden` are evaluated with grimp; other types are listed as not checked (issue 15).
+21. **Public surface** for Python: no part of the name starts with `_`, and it is top-level or a class member (issue 16).
+22. **No "full" badge:** a card without "partial" is full (issue 17).
+23. **Entry-point recall** is measured over the kinds listed in 6.1 (issue 18).
+
+24. **Candidate lists** (principle 2): dispositions are required for entry points, input/output and related sites, and data entities only; measured outputs and computed suggestions are exempt (issue 4).
+25. **Home cards:** each kind of candidate has one home card (6.1); a disposition anywhere counts, and kept-and-dismissed is an error (issue 5).

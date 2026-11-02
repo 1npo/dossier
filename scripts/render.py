@@ -20,6 +20,9 @@ from urllib.parse import quote
 
 import deps as depscan
 import gather
+import candidates
+import components
+import measured
 import process
 import schema
 import viewer
@@ -50,7 +53,7 @@ FACT_KEYS["hot_files"] = FACT_KEYS["manifests"] = "facts-git"   # their cards we
 FACT_KEYS["env_vars"] = FACT_KEYS["secret_signals"] = "facts-git"   # their panels were removed in 0.5.0; the figures still back statements about the repository
 FACT_KEYS["chunks"] = "dossier-build"
 FACT_KEYS["inventory"] = "facts-git"  # retired file-name inventory; old reports may still cite it
-OPTIONAL_REPORTS = ()  # reports added after an earlier version: a dossier built before them still renders
+OPTIONAL_REPORTS = ("change", "contributors")  # M3 writes these; until then a missing file is a warning
 UNRENDERED_BLOCKS = ("overview",)  # overview.json's written blocks are no longer drawn; do not count what is not shown
 DIAGRAM_START = re.compile(r"^\s*(%%\{.*?\}%%\s*)?(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram(-v2)?|erDiagram|journey|gantt|pie|mindmap|timeline|gitGraph|quadrantChart|requirementDiagram|C4\w+|sankey-beta|xychart-beta|block-beta|architecture-beta)\b", re.S)
 INLINE_CITE = re.compile(r"\[\[(.+?)\]\]")
@@ -426,6 +429,11 @@ def badge(label, cls="", variant="outline"):
     return f'<span class="badge {cls}" data-variant="{variant}">{E(label)}</span>'
 
 
+def added_tag(node):
+    """The pill on a row or entry that Claude found and no tool listed."""
+    return badge("added by Claude", "", "outline") if isinstance(node, dict) and node.get("added") else ""
+
+
 def basis(conf):
     return badge(conf, f"basis-{conf}", {"confirmed": "secondary", "inferred": "outline", "unknown": "destructive"}.get(conf, "outline"))
 
@@ -701,7 +709,7 @@ def render_table(columns, rows, refs, tid, filterable=True, plain=False, group=N
             tds.append(f"<td>{sev_badge(cell)}</td>" if kind == "severity" else f"<td>{status_badge(cell)}</td>" if kind == "status" else f"<td>{cell_html(cell, refs)}</td>")
         note = f'<div class="muted">{inline(r.get("note"), refs)}</div>' if r.get("note") and r.get("conf") != "confirmed" else ""
         cites_ = new_cites(r.get("cite"), *r["cells"])
-        body.append("<tr>" + "".join(tds) + f'<td class="basis-cell">{basis_for(r)}{gid_tag(r)}{note}{user_note(r.get("user"))}</td><td>{refs.mark(cites_)}</td></tr>')
+        body.append("<tr>" + "".join(tds) + f'<td class="basis-cell">{basis_for(r)}{added_tag(r)}{gid_tag(r)}{note}{user_note(r.get("user"))}</td><td>{refs.mark(cites_)}</td></tr>')
     flt = f'<input class="input tbl-filter" type="search" data-target="{tid}" placeholder="Filter rows" aria-label="Filter rows">' if filterable and len(rows) > 6 else ""
     top = ("<tr class=\"group-row\">" + "".join(f'<th colspan="{n}"{" class=\"grp\"" if lbl else ""}>{E(lbl)}</th>' for lbl, n in group) + "</tr>") if group else ""
     tf = f'<tfoot><tr class="total-row">{"".join(f"<td>{c}</td>" for c in foot)}</tr></tfoot>' if foot else ""
@@ -810,10 +818,14 @@ def card_dom_id(cid):
     return "c-" + cid.replace(".", "-")
 
 
-def schema_card(card, body, extra=""):
+def partial_badge(reason):
+    return f'<span class="badge partial" data-variant="outline" tabindex="0" data-tip="{E(reason)}" data-tip-kind="note">partial</span>' if reason else ""
+
+
+def schema_card(card, body, extra="", partial=None):
     shade = "fact" if card["tier"] == "M" else "llm"
     return (f'<div class="card block {shade}{extra}" id="{card_dom_id(card["id"])}" data-card="{card["id"]}">'
-            f'<header><h3>{E(card["title"])}</h3>{tier_badge(card["tier"])}</header><section>{body}</section></div>')
+            f'<header><h3>{E(card["title"])}</h3>{tier_badge(card["tier"])}{partial_badge(partial)}</header><section>{body}</section></div>')
 
 
 def placeholder_body(card):
@@ -850,12 +862,22 @@ def block_body(b, refs, tid):
             f'<details><summary class="muted">Diagram source</summary><pre>{E(src)}</pre></details>{provenance(b, refs, "", "Diagram")}</div>')
 
 
-def blocks_body(card, blocks, refs, tid):
-    """A card's blocks, without a card around each. A text or list block right after a diagram is that diagram's notes."""
+def unbacked_note(arrows):
+    return f'<p class="muted">Arrows with no import or call behind them, so treat them as inferred: {E(", ".join(arrows))}.</p>'
+
+
+def blocks_body(card, blocks, refs, tid, unbacked=None):
+    """A card's blocks, without a card around each. A text or list block right after a diagram is that diagram's notes.
+    `unbacked` maps "card id#n" to the arrows of the card's n-th diagram that V3 found no import or call behind."""
     out = []
+    drawn = 0
     for i, b in enumerate(blocks):
         h = block_body(b, refs, f"{tid}-{i}")
         if b["type"] == "diagram":
+            drawn += 1
+            arrows = (unbacked or {}).get(f"{card['id']}#{drawn}")
+            if arrows:
+                h = h[:-len("</div>")] + unbacked_note(arrows) + "</div>"
             out.append(h)
         elif i and blocks[i - 1]["type"] == "diagram" and card["shape"] == "flows":
             out[-1] = out[-1][:-len("</div>")] + f'<div class="diagram-notes">{h}</div></div>'
@@ -871,31 +893,63 @@ def entries_body(card, entries, refs, tid):
         fl = e["fields"]
         dl = "".join(f"<dt>{E(f['label'])}</dt><dd>{inline(fl[f['id']], refs)}</dd>" for f in labels)
         out.append(f'<details class="entry" id="{card_dom_id(card["id"])}-e{n}" open><summary>{E(e[card["key"]])}</summary><dl class="facts">{dl}</dl>'
-                   f'{provenance(e, refs, " ".join(fl.values()))}</details>')
+                   f'{added_tag(e)}{provenance(e, refs, " ".join(fl.values()))}</details>')
     return "".join(out)
 
 
-def render_card(card, entry, refs, rid):
+def _cand_nodes(entry):
+    """The table rows and entries of a card entry that can carry `cand` or `added`."""
+    nodes = [r for b in entry.get("blocks", []) if isinstance(b, dict) and b.get("type") == "table" for r in b.get("rows", []) if isinstance(r, dict)]
+    return nodes + [e for e in entry.get("entries", []) if isinstance(e, dict)]
+
+
+def candidate_footer(card, entry, fed):
+    """A line under a card that tool findings were fed to: how many were kept, merged into rows, dismissed or added."""
+    if not fed or not isinstance(entry, dict):
+        return ""
+    nodes = _cand_nodes(entry)
+    kept = sum(len(n["cand"]) for n in nodes if isinstance(n.get("cand"), list))
+    rows = sum(1 for n in nodes if n.get("cand"))
+    added = sum(1 for n in nodes if n.get("added"))
+    dismissed = [d for d in entry.get("dismissed", []) if isinstance(d, dict)]
+    count = sum(len(d["cand"]) for d in dismissed if isinstance(d.get("cand"), list))
+    tail = f", {added} rows added by Claude" if added else ""
+    out = f'<p class="muted cand-foot">Tool findings: {fed} found, {kept} kept in {rows} rows, {count} dismissed{tail}.</p>'
+    if dismissed:
+        lis = "".join(f'<li>{" ".join("<code>" + E(c) + "</code>" for c in d.get("cand", []))} {E(d.get("reason", ""))}</li>' for d in dismissed)
+        out += f"<details><summary>Dismissed findings</summary><ul>{lis}</ul></details>"
+    return out
+
+
+def render_card(card, entry, refs, rid, ctx=None):
     tid = "t-" + card_dom_id(card["id"])[2:]
-    if card["writer"] == "script" or not isinstance(entry, dict) or entry.get("pending"):
-        return schema_card(card, placeholder_body(card))
+    partial = ((ctx or {}).get("partial") or {}).get(card["id"])
+    if card["writer"] == "script":
+        drawn = measured.body(card["id"], ctx or {}, refs)
+        return schema_card(card, drawn if drawn is not None else placeholder_body(card), partial=partial)
+    if not isinstance(entry, dict) or entry.get("pending"):
+        return schema_card(card, placeholder_body(card), partial=partial)
     try:
         if "na" in entry:
             body = na_body(entry, refs)
         elif "blocks" in entry:
-            body = blocks_body(card, entry["blocks"], refs, tid)
+            body = blocks_body(card, entry["blocks"], refs, tid, ((ctx or {}).get("checks") or {}).get("unbacked"))
         elif "entries" in entry:
             body = entries_body(card, entry["entries"], refs, tid)
         else:
             body = placeholder_body(card)
     except (KeyError, TypeError, IndexError, AttributeError):
         body = placeholder_body(card)  # V6 reports the real error
-    return schema_card(card, body)
+    try:
+        body += candidate_footer(card, entry, (ctx or {}).get("fed", {}).get(card["id"], 0))
+    except (KeyError, TypeError, AttributeError):
+        pass  # V6 and V5 report the real error
+    return schema_card(card, body, partial=partial)
 
 
-def schema_cards_html(sch, rep, refs, rid):
+def schema_cards_html(sch, rep, refs, rid, ctx=None):
     by_id = {c["card"]: c for c in (rep or {}).get("cards", []) if isinstance(c, dict) and "card" in c}
-    return "".join(render_card(c, by_id.get(c["id"]), refs, rid) for c in sch["cards"])
+    return "".join(render_card(c, by_id.get(c["id"]), refs, rid, ctx) for c in sch["cards"])
 
 
 # --------------------------------------------------------------------------- measured panels
@@ -1523,6 +1577,20 @@ def questions_body(refs):
     return render_table(["No.", "Question", "Answered in"], rows, refs, "t-questions", True, True)
 
 
+def measured_ctx(ctx, reports, facts):
+    """What the measured cards draw from: the extractor output, the tracked files, a reader for files at the pinned commit and the component catalog."""
+    cites = ctx["cites"]
+    try:
+        tree = cites.tree()[0]
+    except Exception:  # noqa: BLE001 - a repository that cannot be listed leaves the placeholders in place
+        tree = set()
+
+    def read(path):
+        got = cites.repo.read(f"{cites.sha}:{path}")
+        return got[1].decode("utf-8", "replace") if got and got[0] == "blob" else None
+    return {**ctx, "facts": facts, "tree": tree, "read": read, "catalog": components.catalog_rows(reports.get("components") or {})}
+
+
 def build_page(rid, reports, facts, state, ctx):
     refs = Refs(rid, ctx["cites"])
     title = TITLES[rid]
@@ -1568,7 +1636,7 @@ def build_page(rid, reports, facts, state, ctx):
         if rid == "risks" and rep:
             parts.append(panel_risk_counts(rep))
         if sch and any(c["writer"] == "claude" for c in sch["cards"]):
-            parts.append(f'<div class="findings">{schema_cards_html(sch, rep, refs, rid)}</div>')
+            parts.append(f'<div class="findings">{schema_cards_html(sch, rep, refs, rid, measured_ctx(ctx, reports, facts))}</div>')
         elif not sch:
             blocks = render_blocks(rep.get("blocks", []), refs, rid)
             if blocks:
@@ -1624,13 +1692,16 @@ def masthead(facts, reports):
             "remote": link, "date": r["commit_date"]}
 
 
-def render_html(facts, reports, state, history, version, cites, build=None, coverage=None):
+def render_html(facts, reports, state, history, version, cites, build=None, coverage=None, extract=None, checks=None):
     """`coverage` is the list cmd_render already gave IDs to; without it the items are rebuilt from `build`."""
     if coverage is None:
         coverage = process.coverage_items(build) if build else ()
     gaps = collect_gaps(reports, coverage)
     built = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    ctx = {"cites": cites, "gaps": gaps, "history": history, "built": built, "version": version, "build": build}
+    fed = {c: len(v) for rid, _, _ in REPORTS for c, v in candidates.for_report(rid, extract or {}).items()}
+    ctx = {"cites": cites, "gaps": gaps, "history": history, "built": built, "version": version, "build": build,
+           "extract": extract or {}, "fed": fed, "checks": checks or {},
+           "partial": process.partial_cards(build) if build else {}}
     mh = masthead(facts, reports)
     build = lambda: "".join(build_page(rid, reports, facts, state, ctx) for rid, _, _ in REPORTS)
     pages = build()

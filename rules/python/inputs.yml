@@ -1,0 +1,83 @@
+rules:
+  - id: dossier.python.input.env-var
+    message: Reads an environment variable
+    languages: [python]
+    severity: INFO
+    metadata: {category: env-var, detail: '[(\[]\s*["'']([^"'']+)["'']'}
+    pattern-either:
+      - pattern: os.environ[$K]
+      - pattern: os.environ.get($K, ...)
+      - pattern: os.getenv($K, ...)
+
+  - id: dossier.python.input.cli-args
+    message: Reads command-line arguments
+    languages: [python]
+    severity: INFO
+    metadata: {category: cli-args}
+    pattern-either:
+      - pattern: $P.add_argument(...)
+      - pattern: sys.argv
+      - pattern: typer.Option(...)
+      - pattern: typer.Argument(...)
+      - pattern: |
+          @click.option(...)
+          def $F(...): ...
+      - pattern: |
+          @click.argument(...)
+          def $F(...): ...
+
+  - id: dossier.python.input.config-file
+    message: Reads a configuration file
+    languages: [python]
+    severity: INFO
+    metadata: {category: config-file}
+    pattern-either:
+      - pattern: tomllib.load(...)
+      - pattern: tomli.load(...)
+      - pattern: configparser.ConfigParser(...)
+      - pattern: yaml.safe_load(...)
+      - pattern: yaml.load(...)
+      - pattern: dotenv.load_dotenv(...)
+      - pattern: load_dotenv(...)
+
+  - id: dossier.python.input.file-read
+    message: Reads a file
+    languages: [python]
+    severity: INFO
+    metadata: {category: file-read}
+    pattern-either:
+      - pattern: open($F)
+      - patterns:
+          - pattern: open($F, $M, ...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^["''][rbtU]*["'']$
+      - pattern: $X.read_text(...)
+      - pattern: $X.read_bytes(...)
+
+  - id: dossier.python.input.stdin
+    message: Reads standard input
+    languages: [python]
+    severity: INFO
+    metadata: {category: stdin}
+    pattern-either:
+      - pattern: sys.stdin
+      - pattern: input(...)
+
+  - id: dossier.python.input.message-consume
+    message: Takes messages from a queue
+    languages: [python]
+    severity: INFO
+    metadata: {category: message-consume}
+    pattern-either:
+      - pattern: $CH.basic_consume(...)
+      - patterns:
+          - pattern-either:
+              - pattern: $C.subscribe(...)
+              - pattern: $C.poll(...)
+          - pattern-inside: |
+              $C = $K(...)
+              ...
+          - metavariable-regex:
+              metavariable: $K
+              regex: ^(KafkaConsumer|Consumer|kafka\.KafkaConsumer|confluent_kafka\.Consumer)$

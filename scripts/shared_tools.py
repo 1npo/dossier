@@ -17,10 +17,11 @@ class ToolError(RuntimeError):
     pass
 
 
-def _call(run, tool: str, worker: str, request: dict) -> dict:
+def _call(run, tool: str, worker: str, request: dict, timeout: float | None = None) -> dict:
     py = toolcheck.load_tools()["python"]
     cmd = ["uv", "run", "--locked", "--python", py, "--script", str(SCRIPTS / worker)]
-    result = run(cmd, input=json.dumps(request).encode(), stage=tool, profile="tool")
+    extra = {} if timeout is None else {"timeout": timeout}
+    result = run(cmd, input=json.dumps(request).encode(), stage=tool, profile="tool", **extra)
     if result.timed_out:
         raise ToolError(f"{tool} took too long and was stopped.")
     if result.returncode != 0:
@@ -49,3 +50,8 @@ class Semgrep:
         res = _call(self.run, "semgrep", "semgrep_worker.py",
                     {"config": str(Path(config).resolve()), "paths": paths, "timeout": timeout})
         return res["results"]
+
+    def test(self, config: Path, targets: Path) -> dict:
+        """Run `semgrep --test` over a rules folder and its test targets. Returns {"returncode", "output"}."""
+        return _call(self.run, "semgrep-test", "semgrep_worker.py",
+                     {"test": True, "config": str(Path(config).resolve()), "targets": str(Path(targets).resolve())})

@@ -82,6 +82,43 @@ def test_bad_content_falls_back_to_placeholder(make_cites):
     assert "Not yet generated" in h
 
 
+def test_added_row_gets_a_badge(make_cites):
+    t = tbl()
+    t["rows"][0]["added"] = True
+    h = render.render_card(SCH["cards"][0], {"card": "x.tab", "blocks": [t]}, refs(make_cites), "x")
+    assert "added by Claude" in h
+
+
+def test_candidate_footer_counts_kept_dismissed_and_added(make_cites):
+    t = tbl()
+    t["rows"] = [dict(t["rows"][0], cand=["io-1", "io-2"]), dict(t["rows"][0], added=True)]
+    entry = {"card": "x.tab", "blocks": [t], "dismissed": [{"cand": ["io-3"], "reason": "Not [[x]] needed."}]}
+    h = render.render_card(SCH["cards"][0], entry, refs(make_cites), "x", {"fed": {"x.tab": 3}})
+    assert "Tool findings: 3 found, 2 kept in 1 rows, 1 dismissed, 1 rows added by Claude." in h
+    assert "<code>io-3</code>" in h and "Not [[x]] needed." in h
+
+
+def test_candidate_footer_is_empty_when_nothing_was_fed(make_cites):
+    h = render.render_card(SCH["cards"][0], {"card": "x.tab", "blocks": [tbl()]}, refs(make_cites), "x", {"fed": {}})
+    assert "cand-foot" not in h
+
+
+def test_partial_badge_follows_the_tier_badge(make_cites):
+    h = render.render_card(SCH["cards"][0], {"card": "x.tab", "blocks": [tbl()]}, refs(make_cites), "x", {"partial": {"x.tab": "Made without grimp: boom."}})
+    assert h.index('class="badge tier') < h.index('class="badge partial"')
+    assert 'data-tip="Made without grimp: boom."' in h
+
+
+def test_partial_badge_also_marks_a_placeholder_card(make_cites):
+    h = render.render_card(SCH["cards"][1], None, refs(make_cites), "x", {"partial": {"x.mea": "Made without semgrep: it is not installed."}})
+    assert 'class="badge partial"' in h and "Not yet generated" in h
+
+
+def test_no_partial_info_no_badge(make_cites):
+    h = render.render_card(SCH["cards"][0], {"card": "x.tab", "blocks": [tbl()]}, refs(make_cites), "x", {})
+    assert "badge partial" not in h
+
+
 # ------------------------------------------------------------------ page wiring (M0-10)
 
 import sys
