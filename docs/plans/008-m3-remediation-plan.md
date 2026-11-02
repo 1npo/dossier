@@ -504,7 +504,7 @@ Read first: R20 to R25, section 3.6 and decisions D10, D11, D12, D15. Also load 
   - Files: `scripts/dossier.py` (`cmd_check`, the `check` parser, `cmd_render`'s final JSON), `SKILL.md` (build step 7, and the commands list), `scripts/process.py` (F1-7's browser badge already shows "not run").
   - Tests: `tests/unit/scripts/test_dossier_check.py` with `check_page` stubbed (monkeypatch the subprocess call) for exit codes and the combined output; `cmd_render` JSON contains `"browser_check": "not run"` on a fresh build.
   - Commit: `feat(dossier): add dossier check, which runs the page audit and the browser check`.
-- [ ] **F3-5. Docs and version 0.7.1.**
+- [x] **F3-5. Docs and version 0.7.1.**
   - Files: `SKILL.md`, `README.md`, `docs/user-guide.md` and `docs/developer-guide.md` if they exist (follow the docs skills; if absent, do not create them in this plan), `VERSION` (0.7.1), the changelog if the repository keeps one (check `git-release`).
   - Document: `dossier check`, V11 and V12, the skill commit on the process card, `doctor`'s unmerged check, the measured relationships card, the one-row-per-item rules, the golden02 baselines.
   - Commit: `chore(dossier): bump to 0.7.1` and a `docs(dossier): …` commit before it.
