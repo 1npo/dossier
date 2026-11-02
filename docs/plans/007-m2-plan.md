@@ -622,7 +622,7 @@ Independent tasks: M2-3, M2-4, M2-6 and M2-7 need nothing but M2-2 and can be do
 
 ### M2-12. `dossier candidates`
 
-- [ ] **Goal.** The command Claude uses to see the tool findings for a report, and what is still undecided.
+- [x] **Goal.** The command Claude uses to see the tool findings for a report, and what is still undecided.
 - **Files.** Edit `scripts/candidates.py` (second part), `scripts/dossier.py` (subcommand, docstring line); new `tests/unit/scripts/test_candidates_cli.py`.
 - **Interface.**
   ```python

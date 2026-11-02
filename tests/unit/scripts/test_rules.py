@@ -3,6 +3,8 @@ from pathlib import Path
 
 import pytest
 
+import candidates
+
 SKILL = Path(__file__).resolve().parents[3]
 RULES = SKILL / "rules"
 TARGETS = SKILL / "tests" / "fixtures" / "semgrep"
@@ -87,3 +89,16 @@ class TestRuleFiles:
         found = {r["category"] for _, r in cases()}
 
         assert IO_CATEGORIES <= found
+
+
+class TestCategoryMap:
+    def test_every_rule_category_has_a_home_card(self):
+        found = {r["category"] for _, r in cases()} - OTHER_CATEGORIES
+
+        assert found <= set(candidates.CATEGORY_CARD)
+
+    def test_the_home_card_table_has_exactly_the_rule_categories(self):
+        assert set(candidates.CATEGORY_CARD) == IO_CATEGORIES
+
+    def test_every_home_card_is_a_card_in_the_schema(self):
+        assert set(candidates.CATEGORY_CARD.values()) <= set(candidates.card_titles())

@@ -1,0 +1,106 @@
+"""The component model (D4): suggestions for the components catalog, and the rules that decide which component owns a file.
+
+`component_of` is shared by `dossier candidates --catalog` and by check V4. Standard library plus `gather` and `graphs`.
+"""
+from __future__ import annotations
+
+import fnmatch
+import re
+
+import gather
+import graphs
+
+
+def parse_paths(cell: str) -> list:
+    """['src/app/', 'scripts/*.sh'] from a `Paths` cell such as "`src/app/`, `scripts/*.sh`"."""
+    return [p.strip().strip("`").strip() for p in re.split(r",\s*", cell or "") if p.strip().strip("`").strip()]
+
+
+def match_score(path: str, pattern: str):
+    """How specifically `pattern` names `path`: None, or a sortable score. A literal file beats a glob, a glob beats a
+    directory, and a deeper directory beats a shallower one."""
+    if pattern == path:
+        return (3, len(pattern))
+    if any(c in pattern for c in "*?["):
+        return (2, len(pattern)) if fnmatch.fnmatch(path, pattern) else None
+    folder = pattern.rstrip("/")
+    return (1, folder.count("/") + 1) if folder and path.startswith(folder + "/") else None
+
+
+def component_of(path: str, rows: list) -> tuple:
+    """(component name or None, names of other components that match equally well). `rows`: [{"name", "paths": [...]}]."""
+    best, owners = None, set()
+    for row in rows:
+        scores = [s for s in (match_score(path, p) for p in row["paths"]) if s]
+        if not scores:
+            continue
+        top = max(scores)
+        if best is None or top > best:
+            best, owners = top, {row["name"]}
+        elif top == best:
+            owners.add(row["name"])
+    first = sorted(owners)[0] if owners else None
+    return first, sorted(owners - {first}) if first else []
+
+
+def catalog_rows(report: dict) -> list:
+    """[{"name", "paths"}] from the `components.catalog` card of a components report."""
+    rows = []
+    for entry in (report or {}).get("cards", []):
+        if entry.get("card") == "components.catalog":
+            for block in entry.get("blocks", []):
+                for row in block.get("rows", []) if isinstance(block, dict) else []:
+                    cells = row.get("cells", [])
+                    if len(cells) > 1:
+                        rows.append({"name": cells[0].strip("`").strip(), "paths": parse_paths(cells[1])})
+    return rows
+
+
+def catalog_edges(rows: list, extract: dict) -> list:
+    """Imports between the drafted components: [{"from", "to", "imports"}]."""
+    counts: dict = {}
+    for g in extract.get("graph", []):
+        if g.get("kind") != "import" or not g.get("paths"):
+            continue
+        a, b = component_of(g["path"], rows)[0], component_of(g["paths"][0], rows)[0]
+        if a and b and a != b:
+            counts[(a, b)] = counts.get((a, b), 0) + 1
+    return [{"from": a, "to": b, "imports": n} for (a, b), n in sorted(counts.items())]
+
+
+def file_lines(facts: dict) -> dict:
+    """Path -> line count, from the reading chunks in facts.json (a file split in segments is summed)."""
+    lines: dict = {}
+    for chunk in ((facts or {}).get("chunks") or {}).get("chunks", []):
+        for f in chunk.get("files", []):
+            lines[f["path"]] = lines.get(f["path"], 0) + (f.get("lines") or 0)
+    return lines
+
+
+def source_files(tree, extract: dict) -> list:
+    paths = tree if tree else {i["path"] for items in extract.values() for i in items}
+    return sorted(p for p in paths if (gather.lang_of(p) or (None, None))[1] == "code" and not gather.noise_reason(p))
+
+
+def component_candidates(tree, extract: dict, facts: dict) -> dict:
+    """Folders, packages and import communities, as suggestions for the components catalog. Never written to a report."""
+    lines, files = file_lines(facts), source_files(tree, extract)
+    folders: dict = {}
+    for p in files:
+        d = p.rsplit("/", 1)[0] if "/" in p else ""
+        entry = folders.setdefault(d, {"path": d or ".", "files": 0, "lines": 0})
+        entry["files"] += 1
+        entry["lines"] += lines.get(p, 0)
+    modules = [g for g in extract.get("graph", []) if g.get("kind") == "module"]
+    packages = sorted({(m["module"] if m["is_package"] else m["module"].rsplit(".", 1)[0]) for m in modules if m.get("package")})
+    top = {m["package"] for m in modules if m.get("package")}
+    keep = [p for p in packages if p in top or p.count(".") <= 2]
+    imports = [(g["from"], g["to"]) for g in extract.get("graph", []) if g.get("kind") == "import"]
+    labels = graphs.communities([m["module"] for m in modules], imports)
+    path_of = {m["module"]: m["path"] for m in modules}
+    groups: dict = {}
+    for mod, label in sorted(labels.items()):
+        groups.setdefault(label, set()).add(path_of[mod].rsplit("/", 1)[0] if "/" in path_of[mod] else ".")
+    return {"folders": [folders[k] for k in sorted(folders)],
+            "packages": [{"package": p, "modules": sum(1 for m in modules if m["module"] == p or m["module"].startswith(p + "."))} for p in keep],
+            "communities": [{"label": k, "folders": sorted(v)} for k, v in sorted(groups.items()) if len(v) > 0]}

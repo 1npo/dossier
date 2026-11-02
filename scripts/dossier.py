@@ -12,6 +12,8 @@
   dossier.py prepare [REPO] [--ref REF] [--chunk-tokens N] [--full] [--allow-missing] [--no-restore] [--allow-ref] [--submodules] [--restore yes|no]
                                                               check tools, make a clean copy, install locked dependencies if allowed, measure the repo, write facts, a reading plan and an update plan
   dossier.py render  [REPO] [--partial] [--allow-errors] [--readers N]      validate the reports and write the HTML
+  dossier.py candidates [REPO] --report ID [--open] [--catalog FILE] [--json]
+                                                              list the tool findings a report must keep, merge or dismiss (--open: only the undecided ones)
   dossier.py correct [REPO] ...                               record a user correction
   dossier.py confirm [REPO] [IDS] ...                         list open items, or confirm / answer / dispute them
   dossier.py migrate [REPO] [--dry-run]                       one-off: convert an old-layout dossier (used for the M0 check)
@@ -31,6 +33,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import buildlog  # noqa: E402
+import candidates  # noqa: E402
 import config  # noqa: E402
 import gather  # noqa: E402
 import incremental  # noqa: E402
@@ -406,6 +409,26 @@ def cmd_render(a):
                       "tracker": counts, "resolved_by_user": len(gaps) - sum(1 for g in gaps if render.is_open(g)), "warnings": len(warnings)}, indent=1))
 
 
+def cmd_candidates(a):
+    top = toplevel(a.repo)
+    out, _, _ = out_dir(top)
+    ids = [rid for rid, _, authored in render.REPORTS if authored]
+    if a.report not in ids:
+        die(f"'{a.report}' is not a report Claude writes. Use one of: {', '.join(ids)}.")
+    extract = candidates.load(out)
+    if not extract:
+        die("No extractor output found. Run prepare first.")
+    facts = load(out / "facts.json", {})
+    reports = {rid: load(out / "reports" / f"{rid}.json") for rid in ids if (out / "reports" / f"{rid}.json").exists()}
+    catalog = load(a.catalog) if a.catalog else None
+    sha = facts.get("repo", {}).get("sha")
+    tree = stages.tree_at(top, sha) if sha else None
+    if a.json:
+        print(json.dumps(candidates.report_data(a.report, extract, reports, facts, only_open=a.open, catalog=catalog, tree=tree), indent=1))
+    else:
+        sys.stdout.write(candidates.text(a.report, extract, reports, facts, only_open=a.open, catalog=catalog, tree=tree))
+
+
 def cmd_migrate(a):
     top = toplevel(a.repo)
     out, _, _ = out_dir(top)
@@ -587,6 +610,13 @@ def main():
     p.add_argument("--allow-errors", action="store_true", help="write the HTML even if validation fails")
     p.add_argument("--apply-corrections", action="store_true", help="mark pending corrections as applied")
     p.set_defaults(fn=cmd_render)
+    p = sub.add_parser("candidates")
+    p.add_argument("repo", nargs="?")
+    p.add_argument("--report", required=True, metavar="ID", help="the report to list findings for, such as io or components")
+    p.add_argument("--open", action="store_true", help="only findings no report has decided; prints nothing when there are none")
+    p.add_argument("--catalog", metavar="FILE", help="a drafted reports/components.json: show its sizes, edges and files in no component")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(fn=cmd_candidates)
     p = sub.add_parser("migrate")
     p.add_argument("repo", nargs="?")
     p.add_argument("--dry-run", action="store_true", help="show what would change and write nothing")
