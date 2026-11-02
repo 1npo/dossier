@@ -939,6 +939,35 @@ In this order, recording it under "Verification results": (1) the `--catalog` he
 
 After M2-28, follow `git-workflow` to merge `feat/dossier-m2` into `main` with a merge commit (as for M0 and M1) and push only if that skill says to.
 
+### Results (Phase 3)
+
+Started 2026-11-01 on branch `feat/dossier-m2`. Phase 2's baseline held: `874 passed, 36 skipped` before the first task.
+
+**Tasks done:** M2-21 (V2), M2-22 (V3), M2-23 (V7), M2-24 (reports 10 and 13 optional, pending not allowed), M2-25 (`method.md`), M2-26 (`reports.md`), M2-27 (SKILL.md, README, rules README), and the version bump of M2-28 (`VERSION` is `0.7.0`). Default suite after M2-27: `913 passed, 36 skipped`.
+
+**Deviations and decisions**
+
+1. **`checks.py` was split twice.** V3 is in `scripts/checks_v3.py` (140 lines) and V7 in `scripts/checks_v7.py` (about 50 lines), because `checks.py` had reached 309 lines with V2 alone. `checks.validate` calls all three. `checks.py` imports `render` and `schema` now (no cycle: neither imports `checks`).
+2. **`checks.validate` returns a new key `info`** (a list of lines `cmd_render` prints as `info: …`). V3 uses it to say that no import graph was extracted. `test_checks_v5.py` pins the key set and was updated.
+3. **V2 skips a claim when none of its citations is a readable file** (a directory, a `facts:` key or a bad path). The plan listed these cases as "not checked"; the code makes it explicit.
+4. **The process card's check line** now also says `Names: N not found in the code they cite.` and `Diagram arrows: N of M have no import or call behind them.` when those counts exist.
+5. **`method.md` has two complete examples, not one.** No report has both a candidate-fed table and an `entries` card, so "Report file shape: cards" shows the `components` report (table with `unassigned`, `entries`, a second table, `na`) and "Tool findings: keep, merge, dismiss" shows the `io` report (keep, merge by id and by group, `added`, `dismissed`, `na`). `test_prompts.py` validates both against their schemas. The notes shape key `interfaces` was renamed `inputs_outputs` (nothing reads it) so that the retired-name grep passes.
+6. **`reports.md` is generated from the schemas** (card order, columns, fixed rows, home-card categories) plus one hand-written paragraph per card; tests check every Claude-written card is described and that the scripted cards say "Do not write this card".
+7. **Script cards cannot be written at all** once pending is off: `schema.validate` accepts a script card only as `pending`. The prompts therefore say to leave them out of the file.
+8. **Block E in the safety sandbox:** `rm -rf $SCR/home` is refused by Claude Code's safety check (variable target). `$SCR` is a fresh scratch folder, so the run skips that line.
+
+**Defect found at sign-off (block B): tree-sitter segfaulted on cannalerts.** The first `prepare` showed `tree-sitter-language-pack: failed (exit 139)` and `models` and `tests` almost empty. Cause: `tree-sitter` 0.26.0, which the language pack resolves to, corrupts memory while iterating query results (a crash on 10 of 106 files, different files on each run; under `PYTHONMALLOC=malloc` it crashes every time). `tree-sitter` 0.25.0 and 0.25.2 are clean (36 runs of every adapter query over all 106 files, with and without `PYTHONMALLOC=malloc`). Fix: `scripts/ts_worker.py` now pins `tree-sitter==0.25.2` beside the language pack, the lock is regenerated, and `test_shared_tools.py` asserts the pin (and its pin test accepts extra pinned dependencies). A first attempt (a child process per file, `QueryCursor.matches`) was tried, did not fix the cause, and was reverted; it is in the history as `b42ac73` and undone by the next commit. Slow suite after the fix: `950 passed` in 2 min 14 s.
+
+### Verification results
+
+Run 2026-11-01 on branch `feat/dossier-m2` (commit after `fix(dossier): pin tree-sitter 0.25.2 …`), by Claude Sonnet 5.5, `REPO` = cannalerts at `main` (`5923c09`), scratch folder in the session scratchpad.
+
+- **Block A.** `doctor` exit 0: git 2.47.3, uv 0.11.19, node 20.19.2, npm 9.2.0 `ok`; grimp 3.17, vulture 2.16, semgrep 1.181.0, tree-sitter-language-pack 1.22.1, import-linter 2.15 and scip-python 0.6.6 listed as installed on first use. (Finding: the line for scip-python still says "via npx"; it is installed with `npm ci`.)
+- **Block B.** `prepare --ref main --restore yes` exit 0; `extract ok`; adapters `python ok` (grimp, tree-sitter-language-pack, semgrep, vulture, scip-python all `ok`) and `repo ok` (semgrep `ok`). Counts: blindspots 76 python + 2 repo, dead 3, entry_points 5 python + 1 repo, graph 283 (55 modules, 225 imports, 3 cycles), io_candidates 325, models 48 python + 4 repo, symbols 5885, tests 52 python + 1 repo. The checkout's `git status --porcelain` printed nothing.
+- **Block C.** `candidates --report entry` lists the `cannalerts` console script (`pyproject.toml:16`), `python -m cannalerts` and the main guard in `__main__.py`, two main guards in `scripts/`, and one shebang script. `graph.json` holds the `cannalerts.*` modules and their imports.
+
+**Findings for the M3 acceptance pass:** (1) `src/cannalerts/__main__.py:9` is listed twice, as `python.main-module` and as `main-guard`; (2) `docs/plans/copy-phase-prompt.sh` is listed as an entry point (a shebang script in documentation); (3) the `doctor` text says scip-python is installed "via npx".
+
 ---
 
 ## 6. Verification
