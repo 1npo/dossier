@@ -27,6 +27,8 @@ Run `DOSSIER home [dir]`. With no directory it shows the current home. Dossiers 
 ### `/dossier doctor [repo]`
 Run `DOSSIER doctor <repo>` and show the output. It lists the tools this repository needs, which are installed, and how to install the missing ones. It installs nothing.
 
+Show the output as it is printed, in a code block, line for line. Do not summarize, reword or reorder it, and do not drop a line. The last line, `skill: <commit> (clean|dirty|UNMERGED ...)`, says which version of this skill ran and whether it has uncommitted changes. It is the line the user most needs, so always include it. After the block you may add one sentence, for example to say what `dirty` means (uncommitted changes under the skill folder) or to tell the user to run `/dossier build`. Before replying, check that your reply contains a line starting `skill:`.
+
 ### `/dossier check [repo]`
 Run `DOSSIER check <repo>` after `render`. It checks the written page: V11 (every row, column and entry of the reports is drawn) and V12 (a real browser, both themes, 1500 and 400 px wide: diagrams draw and are readable, no sideways scroll or overlapping text, numbered notes under flows, a table where the layout has one, the code viewer and search work). It prints one `FAIL` line per problem and `problems: N`, and exits 1 when N is not 0. It takes a few minutes.
 
