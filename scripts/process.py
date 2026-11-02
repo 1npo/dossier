@@ -90,6 +90,8 @@ def _ok_line(step, build):
                  f"Components: {rc.get('v4', 0)} problems.") if "v5_candidates" in rc else ""
         if "v2" in rc:
             found += f" Names: {rc['v2']} not found in the code they cite."
+        if "v3_checked" in rc:
+            found += f" Diagram arrows: {rc.get('v3', 0)} of {rc['v3_checked']} have no import or call behind them."
         return (f"{rc.get('citations', 0)} citations checked, {rc.get('unresolved', 0)} unresolved; "
                 f"layout check: {rc.get('errors', 0)} errors.{found} {browser}")
     if step == "gaps":

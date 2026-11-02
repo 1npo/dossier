@@ -9,6 +9,7 @@ import keyword
 import re
 
 import candidates
+import checks_v3
 import components
 import process
 import render
@@ -257,7 +258,7 @@ def v2(reports: dict, cites, files: set) -> tuple[list, list, list, dict]:
 
 def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None) -> dict:
     """Run every check. {"errors", "warnings", "gaps", "counts", "unbacked"}."""
-    result = {"errors": [], "warnings": [], "gaps": [], "counts": {}, "unbacked": {}}
+    result = {"errors": [], "warnings": [], "gaps": [], "counts": {}, "unbacked": {}, "info": []}
     try:
         e, w, g, c = v5(reports, extract or {})
     except (AttributeError, TypeError, KeyError):
@@ -279,6 +280,17 @@ def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None)
             result["counts"].update(c)
         except (AttributeError, TypeError, KeyError, OSError):
             pass
+    if extract:
+        try:
+            _, w, g, c, unbacked = checks_v3.v3(reports, extract, components.catalog_rows(reports.get("components") or {}))
+            result["warnings"] += w
+            result["gaps"] += g
+            result["counts"].update(c)
+            result["unbacked"] = unbacked
+        except (AttributeError, TypeError, KeyError):
+            pass
+        if not any(g.get("kind") == "module" for g in extract.get("graph", [])):
+            result["info"].append("V3: no import graph was extracted, so diagram arrows were not checked.")
     if tree and extract:  # a dossier made before the extractors has no extract/: nothing to hold it to
         try:
             e, w, g, c = v4(reports, tree, facts)

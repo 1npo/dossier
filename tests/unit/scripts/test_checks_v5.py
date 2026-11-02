@@ -91,4 +91,4 @@ class TestValidate:
     def test_malformed_card_does_not_crash(self):
         res = checks.validate({"io": {"cards": [{"card": "io.inputs", "blocks": "bad", "dismissed": 3}]}}, EXTRACT)
 
-        assert set(res) == {"errors", "warnings", "gaps", "counts", "unbacked"}
+        assert set(res) == {"errors", "warnings", "gaps", "counts", "unbacked", "info"}

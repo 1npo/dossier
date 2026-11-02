@@ -349,6 +349,8 @@ def cmd_render(a):
     res = checks.validate(reports, extract, cites, facts)
     errors += res["errors"]
     warnings += res["warnings"]
+    for i in res.get("info", []):
+        print(f"info: {i}")
     for w in warnings:
         print(f"warning: {w}")
     for e in errors:

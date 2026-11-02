@@ -862,7 +862,7 @@ Independent tasks: M2-21, M2-22 and M2-23 are independent of each other. M2-24 n
 
 ### M2-22. V3
 
-- [ ] **Goal.** D9 V3, including the note under each diagram.
+- [x] **Goal.** D9 V3, including the note under each diagram.
 - **Files.** Edit `scripts/checks.py` (`v3(reports, extract, catalog)`, the parsers `sequence_arrows(src)` and `flowchart_arrows(src)`), `scripts/render.py` (`blocks_body`: after a diagram block whose `(card id, diagram index)` is in `ctx["checks"]["unbacked"]`, append the fixed muted note listing its arrows); new `tests/unit/scripts/test_checks_v3.py`.
 - **Tests.** Parsers: participants with `as` aliases; every message arrow form; reply arrows reversed; flowchart chains, labelled edges, node labels with `<br/>`; `subgraph` lines ignored. Resolution: exact module, unique last part, ambiguous last part (unresolved), file path, component name. A backed arrow passes; an unbacked arrow warns, gives a Gaps item and the note; an external participant is not checked; no graph → an info line and no warnings.
 - **Done-check.** Full suite passes; block E prints `OK`.

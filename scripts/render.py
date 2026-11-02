@@ -862,12 +862,22 @@ def block_body(b, refs, tid):
             f'<details><summary class="muted">Diagram source</summary><pre>{E(src)}</pre></details>{provenance(b, refs, "", "Diagram")}</div>')
 
 
-def blocks_body(card, blocks, refs, tid):
-    """A card's blocks, without a card around each. A text or list block right after a diagram is that diagram's notes."""
+def unbacked_note(arrows):
+    return f'<p class="muted">Arrows with no import or call behind them, so treat them as inferred: {E(", ".join(arrows))}.</p>'
+
+
+def blocks_body(card, blocks, refs, tid, unbacked=None):
+    """A card's blocks, without a card around each. A text or list block right after a diagram is that diagram's notes.
+    `unbacked` maps "card id#n" to the arrows of the card's n-th diagram that V3 found no import or call behind."""
     out = []
+    drawn = 0
     for i, b in enumerate(blocks):
         h = block_body(b, refs, f"{tid}-{i}")
         if b["type"] == "diagram":
+            drawn += 1
+            arrows = (unbacked or {}).get(f"{card['id']}#{drawn}")
+            if arrows:
+                h = h[:-len("</div>")] + unbacked_note(arrows) + "</div>"
             out.append(h)
         elif i and blocks[i - 1]["type"] == "diagram" and card["shape"] == "flows":
             out[-1] = out[-1][:-len("</div>")] + f'<div class="diagram-notes">{h}</div></div>'
@@ -923,7 +933,7 @@ def render_card(card, entry, refs, rid, ctx=None):
         if "na" in entry:
             body = na_body(entry, refs)
         elif "blocks" in entry:
-            body = blocks_body(card, entry["blocks"], refs, tid)
+            body = blocks_body(card, entry["blocks"], refs, tid, ((ctx or {}).get("checks") or {}).get("unbacked"))
         elif "entries" in entry:
             body = entries_body(card, entry["entries"], refs, tid)
         else:
