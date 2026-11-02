@@ -36,9 +36,12 @@ def _call(run, tool: str, worker: str, request: dict, timeout: float | None = No
 class TreeSitter:
     def __init__(self, run):
         self.run = run
+        self.skipped: dict = {}  # path -> why the worker left the file out (a crash on that file)
 
     def query(self, language: str, paths: list[str], query: str) -> list[dict]:
         res = _call(self.run, "treesitter", "ts_worker.py", {"language": language, "paths": paths, "query": query})
+        for e in res.get("errors", []):
+            self.skipped.setdefault(e["path"], e["error"])
         return res["matches"]
 
 

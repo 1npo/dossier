@@ -38,6 +38,14 @@ class TestTreeSitter:
         assert (call["stage"], call["profile"]) == ("treesitter", "tool")
         assert call["cmd"][:5] == ["uv", "run", "--locked", "--python", "3.13"]
 
+    def test_files_the_worker_skipped_are_kept_on_the_client(self, tmp_path):
+        run = fake_run(tmp_path, {"matches": [], "errors": [{"path": "a.py", "error": "tree-sitter stopped on this file (signal 11); it was skipped"}]})
+        client = shared_tools.TreeSitter(run)
+
+        client.query("python", ["a.py"], "(call) @fn")
+
+        assert client.skipped == {"a.py": "tree-sitter stopped on this file (signal 11); it was skipped"}
+
     def test_nonzero_exit_raises_with_stderr_tail(self, tmp_path):
         run = fake_run(tmp_path, returncode=2, stderr="\n".join(f"line {i}" for i in range(30)))
 
