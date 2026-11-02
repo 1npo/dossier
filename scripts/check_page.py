@@ -302,15 +302,20 @@ def check_search(page, scheme):
     page.evaluate("(r) => { location.hash = r; }", rid)
     page.wait_for_timeout(200)
     info = page.evaluate("""() => { const e = document.querySelector('details.entry'); e.open = false;
-        const dd = e.querySelector('dd'); return {id: e.id, name: e.querySelector('summary').textContent.trim(), dd: dd ? dd.textContent : ''}; }""")
-    m = re.search(r"[A-Za-z]{6,}", info["dd"])
-    if not m:
+        const text = e.textContent; const page = document.body.innerText.toLowerCase();
+        const words = [...new Set(text.match(/[A-Za-z]{6,}/g) || [])];
+        // the rarest word of the entry, so Enter opens this entry and not an earlier hit on a common word
+        const count = (w) => page.split(w.toLowerCase()).length - 1;
+        words.sort((a, b) => count(a) - count(b) || b.length - a.length);
+        return {id: e.id, name: e.querySelector('summary').textContent.trim(), word: words[0] || ''}; }""")
+    if not info["word"]:
         return bad("the first entry has no word of six letters to search for")
-    page.fill("#search", m.group(0))
+    word = info["word"]
+    page.fill("#search", word)
     page.wait_for_timeout(200)
     hit = page.locator("#search-results .result", has=page.locator(".what", has_text=info["name"]))
     if not hit.count():
-        return bad(f"searching for {m.group(0)!r} did not find the entry {info['name']!r}")
+        return bad(f"searching for {word!r} did not find the entry {info['name']!r}")
     page.press("#search", "Enter")
     page.wait_for_timeout(400)
     opened = page.evaluate("(i) => { const e = document.getElementById(i); const b = e.getBoundingClientRect(); return e.open && b.width > 0 && b.height > 0; }", info["id"])
