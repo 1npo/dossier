@@ -318,6 +318,28 @@ def v2(reports: dict, cites, files: set) -> tuple[list, list, list, dict]:
     return [], warnings, gaps, {"v2": len(warnings)}
 
 
+def v2_recipes(reports: dict) -> tuple[list, list, int]:
+    """A recipe's worked example cites a commit that did the same thing, unless it says it is unknown. Warnings only."""
+    entry = _entry(reports, "conventions.recipes")
+    if not entry:
+        return [], [], 0
+    title = candidates.card_titles().get("conventions.recipes", "Recipes")
+    warnings, gaps = [], []
+    for e in entry.get("entries") or []:
+        if not isinstance(e, dict) or e.get("conf") not in ("confirmed", "inferred"):
+            continue
+        example = str((e.get("fields") or {}).get("worked_example") or "")
+        cites = [c for c in e.get("cite") or [] if isinstance(c, str)] + render.inline_cites(example)
+        if any(render.parse_cite(c)["kind"] == "commit" for c in cites):
+            continue
+        name = str(e.get("recipe") or "")
+        warnings.append(f"V2: {title}, {name}: the worked example cites no commit.")
+        gaps.append({"kind": "inference", "report": "conventions", "cite": [c for c in e.get("cite") or [] if isinstance(c, str)],
+                     "statement": f"The recipe '{name}' has a worked example that cites no commit.",
+                     "how_to_confirm": "Find the commit that did the same thing (git log -S) and cite it, or say it is unknown."})
+    return warnings, gaps, len(warnings)
+
+
 def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None) -> dict:
     """Run every check. {"errors", "warnings", "gaps", "counts", "unbacked"}."""
     result = {"errors": [], "warnings": [], "gaps": [], "counts": {}, "unbacked": {}, "info": []}
@@ -335,6 +357,13 @@ def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None)
         env_errors = []
     result["errors"] += env_errors
     result["counts"]["v5_env"] = len(env_errors)
+    try:
+        w, g, n = v2_recipes(reports)
+        result["warnings"] += w
+        result["gaps"] += g
+        result["counts"]["v2_recipes"] = n
+    except (AttributeError, TypeError, KeyError):
+        pass  # a malformed card: V6 reports it
     tree = None
     try:
         tree = cites.tree()[0] if cites else None
