@@ -88,6 +88,8 @@ def _ok_line(step, build):
                    if b else "Browser check: not run yet.")
         found = (f" Tool findings: {rc.get('v5_candidates', 0)} found, {rc.get('v5_open', 0)} without a decision. "
                  f"Components: {rc.get('v4', 0)} problems.") if "v5_candidates" in rc else ""
+        if "v2" in rc:
+            found += f" Names: {rc['v2']} not found in the code they cite."
         return (f"{rc.get('citations', 0)} citations checked, {rc.get('unresolved', 0)} unresolved; "
                 f"layout check: {rc.get('errors', 0)} errors.{found} {browser}")
     if step == "gaps":

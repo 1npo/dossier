@@ -1,0 +1,70 @@
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2].parent / "scripts"))
+import checks  # noqa: E402
+
+CODE = "def load_config(path):\n    return parse(path)\n\nclass Store:\n    def save(self):\n        pass\n\nimport os.path\n"
+BLOBS = {"src/app.py": CODE.encode(), "README.md": b"hello"}
+
+
+def reports(text, cite, rid="entry", **kw):
+    node = {"type": "text", "text": text, "conf": "confirmed", "cite": cite, **kw}
+    return {rid: {"cards": [{"card": f"{rid}.catalog", "blocks": [node]}]}}
+
+
+def run(make_cites, text, cite, dirs=("src",)):
+    cites = make_cites(BLOBS, dirs)
+    return checks.v2(reports(text, cite), cites, {"src/app.py", "README.md"})
+
+
+class TestV2:
+    def test_span_inside_the_cited_lines_passes(self, make_cites):
+        _, warnings, gaps, counts = run(make_cites, "It calls `load_config`.", ["src/app.py:1-2"])
+
+        assert (warnings, gaps, counts) == ([], [], {"v2": 0})
+
+    def test_span_outside_the_cited_range_warns_with_one_gap_item(self, make_cites):
+        _, warnings, gaps, counts = run(make_cites, "It uses `Store`.", ["src/app.py:1-2"])
+
+        assert warnings == ["V2: entry 'It uses `Store`.': Store does not appear in the code it cites (src/app.py:1-2)."]
+        assert gaps == [{"kind": "inference", "report": "entry", "cite": ["src/app.py:1-2"],
+                         "statement": "A statement in Entry points names `Store`, which does not appear in the code it cites.",
+                         "how_to_confirm": "Check the citation's line range, or the name."}]
+        assert counts == {"v2": 1}
+
+    def test_dotted_name_passes_on_its_last_part(self, make_cites):
+        _, warnings, _, _ = run(make_cites, "It uses `app.Store.save`.", ["src/app.py:4-6"])
+
+        assert warnings == []
+
+    def test_call_form_passes_on_the_bare_name(self, make_cites):
+        _, warnings, _, _ = run(make_cites, "It runs `parse()`.", ["src/app.py:1-2"])
+
+        assert warnings == []
+
+    def test_keywords_builtins_short_words_and_paths_are_skipped(self, make_cites):
+        text = "Uses `class`, `print`, `get`, `True`, `none` and `README.md`."
+
+        _, warnings, _, _ = run(make_cites, text, ["src/app.py:1-2"])
+
+        assert warnings == []
+
+    def test_directory_or_facts_citation_is_not_checked(self, make_cites):
+        _, w1, _, _ = run(make_cites, "It uses `Missing`.", ["src"])
+        _, w2, _, _ = run(make_cites, "It uses `Missing`.", ["facts:languages"])
+
+        assert (w1, w2) == ([], [])
+
+    def test_whole_file_citation_searches_the_whole_file(self, make_cites):
+        _, warnings, _, _ = run(make_cites, "It has `Store`.", ["src/app.py"])
+
+        assert warnings == []
+
+    def test_table_cells_are_checked(self, make_cites):
+        reps = {"entry": {"cards": [{"card": "entry.catalog", "blocks": [{"type": "table", "columns": ["A", "B"], "rows": [
+            {"cells": ["x", "`Nowhere`"], "conf": "confirmed", "cite": ["src/app.py:1-2"]}]}]}]}}
+
+        _, warnings, _, _ = checks.v2(reps, make_cites(BLOBS, ("src",)), set())
+
+        assert len(warnings) == 1 and "Nowhere" in warnings[0]

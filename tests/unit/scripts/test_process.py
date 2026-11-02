@@ -340,6 +340,9 @@ class TestCheckLine:
 
         assert "Tool findings: 12 found, 3 without a decision. Components: 2 problems." in got
 
+    def test_name_count_is_said_when_present(self):
+        assert "Names: 3 not found in the code they cite." in self.line(v2=3)
+
     def test_old_records_without_the_counts_read_as_before(self):
         assert "Tool findings" not in self.line()
 

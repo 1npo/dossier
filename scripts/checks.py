@@ -4,9 +4,15 @@ Each check returns `(errors, warnings, gap_items, counts)`. Gaps wording is fixe
 """
 from __future__ import annotations
 
+import builtins
+import keyword
+import re
+
 import candidates
 import components
 import process
+import render
+import schema
 
 FIXED_ROW_CARDS = ("io.inputs", "io.outputs")
 
@@ -184,6 +190,71 @@ def v4(reports: dict, tree, facts=None) -> tuple[list, list, list, dict]:
     return errors, warnings, gaps, counts
 
 
+SPAN = re.compile(r"`([^`]+)`")
+NAME = re.compile(r"^[A-Za-z_][\w.]*(\(\))?$")
+SKIP_WORDS = frozenset(keyword.kwlist) | frozenset(dir(builtins)) | {"true", "false", "null", "none"}
+
+
+def _claim_text(c: dict) -> str:
+    node = c.get("node") or {}
+    return "\n".join([str(c.get("text") or "")] + [str(x) for x in node.get("cells") or []])
+
+
+def _cited_text(cites, refs: list):
+    """The cited lines of every file citation (the whole file when no lines are given), or None when no citation is a readable file.
+    Directories and bad citations are skipped."""
+    out = []
+    for raw in refs:
+        c = render.parse_cite(raw)
+        if c["kind"] != "file":
+            continue
+        got = cites.repo.read(f"{cites.sha}:{c['path']}")
+        if not got or got[0] != "blob":
+            continue
+        lines = got[1].decode("utf-8", "replace").splitlines()
+        out.append("\n".join(lines[c["a"] - 1:c["b"]] if c["a"] else lines))
+    return "\n".join(out) if out else None
+
+
+def _checked_span(span: str, files: set) -> bool:
+    s = span.strip()
+    if not NAME.match(s) or s in files or s.casefold() in SKIP_WORDS or s.rstrip("()") in SKIP_WORDS:
+        return False
+    return not (s.islower() and s.isalpha() and len(s) <= 3)
+
+
+def _span_found(span: str, text: str) -> bool:
+    s = span.strip()
+    if s in text:
+        return True
+    if s.endswith("()") and s[:-2] in text:
+        return True
+    return "." in s and s.rstrip("()").rsplit(".", 1)[1] in text
+
+
+def v2(reports: dict, cites, files: set) -> tuple[list, list, list, dict]:
+    """A name in backticks in a statement appears in the code the statement cites (D9). Warnings only."""
+    warnings, gaps = [], []
+    for rid, rep in sorted(reports.items()):
+        title = (schema.load(rid) or {}).get("title", rid)
+        for c in render.claims_of(rid, rep or {}):
+            refs = [x for x in c["cites"] if render.parse_cite(x)["kind"] == "file"]
+            if not refs:
+                continue
+            text = _cited_text(cites, refs)
+            if text is None:
+                continue
+            for span in dict.fromkeys(SPAN.findall(_claim_text(c))):
+                if not _checked_span(span, files) or _span_found(span, text):
+                    continue
+                shown = " ".join(str(c["text"]).split())[:50]
+                warnings.append(f"V2: {rid} '{shown}': {span} does not appear in the code it cites ({', '.join(refs)}).")
+                gaps.append({"kind": "inference", "report": rid, "cite": refs,
+                             "statement": f"A statement in {title} names `{span}`, which does not appear in the code it cites.",
+                             "how_to_confirm": "Check the citation's line range, or the name."})
+    return [], warnings, gaps, {"v2": len(warnings)}
+
+
 def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None) -> dict:
     """Run every check. {"errors", "warnings", "gaps", "counts", "unbacked"}."""
     result = {"errors": [], "warnings": [], "gaps": [], "counts": {}, "unbacked": {}}
@@ -200,6 +271,14 @@ def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None)
         tree = cites.tree()[0] if cites else None
     except Exception:  # noqa: BLE001 - a repository that cannot be listed: V4 then has nothing to check
         tree = None
+    if cites:
+        try:
+            e, w, g, c = v2(reports, cites, set(tree or ()))
+            result["warnings"] += w
+            result["gaps"] += g
+            result["counts"].update(c)
+        except (AttributeError, TypeError, KeyError, OSError):
+            pass
     if tree and extract:  # a dossier made before the extractors has no extract/: nothing to hold it to
         try:
             e, w, g, c = v4(reports, tree, facts)

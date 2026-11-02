@@ -854,7 +854,7 @@ Independent tasks: M2-21, M2-22 and M2-23 are independent of each other. M2-24 n
 
 ### M2-21. V2
 
-- [ ] **Goal.** D9 V2.
+- [x] **Goal.** D9 V2.
 - **Files.** Edit `scripts/checks.py` (`v2(reports, cites)`, called from `validate`), new `tests/unit/scripts/test_checks_v2.py`.
 - **Tests.** Using the `git_repo`/`make_cites` fixtures from `tests/conftest.py`: a span present in the cited lines passes; one outside the range warns with the fixed text and gives one Gaps item; a dotted name passes on its last part; `name()` passes on `name`; keywords, built-ins, short lowercase words and tracked paths are skipped; a claim citing only a directory or a `facts:` key is not checked; a whole-file citation searches the whole file.
 - **Done-check.** Full suite passes.
