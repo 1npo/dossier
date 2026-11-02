@@ -1,5 +1,6 @@
 """Card schema: load prompts/schema/*.json, lint them, and check a report against its schema (V6)."""
 import json
+import re
 from pathlib import Path
 
 SCHEMA_DIR = Path(__file__).resolve().parent.parent / "prompts" / "schema"
@@ -125,7 +126,20 @@ def _fixed_warn(w, f, have, warns):
             warns.append(f"V6: {w}: has no row for '{v}'")
 
 
-def _check_flows(w, card, blocks, errs):
+def _numbered_notes(block) -> bool:
+    """Notes for a diagram: a list of at least two items, or text of at least two lines that all start with a number."""
+    if not isinstance(block, dict):
+        return False
+    if block.get("type") == "list":
+        items = block.get("items")
+        return isinstance(items, list) and sum(1 for i in items if str(i).strip()) >= 2
+    if block.get("type") == "text":
+        lines = [ln for ln in str(block.get("text") or "").splitlines() if ln.strip()]
+        return len(lines) >= 2 and all(re.match(r"^\s*\d+[.)] ", ln) for ln in lines)
+    return False
+
+
+def _check_flows(w, card, blocks, errs, strict_notes=True):
     if not isinstance(blocks, list) or not blocks or not isinstance(blocks[0], dict) or blocks[0].get("type") != "diagram":
         errs.append(f"V6: {w}: flows must start with a diagram block")
         return
@@ -134,6 +148,8 @@ def _check_flows(w, card, blocks, errs):
         t = b.get("type") if isinstance(b, dict) else None
         if t == "diagram":
             nd += 1
+            if strict_notes and not _numbered_notes(blocks[n] if n < len(blocks) else None):
+                errs.append(f"V6: {w}: diagram {nd} needs numbered notes after it")
         elif t in ("text", "list") and prev == "diagram":
             pass
         else:
@@ -168,7 +184,7 @@ def _check_entries(w, card, entries, errs, warns):
 NOW_DRAWN = {"data.relationships"}  # cards that Claude wrote before 0.7.1 and code draws now: an old entry is ignored, with a warning
 
 
-def validate(rid, rep, sch, allow_pending=None):
+def validate(rid, rep, sch, allow_pending=None, strict_notes=True):
     allow_pending = ALLOW_PENDING if allow_pending is None else allow_pending
     errs, warns = [], []
     if not isinstance(rep, dict):
@@ -246,7 +262,7 @@ def validate(rid, rep, sch, allow_pending=None):
         elif shape == "blocks":
             _check_blocks(w, card, entry["blocks"], errs, warns)
         elif shape == "flows":
-            _check_flows(w, card, entry["blocks"], errs)
+            _check_flows(w, card, entry["blocks"], errs, strict_notes)
         else:
             _check_entries(w, card, entry["entries"], errs, warns)
     required_between(ptr, len(cards))

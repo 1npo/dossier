@@ -28,7 +28,7 @@ Tool findings that arrive here (home card): entry points. Decide about each (see
 
 One sequence diagram of the main entry point: configuration load, wiring, readiness. Name each participant after a real module. Follow it with a text block of numbered notes.
 
-Shape: diagram blocks (at most 1), each optionally followed by one text or list block.
+Shape: diagram blocks (at most 1), each followed by one text block of numbered lines (`1. ...`, `2. ...`) or one list block, with at least two steps.
 
 ## components
 
@@ -78,9 +78,9 @@ Drawn by code from the tool findings. **Do not write this card:** leave it out o
 
 ### Key flows (`interactions.flows`)
 
-One sequence diagram for each kind of entry point, each followed by notes, and more wherever a flow teaches something the others do not. Name each participant after a real module or component. `render` checks that every arrow has an import or a call behind it (V3).
+One sequence diagram for each kind of entry point, each followed by numbered notes (one per step of the diagram), and more wherever a flow teaches something the others do not. Name each participant after a real module or component. `render` checks that every arrow has an import or a call behind it (V3).
 
-Shape: diagram blocks, each optionally followed by one text or list block.
+Shape: diagram blocks, each followed by one text block of numbered lines (`1. ...`, `2. ...`) or one list block, with at least two steps.
 
 ### State ownership (`interactions.state`)
 

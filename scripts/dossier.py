@@ -471,7 +471,7 @@ def cmd_migrate(a):
     gaps_new = migrate.remap_gaps(old["gaps"], mapping["retired"]) if "gaps" in old else None
     problems = []
     for rid, rep in result["reports"].items():
-        errs, _ = schema.validate(rid, rep, schemas[rid], allow_pending=True)
+        errs, _ = schema.validate(rid, rep, schemas[rid], allow_pending=True, strict_notes=False)
         problems += errs
     if problems:
         for e in problems:

@@ -88,7 +88,8 @@ def convert(old, mapping, schemas):
             entry = {"card": card["id"], "pending": True}
             if got:
                 trial = {"card": card["id"], "blocks": [g[3] for g in got]}
-                errs, _ = schema.validate(rid, {"cards": [trial]}, {"report": rid, "cards": [card]}, allow_pending=True)
+                # flow notes are carried as written; V6 asks for numbered notes at the next render
+                errs, _ = schema.validate(rid, {"cards": [trial]}, {"report": rid, "cards": [card]}, allow_pending=True, strict_notes=False)
                 if errs:
                     for old_id, i, heading, _ in got:
                         used.pop((old_id, i), None)

@@ -89,7 +89,7 @@ def test_every_claude_card_present_and_valid():
             assert rid not in res["reports"]
             continue
         assert [c["card"] for c in res["reports"][rid]["cards"]] == claude
-        errs, _ = schema.validate(rid, res["reports"][rid], sch, allow_pending=True)
+        errs, _ = schema.validate(rid, res["reports"][rid], sch, allow_pending=True, strict_notes=False)
         assert errs == [], (rid, errs)
 
 
@@ -172,3 +172,9 @@ def test_existing_backup_stops_the_command(old_dossier):
 def test_remap_gaps():
     g = migrate.remap_gaps({"items": [{"report": "failures"}, {"report": "risks"}]}, migrate.load_map()["retired"])
     assert [i["report"] for i in g["items"]] == ["behavior", "risks"]
+
+
+def test_flow_notes_that_are_not_numbered_are_still_carried():
+    blocks = card(result(), "interactions.flows")["blocks"]
+
+    assert [b["type"] for b in blocks] == ["diagram", "text", "diagram", "text"]

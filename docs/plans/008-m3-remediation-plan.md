@@ -460,7 +460,7 @@ Read first: R2, R3, R8 to R14, R19, section 3.4 and decisions D8, D9, D13, D14.
   - Files: `scripts/candidates.py:266` (remove `[:30]`), `:298` (heading "Modules by import rank").
   - Test first in `test_candidates.py`: a graph with 40 modules gives 40 in `report_data("reading", …)["modules"]`.
   - Commit: `fix(dossier): list every module for the reading order`.
-- [ ] **F2-8. Numbered notes after every flow (R8; needs A7).**
+- [x] **F2-8. Numbered notes after every flow (R8; needs A7).**
   - Files: `scripts/schema.py` (`_check_flows`, line 128: every diagram must be followed by a `list` block with ≥ 2 items, or a `text` block whose non-empty lines all match `^\s*\d+[.)] ` and number ≥ 2; error `V6: <card>: diagram N needs numbered notes after it`), `prompts/reports.md:83` ("each followed by numbered notes, one per step of the diagram").
   - Tests first in `tests/unit/scripts/test_schema.py`: the onboarding blocks from `LIVE/reports/interactions.json` (a diagram then a one-paragraph text) give the error; the run flow's blocks pass; a list block passes.
   - Commit: `fix(dossier): require numbered notes after every flow diagram`.

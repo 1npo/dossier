@@ -26,13 +26,13 @@ def tbl(*rows, cols=("A", "B")):
 
 
 def dia(): return {"type": "diagram", "mermaid": "flowchart LR\nA-->B"}
-def txt(): return {"type": "text", "text": "hi"}
+def txt(): return {"type": "text", "text": "1. Parse the arguments.\n2. Run the handler."}
 def ent(): return {"part": "p", "fields": {"f1": "a", "f2": "b"}, "conf": "confirmed", "cite": ["a"]}
 
 
 def good():
     return {"cards": [{"card": "x.tab", "blocks": [tbl(("one", "1"), ("two", "2"))]},
-                      {"card": "x.flow", "blocks": [dia(), txt(), dia()]},
+                      {"card": "x.flow", "blocks": [dia(), txt(), dia(), txt()]},
                       {"card": "x.ent", "entries": [ent()]}]}
 
 
@@ -137,3 +137,44 @@ class TestNowDrawnCards:
         card = next(c for c in schema.load("data")["cards"] if c["id"] == "data.relationships")
 
         assert (card["writer"], card["shape"], "slots" in card) == ("script", "computed", False)
+
+
+class TestFlowNotes:
+    def errors(self, blocks):
+        r = good()
+        r["cards"][1]["blocks"] = blocks
+        return schema.validate("x", r, SCH)[0]
+
+    def test_a_diagram_followed_by_a_paragraph_needs_numbered_notes(self):
+        errs = self.errors([dia(), {"type": "text", "text": "Onboarding tries discovery first."}])
+
+        assert any("diagram 1 needs numbered notes after it" in e for e in errs)
+
+    def test_a_diagram_with_nothing_after_it_needs_numbered_notes(self):
+        errs = self.errors([dia(), txt(), dia()])
+
+        assert any("diagram 2 needs numbered notes after it" in e for e in errs)
+
+    def test_numbered_text_with_two_steps_passes(self):
+        assert self.errors([dia(), txt()]) == []
+
+    def test_numbers_may_be_followed_by_a_bracket(self):
+        assert self.errors([dia(), {"type": "text", "text": "1) first\n2) second"}]) == []
+
+    def test_a_list_block_with_two_items_passes(self):
+        assert self.errors([dia(), {"type": "list", "items": ["first", "second"]}]) == []
+
+    def test_a_list_block_with_one_item_is_not_enough(self):
+        assert any("needs numbered notes" in e for e in self.errors([dia(), {"type": "list", "items": ["only one"]}]))
+
+    def test_one_numbered_line_is_not_enough(self):
+        assert any("needs numbered notes" in e for e in self.errors([dia(), {"type": "text", "text": "1. only one"}]))
+
+    def test_numbered_lines_mixed_with_a_paragraph_are_not_numbered_notes(self):
+        assert any("needs numbered notes" in e for e in self.errors([dia(), {"type": "text", "text": "1. first\n2. second\nAnd so on."}]))
+
+    def test_migration_can_carry_unnumbered_notes(self):
+        r = good()
+        r["cards"][1]["blocks"] = [dia(), {"type": "text", "text": "Prose notes."}]
+
+        assert schema.validate("x", r, SCH, strict_notes=False)[0] == []
