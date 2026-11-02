@@ -814,7 +814,31 @@ Commit each task on `feat/dossier-m2`. Do not merge or bump. Write "Results (Pha
 
 ### Results (Phase 2)
 
-(Filled in by the Phase 2 session.)
+Done 2026-11-01 on branch `feat/dossier-m2` (M2-13 to M2-20, one commit each, not merged, version still 0.6.0). Phase 1's baseline held: `800 passed, 36 skipped` before the first task.
+
+- **Tests.** Default suite: `874 passed, 36 skipped` (about 35 s). With `DOSSIER_SLOW=1`: `910 passed` in 2 min 34 s, so every Phase 1 slow test still passes.
+- **Block E** printed `OK` after every task that edited `render.py` (the only error line is the one V10 line; no V4 or V5 line).
+- **Acceptance run.** `prepare` on the pyrepo fixture in a scratch home, then `render --partial --allow-errors`: both exit 0, a page is written, no traceback. The only V2 to V5 output is nine V5 "no decision" errors, as expected for a dossier with no reports.
+- **Cut:** nothing. M2-20, the module edge table, and the dismissed-findings `<details>` list are all in.
+
+**Deviations and decisions**
+
+1. **V4 runs only when `extract/` has output.** The migrated M0 fixture has a filled `components.catalog` but no extractor output, so V4 reported 621 unassigned files and block E's "no V4 line" expectation failed. `checks.validate` now skips V4 when the extract is empty (an old dossier has nothing to be held to).
+2. **`components.parse_paths` was widened** (still in `components.py`, re-exported as `checks.parse_paths`): it splits on newlines as well as commas and turns a `[[path:lines|label]]` citation into its path.
+3. **New module `scripts/measured_graph.py`** holds `components.map` and `interactions.graph` (with `mermaid_id`, `area_of`, `package_roots`). `measured.py` would have passed 300 lines. `measured.DRAWN` merges both.
+4. **Cycle rows** in `interactions.violations`: From is the first module (sorted), To is the other members then the first again, joined by " → ", so the loop reads as a loop. The plan said only "members joined".
+5. **Graph counts** are import items (one per importing and imported file pair), not statements: two `import` lines for the same pair make "1 import" in the diagram and "2" in the table's Imports column. A file at the repository root is in the area "(top level)". `interactions.graph` draws only components (or areas) that have an edge; `components.map` draws every catalog component, with the unassigned files as one extra group when they take part in an import.
+6. **`tools.json`**: no `repo-config` tool exists in it, so only the self-installing tools gained `"cards"` (JS and C# tools get `[]`). `process.partial_cards` reads in-scope tools from the `tools` record's `details.self_installing`, and falls back to every tool in `tools.json` when that is missing.
+7. **`render_card` and `schema_cards_html` take a `ctx`** (`fed`, `partial`, and for the measured cards `extract`, `tree`, `read`, `catalog`, `facts`). `render.measured_ctx` builds the measured part in `build_page`. `render_html` gained `extract` and `checks`.
+8. **Digests** (`candidates.FEEDS`, `digest`, `digests`) were added to `candidates.py`, which is now just over 300 lines (304). A new import changes `reading`, `components` and `interactions`; `conventions` changes only when a module is added (it is fed by graph modules only, as D10's table says).
+9. Tests in `test_render_cards.py` and `test_schema.py` follow those files' existing module-level style; the new test files use `Test<Unit>` classes.
+
+**Things Phase 3 should know**
+
+- `checks.validate(reports, extract, cites, facts, catalog=None)` is where V2, V3 and V7 go. It already returns `unbacked` (empty) and `counts`; `process.render_records(..., check_counts=res["counts"])` stores every integer count on the `check` record, and the process card's check line says the V5 and V4 numbers when they exist. Add the V2 and V3 numbers to that line in M2-21 and M2-22.
+- `cmd_render` and `cmd_confirm` both get their Gaps extras from `checks.gap_extras`, so V2, V3 and V7 items added to `validate`'s `gaps` reach both.
+- The V5 message keeps the plan's wording even for one finding ("1 tool findings"). Leave it: it is fixed text.
+- `schema.ALLOW_PENDING` and `render.OPTIONAL_REPORTS` are unchanged (M2-24).
 
 ---
 
