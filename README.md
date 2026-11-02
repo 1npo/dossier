@@ -12,11 +12,18 @@ Inside Claude Code:
 /dossier confirm                    # list open questions, then answer them
 /dossier correct                    # record something the dossier got wrong
 /dossier doctor ~/dev/projects/foo  # check which tools a repo needs are installed
+/dossier check ~/dev/projects/foo   # check the written page: every row drawn, readable in a browser
 /dossier clean ~/dev/projects/foo   # delete the working copy and caches for a repo
 /dossier version
 ```
 
-`build` pins the dossier to a commit, writes twelve reports (overview, capabilities, interfaces, architecture, domain logic, data, code tour, failures, delivery, risks, contributors, gaps), and renders them to `<home>/<repo-name>/` as one self-contained HTML page. Version 0.5.0 draws the new card layout; writing dossiers in that layout arrives in a later version. Version 0.6.0 adds `doctor`, `clean`, a clean working copy for every build, a run record (`build.json`) and the "How this dossier was made" card. Version 0.7.0 extracts Python entry points, imports, inputs and outputs, data models and tests with tools, writes the reading guide, entry points, components, interactions, inputs and outputs, data model, behaviour, conventions and build reports from them, and checks that every tool finding is accounted for.
+`build` pins the dossier to a commit, writes twelve reports (overview, capabilities, interfaces, architecture, domain logic, data, code tour, failures, delivery, risks, contributors, gaps), and renders them to `<home>/<repo-name>/` as one self-contained HTML page. Version 0.5.0 draws the new card layout; writing dossiers in that layout arrives in a later version. Version 0.6.0 adds `doctor`, `clean`, a clean working copy for every build, a run record (`build.json`) and the "How this dossier was made" card. Version 0.7.0 extracts Python entry points, imports, inputs and outputs, data models and tests with tools, writes the reading guide, entry points, components, interactions, inputs and outputs, data model, behaviour, conventions and build reports from them, and checks that every tool finding is accounted for. Version 0.7.1 repairs what 0.7.0 drew and checked: a page asset with a git conflict marker is refused and the skill's commit is recorded on the process card (now a table, with the extractor versions); diagrams draw at their natural size, and a large component graph is split into an overview and one diagram per area, with a dependency matrix and edge tables that hold every import; entries and recipes are tables with numbered steps; the relationships card is drawn by code from every extracted field; every entity and entry point (argparse commands included) has its own row, and every environment variable is in Inputs; flows need numbered notes; the reading order covers every module.
+
+## Checking a dossier
+
+`/dossier check` runs after `render`. V11 compares the written page with the reports and the tool output: every table has its columns and one row per source row, every entry its fields, every flow its numbered notes, every field its row in the relationships table. V12 opens the page in a browser, in both themes, at 1500 and 400 px wide, and checks that diagrams draw and their text is at least 11 px, that nothing scrolls sideways or overlaps, and that the code viewer and search work. It prints one `FAIL` line per problem and `problems: N`; the build is done when N is 0. `render` runs V11 itself and does not write a page that fails it. The browser part needs Playwright (see Install) and takes a few minutes.
+
+Report 02 keeps its earlier layout. `tests/tools/golden02.py` compares its three cards with screenshots of the pre-0.5 skill (`tests/fixtures/golden02/README.md` says how to make them).
 
 ## Updating a dossier
 
@@ -85,4 +92,5 @@ Run the unit tests from this directory:
 
 ```sh
 uv run --with pytest --with pygments python -m pytest tests
+DOSSIER_SLOW=1 uv run --with pytest --with pygments python -m pytest tests   # also the browser and extractor tests
 ```
