@@ -111,3 +111,29 @@ def test_card_entry_accepts_dismissed_and_unassigned_but_not_other_keys():
     assert schema.validate("x", r, SCH) == ([], [])
     r["cards"][0]["bogus"] = 1
     check(r, "unknown keys")
+
+
+class TestNowDrawnCards:
+    def entry(self, **kw):
+        return {"card": "data.relationships", **kw}
+
+    def test_an_old_written_entry_is_a_warning_and_not_an_error(self):
+        sch = schema.load("data")
+        blocks = [{"type": "diagram", "title": "ER", "mermaid": "erDiagram\n A ||--o{ B : x", "conf": "confirmed", "cite": ["a.py:1"]}]
+
+        errs, warns = schema.validate("data", {"cards": [self.entry(blocks=blocks)]}, sch, allow_pending=True)
+
+        assert not [e for e in errs if "data.relationships" in e]
+        assert any("drawn by code since 0.7.1" in w and "data.relationships" in w for w in warns)
+
+    def test_a_script_card_that_was_always_drawn_still_rejects_a_written_entry(self):
+        sch = schema.load("components")
+
+        errs, _ = schema.validate("components", {"cards": [{"card": "components.map", "blocks": []}]}, sch, allow_pending=True)
+
+        assert any("components.map" in e and "produced by a script" in e for e in errs)
+
+    def test_relationships_is_a_script_card_with_no_slots(self):
+        card = next(c for c in schema.load("data")["cards"] if c["id"] == "data.relationships")
+
+        assert (card["writer"], card["shape"], "slots" in card) == ("script", "computed", False)

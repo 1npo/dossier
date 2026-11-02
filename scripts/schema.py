@@ -165,6 +165,9 @@ def _check_entries(w, card, entries, errs, warns):
         _fixed_warn(w, card["fixed"], names, warns)
 
 
+NOW_DRAWN = {"data.relationships"}  # cards that Claude wrote before 0.7.1 and code draws now: an old entry is ignored, with a warning
+
+
 def validate(rid, rep, sch, allow_pending=None):
     allow_pending = ALLOW_PENDING if allow_pending is None else allow_pending
     errs, warns = [], []
@@ -214,6 +217,9 @@ def validate(rid, rep, sch, allow_pending=None):
             errs.append(f"V6: {w}: title must be '{card['title']}'")
         content = {k for k in ("blocks", "entries", "na", "pending") if k in entry}
         if card["writer"] == "script":
+            if cid in NOW_DRAWN and content & {"blocks", "entries", "na"}:
+                warns.append(f"V6: {w}: drawn by code since 0.7.1; the entry is ignored")
+                continue
             if content != {"pending"} or set(entry) - {"card", "title", "pending"}:
                 errs.append(f"V6: {w}: is produced by a script and must not be written")
             elif entry["pending"] is not True or not allow_pending:

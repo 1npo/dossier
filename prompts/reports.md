@@ -142,9 +142,7 @@ Tool findings that arrive here (home card): data models. Decide about each (see 
 
 ### Relationships (`data.relationships`)
 
-An `erDiagram` of the entities and how they relate (foreign keys, ORM relations, type references). Split by component beyond 12 entities.
-
-Shape: a diagram.
+Drawn by code from the tool findings. **Do not write this card:** leave it out of the file.
 
 ### Data stores (`data.stores`)
 

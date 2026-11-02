@@ -61,6 +61,14 @@ def wide_tables(html: str) -> str:
     return html[:first.end()] + card + html[first.end():]
 
 
+def inject_diagrams(html: str, diagrams: list) -> str:
+    """Diagrams [(title, mermaid source)] at the top of the first report."""
+    first = re.search(r'<section class="report"[^>]*>', html)
+    blocks = "".join(f'<div class="diagram flow"><div class="flow-bar"><h3>{htmllib.escape(t)}</h3></div>'
+                     f'<div class="mermaid-host" data-src="{htmllib.escape(src, quote=True)}"></div></div>' for t, src in diagrams)
+    return html[:first.end()] + blocks + html[first.end():]
+
+
 MUTATIONS = {"conflict-css": conflict_css, "no-js-sentinel": no_js_sentinel, "big-diagrams": big_diagrams, "wide-tables": wide_tables}
 
 

@@ -12,6 +12,10 @@ sys.path.insert(0, str(SKILL / "tests" / "tools"))
 
 import broken_pages  # noqa: E402
 
+sys.path.insert(0, str(SKILL / "scripts"))
+
+import measured_er  # noqa: E402
+
 FIX = SKILL / "tests" / "fixtures" / "encamp-m0"
 TOP = SKILL.parents[5]
 CHECK = SKILL / "scripts" / "check_page.py"
@@ -118,3 +122,29 @@ class TestTablesFitTheCard:
 
         assert row["scrollWidth"] > row["clientWidth"]
         assert row["scrolls_class"] and row["hint"]
+
+
+class TestRelationshipDiagramsDraw:
+    def entity(self, name, fields, kind="dataclass", path="src/app/m.py"):
+        return {"path": path, "line": 1, "name": name, "kind": kind, "fields": [{"name": n, "type": t, "line": 2, "ref": r, **({"pk": True} if pk else {})} for n, t, r, pk in fields]}
+
+    def test_every_generated_er_diagram_is_accepted_by_mermaid(self, rendered_page, tmp_path):
+        page, env = rendered_page
+        models = [
+            self.entity("Alert", [("product", "Product", "Product", False), ("limits", "Mapping[str, float]", None, False),
+                                  ("when", "datetime | None", None, False), ("steps", "tuple[Alert, ...]", "Alert", False),
+                                  ("cb", "Callable[[int], str]", None, False), ("nested", "dict[str, list[int]]", None, False)]),
+            self.entity("Product", [("id", "INTEGER", None, True), ("1st", "str", None, False), ("odd name!", "str", None, False)]),
+            self.entity("runs", [("id", "INTEGER", None, True)], kind="sql-table", path="db/schema.sql"),
+            self.entity("scrapes", [("id", "INTEGER", None, True), ("run_id", "INTEGER", "runs", False)], kind="sql-table", path="db/schema.sql"),
+            self.entity("Empty", []),
+        ]
+        shown = measured_er.diagrams({"models": models, "graph": []}, [])
+        broken = tmp_path / "er.html"
+        broken.write_text(broken_pages.inject_diagrams(page.read_text(), [("Injected " + t, src) for t, src, _ in shown]))
+
+        done = run(DIAGRAM_TEXT, broken, "--widths", "1500", env=env)
+
+        rows = [r for r in json.loads(done.stdout) if r["title"].startswith("Injected")]
+        assert len(rows) == len(shown) >= 1
+        assert not [r for r in rows if r["failed"]], rows

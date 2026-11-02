@@ -7,7 +7,7 @@
 
   uv run diagram_text.py PAGE.html [--widths 1500,400]
 
-Output: [{"width", "report", "title", "min_height", "scrolls"}]. Used by the slow tests.
+Output: [{"width", "report", "title", "min_height", "scrolls", "failed"}]. Used by the slow tests.
 """
 import argparse
 import json
@@ -46,7 +46,8 @@ def main():
                     page.wait_for_function("([r, i]) => document.querySelectorAll(`#${r} .mermaid-host`)[i - 1].dataset.done", arg=[rid, i], timeout=20000)
                     title = host.evaluate("h => (h.closest('.diagram').querySelector('h3') || {}).textContent || 'Diagram'")
                     out.append({"width": width, "report": rid, "title": title, "min_height": host.evaluate(MIN_JS),
-                                "scrolls": host.evaluate("h => h.classList.contains('scrolls')")})
+                                "scrolls": host.evaluate("h => h.classList.contains('scrolls')"),
+                                "failed": host.evaluate("h => h.classList.contains('failed')")})
             page.close()
         browser.close()
     print(json.dumps(out))
