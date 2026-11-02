@@ -500,7 +500,7 @@ Read first: R20 to R25, section 3.6 and decisions D10, D11, D12, D15. Also load 
   - Tests: the current render of `FIX` (block E's page) matches; `mutate(page, "conflict-css")` does not; a page with one CSS rule of report 02 changed (`.km-row { height: 40px }` appended) does not.
   - Add block G2 (section 7) to every later report 02 guard.
   - Commit: `test(dossier): compare report 02 with a pre-M0 screenshot golden`.
-- [ ] **F3-4. `dossier check` and a browser check that cannot be skipped silently (R23; D15).**
+- [x] **F3-4. `dossier check` and a browser check that cannot be skipped silently (R23; D15).**
   - Files: `scripts/dossier.py` (`cmd_check`, the `check` parser, `cmd_render`'s final JSON), `SKILL.md` (build step 7, and the commands list), `scripts/process.py` (F1-7's browser badge already shows "not run").
   - Tests: `tests/unit/scripts/test_dossier_check.py` with `check_page` stubbed (monkeypatch the subprocess call) for exit codes and the combined output; `cmd_render` JSON contains `"browser_check": "not run"` on a fresh build.
   - Commit: `feat(dossier): add dossier check, which runs the page audit and the browser check`.
