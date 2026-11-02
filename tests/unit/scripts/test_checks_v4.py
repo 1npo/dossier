@@ -101,6 +101,15 @@ class TestV4:
             def tree(self):
                 return TREE, set()
 
-        res = checks.validate(reports(catalog(("App", "src/app/"))), {}, Cites())
+        res = checks.validate(reports(catalog(("App", "src/app/"))), {"graph": []}, Cites())
 
         assert res["counts"]["v4"] == 1 and any(e.startswith("V4:") for e in res["errors"])
+
+    def test_validate_skips_v4_without_extractor_output(self):
+        class Cites:
+            def tree(self):
+                return TREE, set()
+
+        res = checks.validate(reports(catalog(("App", "src/app/"))), {}, Cites())
+
+        assert res["errors"] == []

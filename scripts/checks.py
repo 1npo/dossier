@@ -200,7 +200,7 @@ def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None)
         tree = cites.tree()[0] if cites else None
     except Exception:  # noqa: BLE001 - a repository that cannot be listed: V4 then has nothing to check
         tree = None
-    if tree:
+    if tree and extract:  # a dossier made before the extractors has no extract/: nothing to hold it to
         try:
             e, w, g, c = v4(reports, tree, facts)
             result["errors"] += e

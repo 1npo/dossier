@@ -21,6 +21,8 @@ from urllib.parse import quote
 import deps as depscan
 import gather
 import candidates
+import components
+import measured
 import process
 import schema
 import viewer
@@ -907,7 +909,10 @@ def candidate_footer(card, entry, fed):
 
 def render_card(card, entry, refs, rid, ctx=None):
     tid = "t-" + card_dom_id(card["id"])[2:]
-    if card["writer"] == "script" or not isinstance(entry, dict) or entry.get("pending"):
+    if card["writer"] == "script":
+        drawn = measured.body(card["id"], ctx or {}, refs)
+        return schema_card(card, drawn if drawn is not None else placeholder_body(card))
+    if not isinstance(entry, dict) or entry.get("pending"):
         return schema_card(card, placeholder_body(card))
     try:
         if "na" in entry:
@@ -1557,6 +1562,20 @@ def questions_body(refs):
     return render_table(["No.", "Question", "Answered in"], rows, refs, "t-questions", True, True)
 
 
+def measured_ctx(ctx, reports, facts):
+    """What the measured cards draw from: the extractor output, the tracked files, a reader for files at the pinned commit and the component catalog."""
+    cites = ctx["cites"]
+    try:
+        tree = cites.tree()[0]
+    except Exception:  # noqa: BLE001 - a repository that cannot be listed leaves the placeholders in place
+        tree = set()
+
+    def read(path):
+        got = cites.repo.read(f"{cites.sha}:{path}")
+        return got[1].decode("utf-8", "replace") if got and got[0] == "blob" else None
+    return {**ctx, "facts": facts, "tree": tree, "read": read, "catalog": components.catalog_rows(reports.get("components") or {})}
+
+
 def build_page(rid, reports, facts, state, ctx):
     refs = Refs(rid, ctx["cites"])
     title = TITLES[rid]
@@ -1602,7 +1621,7 @@ def build_page(rid, reports, facts, state, ctx):
         if rid == "risks" and rep:
             parts.append(panel_risk_counts(rep))
         if sch and any(c["writer"] == "claude" for c in sch["cards"]):
-            parts.append(f'<div class="findings">{schema_cards_html(sch, rep, refs, rid, ctx)}</div>')
+            parts.append(f'<div class="findings">{schema_cards_html(sch, rep, refs, rid, measured_ctx(ctx, reports, facts))}</div>')
         elif not sch:
             blocks = render_blocks(rep.get("blocks", []), refs, rid)
             if blocks:

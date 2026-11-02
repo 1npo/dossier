@@ -748,7 +748,7 @@ Independent tasks: M2-13 and M2-16 (measured cards) and M2-18 (partial) are inde
 
 ### M2-16. Measured cards: Where things live, Formatting and tooling, Cycles and layer violations
 
-- [ ] **Goal.** D8 for `reading.map`, `conventions.tooling`, `interactions.violations`.
+- [x] **Goal.** D8 for `reading.map`, `conventions.tooling`, `interactions.violations`.
 - **Files.** New `scripts/measured.py`, `tests/unit/scripts/test_measured.py`; edit `scripts/render.py` (`render_card`: for `writer == "script"`, `body = measured.body(card["id"], ctx, refs)`; when `None`, the placeholder as today; `render_card` gains a `ctx` parameter passed down from `schema_cards_html` and `build_page`).
 - **Steps.** Implement the three bodies as D8 says. `build_page` must call `schema_cards_html` for every report whose schema has a card with a body (it now only does so when some card is written by Claude; reports 03 to 12 all have one, so no change is needed there; check it).
 - **Tests.** On a hand-made `ctx` (tree, facts with the fixture's files, extract with one cycle, one broken contract and one not-checked contract): each body has the expected rows; empty inputs give the fixed "none found" texts; the bodies contain no unescaped `<` from repository text.
