@@ -452,7 +452,7 @@ Read first: R2, R3, R8 to R14, R19, section 3.4 and decisions D8, D9, D13, D14.
   - Tests first: semgrep rule tests (`tests/unit/scripts/test_rules.py` runs `semgrep --test`, slow): `commands.add_parser("serve")` → `ruleid: dossier.python.entry.argparse-subcommand`; `add('init', cmd_init, 'write an example config file')` → `ruleid: dossier.python.entry.cli-helper-command`; `add(name, handler, help)` inside the helper → `ok`; `commands.add_parser(name, help=help)` → `ruleid: dossier.python.blindspot.computed-subcommand`. Slow integration: the Python adapter on the pyrepo fixture after adding one argparse sub-command to it finds the `cli-command` item.
   - Verify: `DOSSIER_SLOW=1 … pytest tests/unit/scripts/test_rules.py tests/integration/scripts/test_py_adapter_slow.py -q`.
   - Commit: `feat(dossier): find argparse sub-commands as entry points`.
-- [ ] **F2-6. Draw the measured columns of the component catalog (R11; needs A4).**
+- [x] **F2-6. Draw the measured columns of the component catalog (R11; needs A4).**
   - Files: `scripts/render.py` (`render_card`: for `components.catalog`, replace the cells of Depends on, Used by and Size in each row with the measured values from `components.catalog_edges` and `components.file_lines` before `render_table`), `prompts/reports.md` (catalog paragraph: write `-` in those three cells).
   - Tests first in `test_render_cards.py`: a catalog row whose Depends on says "every other component" renders the measured, comma-separated list; Size renders `N lines` from `file_lines`.
   - Commit: `fix(dossier): draw the measured columns of the component catalog`.

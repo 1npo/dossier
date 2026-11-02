@@ -973,6 +973,8 @@ def render_card(card, entry, refs, rid, ctx=None):
         if "na" in entry:
             body = na_body(entry, refs)
         elif "blocks" in entry:
+            if card["id"] == "components.catalog":
+                entry = measured.fill_catalog(entry, ctx or {})
             body = blocks_body(card, entry["blocks"], refs, tid, ((ctx or {}).get("checks") or {}).get("unbacked"))
         elif "entries" in entry:
             body = entries_body(card, entry["entries"], refs, tid)

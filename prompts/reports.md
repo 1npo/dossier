@@ -40,7 +40,7 @@ Drawn by code from the tool findings. **Do not write this card:** leave it out o
 
 ### Component catalog (`components.catalog`)
 
-One row per component, drafted from the component candidates (see "Components" in `method.md`). `Paths` lists the component's folders, files or globs in backticks. `Depends on`, `Used by` and `Size` come from the measured edges and line counts. List files that belong to no component in the entry's `unassigned` list.
+One row per component, drafted from the component candidates (see "Components" in `method.md`). `Paths` lists the component's folders, files or globs in backticks. `Depends on`, `Used by` and `Size` are measured and drawn by code: write `-` in those three cells. List files that belong to no component in the entry's `unassigned` list.
 
 Shape: a table with columns Component, Paths, Responsibility, Public surface, Depends on, Used by, Size.
 
