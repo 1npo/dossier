@@ -510,5 +510,6 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 .graph-heading { margin: 1.25rem 0 .4rem; font-size: .9375rem; font-weight: 600; }
 .table.dsm td, .table.dsm th { min-width: 0; padding: .3rem .4rem; text-align: center; }
 .table.dsm thead th:not(:first-child) { writing-mode: vertical-rl; white-space: nowrap; text-align: left; vertical-align: bottom; }
-.table.dsm td:first-child, .table.dsm th:first-child { position: sticky; left: 0; z-index: 1; min-width: 7.5rem; text-align: left; background: var(--card); }
+.table.dsm td:first-child, .table.dsm th:first-child { position: sticky; left: 0; z-index: 1; min-width: 7.5rem; text-align: left; background: var(--card); }.table.kv { margin-top: .5rem; } .table.kv th { width: 12rem; text-align: left; font-weight: 500; }
+.table.kv td p { margin: 0 0 .4rem; } .table.kv td p:last-child { margin: 0; } .table.kv td ol, .table.kv td ul { margin: 0; padding-left: 1.25rem; }
 :root { --dossier-css-end: 1; }

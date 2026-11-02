@@ -69,7 +69,7 @@ def test_entries_collapsible_with_ids(make_cites):
     h = render.render_card(SCH["cards"][3], {"card": "x.ent", "entries": [e("one"), e("two")]}, refs(make_cites), "x")
     assert h.count('<details class="entry"') == 2
     assert 'id="c-x-ent-e1"' in h and 'id="c-x-ent-e2"' in h and h.index("e1") < h.index("e2")
-    assert "<dt>Purpose</dt>" in h
+    assert '<th scope="row">Purpose</th>' in h
 
 
 def test_cards_in_schema_order(make_cites):
@@ -185,3 +185,56 @@ def test_questions_links_point_at_real_ids(make_cites):
     hrefs = re.findall(r'href="#([^"]+)"', h)
     assert hrefs and all(x in ids for x in hrefs)
     assert "(report 03)" in h
+
+
+RECIPE = card("x.rec", tier="R", shape="entries", key="recipe", fields=[{"id": "files_to_touch", "label": "Files to touch"}, {"id": "worked_example", "label": "Worked example"}])
+STEPS = "1. Add a `cmd_<name>` handler in `cli.py`. 2. Register it in `build_parser`. 3. Add tests."
+
+
+def recipe_entry(steps=STEPS):
+    return {"recipe": "Add a command", "fields": {"files_to_touch": steps, "worked_example": "x"}, "conf": "confirmed", "cite": ["a.py:1"]}
+
+
+class TestEntriesBody:
+    def test_entry_is_a_key_value_table_with_a_row_per_field(self, make_cites):
+        html = render.render_card(RECIPE, {"card": "x.rec", "entries": [recipe_entry()]}, refs(make_cites), "x")
+
+        body = re.search(r'<table class="table kv" data-nosort>(.*?)</table>', html, re.S).group(1)
+
+        assert body.count("<tr>") == 2
+        assert '<th scope="row">Files to touch</th>' in body and '<th scope="row">Worked example</th>' in body
+
+    def test_numbered_steps_on_one_line_become_an_ordered_list(self, make_cites):
+        html = render.render_card(RECIPE, {"card": "x.rec", "entries": [recipe_entry()]}, refs(make_cites), "x")
+
+        assert html.count("<ol>") == 1
+        assert html.count("<li>") == 3
+
+    def test_entry_keeps_its_details_element_and_id(self, make_cites):
+        html = render.render_card(RECIPE, {"card": "x.rec", "entries": [recipe_entry()]}, refs(make_cites), "x")
+
+        assert '<details class="entry" id="c-x-rec-e1" open>' in html
+
+
+class TestSplitSteps:
+    def test_steps_on_one_line_get_one_line_each(self):
+        assert render.split_steps(STEPS).split("\n") == ["1. Add a `cmd_<name>` handler in `cli.py`.", "2. Register it in `build_parser`.", "3. Add tests."]
+
+    def test_a_decimal_number_is_left_alone(self):
+        assert render.split_steps("Use 2.5 ml") == "Use 2.5 ml"
+
+    def test_text_that_does_not_start_at_one_is_left_alone(self):
+        assert render.split_steps("See step 2. then 3. done") == "See step 2. then 3. done"
+
+    def test_a_list_that_never_reaches_two_is_left_alone(self):
+        assert render.split_steps("1. Only one step") == "1. Only one step"
+
+    def test_lines_that_are_already_separate_are_unchanged(self):
+        text = "1. a\n2. b"
+
+        assert render.split_steps(text) == text
+
+    def test_a_number_inside_a_step_is_not_a_new_step(self):
+        text = "1. Set the limit to 100. 2. Run it 3 times. 3. Done."
+
+        assert render.split_steps(text).split("\n") == ["1. Set the limit to 100.", "2. Run it 3 times.", "3. Done."]

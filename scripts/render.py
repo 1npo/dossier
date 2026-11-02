@@ -897,13 +897,39 @@ def blocks_body(card, blocks, refs, tid, unbacked=None):
     return "".join(out)
 
 
+STEP_START = re.compile(r"1[.)]\s")
+
+
+def split_steps(text):
+    """"1. a 2. b 3. c" on one line becomes one numbered step per line. Text that is not a run of steps from 1 is returned as it is."""
+    t = str(text or "").strip()
+    if not STEP_START.match(t):
+        return str(text or "")
+    cuts, n = [], 2
+    while True:
+        m = re.compile(rf"\s+(?={n}[.)]\s)").search(t, cuts[-1][1] if cuts else 0)
+        if not m:
+            break
+        cuts.append((m.start(), m.end()))
+        n += 1
+    if not cuts:
+        return str(text or "")
+    pieces, prev = [], 0
+    for start, end in cuts:
+        pieces.append(t[prev:start])
+        prev = end
+    pieces.append(t[prev:])
+    return "\n".join(pieces)
+
+
 def entries_body(card, entries, refs, tid):
     labels = card["fields"]
     out = []
     for n, e in enumerate(entries, 1):
         fl = e["fields"]
-        dl = "".join(f"<dt>{E(f['label'])}</dt><dd>{inline(fl[f['id']], refs)}</dd>" for f in labels)
-        out.append(f'<details class="entry" id="{card_dom_id(card["id"])}-e{n}" open><summary>{E(e[card["key"]])}</summary><dl class="facts">{dl}</dl>'
+        rows = "".join(f'<tr><th scope="row">{E(f["label"])}</th><td>{md(split_steps(fl[f["id"]]), refs)}</td></tr>' for f in labels)
+        out.append(f'<details class="entry" id="{card_dom_id(card["id"])}-e{n}" open><summary>{E(e[card["key"]])}</summary>'
+                   f'<table class="table kv" data-nosort><tbody>{rows}</tbody></table>'
                    f'{added_tag(e)}{provenance(e, refs, " ".join(fl.values()))}</details>')
     return "".join(out)
 
