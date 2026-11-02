@@ -885,7 +885,7 @@ Independent tasks: M2-21, M2-22 and M2-23 are independent of each other. M2-24 n
 
 ### M2-25. Rewrite `prompts/method.md`
 
-- [ ] **Goal.** D11 for `method.md`.
+- [x] **Goal.** D11 for `method.md`.
 - **Files.** `prompts/method.md`.
 - **Steps.** Keep the sections D11 names, with the report names updated (the old names "architecture", "interfaces", "delivery" and so on must not appear). Replace "Report file shape" with "Report file shape: cards", including one complete example of a report file with a table card that keeps, merges, dismisses and adds, an `entries` card, and an `na` card, matching `prompts/schema/README.md`. Add "Tool findings: keep, merge, dismiss", "Components" and "What render checks" (V1 to V7, one plain line each, saying which are errors). In "Citation forms", list the `facts:` keys that still exist (`render.FACT_KEYS`; check the code) and say that the code is cited, never a finding id. In "Reading the repository", keep chunk notes as they are. Write for Claude, in plain sentences.
 - **Done-check.** `grep -nE "capabilities|code-tour|domain-logic|delivery|interfaces\b|architecture\b" prompts/method.md` prints nothing; the example report in it passes `schema.validate` (add a unit test `tests/unit/scripts/test_prompts.py` that extracts the first fenced `json` block after the heading "Report file shape: cards" and validates it against the right schema with `allow_pending=False`).
