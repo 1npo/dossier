@@ -38,16 +38,28 @@
         signalColor: dark ? "#f3f4f6" : "#111827", signalTextColor: dark ? "#f3f4f6" : "#111827",
         labelBoxBkgColor: "#dbe7ff", labelTextColor: "#111827", loopTextColor: dark ? "#f3f4f6" : "#111827"
       },
-      fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif", fontSize: 15, flowchart: { useMaxWidth: true, htmlLabels: true },
-      er: { useMaxWidth: true }, sequence: { useMaxWidth: true } });
+      fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif", fontSize: 15, flowchart: { useMaxWidth: false, htmlLabels: true },
+      er: { useMaxWidth: false }, sequence: { useMaxWidth: false } });
   }
+  // a diagram is drawn at its natural size; one wider (or taller) than its box scrolls and says so
+  function markScroll(host) {
+    var on = !!host.querySelector("svg") && (host.scrollWidth > host.clientWidth + 1 || host.scrollHeight > host.clientHeight + 1);
+    host.classList.toggle("scrolls", on);
+    var prev = host.previousElementSibling, hint = prev && prev.classList.contains("scroll-hint") ? prev : null;
+    if (on && !hint) {
+      hint = doc.createElement("p"); hint.className = "scroll-hint";
+      hint.textContent = "Scroll to see the whole diagram, or use Expand.";
+      host.parentNode.insertBefore(hint, host);
+    } else if (!on && hint) hint.remove();
+  }
+  window.addEventListener("resize", function () { $$(".report:not([hidden]) .mermaid-host").forEach(markScroll); });
   function drawIn(section) {
     if (!window.mermaid) return;
     $$(".mermaid-host", section).forEach(function (host) {
       if (host.dataset.done === theme) return;
       var id = "dm" + (++seq);
       mermaid.render(id, host.dataset.src).then(function (out) {
-        host.innerHTML = out.svg; host.dataset.done = theme; host.classList.remove("failed");
+        host.innerHTML = out.svg; host.dataset.done = theme; host.classList.remove("failed"); markScroll(host);
       }).catch(function (err) {
         var stray = doc.getElementById("d" + id); if (stray) stray.remove();
         host.classList.add("failed"); host.dataset.done = theme;

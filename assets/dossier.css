@@ -100,10 +100,11 @@ tr.flash, .card.flash, .refs li.flash { animation: flash 1.8s ease-out; } @keyfr
 .bar { display: inline-block; width: 6rem; height: .5rem; background: var(--muted); border-radius: 99px; vertical-align: middle; overflow: hidden; }
 .bar i { display: block; height: 100%; background: var(--primary); }
 
-.mermaid-host { overflow: auto; text-align: center; padding: .5rem; } .mermaid-host svg { max-width: 100%; height: auto; }
+.mermaid-host { overflow: auto; max-height: 80vh; text-align: center; padding: .5rem; } .mermaid-host svg { max-width: none; height: auto; }
+.scroll-hint { margin: .25rem 0 0; font-size: .8125rem; color: var(--muted-foreground); }
 .diagram details { margin-top: .75rem; } .diagram summary { cursor: pointer; }
 .diagram.expanded { position: fixed; inset: 1rem; z-index: 60; overflow: auto; background: var(--card); box-shadow: 0 0 0 100vmax rgb(0 0 0 / .55); }
-.diagram.expanded .mermaid-host svg { max-width: none; width: 100%; }
+.diagram.expanded .mermaid-host { max-height: none; } .diagram.expanded .mermaid-host svg { max-width: none; width: 100%; }
 .foot { margin-top: 3rem; border-top: 1px solid var(--border); padding-top: 1rem; }
 
 @media (max-width: 767px) { .mh-row #menu-toggle { display: inline-flex; } .page, .masthead-inner { padding-left: 1rem; padding-right: 1rem; } .remote { margin-left: 0; }

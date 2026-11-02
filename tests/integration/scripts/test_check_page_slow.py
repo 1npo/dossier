@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import subprocess
@@ -14,6 +15,7 @@ import broken_pages  # noqa: E402
 FIX = SKILL / "tests" / "fixtures" / "encamp-m0"
 TOP = SKILL.parents[5]
 CHECK = SKILL / "scripts" / "check_page.py"
+DIAGRAM_TEXT = SKILL / "tests" / "tools" / "diagram_text.py"
 
 pytestmark = [
     pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs a browser: set DOSSIER_SLOW=1"),
@@ -74,3 +76,21 @@ class TestCheckPageOnBrokenPages:
         assert done.returncode == 1
         assert "script" in done.stdout
         assert "Traceback" not in done.stderr + done.stdout
+
+
+class TestDiagramText:
+    @pytest.fixture(scope="class")
+    def sizes(self, rendered_page, tmp_path_factory):
+        page, env = rendered_page
+        big = tmp_path_factory.mktemp("big") / "big.html"
+        big.write_text(broken_pages.mutate(page.read_text(), "big-diagrams"))
+        done = run(DIAGRAM_TEXT, big, env=env)
+        assert done.returncode == 0, done.stderr[-800:]
+        return [r for r in json.loads(done.stdout) if r["title"].startswith("Injected")]
+
+    @pytest.mark.parametrize("width", [1500, 400])
+    def test_text_in_a_wide_diagram_is_at_least_11px(self, sizes, width):
+        rows = [r for r in sizes if r["width"] == width]
+
+        assert len(rows) == 2
+        assert all(r["min_height"] >= 11 for r in rows), rows

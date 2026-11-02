@@ -386,7 +386,7 @@ Read first: R1, R25, R4 to R7, R15 to R18, R20 and decisions D2 to D7.
   - Implement D11 item 1 and wrap every sub-check (`check_theme` per report, `check_viewer`, `check_knowledge`, `check_search`) in `try`/`except`.
   - Verify: `DOSSIER_SLOW=1 uv run --with pytest --with pygments python -m pytest tests/integration/scripts/test_check_page_slow.py -q`.
   - Commit: `fix(dossier): make the browser check report a page whose stylesheet did not load`.
-- [ ] **F1-3. Draw diagrams at their natural size (R4; D3).**
+- [x] **F1-3. Draw diagrams at their natural size (R4; D3).**
   - Files: `assets/dossier.js` (`initMermaid`, `drawIn`), `assets/dossier.css` (line 103 and the new `.scrolls` caption).
   - Test first (slow, in `test_check_page_slow.py`): add mutation-free test `test_diagram_text_is_readable` that opens a page whose report holds a 9-participant sequence diagram and a 16-node flowchart (add both to the pyrepo fixture's report JSON in the test's temporary copy, or render a minimal page through `render.render_html` with hand-built reports), and asserts every text element in every `.mermaid-host svg` is ≥ 11 px tall at 1500 and at 400 px. It must fail on the current code (4 px).
   - Change `useMaxWidth` to `false` for flowchart, er and sequence; CSS per D3; in `drawIn`, after `host.innerHTML = out.svg`, toggle `host.classList.toggle("scrolls", host.scrollWidth > host.clientWidth + 1)`.
