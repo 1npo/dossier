@@ -157,3 +157,16 @@ class TestWorkerText:
 
     def test_detail_with_a_bad_pattern_is_none(self):
         assert semgrep_worker.detail_of("x", "(") is None
+
+
+class TestChunked:
+    def test_paths_are_split_into_batches(self):
+        assert semgrep_worker.chunked(["a", "b", "c"], 2) == [["a", "b"], ["c"]]
+
+    def test_no_paths_give_one_empty_batch_so_the_current_directory_is_scanned(self):
+        assert semgrep_worker.chunked(None) == [[]] and semgrep_worker.chunked([]) == [[]]
+
+    def test_a_long_list_stays_under_the_batch_size(self):
+        batches = semgrep_worker.chunked([str(i) for i in range(1000)])
+
+        assert all(len(b) <= semgrep_worker.CHUNK for b in batches) and sum(map(len, batches)) == 1000

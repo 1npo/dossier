@@ -178,8 +178,9 @@ class RepoAdapter(Adapter):
                 found = shebang_scripts(path, text)
             for it in found:
                 out["tests" if it["kind"] == "ci-command" else "entry_points"].append(it)
+        code = [p for p in sorted(ctx.tree) if not gather.noise_reason(p) and (gather.lang_of(p) or (None, None))[1] == "code"]
         try:
-            for r in ctx.semgrep.scan(RULES_ALL):
+            for r in (ctx.semgrep.scan(RULES_ALL, code) if code else []):
                 out["blindspots"].append({"path": r["path"], "line": r["start_line"], "end_line": r["end_line"],
                                           "pattern": r["metadata"].get("pattern"), "rule": r["rule"], "snippet": r["snippet"]})
             ctx.tool_status["semgrep"] = {"status": "ok", "reason": None}

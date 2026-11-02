@@ -12,7 +12,7 @@ class FakeSemgrep:
         self.results, self.error, self.calls = results or [], error, []
 
     def scan(self, config, paths=None, timeout=30):
-        self.calls.append(config)
+        self.calls.append((config, paths))
         if self.error:
             raise self.error
         return self.results
@@ -150,7 +150,8 @@ class TestExtract:
 
         assert out["blindspots"] == [{"path": "a.py", "line": 1, "end_line": 1, "pattern": "codegen", "rule": "dossier.all.blindspot.codegen",
                                       "snippet": "# generated"}]
-        assert semgrep.calls == [repo_adapter.RULES_ALL]
+        config, paths = semgrep.calls[0]
+        assert config == repo_adapter.RULES_ALL and "tests/test_core.py" in paths and "README.md" not in paths
 
     def test_semgrep_failure_is_recorded_and_the_rest_is_kept(self, py_repo):
         ctx = context(py_repo, FakeSemgrep(error=RuntimeError("boom\nmore")))

@@ -30,10 +30,15 @@ def _sort_key(item: dict) -> tuple:
     return (item.get("path", ""), item.get("line") or 0, _rule(item), item.get("name") or "")
 
 
+def sort_items(items: list) -> list:
+    """Items in the order every `extract/*.json` list uses: (path, line, rule or kind, name)."""
+    return sorted(items, key=_sort_key)
+
+
 def assign_ids(output: str, items: list) -> list:
     """Return new item dicts with `id` and `group` (D2), sorted by (path, line, rule or kind, name)."""
     prefix = ID_OUTPUTS[output]
-    ordered = sorted(items, key=_sort_key)
+    ordered = sort_items(items)
     seen: dict = {}
     result = []
     for it in ordered:

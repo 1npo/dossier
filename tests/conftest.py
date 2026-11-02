@@ -149,10 +149,9 @@ def line_of_fixture():
     return line_of
 
 
-@pytest.fixture
-def py_repo(tmp_path):
-    """The Python fixture repository (tests/fixtures/pyrepo) as a git repository with one commit on main."""
-    repo = tmp_path / "pyrepo"
+def build_py_repo(dest: Path):
+    """Copy the Python fixture repository (tests/fixtures/pyrepo) to `dest` and commit it once on main."""
+    repo = Path(dest) / "pyrepo"
     shutil.copytree(PYFIX, repo, ignore=shutil.ignore_patterns("__pycache__"))
     (repo / "scripts" / "seed.sh").chmod(0o755)
     env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull,
@@ -166,3 +165,9 @@ def py_repo(tmp_path):
     git("commit", "-m", "fixture")
     return types.SimpleNamespace(path=str(repo), sha=git("rev-parse", "HEAD"),
                                  line_of=lambda rel, name: line_of(repo, rel, name))
+
+
+@pytest.fixture
+def py_repo(tmp_path):
+    """The Python fixture repository as a git repository with one commit on main."""
+    return build_py_repo(tmp_path)

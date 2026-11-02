@@ -1,7 +1,7 @@
 """The adapter interface, the extract stage and the path filter.
 
 An adapter turns one language's code into the standard outputs (entry points, import graph, symbols, ...).
-M1 ships the interface only; the Python adapter arrives in M2.
+The Python adapter and the repository-wide adapter are registered in `_registered()`.
 """
 from __future__ import annotations
 
@@ -55,10 +55,18 @@ class Adapter:
         raise NotImplementedError
 
 
-ADAPTERS: tuple = ()
+ADAPTERS: tuple = ()  # kept for callers that pass their own tuple; the shipped adapters come from _registered()
 
 
-def detect(languages: list, adapters=ADAPTERS) -> list:
+def _registered() -> tuple:
+    """The adapters dossier ships. Imported on first use: both modules import this one, so a top-level import would cycle."""
+    from py_adapter import PythonAdapter
+    from repo_adapter import RepoAdapter
+    return (PythonAdapter, RepoAdapter)
+
+
+def detect(languages: list, adapters=None) -> list:
+    adapters = _registered() if adapters is None else adapters
     return [a() if isinstance(a, type) else a for a in adapters if "*" in a.languages or set(a.languages) & set(languages)]
 
 
