@@ -409,6 +409,15 @@ class TestCheckLine:
     def test_name_count_is_said_when_present(self):
         assert "Names: 3 not found in the code they cite." in self.line(v2=3)
 
+    def test_the_page_audit_is_said_when_it_ran(self):
+        audit = rec("check", part="audit", by="render", counts={"v11": 2})
+        build = build_with(rec("check", part="render", by="render", counts={"citations": 4, "unresolved": 0, "errors": 0}), audit)
+
+        assert " Page: 2 problems." in process.run_line("check", build)
+
+    def test_no_page_sentence_without_an_audit_record(self):
+        assert "Page:" not in self.line()
+
     def test_old_records_without_the_counts_read_as_before(self):
         assert "Tool findings" not in self.line()
 

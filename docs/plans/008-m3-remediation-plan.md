@@ -484,7 +484,7 @@ Read first: R2, R3, R8 to R14, R19, section 3.4 and decisions D8, D9, D13, D14.
 
 Read first: R20 to R25, section 3.6 and decisions D10, D11, D12, D15. Also load `docs-project`, `docs-readme`, `docs-user-guide`, `docs-dev-guide` and `git-release` now.
 
-- [ ] **F3-1. Page completeness audit in `render` (V11; R21; D10; needs A8).**
+- [x] **F3-1. Page completeness audit in `render` (V11; R21; D10; needs A8).**
   - Files: new `scripts/page_audit.py`; `scripts/dossier.py` (`cmd_render` after `render.render_html`: run `page_audit.audit(page, reports, extract, facts, build)`; count `v11` on the `check/render` record; errors block writing unless `--allow-errors`); `scripts/process.py` (the `check` line says `Page: N problems.`).
   - Tests first in new `tests/unit/scripts/test_page_audit.py`, each against a page built by `render.render_html` from small hand-made reports and then mutated with new `broken_pages.py` mutations: `drop-row` (remove the last `<tr>` of the first schema table's body) → error naming the card and "N rows, expected N+1"; `drop-column` (remove the second `<th>` and every second `<td>`) → error naming the missing column; `table-as-text` (replace the first schema table with its text) → "has no table"; `entry-no-kv` (replace an entry's `table.kv` with a `<dl>`) → error; `drop-entry`; `drop-er-field` (remove one row of the ER field table) → error; the unmutated page → no error.
   - Verify: `pytest tests/unit/scripts/test_page_audit.py -q`; block R on a scratch copy of `LIVE` (old reports, `--allow-errors`): record the V11 count (expected 0 for drawing errors; the content errors are V5 and V6).

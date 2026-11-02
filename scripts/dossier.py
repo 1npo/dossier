@@ -40,6 +40,7 @@ import config  # noqa: E402
 import gather  # noqa: E402
 import incremental  # noqa: E402
 import migrate  # noqa: E402
+import page_audit  # noqa: E402
 import process  # noqa: E402
 import render  # noqa: E402
 import resolve  # noqa: E402
@@ -414,7 +415,22 @@ def cmd_render(a):
     if v_errors and not a.allow_errors:
         print(f"\n{len(v_errors)} error(s). Run prepare so build.json is complete, then render again.")
         sys.exit(1)
-    page, _ = render.render_html(facts, reports, state, history, VERSION, cites, build=shown, coverage=coverage, extract=extract, checks=res)
+    def draw(records):
+        return render.render_html(facts, reports, state, history, VERSION, cites, build=records, coverage=coverage, extract=extract, checks=res)[0]
+
+    page = draw(shown)
+    v11 = page_audit.audit(page, reports, extract, facts, build=shown)
+    for line in v11:
+        print(f"error: {line}")
+    if build:
+        audit = {"step": "check", "part": "audit", "by": "render", "status": "failed" if v11 else "ok",
+                 "reason": f"{len(v11)} problems in the page." if v11 else None, "counts": {"v11": len(v11)}}
+        buildlog.append(build_path, audit)
+        shown["records"].append(audit)
+        page = draw(shown)  # the process card now says how many problems the page audit found
+    if v11 and not a.allow_errors:
+        print(f"\n{len(v11)} error(s) in the drawn page. The page was not written. Fix the cause and render again.")
+        sys.exit(1)
     if build:
         buildlog.append(build_path, pending)
     name_out = f"dossier-{name}.html"

@@ -61,6 +61,48 @@ def wide_tables(html: str) -> str:
     return html[:first.end()] + card + html[first.end():]
 
 
+def _drop_last_row(html: str, tbody_at: int = 0) -> str:
+    starts = [m.start() for m in re.finditer(r"<tbody>", html)]
+    end = html.index("</tbody>", starts[tbody_at])
+    last = html.rindex("<tr>", starts[tbody_at], end)
+    return html[:last] + html[end:]
+
+
+def drop_row(html: str) -> str:
+    """The last body row of the first table is not drawn."""
+    return _drop_last_row(html)
+
+
+def drop_column(html: str) -> str:
+    """The second column of the first table is not drawn."""
+    start = html.index("<thead>")
+    end = html.index("</tbody>", start)
+    part = html[start:end]
+    part = re.sub(r"(<tr[^>]*>(?:<th[^>]*>.*?</th>))<th[^>]*>.*?</th>", r"\1", part, count=1, flags=re.S)
+    part = re.sub(r"(<tr>(?:<td[^>]*>.*?</td>))<td[^>]*>.*?</td>", r"\1", part, flags=re.S)
+    return html[:start] + part + html[end:]
+
+
+def table_as_text(html: str) -> str:
+    """The first table is flattened to text."""
+    return re.sub(r"<table\b.*?</table>", "<p>a table that was flattened to text</p>", html, count=1, flags=re.S)
+
+
+def entry_no_kv(html: str) -> str:
+    """The first entry's key/value table is a definition list."""
+    return re.sub(r'<table class="table kv".*?</table>', "<dl><dt>Purpose</dt><dd>text</dd></dl>", html, count=1, flags=re.S)
+
+
+def drop_entry(html: str) -> str:
+    return re.sub(r'<details class="entry".*?</details>', "", html, count=1, flags=re.S)
+
+
+def drop_er_field(html: str) -> str:
+    """The last row of the relationships field table is not drawn."""
+    at = html.index('id="t-data-relationships-fields"')
+    return html[:at] + _drop_last_row(html[at:])
+
+
 def inject_diagrams(html: str, diagrams: list) -> str:
     """Diagrams [(title, mermaid source)] at the top of the first report."""
     first = re.search(r'<section class="report"[^>]*>', html)
@@ -69,7 +111,8 @@ def inject_diagrams(html: str, diagrams: list) -> str:
     return html[:first.end()] + blocks + html[first.end():]
 
 
-MUTATIONS = {"conflict-css": conflict_css, "no-js-sentinel": no_js_sentinel, "big-diagrams": big_diagrams, "wide-tables": wide_tables}
+MUTATIONS = {"drop-row": drop_row, "drop-column": drop_column, "table-as-text": table_as_text, "entry-no-kv": entry_no_kv,
+             "drop-entry": drop_entry, "drop-er-field": drop_er_field, "conflict-css": conflict_css, "no-js-sentinel": no_js_sentinel, "big-diagrams": big_diagrams, "wide-tables": wide_tables}
 
 
 def mutate(html: str, name: str) -> str:
