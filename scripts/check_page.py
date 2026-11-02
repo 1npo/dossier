@@ -8,6 +8,8 @@
   uv run check_page.py DOSSIER.html [--shots DIR]
 
 Checks, in both the light and the dark theme:
+  - the stylesheet and the script loaded to their last line (sentinels at the end of each); if not, the
+    page's other checks are skipped and one line says so;
   - every Mermaid diagram draws (no error banner, no console errors);
   - every piece of text inside a diagram has a contrast ratio of at least 4.5:1 against what is
     actually painted behind it (edge labels, node boxes, subgraph titles, sequence-diagram messages);
@@ -322,6 +324,65 @@ def check_search(page, scheme):
     return [] if opened else bad("the entry did not open and show after Enter")
 
 
+ASSETS_JS = """() => ({
+  css: getComputedStyle(document.documentElement).getPropertyValue('--dossier-css-end').trim() === '1',
+  js: document.documentElement.dataset.dossierJs === 'ok' })"""
+
+
+def safe(scheme, name, fn, *args):
+    """Run one sub-check. A check that cannot run is a problem line, never a traceback."""
+    try:
+        return fn(*args)
+    except Exception as e:  # noqa: BLE001 - the point is to report whatever broke
+        return [f"[{scheme}] {name}: could not run ({type(e).__name__}: {str(e).splitlines()[0] if str(e) else ''})"]
+
+
+def check_report(page, scheme, rid, shots, counter):
+    problems = []
+    page.evaluate("id => { location.hash = id; }", rid)
+    page.wait_for_timeout(150)
+    hosts = page.query_selector_all(f"#{rid} .mermaid-host")
+    for i, host in enumerate(hosts, 1):
+        counter[0] += 1
+        page.wait_for_function("([r, i]) => document.querySelectorAll(`#${r} .mermaid-host`)[i - 1].dataset.done", arg=[rid, i], timeout=20000)
+        title = host.evaluate("h => (h.closest('.diagram').querySelector('h3') || {}).textContent || 'Diagram'")
+        if host.evaluate("h => h.classList.contains('failed')"):
+            problems.append(f"[{scheme}] {rid} / {title}: the diagram did not draw")
+            continue
+        host.scroll_into_view_if_needed()
+        for row in host.evaluate(CONTRAST_JS):
+            if row["clipped"]:
+                problems.append(f"[{scheme}] {rid} / {title}: text '{row['text']}' is pushed outside its label box and is cut off")
+            if row["ratio"] < MIN_CONTRAST:
+                problems.append(f"[{scheme}] {rid} / {title}: text '{row['text']}' has contrast {row['ratio']}:1 "
+                                f"(text rgb{tuple(row['fg'])} on rgb{tuple(row['bg'])})")
+        if shots:
+            host.screenshot(path=str(Path(shots) / f"{scheme}-{rid}-{i}.png"))
+    # sortable tables
+    for t in page.query_selector_all(f"#{rid} table.table:not([data-nosort])"):
+        missing = t.evaluate("t => { const hr = t.tHead && t.tHead.rows[t.tHead.rows.length - 1]; return hr ? Array.from(hr.cells).filter(c => !c.querySelector('button')).map(c => c.textContent.trim()) : []; }")
+        if missing and scheme == "light":
+            problems.append(f"{rid} / table {t.get_attribute('id')}: columns not sortable: {', '.join(missing)}")
+    # citation tooltip
+    if scheme == "light":
+        a = page.query_selector(f"#{rid} .cite a[data-tip]")
+        g = page.query_selector(f"#{rid} .gid[data-tip]")
+        if g:
+            g.scroll_into_view_if_needed()
+            g.hover()
+            if not page.evaluate("() => { const t = document.getElementById('cite-tip'); return !!t && !t.hidden && t.classList.contains('note'); }"):
+                problems.append(f"{rid}: the gap ID tooltip did not appear on hover")
+            page.mouse.move(0, 0)
+        if a:
+            a.scroll_into_view_if_needed()
+            a.hover()
+            shown = page.evaluate("() => { const t = document.getElementById('cite-tip'); return !!t && !t.hidden && t.textContent.length > 0; }")
+            if not shown:
+                problems.append(f"{rid}: the citation tooltip did not appear on hover")
+            page.mouse.move(0, 0)
+    return problems
+
+
 def check_theme(browser, path, scheme, shots):
     problems = []
     ctx = browser.new_context(color_scheme=scheme, viewport={"width": 1500, "height": 1000})
@@ -331,56 +392,25 @@ def check_theme(browser, path, scheme, shots):
     page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
     page.goto(Path(path).resolve().as_uri())
     page.wait_for_timeout(300)
+    counter = [0]
+    loaded = safe(scheme, "assets", page.evaluate, ASSETS_JS)
+    if isinstance(loaded, list):
+        ctx.close()
+        return loaded, 0
+    missing = [what for what, ok in (("stylesheet", loaded["css"]), ("script", loaded["js"])) if not ok]
+    if missing:
+        ctx.close()
+        return [f"[{scheme}] the page's {' and '.join(missing)} did not load completely; "
+                "look for a git conflict marker in the skill's assets, then render again"], 0
     reports = page.eval_on_selector_all(".report", "els => els.map(e => e.id)")
-    n_diagrams = 0
     for rid in reports:
-        page.evaluate("id => { location.hash = id; }", rid)
-        page.wait_for_timeout(150)
-        hosts = page.query_selector_all(f"#{rid} .mermaid-host")
-        for i, host in enumerate(hosts, 1):
-            n_diagrams += 1
-            page.wait_for_function("([r, i]) => document.querySelectorAll(`#${r} .mermaid-host`)[i - 1].dataset.done", arg=[rid, i], timeout=20000)
-            title = host.evaluate("h => (h.closest('.diagram').querySelector('h3') || {}).textContent || 'Diagram'")
-            if host.evaluate("h => h.classList.contains('failed')"):
-                problems.append(f"[{scheme}] {rid} / {title}: the diagram did not draw")
-                continue
-            host.scroll_into_view_if_needed()
-            for row in host.evaluate(CONTRAST_JS):
-                if row["clipped"]:
-                    problems.append(f"[{scheme}] {rid} / {title}: text '{row['text']}' is pushed outside its label box and is cut off")
-                if row["ratio"] < MIN_CONTRAST:
-                    problems.append(f"[{scheme}] {rid} / {title}: text '{row['text']}' has contrast {row['ratio']}:1 "
-                                    f"(text rgb{tuple(row['fg'])} on rgb{tuple(row['bg'])})")
-            if shots:
-                host.screenshot(path=str(Path(shots) / f"{scheme}-{rid}-{i}.png"))
-        # sortable tables
-        for t in page.query_selector_all(f"#{rid} table.table:not([data-nosort])"):
-            missing = t.evaluate("t => { const hr = t.tHead && t.tHead.rows[t.tHead.rows.length - 1]; return hr ? Array.from(hr.cells).filter(c => !c.querySelector('button')).map(c => c.textContent.trim()) : []; }")
-            if missing and scheme == "light":
-                problems.append(f"{rid} / table {t.get_attribute('id')}: columns not sortable: {', '.join(missing)}")
-        # citation tooltip
-        if scheme == "light":
-            a = page.query_selector(f"#{rid} .cite a[data-tip]")
-            g = page.query_selector(f"#{rid} .gid[data-tip]")
-            if g:
-                g.scroll_into_view_if_needed()
-                g.hover()
-                if not page.evaluate("() => { const t = document.getElementById('cite-tip'); return !!t && !t.hidden && t.classList.contains('note'); }"):
-                    problems.append(f"{rid}: the gap ID tooltip did not appear on hover")
-                page.mouse.move(0, 0)
-            if a:
-                a.scroll_into_view_if_needed()
-                a.hover()
-                shown = page.evaluate("() => { const t = document.getElementById('cite-tip'); return !!t && !t.hidden && t.textContent.length > 0; }")
-                if not shown:
-                    problems.append(f"{rid}: the citation tooltip did not appear on hover")
-                page.mouse.move(0, 0)
-    problems += check_viewer(page, scheme, shots)
-    problems += check_knowledge(page, scheme)
-    problems += check_search(page, scheme)
+        problems += safe(scheme, f"report {rid}", check_report, page, scheme, rid, shots, counter)
+    problems += safe(scheme, "code viewer", check_viewer, page, scheme, shots)
+    problems += safe(scheme, "knowledge map", check_knowledge, page, scheme)
+    problems += safe(scheme, "search", check_search, page, scheme)
     problems += [f"[{scheme}] browser error: {e}" for e in errors]
     ctx.close()
-    return problems, n_diagrams
+    return problems, counter[0]
 
 
 def main():
@@ -394,9 +424,14 @@ def main():
     problems = []
     with sync_playwright() as p:
         browser = p.chromium.launch()
+        n = 0
         for scheme in ("light", "dark"):
-            got, n = check_theme(browser, a.html, scheme, a.shots)
+            try:
+                got, n_theme = check_theme(browser, a.html, scheme, a.shots)
+            except Exception as e:  # noqa: BLE001
+                got, n_theme = [f"[{scheme}] the page could not be checked ({type(e).__name__}: {str(e).splitlines()[0] if str(e) else ''})"], 0
             problems += got
+            n = max(n, n_theme)
         browser.close()
     print(json.dumps({"diagrams_checked": n, "problems": len(problems)}))
     for line in problems:
