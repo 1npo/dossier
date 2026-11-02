@@ -131,6 +131,12 @@ class TestText:
         done = {"io": {"cards": [{"card": "io.inputs", "dismissed": [{"cand": every, "reason": "x"}]}]}}
         assert candidates.text("io", extract, done, {}, only_open=True) == ""
 
+    def test_open_prints_nothing_for_reports_that_only_have_informational_lists(self):
+        extract = {"graph": [{"kind": "module", "module": "p.a", "path": "p/a.py", "package": "p", "is_package": False}]}
+
+        assert candidates.text("reading", extract, {}, {}, only_open=True) == ""
+        assert candidates.text("components", extract, {}, {}, only_open=True) == ""
+
     def test_reading_lists_entry_files_test_files_and_ranked_modules(self):
         extract = {"graph": [{"kind": "module", "module": "p.a", "path": "p/a.py", "package": "p", "is_package": False},
                              {"kind": "module", "module": "p.b", "path": "p/b.py", "package": "p", "is_package": False},

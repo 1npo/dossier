@@ -278,7 +278,7 @@ def text(rid: str, extract: dict, reports: dict, facts: dict, *, only_open: bool
             lines = ", ".join(str(h["line"]) for h in g["hits"])
             out.append(f"{g['group']}  {g['rule']}  {g['path']}  ({len(g['hits'])} hits: lines {lines})")
             out += [f"    {h['id']}  {g['path']}:{h['line']}  {h['snippet']}" for h in g["hits"]]
-    if "components" in d:
+    if "components" in d and not only_open:  # --open prints only what still needs a decision
         c = d["components"]
         out.append("== Folders with source files ==")
         out += [f"{f['path']}  ({f['files']} files, {f['lines']} lines)" for f in c["folders"]]
@@ -294,7 +294,7 @@ def text(rid: str, extract: dict, reports: dict, facts: dict, *, only_open: bool
         out += [f"{e['from']} -> {e['to']}  ({e['imports']} imports)" for e in k["edges"]]
         out.append(f"== Source files in no component: {len(k['unassigned'])} ==")
         out += k["unassigned"]
-    if "modules" in d:
+    if "modules" in d and not only_open:
         out.append("== Most imported modules (top 30) ==")
         out += [f"{m['module']}  {m['path']}  (rank {m['rank']})" for m in d["modules"]]
         out.append("== Entry point files ==")
