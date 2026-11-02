@@ -6,7 +6,7 @@ Before each report, run `DOSSIER candidates <repo> --report <id>`. It lists the 
 
 **Write the reports in this order:** `entry`, `components`, `interactions`, `io`, `data`, `behavior`, `conventions`, `ops`, then `reading` (it needs the entry points and components), then `overview`, `risks` and `gaps`.
 
-Aim for the smallest report that fully serves a lead engineer. A short report is fine when the topic is small.
+A report is as long as its content. Never merge items to shorten a table; the page sorts, filters and collapses long tables.
 
 **Executive summaries are short and plain.** Write `summary` as 3 to 5 bullets (`- ` lines or list items), each one sentence of about 20 words or fewer, in everyday words. Lead with the answer. No filler, no restating the headline, no jargon the reader has to look up.
 
@@ -18,7 +18,7 @@ Report 04: Entry points. Question: *Where does execution start?*
 
 ### Entry points (`entry.catalog`)
 
-Every way execution can start. Decide about each finding: console scripts, `__main__` modules, CLI commands, HTTP routes (one row per route group), scheduled jobs, queue consumers, container commands, CI schedules, Makefile targets, systemd units, shebang scripts. `Starts at` names the function or file.
+Every way execution can start. Decide about each finding: console scripts, `__main__` modules, CLI commands (one row per command, and mark `added: true` when no tool found it), HTTP routes (one row per route group), scheduled jobs, queue consumers, container commands, CI schedules, Makefile targets, systemd units, shebang scripts. `Starts at` names the function or file.
 
 Shape: a table with columns Kind, Name, Triggered by, Starts at, Notes.
 
@@ -104,7 +104,7 @@ Report 07: Inputs and outputs. Question: *What goes in and what comes out?*
 
 ### Inputs (`io.inputs`)
 
-Everything the program takes in. Decide about every finding. The fixed categories stay as rows; a category that does not apply is a row whose input is `none`, with evidence. Network routes are one row per route group.
+Everything the program takes in. Decide about every finding. One row per CLI command's arguments and one row per environment variable. The fixed categories stay as rows; a category that does not apply is a row whose input is `none`, with evidence. Network routes are one row per route group.
 
 Shape: a table with columns Category, Input, Format, Validation, Where read.
 
@@ -134,7 +134,7 @@ Report 08: Data model. Question: *What data exists, and what is true about it?*
 
 ### Entities and types (`data.entities`)
 
-Every entity the code defines: dataclasses, Pydantic and ORM models, SQL tables, typed dictionaries, enums. Decide about each finding (migrations are not entities). `Owner component` names a catalog component.
+Every entity the code defines: dataclasses, Pydantic and ORM models, SQL tables, typed dictionaries, enums. Decide about each finding (migrations are not entities). One row per entity: `Fields` lists every field by name, and `Owner component` names a catalog component.
 
 Shape: a table with columns Name, Kind, Fields, Defined in, Owner component.
 
@@ -214,7 +214,7 @@ Fixed rows (column Area): naming; error handling; logging; dependency injection;
 
 ### Recipes (`conventions.recipes`)
 
-A numbered recipe for each fixed task: the files to touch in order, and a worked example from the repository's history. A recipe that does not apply says so with evidence.
+A numbered recipe for each fixed task. `Files to touch`: one step per line, `1. path — change`, in order. `Worked example`: cite the commit that did the same thing (`[[commit:<sha>]]`), found with `git log --follow -p` or `git log -S`; when no commit did, the statement is `unknown` with a note. A recipe that does not apply says so with evidence.
 
 Shape: `entries`, keyed by `recipe`, each with the fields: `files_to_touch` (Files to touch, in order), `worked_example` (Worked example in this repository).
 
