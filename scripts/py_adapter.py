@@ -116,10 +116,6 @@ class PythonAdapter(Adapter):
             return (py_queries.imports(ctx.treesitter, loose, st["module_paths"]), py_queries.models(ctx.treesitter, st["src"]),
                     py_queries.tests(ctx.treesitter, st["tests"], st["module_paths"]), py_queries.module_state(ctx.treesitter, st["src"]))
         got = self._step(ctx, "tree-sitter-language-pack", go)
-        crashed = sorted(p for p, e in ctx.treesitter.skipped.items() if "stopped on this file" in e)
-        if got and crashed:  # keep what was found, but say that some files were left out
-            shown = ", ".join(crashed[:3]) + (f" and {len(crashed) - 3} more" if len(crashed) > 3 else "")
-            ctx.tool_status["tree-sitter-language-pack"] = {"status": "failed", "reason": f"tree-sitter stopped on {len(crashed)} file(s) and skipped them: {shown}"}
         if got:
             out["graph"] += got[0]
             out["models"] += got[1]

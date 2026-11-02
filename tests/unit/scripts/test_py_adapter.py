@@ -12,9 +12,6 @@ from shared_tools import ToolError
 
 
 class FakeTS:
-    def __init__(self, skipped=None):
-        self.skipped = skipped or {}
-
     def query(self, language, paths, query):
         return []
 
@@ -136,18 +133,6 @@ class TestToolIsolation:
 
         assert ctx.tool_status["vulture"] == {"status": "failed", "reason": "vulture failed (exit 1):"}
         assert ctx.tool_status["grimp"]["status"] == "ok" and out["graph"] and out["dead"] == []
-
-    def test_files_tree_sitter_crashed_on_are_named_and_the_tool_is_marked_failed(self, py_repo, tmp_path):
-        FakeGrimp.response = graph_response(py_repo.path)
-        ctx = context(py_repo, tmp_path)
-        ctx.treesitter = FakeTS({"src/shopcart/a.py": "tree-sitter stopped on this file (signal 11); it was skipped",
-                                 "gone.py": "No such file"})
-
-        out = py_adapter.PythonAdapter().extract(ctx)
-
-        assert ctx.tool_status["tree-sitter-language-pack"] == {
-            "status": "failed", "reason": "tree-sitter stopped on 1 file(s) and skipped them: src/shopcart/a.py"}
-        assert out["graph"]
 
     def test_semgrep_failure_is_recorded_and_the_rest_continues(self, py_repo, tmp_path):
         ctx = context(py_repo, tmp_path, semgrep=FakeSemgrep(error=RuntimeError("no rules")))

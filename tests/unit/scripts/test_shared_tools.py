@@ -26,6 +26,15 @@ def fake_run(tmp_path, response=None, returncode=0, stderr="", timed_out=False):
     return run
 
 
+class TestTreeSitterPin:
+    def test_worker_pins_tree_sitter_below_the_release_that_corrupts_memory(self):
+        header = (SCRIPTS / "ts_worker.py").read_text().split("# ///")[1]
+        lock = (SCRIPTS / "ts_worker.py.lock").read_text()
+
+        assert '"tree-sitter==0.25.2"' in header
+        assert 'name = "tree-sitter"\nversion = "0.25.2"' in lock
+
+
 class TestTreeSitter:
     def test_sends_the_request_and_returns_matches(self, tmp_path):
         run = fake_run(tmp_path, {"matches": [{"path": "a.py", "capture": "fn", "text": "print"}], "errors": []})
@@ -37,14 +46,6 @@ class TestTreeSitter:
         assert call["input"] == {"language": "python", "paths": ["a.py"], "query": "(call) @fn"}
         assert (call["stage"], call["profile"]) == ("treesitter", "tool")
         assert call["cmd"][:5] == ["uv", "run", "--locked", "--python", "3.13"]
-
-    def test_files_the_worker_skipped_are_kept_on_the_client(self, tmp_path):
-        run = fake_run(tmp_path, {"matches": [], "errors": [{"path": "a.py", "error": "tree-sitter stopped on this file (signal 11); it was skipped"}]})
-        client = shared_tools.TreeSitter(run)
-
-        client.query("python", ["a.py"], "(call) @fn")
-
-        assert client.skipped == {"a.py": "tree-sitter stopped on this file (signal 11); it was skipped"}
 
     def test_nonzero_exit_raises_with_stderr_tail(self, tmp_path):
         run = fake_run(tmp_path, returncode=2, stderr="\n".join(f"line {i}" for i in range(30)))
@@ -82,7 +83,7 @@ class TestWorkerPins:
     @pytest.mark.parametrize("worker,tool", [("ts_worker.py", "tree-sitter-language-pack"), ("semgrep_worker.py", "semgrep")])
     def test_pin_matches_tools_json(self, worker, tool):
         text = (SCRIPTS / worker).read_text()
-        pinned = re.search(rf'dependencies = \["{re.escape(tool)}==([^"]+)"\]', text).group(1)
+        pinned = re.search(rf'dependencies = \[[^\]]*"{re.escape(tool)}==([^"]+)"', text).group(1)
         listed = next(t["version"] for t in toolcheck.load_tools()["tools"] if t["id"] == tool)
 
         assert pinned == listed
