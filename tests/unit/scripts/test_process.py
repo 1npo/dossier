@@ -35,24 +35,90 @@ FULL = [
 ]
 
 
+def body_rows(body):
+    table = body.split("<tbody>")[1].split("</tbody>")[0]
+    return [re.findall(r"<td[^>]*>(.*?)</td>", row, re.S) for row in re.findall(r"<tr>(.*?)</tr>", table, re.S)]
+
+
+def row_of(body, step):
+    return body_rows(body)[buildlog.STEPS.index(step)]
+
+
+EXTRACT = rec("extract", tools=[{"name": "grimp", "version": "3.17"}, {"name": "scip-python", "version": "0.6.6"}, {"name": "knip", "version": "6.42.0"}],
+              details={"adapters": [{"name": "python", "status": "ok", "tools": {"grimp": {"status": "ok"}, "scip-python": {"status": "ok"}, "vulture": {"status": "failed"}}}]})
+
+
 class TestProcessBody:
-    def test_ten_steps_in_order_and_the_tier_line(self):
+    def test_ten_rows_in_order_and_the_tier_line(self):
         body = process.process_body(build_with(*FULL))
 
-        sentences = re.findall(r"<li><p>(.*?)</p>", body)
-        assert len(sentences) == 10
-        assert sentences[0].startswith("Pinned the repository") and sentences[-1].startswith("Rendered the page")
+        rows = body_rows(body)
+        assert len(rows) == len(buildlog.STEPS) == 10
+        assert [r[0] for r in rows] == [str(n) for n in range(1, 11)]
+        assert rows[0][1].startswith("Pinned the repository") and rows[-1][1].startswith("Rendered the page")
         assert "are measured by tools" in body
 
-    def test_step_without_a_record_says_no_record(self):
+    def test_table_has_the_four_columns(self):
+        body = process.process_body(build_with(*FULL))
+
+        head = body.split("<thead>")[1].split("</thead>")[0]
+        assert re.findall(r"<th[^>]*>(.*?)</th>", head) == ["No.", "Step", "What happened", "Status"]
+
+    def test_step_without_a_record_says_no_record_and_has_a_failed_looking_badge(self):
         body = process.process_body(build_with(*FULL[:2]))
 
         assert body.count("No record.") == 8
+        assert row_of(body, "pin")[3] != row_of(body, "measure")[3]
+        assert 'data-variant="destructive">no record' in row_of(body, "measure")[3]
+
+    def test_skipped_step_shows_a_skipped_badge_and_its_reason(self):
+        row = row_of(process.process_body(build_with(*FULL)), "extract")
+
+        assert "skipped" in row[3] and "No extractors exist" in row[2]
+
+    def test_ok_step_shows_an_ok_badge(self):
+        assert 'data-variant="secondary">ok' in row_of(process.process_body(build_with(*FULL)), "pin")[3]
 
     def test_text_is_escaped(self):
         body = process.process_body(build_with(rec("pin", details={"trust": {"trusted": False, "why": "<b>x</b>"}})))
 
         assert "<b>x</b>" not in body
+
+    def test_tools_row_names_the_extractors_with_versions_and_leaves_out_unused_ones(self):
+        row = row_of(process.process_body(build_with(*FULL, EXTRACT)), "tools")
+
+        assert "Host: git 2.47.3." in row[2]
+        assert "Extractors: grimp 3.17, scip-python 0.6.6." in row[2]
+        assert "vulture" not in row[2] and "knip" not in row[2]
+
+    def test_tools_row_says_which_skill_commit_made_the_build(self):
+        tools = rec("tools", tools=[], details={"languages": [], "missing": [], "skill": {"path": "/s", "commit": "abcdef1234567", "dirty": True, "unmerged": True}})
+
+        row = row_of(process.process_body(build_with(tools)), "tools")
+
+        assert "Skill: abcdef1, uncommitted changes, UNMERGED." in row[2]
+
+    def test_tools_row_of_an_older_build_has_no_skill_sentence(self):
+        assert "Skill:" not in row_of(process.process_body(build_with(*FULL)), "tools")[2]
+
+    def test_check_row_without_a_browser_record_says_not_run_in_red(self):
+        status = row_of(process.process_body(build_with(*FULL)), "check")[3]
+
+        assert 'data-variant="destructive">browser: not run' in status
+
+    def test_check_row_with_a_clean_browser_record_says_zero_problems(self):
+        b = rec("check", part="browser", by="check_page", counts={"problems": 0}, started="2026-11-01T12:04:05Z")
+
+        status = row_of(process.process_body(build_with(*FULL, b)), "check")[3]
+
+        assert 'data-variant="secondary">browser: 0 problems' in status
+
+    def test_check_row_with_browser_problems_is_red(self):
+        b = rec("check", part="browser", by="check_page", counts={"problems": 3}, started="2026-11-01T12:04:05Z")
+
+        status = row_of(process.process_body(build_with(*FULL, b)), "check")[3]
+
+        assert 'data-variant="destructive">browser: 3 problems' in status
 
 
 class TestRunLine:

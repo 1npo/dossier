@@ -8,6 +8,7 @@ import html
 
 import buildlog
 import schema
+import toolcheck
 
 E = lambda s: html.escape(str(s if s is not None else ""), quote=True)
 
@@ -37,6 +38,22 @@ def _clock(stamp):
     return (stamp or "")[11:16]
 
 
+def _extractors(build) -> str:
+    """The extractors that ran (status ok in any adapter) with their versions, in the order of tools.json."""
+    rec = buildlog.latest(build, "extract") or {}
+    ran = {name for a in (rec.get("details") or {}).get("adapters", []) for name, t in (a.get("tools") or {}).items() if (t or {}).get("status") == "ok"}
+    versions = {t["name"]: t.get("version") for t in rec.get("tools") or []}
+    order = {t["id"]: i for i, t in enumerate(toolcheck.load_tools()["tools"])}
+    return ", ".join(f"{n} {versions[n]}" if versions.get(n) else n for n in sorted(ran, key=lambda n: (order.get(n, len(order)), n)))
+
+
+def _skill_sentence(skill) -> str:
+    if not skill or not skill.get("commit"):
+        return ""
+    extra = (", uncommitted changes" if skill.get("dirty") else "") + (", UNMERGED" if skill.get("unmerged") else "")
+    return f" Skill: {skill['commit'][:7]}{extra}."
+
+
 def _ok_line(step, build):
     rec = buildlog.latest(build, step)
     c, d = rec.get("counts") or {}, rec.get("details") or {}
@@ -46,10 +63,10 @@ def _ok_line(step, build):
         return f"Commit {build['sha'][:7]} ({build['ref']}). {trust}"
     if step == "tools":
         langs = ", ".join(l["name"] for l in d.get("languages", [])) or "none found"
-        tools = ", ".join(f"{t['name']} {t['version']}" for t in rec.get("tools") or [])
+        host = ", ".join(f"{t['name']} {t['version']}" for t in rec.get("tools") or [])
         miss = d.get("missing") or []
         tail = f"Missing: {', '.join(miss)} (carried on with --allow-missing)." if miss else "Nothing missing."
-        return f"Languages: {langs}. Tools: {tools or 'none'}. {tail}"
+        return f"Languages: {langs}. Host: {host or 'none'}. Extractors: {_extractors(build) or 'none recorded'}. {tail}{_skill_sentence(d.get('skill'))}"
     if step == "copy":
         co = buildlog.latest(build, "copy", "checkout") or {}
         rs = buildlog.latest(build, "copy", "restore") or {}
@@ -102,16 +119,19 @@ def _ok_line(step, build):
     return ""
 
 
+def _record(step, build):
+    if step == "check":
+        return buildlog.latest(build, "check", "render") or buildlog.latest(build, "check")
+    if step == "copy":
+        return buildlog.latest(build, "copy", "checkout")
+    return buildlog.latest(build, step)
+
+
 def run_line(step, build):
     """One plain sentence about what the latest record of a step says, or None when there is no record."""
-    if step == "check":
-        rec = buildlog.latest(build, "check", "render") or buildlog.latest(build, "check")
-    elif step == "copy":
-        rec = buildlog.latest(build, "copy", "checkout")
-        if rec and rec["status"] == "ok":
-            return _ok_line("copy", build)
-    else:
-        rec = buildlog.latest(build, step)
+    rec = _record(step, build)
+    if step == "copy" and rec and rec["status"] == "ok":
+        return _ok_line("copy", build)
     if not rec:
         return None
     if rec["status"] == "skipped":
@@ -131,13 +151,32 @@ def tier_line():
             f"(tool candidates sorted by Claude) and {r} read by Claude.")
 
 
+def _status_badges(step, build, badge) -> str:
+    """The status badge of a step, and for `check` a second badge for the browser check."""
+    rec = _record(step, build)
+    if not rec:
+        out = badge("no record", "", "destructive")
+    else:
+        out = badge(rec["status"], "", {"ok": "secondary", "failed": "destructive"}.get(rec["status"], "outline"))
+    if step == "check":
+        b = buildlog.latest(build, "check", "browser")
+        if b is None:
+            out += badge("browser: not run", "", "destructive")
+        else:
+            n = (b.get("counts") or {}).get("problems", 0)
+            out += badge(f"browser: {_plural(n, 'problem')}", "", "secondary" if n == 0 else "destructive")
+    return out
+
+
 def process_body(build) -> str:
-    items = []
-    for step in buildlog.STEPS:
+    import render  # imported late: render imports this module
+
+    rows = []
+    for n, step in enumerate(buildlog.STEPS, 1):
         line = run_line(step, build)
-        items.append(f"<li><p>{E(STEP_TEXT[step])}</p>"
-                     f'<div class="muted">{E(line) if line is not None else "No record."}</div></li>')
-    return f'<ol class="process">{"".join(items)}</ol><p class="muted">{E(tier_line())}</p>'
+        rows.append([(str(n), n), E(STEP_TEXT[step]), E(line) if line is not None else "No record.", _status_badges(step, build, render.badge)])
+    table = render.render_table(["No.", "Step", "What happened", "Status"], rows, None, "t-dossier-process", filterable=False, plain=True, sort=False)
+    return f'{table}<p class="muted">{E(tier_line())}</p>'
 
 
 # ------------------------------------------------------------------ records render adds

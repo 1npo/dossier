@@ -407,7 +407,7 @@ Read first: R1, R25, R4 to R7, R15 to R18, R20 and decisions D2 to D7.
   - Tests first in `tests/unit/scripts/test_render_cards.py`: (a) an entry with fields `{"files_to_touch": "1. Add a `cmd_<name>` handler in `cli.py`. 2. Register it in `build_parser`. 3. Add tests.", "worked_example": "x"}` renders a `table.kv` with 2 rows and an `<ol>` with 3 `<li>`; (b) `split_steps("Use 2.5 ml")` returns the text unchanged; (c) the entry keeps `details.entry` and its `id`; (d) `check_search` in the slow suite still opens the entry (run the existing slow test).
   - Verify: `pytest tests/unit/scripts/test_render_cards.py -q` and the slow test file.
   - Commit: `fix(dossier): draw component details and recipes as tables with numbered steps`.
-- [ ] **F1-7. The process card as a table, with extractor versions and the browser status (R17, R18; D7; table part needs A1).**
+- [x] **F1-7. The process card as a table, with extractor versions and the browser status (R17, R18; D7; table part needs A1).**
   - Files: `scripts/process.py` (`process_body`, `_ok_line` for `tools` and `check`), `scripts/render.py` (call site line 1609 if the signature changes).
   - Tests first in `tests/unit/scripts/test_process.py`: with a build record whose `extract` record lists adapter tools `grimp 3.17` and `scip-python 0.6.6` (follow the shape in `LIVE/build.json`), the `tools` row text contains `Extractors: grimp 3.17` and `scip-python 0.6.6`; with no browser record the `check` row shows a destructive badge "browser: not run"; (A1) the body contains one `<table>` with headers `No., Step, What happened, Status` and `len(buildlog.STEPS)` body rows; a skipped step shows the badge `skipped`.
   - Verify: `pytest tests/unit/scripts/test_process.py -q`.
