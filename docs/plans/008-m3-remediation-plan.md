@@ -508,7 +508,7 @@ Read first: R20 to R25, section 3.6 and decisions D10, D11, D12, D15. Also load 
   - Files: `SKILL.md`, `README.md`, `docs/user-guide.md` and `docs/developer-guide.md` if they exist (follow the docs skills; if absent, do not create them in this plan), `VERSION` (0.7.1), the changelog if the repository keeps one (check `git-release`).
   - Document: `dossier check`, V11 and V12, the skill commit on the process card, `doctor`'s unmerged check, the measured relationships card, the one-row-per-item rules, the golden02 baselines.
   - Commit: `chore(dossier): bump to 0.7.1` and a `docs(dossier): …` commit before it.
-- [ ] **F3-6. Final run on the author's data, and the hand-over.**
+- [x] **F3-6. Final run on the author's data, and the hand-over.**
   - Section 7: blocks R (a fresh scratch copy of `LIVE`, rendered with `--allow-errors`), A, B, C, I, E and G2, in that order. Then run `$D check $REPO` on the block R page.
   - Record in "Verification results" below: each block's key output; the `render` error lines by kind and count (the old reports must now fail V5 and V6 for the 27 folded entities, the missing `CANNALERTS_SKIP_AYR`, the onboarding notes; V11 must report 0 drawing errors); `dossier check` output (V12: 0 layout and readability failures; content-driven failures, if any, listed); section 3.4's counts for everything code draws (relationships, both graphs, reading feed), which must show 0 lost.
   - Do **not** write the dossier's reports again: the author's acceptance build (section 8) does that with `/dossier build`, using the merged code and the rewritten prompts.
@@ -583,7 +583,57 @@ Session of 2026-11-01, by Sonnet 5.5, on branch `fix/dossier-m3-remediation`. Th
 
 ### Verification results
 
-(F3-6 writes here.)
+Run on 2026-11-02, on branch `fix/dossier-m3-remediation` at `2ae9334` (version 0.7.1), with a scratch copy of `LIVE` (never written) and the pinned `REPO` (`git status` the same before and after).
+
+| Block | Result |
+|---|---|
+| R | `render --allow-errors` of the copy exits 0; 0 conflict markers; `check_page.py` on the first render: 0 problems |
+| A | `doctor`: nothing missing; `skill: 2ae9334 (dirty)` (the folder holds the author's untracked planning prompt) |
+| B | `prepare`: exit 0; adapters `python` and `repo` ok; the `tools` record holds `details.skill` with the branch commit; SQL tables of 4, 13, 20 and 9 fields with 2 foreign keys |
+| C | `candidates --report entry`: 3 groups for 13 CLI commands (9 helper-registered, 3 in `capture_fixtures.py`, 1 `watch add`); `--report reading`: 55 modules |
+| I | 1107 passed, 55 skipped (default); 1162 passed with `DOSSIER_SLOW=1` (366 s) |
+| E | `OK` (only V6 pending errors and the one V10 line) |
+| G2 | passes (in the slow run: the current render of the fixture matches the pre-M0 screenshots; a conflicted stylesheet and one changed rule do not) |
+| `dossier check` | exit 1, `problems: 4`: V11 0; V12 only "interactions.flows: diagram 2 has no numbered notes" (the onboarding flow, in the old reports) in each theme and width; about 3 minutes |
+
+**`render` errors on the author's old reports (`--allow-errors`), by kind:** 31 V5 "decides the group" (the entities and entry points folded into shared rows), 1 V5 "does not list the environment variable CANNALERTS_SKIP_AYR", 1 V5 "13 tool findings for Entry points have no decision", 1 V6 "diagram 2 needs numbered notes after it" (onboarding), plus 1 V6 warning that `data.relationships` is now drawn by code and 25 V2 name warnings and 6 recipe warnings (35 name warnings before F2-11). V11 reports 0 drawing errors.
+
+**Section 3.4 counts for what code draws now (cannalerts):** module imports 225 of 225 rows; components 16 of 16 rows and a 16 x 16 matrix; relationship fields 266 of 266 rows (46 SQL columns and the 48 dataclasses and enum); modules fed to the reading order 55 of 55; CLI commands extracted 13. Nothing lost.
+
+**Defects, fixed or open.** Section 3.3 stays as the planning record; this table is the status.
+
+| Defect | Status | Commit |
+|---|---|---|
+| R1, R25 | fixed | 920e8b6 |
+| R2 | fixed | cca4701 |
+| R3 | fixed | 464e2e8, b59cc83 (re-extract) |
+| R4 | fixed | cbd5570 |
+| R5, R7 | fixed | 79ddf2f |
+| R6 | fixed | d4fd248 |
+| R8 | fixed | 5c005c9 |
+| R9 | fixed | e2e7a3c, 2d046d9 |
+| R10 | fixed | e2e7a3c, 1fe3de7, 2d046d9 |
+| R11 | fixed | 4b36552 |
+| R12 | fixed | 74f1d6f |
+| R13 | fixed | 5b8e9d7 |
+| R14 | fixed (flagged, and asked for in the prompts) | 65a351a, 2d046d9 |
+| R15 | fixed | ce2f943 |
+| R16 | fixed | 5097577 |
+| R17, R18 | fixed | d5b0874 |
+| R19 | fixed | 4bc22db |
+| R20 | fixed | 2dcf708, 39c7f91 |
+| R21 | fixed | 9ec10f9 |
+| R22 | fixed | 6c7b871 |
+| R23 | fixed | ced1b7c |
+| R24 | fixed: the thresholds are checks (11 px, 48 px, budgets, overlap); the final look is the author's, section 8 | 39c7f91 |
+
+**Open, for the author.**
+
+1. Report 02's commit heat-map legend (`.heat-key`, in Contributors) is cut off at 400 px: the sentence ends "...commit in that perio" because the legend is 15 px wider than its card and the card clips it. Report 02 is frozen (A6), so it was not changed, and V12's sideways check skips the `overview.*` cards (`check_layout.FROZEN_CARDS`); every other V12 check applies to them. Decide whether report 02 may get this fix, or leave the exemption.
+2. V12's ER budget (12 entities) counts `g.node`; no test draws an ER diagram over the budget (the ER diagrams code draws are split to 12 or fewer except where marked area). The 12-node flowchart and 10-participant budgets have tests.
+3. `dossier check` takes about 3 minutes (four page loads per theme). It could skip the 1500 px layout pass that `check_theme` repeats; left as it is.
+4. `encamp-sync pull` is still needed before section 8, and `scripts/sync.sh` (the author's fix for the conflict) is still uncommitted in the source repository.
+5. Q3, Q4 and Q6 were answered as the plan recommends; Q5, Q7 and Q8 are for the M3 plan.
 
 ---
 
