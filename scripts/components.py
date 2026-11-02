@@ -76,8 +76,19 @@ def catalog_edges(rows: list, extract: dict) -> list:
     return [{"from": a, "to": b, "imports": n} for (a, b), n in sorted(counts.items())]
 
 
+def chunk_lines(chunks: dict) -> dict:
+    """Path -> line count, from chunks.json (a file split in segments is summed)."""
+    lines: dict = {}
+    for chunk in (chunks or {}).get("chunks", []):
+        for f in chunk.get("files", []):
+            lines[f["path"]] = lines.get(f["path"], 0) + (f.get("lines") or 0)
+    return lines
+
+
 def file_lines(facts: dict) -> dict:
-    """Path -> line count, from the reading chunks in facts.json (a file split in segments is summed)."""
+    """Path -> line count: `facts["file_lines"]` (filled from chunks.json when the dossier is loaded), else the chunks held in `facts`."""
+    if (facts or {}).get("file_lines"):
+        return facts["file_lines"]
     lines: dict = {}
     for chunk in ((facts or {}).get("chunks") or {}).get("chunks", []):
         for f in chunk.get("files", []):

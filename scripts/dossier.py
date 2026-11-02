@@ -35,6 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import buildlog  # noqa: E402
 import candidates  # noqa: E402
 import checks  # noqa: E402
+import components  # noqa: E402
 import config  # noqa: E402
 import gather  # noqa: E402
 import incremental  # noqa: E402
@@ -336,6 +337,7 @@ def cmd_render(a):
     facts["file_activity"] = load(out / "activity.json")
     facts["knowledge"] = load(out / "knowledge.json")
     facts["dependencies"] = load(out / "dependencies.json")
+    facts["file_lines"] = components.chunk_lines(load(out / "chunks.json", {}))
     state = load_state(out)
     reports = {}
     for rid, _, authored in render.REPORTS:
@@ -428,6 +430,7 @@ def cmd_candidates(a):
     if not extract:
         die("No extractor output found. Run prepare first.")
     facts = load(out / "facts.json", {})
+    facts["file_lines"] = components.chunk_lines(load(out / "chunks.json", {}))
     reports = {rid: load(out / "reports" / f"{rid}.json") for rid in ids if (out / "reports" / f"{rid}.json").exists()}
     catalog = load(a.catalog) if a.catalog else None
     sha = facts.get("repo", {}).get("sha")
