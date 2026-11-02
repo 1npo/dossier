@@ -16,6 +16,7 @@ FIX = SKILL / "tests" / "fixtures" / "encamp-m0"
 TOP = SKILL.parents[5]
 CHECK = SKILL / "scripts" / "check_page.py"
 DIAGRAM_TEXT = SKILL / "tests" / "tools" / "diagram_text.py"
+TABLE_FIT = SKILL / "tests" / "tools" / "table_fit.py"
 
 pytestmark = [
     pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs a browser: set DOSSIER_SLOW=1"),
@@ -94,3 +95,26 @@ class TestDiagramText:
 
         assert len(rows) == 2
         assert all(r["min_height"] >= 11 for r in rows), rows
+
+
+class TestTablesFitTheCard:
+    @pytest.fixture(scope="class")
+    def fit(self, rendered_page, tmp_path_factory):
+        page, env = rendered_page
+        wide = tmp_path_factory.mktemp("wide") / "wide.html"
+        wide.write_text(broken_pages.mutate(page.read_text(), "wide-tables"))
+        done = run(TABLE_FIT, wide, env=env)
+        assert done.returncode == 0, done.stderr[-800:]
+        return {(r["width"], r["id"]): r for r in json.loads(done.stdout)}
+
+    def test_seven_column_table_does_not_scroll_at_desktop_width(self, fit):
+        row = fit[(1500, "inj-7")]
+
+        assert row["scrollWidth"] <= row["clientWidth"], row
+        assert not row["scrolls_class"] and not row["hint"]
+
+    def test_nine_column_table_at_phone_width_says_it_scrolls(self, fit):
+        row = fit[(400, "inj-9")]
+
+        assert row["scrollWidth"] > row["clientWidth"]
+        assert row["scrolls_class"] and row["hint"]

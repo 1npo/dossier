@@ -238,3 +238,27 @@ class TestSplitSteps:
         text = "1. Set the limit to 100. 2. Run it 3 times. 3. Done."
 
         assert render.split_steps(text).split("\n") == ["1. Set the limit to 100.", "2. Run it 3 times.", "3. Done."]
+
+
+class TestRenderTable:
+    def rows(self, n):
+        return [[f"r{i}"] for i in range(n)]
+
+    def test_forty_rows_are_not_tall(self):
+        html = render.render_table(["A"], self.rows(40), None, "t-x", plain=True)
+
+        assert 'class="table-container"' in html
+
+    def test_forty_one_rows_are_tall_and_all_stay_in_the_page(self):
+        html = render.render_table(["A"], self.rows(41), None, "t-x", plain=True)
+
+        assert 'class="table-container tall"' in html
+        assert html.count("<tr>") == 1 + 41
+
+    def test_basis_and_sources_columns_are_marked_in_authored_tables(self, make_cites):
+        rows = [{"cells": ["x"], "conf": "confirmed", "cite": ["a.py:1"]}]
+
+        html = render.render_table(["A"], rows, refs(make_cites), "t-x")
+
+        assert '<th class="basis-cell">Basis</th><th class="src-cell">Sources</th>' in html
+        assert '<td class="src-cell">' in html

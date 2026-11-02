@@ -704,11 +704,14 @@ def cell_html(cell, refs):
     return keep_whole(inline(cell, refs))
 
 
+TALL_ROWS = 40  # a longer table scrolls inside its card; every row stays in the page
+
+
 def render_table(columns, rows, refs, tid, filterable=True, plain=False, group=None, foot=None, sort=True, cls=""):
     """rows are dicts with cells/conf/cite/note (authored) or plain lists of ready HTML (measured)."""
     head = "".join(f"<th>{E(c)}</th>" for c in columns)
     if not plain:
-        head += "<th>Basis</th><th>Sources</th>"
+        head += '<th class="basis-cell">Basis</th><th class="src-cell">Sources</th>'
     body = []
     for r in rows:
         if plain:
@@ -720,11 +723,11 @@ def render_table(columns, rows, refs, tid, filterable=True, plain=False, group=N
             tds.append(f"<td>{sev_badge(cell)}</td>" if kind == "severity" else f"<td>{status_badge(cell)}</td>" if kind == "status" else f"<td>{cell_html(cell, refs)}</td>")
         note = f'<div class="muted">{inline(r.get("note"), refs)}</div>' if r.get("note") and r.get("conf") != "confirmed" else ""
         cites_ = new_cites(r.get("cite"), *r["cells"])
-        body.append("<tr>" + "".join(tds) + f'<td class="basis-cell">{basis_for(r)}{added_tag(r)}{gid_tag(r)}{note}{user_note(r.get("user"))}</td><td>{refs.mark(cites_)}</td></tr>')
+        body.append("<tr>" + "".join(tds) + f'<td class="basis-cell">{basis_for(r)}{added_tag(r)}{gid_tag(r)}{note}{user_note(r.get("user"))}</td><td class="src-cell">{refs.mark(cites_)}</td></tr>')
     flt = f'<input class="input tbl-filter" type="search" data-target="{tid}" placeholder="Filter rows" aria-label="Filter rows">' if filterable and len(rows) > 6 else ""
     top = ("<tr class=\"group-row\">" + "".join(f'<th colspan="{n}"{" class=\"grp\"" if lbl else ""}>{E(lbl)}</th>' for lbl, n in group) + "</tr>") if group else ""
     tf = f'<tfoot><tr class="total-row">{"".join(f"<td>{c}</td>" for c in foot)}</tr></tfoot>' if foot else ""
-    return f'{flt}<div class="table-container"><table class="table{" " + cls if cls else ""}" id="{tid}"{"" if sort else " data-nosort"}><thead>{top}<tr>{head}</tr></thead><tbody>{"".join(body)}</tbody>{tf}</table></div>'
+    return f'{flt}<div class="table-container{" tall" if len(rows) > TALL_ROWS else ""}"><table class="table{" " + cls if cls else ""}" id="{tid}"{"" if sort else " data-nosort"}><thead>{top}<tr>{head}</tr></thead><tbody>{"".join(body)}</tbody>{tf}</table></div>'
 
 
 def block_card(head, body, prov, extra="", action=""):

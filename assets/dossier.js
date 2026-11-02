@@ -52,7 +52,20 @@
       host.parentNode.insertBefore(hint, host);
     } else if (!on && hint) hint.remove();
   }
-  window.addEventListener("resize", function () { $$(".report:not([hidden]) .mermaid-host").forEach(markScroll); });
+  // a schema table wider than its card scrolls inside it and says so (report 02's tables are left as they were)
+  function markTables(root) {
+    $$(".card[data-card] .table-container", root).forEach(function (c) {
+      if (c.closest(".card[data-card]").dataset.card.indexOf("overview.") === 0) return;
+      var on = c.scrollWidth > c.clientWidth + 1;
+      c.classList.toggle("scrolls", on);
+      var prev = c.previousElementSibling, hint = prev && prev.classList.contains("table-hint") ? prev : null;
+      if (on && !hint) {
+        hint = doc.createElement("p"); hint.className = "table-hint"; hint.textContent = "Scroll sideways for more columns.";
+        c.parentNode.insertBefore(hint, c);
+      } else if (!on && hint) hint.remove();
+    });
+  }
+  window.addEventListener("resize", function () { $$(".report:not([hidden]) .mermaid-host").forEach(markScroll); $$(".report:not([hidden])").forEach(markTables); });
   function drawIn(section) {
     if (!window.mermaid) return;
     $$(".mermaid-host", section).forEach(function (host) {
@@ -78,7 +91,7 @@
     var section = target.closest(".report") || target;
     $$(".report").forEach(function (s) { s.hidden = s !== section; });
     $$("[data-nav]").forEach(function (a) { if (a.dataset.nav === section.id) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
-    drawIn(section);
+    drawIn(section); markTables(section);
     if (target !== section) {
       target.scrollIntoView();
       target.classList.remove("flash"); void target.offsetWidth; target.classList.add("flash");

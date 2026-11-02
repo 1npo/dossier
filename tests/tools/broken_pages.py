@@ -44,7 +44,24 @@ def big_diagrams(html: str) -> str:
     return html[:first.end()] + block("Injected sequence", BIG_SEQUENCE) + block("Injected flowchart", BIG_FLOW) + html[first.end():]
 
 
-MUTATIONS = {"conflict-css": conflict_css, "no-js-sentinel": no_js_sentinel, "big-diagrams": big_diagrams}
+PATHS = "<code>src/cannalerts/platforms/dutchie/client.py</code>, <code>src/cannalerts/platforms/dutchie/parser.py</code>"
+
+
+def _table(tid: str, columns: int) -> str:
+    head = "".join(f"<th>Column {i}</th>" for i in range(columns)) + '<th class="basis-cell">Basis</th><th class="src-cell">Sources</th>'
+    row = "".join(f"<td>{PATHS}</td>" for _ in range(columns)) + '<td class="basis-cell"><span class="badge">confirmed</span></td><td class="src-cell">[1] [2]</td>'
+    return f'<div class="table-container"><table class="table" id="{tid}"><thead><tr>{head}</tr></thead><tbody><tr>{row}</tr></tbody></table></div>'
+
+
+def wide_tables(html: str) -> str:
+    """Two authored-style tables, 7 and 9 schema columns of long multi-path cells, in a card at the top of the first report."""
+    card = ('<div class="card block llm" data-card="injected.tables"><header><h3>Injected tables</h3></header><section>'
+            + _table("inj-7", 7) + _table("inj-9", 9) + "</section></div>")
+    first = re.search(r'<section class="report"[^>]*>', html)
+    return html[:first.end()] + card + html[first.end():]
+
+
+MUTATIONS = {"conflict-css": conflict_css, "no-js-sentinel": no_js_sentinel, "big-diagrams": big_diagrams, "wide-tables": wide_tables}
 
 
 def mutate(html: str, name: str) -> str:
