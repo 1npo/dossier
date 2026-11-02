@@ -546,7 +546,7 @@ Independent tasks: M2-3, M2-4, M2-6 and M2-7 need nothing but M2-2 and can be do
 
 ### M2-8. Tree-sitter queries for models, tests, state and imports (`py_queries.py`)
 
-- [ ] **Goal.** The parts of `models`, `tests`, `io_candidates` (module-level state) and `graph` (loose modules) that come from syntax trees.
+- [x] **Goal.** The parts of `models`, `tests`, `io_candidates` (module-level state) and `graph` (loose modules) that come from syntax trees.
 - **Files.** New `scripts/py_queries.py`, `tests/unit/scripts/test_py_queries.py`, `tests/integration/scripts/test_py_queries_slow.py`.
 - **Interface.**
   ```python
@@ -679,6 +679,8 @@ Started 2026-11-01 on branch `feat/dossier-m2`. Baseline: `405 passed, 2 skipped
 **Item 4 decision (2026-11-01, the human): read the text from the source file.** Done in M2-7: `semgrep_worker.py` now returns `snippet` = the stripped source line where the match starts (at most 200 characters; this also fixes M1's "requires login" snippet) and `detail` = the first group of the regex in the rule's `metadata.detail` applied to the matched text (read by byte offsets), else `null`. Rules that need a detail carry `metadata.detail` as a regular expression, not a metavariable name. Semgrep's `metavariable-regex` is anchored at the start of the value, so the rules use `.*(...)` where a suffix or infix match is meant. A generic rule's own test annotation matches its pattern, so `dossier.all.blindspot.feature-flag` has `(?<!blindspot\.)` in its regex.
 
 **M2-7 notes.** 44 rules (42 in `rules/python`, 2 in `rules/all`), all pass `semgrep --test`. Stacked `# ruleid:` comments do not work (each annotation applies to the next line); a line that two rules match carries one comma-separated annotation (`string-plugin` lines are also `dynamic-import` matches).
+
+**M2-8 deviations.** (1) Three-level tree-sitter patterns (`module > expression_statement > assignment`) match nothing with tree-sitter-language-pack 1.22.1, while one- and two-level patterns work (probed on the fixture). The queries are therefore one or two levels deep, and `py_queries` tells module level from class level by column: a module-level name starts at column 0, a class field starts at the column of the class `body` block (`CLASS_Q` now also captures `body`). (2) D5 says all-capitals module values are constants and are skipped, but the fixture (M2-3) and the tests of record (M2-8, M2-11) expect `CART = {}` and `REGISTRY = {}` to be found. Resolved as: an all-capitals name is a constant only when its value is not empty (`{}` or `[]`); an empty container is taken as state. The ids of module-state findings use `snippet = "<name> = <first line of the value>"` because the worker returns captured nodes, not source lines.
 
 
 ---
