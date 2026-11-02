@@ -473,7 +473,7 @@ Read first: R2, R3, R8 to R14, R19, section 3.4 and decisions D8, D9, D13, D14.
   - Files: `scripts/checks.py` (warning `V2: Recipes, <recipe>: the worked example cites no commit` when a recipe's `worked_example` has no `commit:` citation and its `conf` is `confirmed` or `inferred`; goes to Gaps as an `inference` item).
   - Test first in `test_checks_v2.py`.
   - Commit: `feat(dossier): flag recipes that are not grounded in a commit`.
-- [ ] **F2-11. V2 stops flagging file and module names (R19; D14).**
+- [x] **F2-11. V2 stops flagging file and module names (R19; D14).**
   - Files: `scripts/checks.py` (`_checked_span`, line 221; `v2` passes the module names from `extract["graph"]`).
   - Test first in `test_checks_v2.py`: spans `cli.py`, `models.py`, `alerts.state`, `menus.scrape_cached` (with `scrape_cached` in the cited text) give no warning; `FetchClient` absent from the cited text still warns. Run `checks.validate` on a scratch copy of `LIVE` and record the V2 count before (35) and after in the commit body.
   - Commit: `fix(dossier): stop V2 from flagging file and module names`.

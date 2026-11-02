@@ -279,9 +279,22 @@ def _cited_text(cites, refs: list):
     return "\n".join(out) if out else None
 
 
-def _checked_span(span: str, files: set) -> bool:
+def module_names(modules) -> frozenset:
+    """Every dotted module name and each of its suffixes at a dot boundary (`a.b.c`, `b.c`, `c`)."""
+    out = set()
+    for m in modules or ():
+        parts = str(m).split(".")
+        out.update(".".join(parts[i:]) for i in range(len(parts)))
+    return frozenset(out)
+
+
+def _checked_span(span: str, files: set, modules=frozenset()) -> bool:
+    """Is this backticked span a code identifier worth looking for? File names and module names are not."""
     s = span.strip()
     if not NAME.match(s) or s in files or s.casefold() in SKIP_WORDS or s.rstrip("()") in SKIP_WORDS:
+        return False
+    found = render.BARE_FILE.search(s)
+    if (found and found.group(1) == s) or s in modules:
         return False
     return not (s.islower() and s.isalpha() and len(s) <= 3)
 
@@ -295,9 +308,13 @@ def _span_found(span: str, text: str) -> bool:
     return "." in s and s.rstrip("()").rsplit(".", 1)[1] in text
 
 
-def v2(reports: dict, cites, files: set) -> tuple[list, list, list, dict]:
-    """A name in backticks in a statement appears in the code the statement cites (D9). Warnings only."""
+def v2(reports: dict, cites, files: set, modules=()) -> tuple[list, list, list, dict]:
+    """A name in backticks in a statement appears in the code the statement cites (D9). Warnings only.
+
+    File names and module names (by their full dotted name or a suffix of it) are not looked for in the code.
+    """
     warnings, gaps = [], []
+    known = module_names(modules)
     for rid, rep in sorted(reports.items()):
         title = (schema.load(rid) or {}).get("title", rid)
         for c in render.claims_of(rid, rep or {}):
@@ -308,7 +325,7 @@ def v2(reports: dict, cites, files: set) -> tuple[list, list, list, dict]:
             if text is None:
                 continue
             for span in dict.fromkeys(SPAN.findall(_claim_text(c))):
-                if not _checked_span(span, files) or _span_found(span, text):
+                if not _checked_span(span, files, known) or _span_found(span, text):
                     continue
                 shown = " ".join(str(c["text"]).split())[:50]
                 warnings.append(f"V2: {rid} '{shown}': {span} does not appear in the code it cites ({', '.join(refs)}).")
@@ -371,7 +388,7 @@ def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None)
         tree = None
     if cites:
         try:
-            e, w, g, c = v2(reports, cites, set(tree or ()))
+            e, w, g, c = v2(reports, cites, set(tree or ()), {g["module"] for g in (extract or {}).get("graph", []) if g.get("kind") == "module"})
             result["warnings"] += w
             result["gaps"] += g
             result["counts"].update(c)

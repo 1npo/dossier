@@ -105,3 +105,54 @@ class TestV2Recipes:
 
         assert any("worked example cites no commit" in w for w in res["warnings"])
         assert res["counts"]["v2_recipes"] == 1
+
+
+MODULES = {"cannalerts", "cannalerts.alerts", "cannalerts.alerts.state", "cannalerts.menus"}
+
+
+def run_with_modules(make_cites, text, cite, modules=MODULES):
+    return checks.v2(reports(text, cite), make_cites(BLOBS, ("src",)), {"src/app.py", "README.md"}, modules)
+
+
+class TestV2FileAndModuleNames:
+    def test_a_bare_file_name_is_not_a_code_identifier(self, make_cites):
+        _, warnings, _, _ = run_with_modules(make_cites, "Both `cli.py` and `models.py` hold it.", ["src/app.py:1-2"])
+
+        assert warnings == []
+
+    def test_a_module_name_by_its_dotted_suffix_is_skipped(self, make_cites):
+        _, warnings, _, _ = run_with_modules(make_cites, "State lives in `alerts.state`.", ["src/app.py:1-2"])
+
+        assert warnings == []
+
+    def test_a_full_module_name_is_skipped(self, make_cites):
+        _, warnings, _, _ = run_with_modules(make_cites, "Imports `cannalerts.menus`.", ["src/app.py:1-2"])
+
+        assert warnings == []
+
+    def test_a_module_dot_name_passes_when_the_name_is_in_the_cited_text(self, make_cites):
+        _, warnings, _, _ = run_with_modules(make_cites, "It calls `menus.load_config`.", ["src/app.py:1-2"])
+
+        assert warnings == []
+
+    def test_a_module_dot_name_warns_when_the_name_is_not_in_the_cited_text(self, make_cites):
+        _, warnings, _, _ = run_with_modules(make_cites, "It calls `menus.scrape_cached`.", ["src/app.py:1-2"])
+
+        assert len(warnings) == 1 and "menus.scrape_cached" in warnings[0]
+
+    def test_a_class_name_missing_from_the_cited_text_still_warns(self, make_cites):
+        _, warnings, _, _ = run_with_modules(make_cites, "It uses `FetchClient`.", ["src/app.py:1-2"])
+
+        assert len(warnings) == 1
+
+    def test_a_longer_dotted_name_is_not_a_suffix_match(self, make_cites):
+        _, warnings, _, _ = run_with_modules(make_cites, "It uses `other.alerts.state`.", ["src/app.py:1-2"])
+
+        assert len(warnings) == 1
+
+    def test_validate_passes_the_modules_of_the_import_graph(self, make_cites):
+        extract = {"graph": [{"kind": "module", "module": "cannalerts.alerts.state", "path": "src/a.py"}]}
+
+        res = checks.validate(reports("State lives in `alerts.state`.", ["src/app.py:1-2"]), extract, make_cites(BLOBS, ("src",)), {})
+
+        assert not [w for w in res["warnings"] if w.startswith("V2")]
