@@ -766,7 +766,7 @@ Independent tasks: M2-13 and M2-16 (measured cards) and M2-18 (partial) are inde
 
 ### M2-18. The "partial" badge
 
-- [ ] **Goal.** D7.
+- [x] **Goal.** D7.
 - **Files.** Edit `scripts/tools.json` (`"cards"` on every tool), `scripts/process.py` (`partial_cards(build, tools=None) -> dict`), `scripts/render.py` (`schema_card(..., partial=None)`; `render_card` looks up `ctx["partial"].get(card["id"])`; `render_html` sets `ctx["partial"] = process.partial_cards(build) if build else {}`), `tests/unit/scripts/test_process.py`, `tests/unit/scripts/test_render_cards.py`, `tests/unit/scripts/test_toolcheck.py` (every card id in `tools.json` exists in the schemas).
 - **Tests.** A build whose `tools` record lists `scip-python` missing makes `components.catalog`, `interactions.flows`, `interactions.graph` partial with "Made without scip-python: it is not installed."; a `failed` grimp in `tool_status` makes `reading.order` partial with its reason; a skipped extract makes every mapped card partial; a JS tool missing in a Python-only build makes nothing partial; the badge HTML appears after the tier badge; no build → no badges.
 - **Done-check.** Full suite passes; block E prints `OK`.

@@ -818,10 +818,14 @@ def card_dom_id(cid):
     return "c-" + cid.replace(".", "-")
 
 
-def schema_card(card, body, extra=""):
+def partial_badge(reason):
+    return f'<span class="badge partial" data-variant="outline" tabindex="0" data-tip="{E(reason)}" data-tip-kind="note">partial</span>' if reason else ""
+
+
+def schema_card(card, body, extra="", partial=None):
     shade = "fact" if card["tier"] == "M" else "llm"
     return (f'<div class="card block {shade}{extra}" id="{card_dom_id(card["id"])}" data-card="{card["id"]}">'
-            f'<header><h3>{E(card["title"])}</h3>{tier_badge(card["tier"])}</header><section>{body}</section></div>')
+            f'<header><h3>{E(card["title"])}</h3>{tier_badge(card["tier"])}{partial_badge(partial)}</header><section>{body}</section></div>')
 
 
 def placeholder_body(card):
@@ -909,11 +913,12 @@ def candidate_footer(card, entry, fed):
 
 def render_card(card, entry, refs, rid, ctx=None):
     tid = "t-" + card_dom_id(card["id"])[2:]
+    partial = ((ctx or {}).get("partial") or {}).get(card["id"])
     if card["writer"] == "script":
         drawn = measured.body(card["id"], ctx or {}, refs)
-        return schema_card(card, drawn if drawn is not None else placeholder_body(card))
+        return schema_card(card, drawn if drawn is not None else placeholder_body(card), partial=partial)
     if not isinstance(entry, dict) or entry.get("pending"):
-        return schema_card(card, placeholder_body(card))
+        return schema_card(card, placeholder_body(card), partial=partial)
     try:
         if "na" in entry:
             body = na_body(entry, refs)
@@ -929,7 +934,7 @@ def render_card(card, entry, refs, rid, ctx=None):
         body += candidate_footer(card, entry, (ctx or {}).get("fed", {}).get(card["id"], 0))
     except (KeyError, TypeError, AttributeError):
         pass  # V6 and V5 report the real error
-    return schema_card(card, body)
+    return schema_card(card, body, partial=partial)
 
 
 def schema_cards_html(sch, rep, refs, rid, ctx=None):
@@ -1685,7 +1690,8 @@ def render_html(facts, reports, state, history, version, cites, build=None, cove
     built = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     fed = {c: len(v) for rid, _, _ in REPORTS for c, v in candidates.for_report(rid, extract or {}).items()}
     ctx = {"cites": cites, "gaps": gaps, "history": history, "built": built, "version": version, "build": build,
-           "extract": extract or {}, "fed": fed, "checks": checks or {}}
+           "extract": extract or {}, "fed": fed, "checks": checks or {},
+           "partial": process.partial_cards(build) if build else {}}
     mh = masthead(facts, reports)
     build = lambda: "".join(build_page(rid, reports, facts, state, ctx) for rid, _, _ in REPORTS)
     pages = build()

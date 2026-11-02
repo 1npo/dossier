@@ -228,6 +228,41 @@ def coverage_items(build) -> list[dict]:
     return items
 
 
+def partial_cards(build, tools=None) -> dict:
+    """Card id -> why it was made without one of its tools (D7). Empty without a build record."""
+    if not build:
+        return {}
+    import toolcheck  # late: toolcheck does not import this module, but keeps process light for the page
+
+    tools = tools or toolcheck.load_tools()
+    mine = {(r["step"], r.get("part")): r for r in build["records"] if r.get("by") == "prepare"}
+    seen = ((mine.get(("tools", None)) or {}).get("details") or {})
+    in_scope = {t["id"] for t in seen.get("self_installing", [])} or {t["id"] for t in tools["tools"]}
+    cards_of = {t["id"]: t.get("cards") or [] for t in tools["tools"] if t["id"] in in_scope and t.get("cards")}
+    absent: dict = {}
+
+    def add(tool, why):
+        if tool in cards_of:
+            absent.setdefault(tool, why.rstrip("."))
+
+    for tool in seen.get("missing", []):
+        add(tool, "it is not installed")
+    ex = mine.get(("extract", None))
+    if ex and ex["status"] in ("skipped", "failed"):
+        for tool in cards_of:
+            add(tool, ex.get("reason") or "the extractors did not run")
+    elif ex:
+        for adapter in (ex.get("details") or {}).get("adapters", []):
+            for tool, st in sorted((adapter.get("tools") or {}).items()):
+                if st.get("status") in ("failed", "skipped"):
+                    add(tool, st.get("reason") or "it did not run")
+    reasons: dict = {}
+    for tool, why in sorted(absent.items()):
+        for card in cards_of[tool]:
+            reasons.setdefault(card, []).append(f"Made without {tool}: {why}.")
+    return {card: " ".join(r) for card, r in reasons.items()}
+
+
 # ------------------------------------------------------------------ V9 and V10
 
 

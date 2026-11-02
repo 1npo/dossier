@@ -103,6 +103,22 @@ def test_candidate_footer_is_empty_when_nothing_was_fed(make_cites):
     assert "cand-foot" not in h
 
 
+def test_partial_badge_follows_the_tier_badge(make_cites):
+    h = render.render_card(SCH["cards"][0], {"card": "x.tab", "blocks": [tbl()]}, refs(make_cites), "x", {"partial": {"x.tab": "Made without grimp: boom."}})
+    assert h.index('class="badge tier') < h.index('class="badge partial"')
+    assert 'data-tip="Made without grimp: boom."' in h
+
+
+def test_partial_badge_also_marks_a_placeholder_card(make_cites):
+    h = render.render_card(SCH["cards"][1], None, refs(make_cites), "x", {"partial": {"x.mea": "Made without semgrep: it is not installed."}})
+    assert 'class="badge partial"' in h and "Not yet generated" in h
+
+
+def test_no_partial_info_no_badge(make_cites):
+    h = render.render_card(SCH["cards"][0], {"card": "x.tab", "blocks": [tbl()]}, refs(make_cites), "x", {})
+    assert "badge partial" not in h
+
+
 # ------------------------------------------------------------------ page wiring (M0-10)
 
 import sys
