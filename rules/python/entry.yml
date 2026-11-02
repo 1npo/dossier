@@ -33,6 +33,24 @@ rules:
           @$G.group(...)
           def $F(...): ...
 
+  - id: dossier.python.entry.argparse-subcommand
+    message: A command-line sub-command registered with argparse
+    languages: [python]
+    severity: INFO
+    metadata: {category: entry, kind: cli-command, detail: 'add_parser\(\s*[rf]?["'']([^"'']*)["'']'}
+    pattern: $SUB.add_parser("...", ...)
+
+  - id: dossier.python.entry.cli-helper-command
+    message: A command-line sub-command registered through a helper function
+    languages: [python]
+    severity: INFO
+    metadata: {category: entry, kind: cli-command, detail: '\(\s*[rf]?["'']([^"'']*)["'']'}
+    patterns:
+      - pattern: $F("...", $HANDLER, ...)
+      - metavariable-regex:
+          metavariable: $HANDLER
+          regex: ^(cmd|command|do|handle|run)_\w+$
+
   - id: dossier.python.entry.http-route
     message: A web route
     languages: [python]

@@ -16,6 +16,7 @@ BLIND_SPOTS = {
     "pytest-fixtures": ("fixtures passed to tests by name", "behavior"),
     "codegen": ("generated code, whose generator was not analysed", "components"),
     "feature-flag": ("behaviour switched by flags at run time", "components"),
+    "computed-subcommand": ("command-line commands registered under a computed name", "entry"),
 }
 FALLBACK = ("code that the rule for this pattern points at", "interactions")
 CONFIRM = "Read the code at these places and check the reports that depend on them."

@@ -89,3 +89,31 @@ schedule.every(10).minutes.do(run)
 
 # ok: dossier.python.entry.scheduled-job
 sched.remove_job("x")
+
+
+# ruleid: dossier.python.entry.argparse-subcommand
+commands.add_parser("serve", help="run the server")
+
+# ruleid: dossier.python.entry.argparse-subcommand
+watch_add = watch_commands.add_parser(
+    "add",
+    help="add a watch",
+)
+
+# ok: dossier.python.entry.argparse-subcommand
+commands.add_parser(name, help=help)
+
+# ok: dossier.python.entry.argparse-subcommand
+parser.add_argument("serve")
+
+# ruleid: dossier.python.entry.cli-helper-command
+init = add('init', cmd_init, 'write an example config file')
+
+# ruleid: dossier.python.entry.cli-helper-command
+add("sites", cmd_sites, "list the sites")
+
+# ok: dossier.python.entry.cli-helper-command
+add(name, handler, help)
+
+# ok: dossier.python.entry.cli-helper-command
+add("total", compute_total, "not a command handler")

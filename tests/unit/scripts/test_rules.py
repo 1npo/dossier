@@ -15,7 +15,7 @@ IO_CATEGORIES = {"cli-args", "env-var", "config-file", "file-read", "stdin", "me
                  "timeout", "catch-all", "transaction"}
 OTHER_CATEGORIES = {"entry", "blindspot"}
 BLIND_SPOTS = {"dynamic-import", "entry-point-loading", "string-plugin", "decorator-registry", "getattr-dispatch", "django-apps",
-               "django-signals", "pytest-fixtures", "codegen", "feature-flag"}
+               "django-signals", "pytest-fixtures", "codegen", "feature-flag", "computed-subcommand"}
 
 
 def rule_files():

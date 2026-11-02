@@ -101,3 +101,10 @@ def db():
 @pytest.mark.skip
 def test_x():
     pass
+
+
+# ruleid: dossier.python.blindspot.computed-subcommand
+commands.add_parser(name, help=help)
+
+# ok: dossier.python.blindspot.computed-subcommand
+commands.add_parser("serve", help="run the server")

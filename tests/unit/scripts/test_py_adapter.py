@@ -254,3 +254,16 @@ class TestRegistration:
 
     def test_python_matches_python(self):
         assert [type(a).__name__ for a in adapters.detect(["Python"])] == ["PythonAdapter", "RepoAdapter"]
+
+
+class TestHandlerArgument:
+    def test_the_handler_follows_the_command_name(self):
+        found = py_adapter.HANDLER_ARG.search("init = add('init', cmd_init, 'write an example config file')")
+
+        assert found.group(1) == "cmd_init"
+
+    def test_a_call_with_a_computed_name_has_no_handler(self):
+        assert py_adapter.HANDLER_ARG.search("add(name, handler, help)") is None
+
+    def test_both_command_rules_are_registered_by_call(self):
+        assert py_adapter.CALL_COMMAND_RULES == {"dossier.python.entry.argparse-subcommand", "dossier.python.entry.cli-helper-command"}

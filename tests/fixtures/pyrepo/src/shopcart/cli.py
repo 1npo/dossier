@@ -7,6 +7,8 @@ from shopcart import core, store
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--db")  # @io-cli
+    commands = parser.add_subparsers(dest="command")
+    commands.add_parser("seed", help="load sample data")  # @ep-subcommand
     args = parser.parse_args()
     print(core.total([]), store.DB, args.db)  # @io-print
     sys.exit(0)  # @io-exit

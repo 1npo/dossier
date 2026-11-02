@@ -447,7 +447,7 @@ Read first: R2, R3, R8 to R14, R19, section 3.4 and decisions D8, D9, D13, D14.
   - Tests first: `test_checks_v5.py` with facts `CANNALERTS_SKIP_AYR` and an `io.inputs` table without it gives the error; `test_gather.py` with 70 env reads in one file returns 70 names.
   - Block E must print `OK` (report 02 does not draw env vars).
   - Commit: `fix(dossier): require every environment variable in Inputs and stop capping them`.
-- [ ] **F2-5. Find argparse and helper-registered CLI commands (R10; D13).**
+- [x] **F2-5. Find argparse and helper-registered CLI commands (R10; D13).**
   - Files: `rules/python/entry.yml`, `rules/python/blindspot.yml`, `tests/fixtures/semgrep/python/entry.py` and `blindspot.py` (annotated targets), `scripts/py_adapter.py` if the `cli-command` kind needs the `target` from `$HANDLER`.
   - Tests first: semgrep rule tests (`tests/unit/scripts/test_rules.py` runs `semgrep --test`, slow): `commands.add_parser("serve")` → `ruleid: dossier.python.entry.argparse-subcommand`; `add('init', cmd_init, 'write an example config file')` → `ruleid: dossier.python.entry.cli-helper-command`; `add(name, handler, help)` inside the helper → `ok`; `commands.add_parser(name, help=help)` → `ruleid: dossier.python.blindspot.computed-subcommand`. Slow integration: the Python adapter on the pyrepo fixture after adding one argparse sub-command to it finds the `cli-command` item.
   - Verify: `DOSSIER_SLOW=1 … pytest tests/unit/scripts/test_rules.py tests/integration/scripts/test_py_adapter_slow.py -q`.

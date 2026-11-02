@@ -104,3 +104,12 @@ rules:
       - pattern: |
           @pytest.fixture(...)
           def $F(...): ...
+
+  - id: dossier.python.blindspot.computed-subcommand
+    message: Registers a command-line sub-command under a name computed at run time
+    languages: [python]
+    severity: INFO
+    metadata: {category: blindspot, pattern: computed-subcommand}
+    patterns:
+      - pattern: $SUB.add_parser($X, ...)
+      - pattern-not: $SUB.add_parser("...", ...)
