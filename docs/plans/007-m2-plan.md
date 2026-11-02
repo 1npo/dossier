@@ -722,7 +722,7 @@ Independent tasks: M2-13 and M2-16 (measured cards) and M2-18 (partial) are inde
 
 ### M2-14. V5 and its Gaps items (`checks.py`, first part)
 
-- [ ] **Goal.** D3's V5, wired into `render` and `confirm`.
+- [x] **Goal.** D3's V5, wired into `render` and `confirm`.
 - **Files.** New `scripts/checks.py`, `tests/unit/scripts/test_checks_v5.py`; edit `scripts/dossier.py` (`cmd_render`, `cmd_confirm`), `scripts/render.py` (`render_html(..., extract=None, checks=None)`: puts `extract`, `fed` and check results in `ctx`).
 - **Interface.**
   ```python

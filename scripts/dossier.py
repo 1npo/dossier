@@ -34,6 +34,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import buildlog  # noqa: E402
 import candidates  # noqa: E402
+import checks  # noqa: E402
 import config  # noqa: E402
 import gather  # noqa: E402
 import incremental  # noqa: E402
@@ -343,6 +344,10 @@ def cmd_render(a):
     build = buildlog.load(out)          # None for a dossier made before 0.6.0: no records are written then
     build_path = out / buildlog.FILE
     errors, warnings = render.validate(reports, facts, cites, a.partial)
+    extract = candidates.load(out)
+    res = checks.validate(reports, extract, cites, facts)
+    errors += res["errors"]
+    warnings += res["warnings"]
     for w in warnings:
         print(f"warning: {w}")
     for e in errors:
@@ -357,7 +362,7 @@ def cmd_render(a):
         sys.exit(1)
 
     sha = facts["repo"]["sha"]
-    coverage = process.coverage_items(build)
+    coverage = checks.gap_extras(build, reports, extract, cites, facts, res)
     items = render.collect_gaps(reports, coverage)
     resolve.sync(state, items)
     resolve.apply(items, state)       # decisions you made earlier apply to every build
@@ -390,7 +395,7 @@ def cmd_render(a):
     if v_errors and not a.allow_errors:
         print(f"\n{len(v_errors)} error(s). Run prepare so build.json is complete, then render again.")
         sys.exit(1)
-    page, _ = render.render_html(facts, reports, state, history, VERSION, cites, build=shown, coverage=coverage)
+    page, _ = render.render_html(facts, reports, state, history, VERSION, cites, build=shown, coverage=coverage, extract=extract, checks=res)
     if build:
         buildlog.append(build_path, pending)
     name_out = f"dossier-{name}.html"
@@ -518,7 +523,9 @@ def cmd_confirm(a):
     reports = {rid: load(out / "reports" / f"{rid}.json") for rid, _, w in render.REPORTS if w and (out / "reports" / f"{rid}.json").exists()}
     if not reports:
         die("No reports found. Build the dossier first.")
-    items = render.collect_gaps(reports, process.coverage_items(buildlog.load(out)))
+    facts = load(out / "facts.json")
+    cites = render.Cites(facts) if facts else None
+    items = render.collect_gaps(reports, checks.gap_extras(buildlog.load(out), reports, candidates.load(out), cites, facts))
     resolve.sync(state, items)
     save_state(out, state)                      # so the IDs shown here stay the same later
     res, tracked = state["resolutions"], {t["id"]: t for t in state["tracked"]}

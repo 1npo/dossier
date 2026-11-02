@@ -1,0 +1,139 @@
+"""Checks that compare the reports with the extractor output: V5 (every tool finding has a decision) and, later, V2, V3, V4, V7.
+
+Each check returns `(errors, warnings, gap_items, counts)`. Gaps wording is fixed so item ids stay stable across builds.
+"""
+from __future__ import annotations
+
+import candidates
+import process
+
+FIXED_ROW_CARDS = ("io.inputs", "io.outputs")
+
+
+def _report_of(card_id: str) -> str:
+    return card_id.split(".")[0]
+
+
+def _nodes(entry: dict) -> list:
+    """The table rows and entries of one card entry that can carry `cand` or `added`."""
+    rows = [r for b in entry.get("blocks") or [] if isinstance(b, dict) for r in b.get("rows") or [] if isinstance(r, dict)]
+    return rows + [e for e in entry.get("entries") or [] if isinstance(e, dict)]
+
+
+def _cards(reports: dict):
+    for rid, rep in sorted(reports.items()):
+        for entry in (rep or {}).get("cards") or []:
+            if isinstance(entry, dict) and entry.get("card"):
+                yield rid, entry["card"], entry
+
+
+def _as_list(v) -> list:
+    return [x for x in v if isinstance(x, str)] if isinstance(v, list) else []
+
+
+def _tied(item: dict) -> str:
+    where = f"{item['path']}:{item['line']}" if item.get("line") else item["path"]
+    return f"{item['id']} ({where}, {item.get('rule') or item.get('kind')})"
+
+
+def v5(reports: dict, extract: dict) -> tuple[list, list, list, dict]:
+    """Every candidate in entry_points, io_candidates and entity models is kept, merged or dismissed (D3)."""
+    errors, warnings, gaps = [], [], []
+    candidates_by_card = {}
+    for output in candidates.DECIDED_OUTPUTS:
+        for it in extract.get(output, []):
+            card = candidates.home_card(output, it)
+            if card and "id" in it:
+                candidates_by_card.setdefault(card, []).append(it)
+    total = sum(len(v) for v in candidates_by_card.values())
+    counts = {"v5_candidates": total, "v5_open": 0}
+    if not extract:
+        return errors, warnings, gaps, counts
+    titles = candidates.card_titles()
+    known = candidates.by_id(extract)
+    members = candidates.group_members(extract)
+    kept: dict = {}
+    dismissed: dict = {}
+    for rid, card, entry in _cards(reports):
+        for node in _nodes(entry):
+            ids = _as_list(node.get("cand"))
+            if ids and node.get("added"):
+                errors.append(f"V5: {rid} card {card}: a row says both which tool findings it covers ('cand') and 'added'. Use one.")
+            for i in ids:
+                kept.setdefault(i, []).append(card)
+        for d in entry.get("dismissed") or []:
+            ids = _as_list(d.get("cand")) if isinstance(d, dict) else []
+            if not ids or not isinstance(d.get("reason"), str) or not d["reason"].strip():
+                errors.append(f"V5: {rid} card {card}: every dismissed entry needs the finding ids ('cand') and a reason.")
+            for i in ids:
+                dismissed.setdefault(i, []).append(card)
+        if isinstance(entry.get("cand"), list):
+            for i in _as_list(entry["cand"]):
+                kept.setdefault(i, []).append(card)
+    for i, cards_ in sorted({**kept, **dismissed}.items()):
+        if i not in known:
+            where = (kept.get(i) or dismissed.get(i))[0]
+            errors.append(f"V5: {_report_of(where)} card {where} names {i}, which is not a tool finding in this build.")
+
+    def expand(table):
+        out: dict = {}
+        for i, cs in table.items():
+            for m in members.get(i, [i]):
+                out.setdefault(m, []).extend(cs)
+        return out
+    kept_x, dismissed_x = expand(kept), expand(dismissed)
+    for i in sorted(set(kept_x) & set(dismissed_x)):
+        errors.append(f"V5: {i} is kept in {kept_x[i][0]} and dismissed in {dismissed_x[i][0]}.")
+    decided = set(kept) | set(dismissed)
+    open_total = 0
+    open_groups: dict = {}
+    for card, items in sorted(candidates_by_card.items()):
+        left = [it for it in items if it["id"] not in decided and it["group"] not in decided]
+        if not left:
+            continue
+        open_total += len(left)
+        shown = [_tied(left[0])] + [it["id"] for it in left[1:5]]
+        more = len(left) - len(shown)
+        listing = ", ".join(shown) + (f" and {more} more" if more > 0 else "")
+        errors.append(f"V5: {len(left)} tool findings for {titles.get(card, card)} have no decision, for example {listing}. Keep, merge or dismiss them.")
+        for it in left:
+            open_groups.setdefault((card, it["group"]), []).append(it)
+    counts["v5_open"] = open_total
+    for (card, _), v in sorted(open_groups.items()):
+        first = v[0]
+        line = f":{first['line']}" if first.get("line") else ""
+        gaps.append({"kind": "coverage", "report": _report_of(card),
+                     "statement": f"A tool found {len(v)} item(s) for {titles.get(card, card)} in [[{first['path']}{line}]] ({first.get('rule') or first.get('kind')}) that no report accounts for.",
+                     "how_to_confirm": "Decide in the report whether to keep, merge or dismiss them, then build again."})
+    for rid, card, entry in _cards(reports):
+        if card not in candidates_by_card or "blocks" not in entry and "entries" not in entry:
+            continue
+        for node in _nodes(entry):
+            if node.get("cand") or node.get("added"):
+                continue
+            cells = node.get("cells") or []
+            if card in FIXED_ROW_CARDS and node.get("conf") == "confirmed" and len(cells) > 1 and str(cells[1]).strip().lower() == "none":
+                continue
+            first = cells[0] if cells else ""
+            warnings.append(f"V5: {rid} card {card}, row '{first}': say which tool findings it covers ('cand') or mark it 'added'.")
+    return errors, warnings, gaps, counts
+
+
+def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None) -> dict:
+    """Run every check. {"errors", "warnings", "gaps", "counts", "unbacked"}."""
+    result = {"errors": [], "warnings": [], "gaps": [], "counts": {}, "unbacked": {}}
+    try:
+        e, w, g, c = v5(reports, extract or {})
+    except (AttributeError, TypeError, KeyError):
+        e, w, g, c = [], [], [], {}  # a malformed card: V6 reports it
+    result["errors"] += e
+    result["warnings"] += w
+    result["gaps"] += g
+    result["counts"].update(c)
+    return result
+
+
+def gap_extras(build, reports, extract, cites=None, facts=None, result=None) -> list:
+    """The one list `cmd_render` and `cmd_confirm` both pass to `collect_gaps`: the build's coverage items, then the checks' items."""
+    result = result if result is not None else validate(reports, extract, cites, facts)
+    return process.coverage_items(build) + result["gaps"]

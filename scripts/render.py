@@ -20,6 +20,7 @@ from urllib.parse import quote
 
 import deps as depscan
 import gather
+import candidates
 import process
 import schema
 import viewer
@@ -1601,7 +1602,7 @@ def build_page(rid, reports, facts, state, ctx):
         if rid == "risks" and rep:
             parts.append(panel_risk_counts(rep))
         if sch and any(c["writer"] == "claude" for c in sch["cards"]):
-            parts.append(f'<div class="findings">{schema_cards_html(sch, rep, refs, rid)}</div>')
+            parts.append(f'<div class="findings">{schema_cards_html(sch, rep, refs, rid, ctx)}</div>')
         elif not sch:
             blocks = render_blocks(rep.get("blocks", []), refs, rid)
             if blocks:
@@ -1657,13 +1658,15 @@ def masthead(facts, reports):
             "remote": link, "date": r["commit_date"]}
 
 
-def render_html(facts, reports, state, history, version, cites, build=None, coverage=None):
+def render_html(facts, reports, state, history, version, cites, build=None, coverage=None, extract=None, checks=None):
     """`coverage` is the list cmd_render already gave IDs to; without it the items are rebuilt from `build`."""
     if coverage is None:
         coverage = process.coverage_items(build) if build else ()
     gaps = collect_gaps(reports, coverage)
     built = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    ctx = {"cites": cites, "gaps": gaps, "history": history, "built": built, "version": version, "build": build}
+    fed = {c: len(v) for rid, _, _ in REPORTS for c, v in candidates.for_report(rid, extract or {}).items()}
+    ctx = {"cites": cites, "gaps": gaps, "history": history, "built": built, "version": version, "build": build,
+           "extract": extract or {}, "fed": fed, "checks": checks or {}}
     mh = masthead(facts, reports)
     build = lambda: "".join(build_page(rid, reports, facts, state, ctx) for rid, _, _ in REPORTS)
     pages = build()
