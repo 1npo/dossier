@@ -45,6 +45,66 @@ def _tied(item: dict) -> str:
     return f"{item['id']} ({where}, {item.get('rule') or item.get('kind')})"
 
 
+ONE_ROW_CARDS = {"entry.catalog": ("entry_points", "entry point", "epg-"), "data.entities": ("models", "entity", "mdg-")}
+
+
+def _word_in(name: str, text: str) -> bool:
+    return re.search(rf"(?<![A-Za-z0-9_]){re.escape(name)}(?![A-Za-z0-9_])", text) is not None
+
+
+def _same_entry_point(items: list) -> bool:
+    """Several findings are one entry point when they are in the same file under the same name (found twice by two rules)."""
+    return len({(it["path"], it.get("name") or "") for it in items}) == 1
+
+
+def one_row_per_item(reports: dict, extract: dict, titles: dict) -> list:
+    """D8: an entity or an entry point is decided on its own row, and a row lists every field of its entity."""
+    errors, known, members = [], candidates.by_id(extract), candidates.group_members(extract)
+    for rid, card, entry in _cards(reports):
+        if card not in ONE_ROW_CARDS:
+            continue
+        output, noun, group_prefix = ONE_ROW_CARDS[card]
+        title = titles.get(card, card)
+        lists = [_as_list(node.get("cand")) for node in _nodes(entry)] + [_as_list(entry.get("cand"))] + [
+            _as_list(d.get("cand")) for d in entry.get("dismissed") or [] if isinstance(d, dict)]
+        for gid in sorted({i for ids in lists for i in ids if i.startswith(group_prefix) and i in members}):
+            errors.append(f"V5: {title} decides the group {gid}; decide each {noun} on its own row: {', '.join(members[gid])}.")
+        for block in entry.get("blocks") or []:
+            if not isinstance(block, dict) or block.get("type") != "table":
+                continue
+            columns = [str(c) for c in block.get("columns") or []]
+            for r in block.get("rows") or []:
+                if not isinstance(r, dict):
+                    continue
+                items = [known[i] for i in _as_list(r.get("cand")) if i in known and not i.startswith(group_prefix)]
+                names = [it.get("name") or it["path"] for it in items]
+                if len(items) > 1 and not (card == "entry.catalog" and _same_entry_point(items)):
+                    errors.append(f"V5: {title} puts {len(items)} {'entities' if card == 'data.entities' else 'entry points'} in one row ({', '.join(dict.fromkeys(names))}); give each its own row.")
+                elif len(items) == 1 and card == "data.entities" and "Fields" in columns:
+                    cells = r.get("cells") or []
+                    text = str(cells[columns.index("Fields")]) if columns.index("Fields") < len(cells) else ""
+                    left = [f["name"] for f in items[0].get("fields") or [] if f.get("name") and not _word_in(f["name"], text)]
+                    if left:
+                        errors.append(f"V5: {title}, {names[0]}: the Fields cell leaves out {', '.join(left)}.")
+    return errors
+
+
+def v5_env(reports: dict, facts: dict) -> list:
+    """Every environment variable the gatherer found is named in a cell of the Inputs table."""
+    entry = _entry(reports, "io.inputs")
+    if not entry or "blocks" not in entry:  # missing, na or pending: V6 reports it
+        return []
+    text = " ".join(str(c) for node in _nodes(entry) for c in node.get("cells") or [])
+    title = candidates.card_titles().get("io.inputs", "Inputs")
+    out = []
+    for var in (facts or {}).get("env_vars") or []:
+        if not _word_in(var["name"], text):
+            first = var.get("first") or {}
+            where = f" (found in [[{first['path']}:{first['line']}]])" if first.get("path") and first.get("line") else ""
+            out.append(f"V5: {title} does not list the environment variable {var['name']}{where}.")
+    return out
+
+
 def v5(reports: dict, extract: dict) -> tuple[list, list, list, dict]:
     """Every candidate in entry_points, io_candidates and entity models is kept, merged or dismissed (D3)."""
     errors, warnings, gaps = [], [], []
@@ -108,6 +168,7 @@ def v5(reports: dict, extract: dict) -> tuple[list, list, list, dict]:
         for it in left:
             open_groups.setdefault((card, it["group"]), []).append(it)
     counts["v5_open"] = open_total
+    errors += one_row_per_item(reports, extract, titles)
     for (card, _), v in sorted(open_groups.items()):
         first = v[0]
         line = f":{first['line']}" if first.get("line") else ""
@@ -218,9 +279,22 @@ def _cited_text(cites, refs: list):
     return "\n".join(out) if out else None
 
 
-def _checked_span(span: str, files: set) -> bool:
+def module_names(modules) -> frozenset:
+    """Every dotted module name and each of its suffixes at a dot boundary (`a.b.c`, `b.c`, `c`)."""
+    out = set()
+    for m in modules or ():
+        parts = str(m).split(".")
+        out.update(".".join(parts[i:]) for i in range(len(parts)))
+    return frozenset(out)
+
+
+def _checked_span(span: str, files: set, modules=frozenset()) -> bool:
+    """Is this backticked span a code identifier worth looking for? File names and module names are not."""
     s = span.strip()
     if not NAME.match(s) or s in files or s.casefold() in SKIP_WORDS or s.rstrip("()") in SKIP_WORDS:
+        return False
+    found = render.BARE_FILE.search(s)
+    if (found and found.group(1) == s) or s in modules:
         return False
     return not (s.islower() and s.isalpha() and len(s) <= 3)
 
@@ -234,9 +308,13 @@ def _span_found(span: str, text: str) -> bool:
     return "." in s and s.rstrip("()").rsplit(".", 1)[1] in text
 
 
-def v2(reports: dict, cites, files: set) -> tuple[list, list, list, dict]:
-    """A name in backticks in a statement appears in the code the statement cites (D9). Warnings only."""
+def v2(reports: dict, cites, files: set, modules=()) -> tuple[list, list, list, dict]:
+    """A name in backticks in a statement appears in the code the statement cites (D9). Warnings only.
+
+    File names and module names (by their full dotted name or a suffix of it) are not looked for in the code.
+    """
     warnings, gaps = [], []
+    known = module_names(modules)
     for rid, rep in sorted(reports.items()):
         title = (schema.load(rid) or {}).get("title", rid)
         for c in render.claims_of(rid, rep or {}):
@@ -247,7 +325,7 @@ def v2(reports: dict, cites, files: set) -> tuple[list, list, list, dict]:
             if text is None:
                 continue
             for span in dict.fromkeys(SPAN.findall(_claim_text(c))):
-                if not _checked_span(span, files) or _span_found(span, text):
+                if not _checked_span(span, files, known) or _span_found(span, text):
                     continue
                 shown = " ".join(str(c["text"]).split())[:50]
                 warnings.append(f"V2: {rid} '{shown}': {span} does not appear in the code it cites ({', '.join(refs)}).")
@@ -255,6 +333,28 @@ def v2(reports: dict, cites, files: set) -> tuple[list, list, list, dict]:
                              "statement": f"A statement in {title} names `{span}`, which does not appear in the code it cites.",
                              "how_to_confirm": "Check the citation's line range, or the name."})
     return [], warnings, gaps, {"v2": len(warnings)}
+
+
+def v2_recipes(reports: dict) -> tuple[list, list, int]:
+    """A recipe's worked example cites a commit that did the same thing, unless it says it is unknown. Warnings only."""
+    entry = _entry(reports, "conventions.recipes")
+    if not entry:
+        return [], [], 0
+    title = candidates.card_titles().get("conventions.recipes", "Recipes")
+    warnings, gaps = [], []
+    for e in entry.get("entries") or []:
+        if not isinstance(e, dict) or e.get("conf") not in ("confirmed", "inferred"):
+            continue
+        example = str((e.get("fields") or {}).get("worked_example") or "")
+        cites = [c for c in e.get("cite") or [] if isinstance(c, str)] + render.inline_cites(example)
+        if any(render.parse_cite(c)["kind"] == "commit" for c in cites):
+            continue
+        name = str(e.get("recipe") or "")
+        warnings.append(f"V2: {title}, {name}: the worked example cites no commit.")
+        gaps.append({"kind": "inference", "report": "conventions", "cite": [c for c in e.get("cite") or [] if isinstance(c, str)],
+                     "statement": f"The recipe '{name}' has a worked example that cites no commit.",
+                     "how_to_confirm": "Find the commit that did the same thing (git log -S) and cite it, or say it is unknown."})
+    return warnings, gaps, len(warnings)
 
 
 def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None) -> dict:
@@ -268,6 +368,19 @@ def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None)
     result["warnings"] += w
     result["gaps"] += g
     result["counts"].update(c)
+    try:
+        env_errors = v5_env(reports, facts or {})
+    except (AttributeError, TypeError, KeyError):
+        env_errors = []
+    result["errors"] += env_errors
+    result["counts"]["v5_env"] = len(env_errors)
+    try:
+        w, g, n = v2_recipes(reports)
+        result["warnings"] += w
+        result["gaps"] += g
+        result["counts"]["v2_recipes"] = n
+    except (AttributeError, TypeError, KeyError):
+        pass  # a malformed card: V6 reports it
     tree = None
     try:
         tree = cites.tree()[0] if cites else None
@@ -275,7 +388,7 @@ def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None)
         tree = None
     if cites:
         try:
-            e, w, g, c = v2(reports, cites, set(tree or ()))
+            e, w, g, c = v2(reports, cites, set(tree or ()), {g["module"] for g in (extract or {}).get("graph", []) if g.get("kind") == "module"})
             result["warnings"] += w
             result["gaps"] += g
             result["counts"].update(c)

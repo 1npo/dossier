@@ -163,3 +163,22 @@ class TestDigest:
         after = {**BASE, "tests": [{"kind": "test-file", "path": "t.py", "tests": 2, "skips": 1, "xfails": 0}]}
 
         assert changed(BASE, after) == {"reading", "behavior"}
+
+
+class TestReadingModules:
+    def graph(self, n):
+        mods = [{"kind": "module", "path": f"src/m{i}.py", "module": f"m{i}", "is_package": False} for i in range(n)]
+        imports = [{"kind": "import", "path": f"src/m{i}.py", "paths": [f"src/m{i + 1}.py"], "from": f"m{i}", "to": f"m{i + 1}"} for i in range(n - 1)]
+        return {"graph": mods + imports}
+
+    def test_every_module_is_listed_not_only_the_top_thirty(self):
+        data = candidates.report_data("reading", self.graph(40), {}, {})
+
+        assert len(data["modules"]) == 40
+
+    def test_the_text_heading_does_not_say_top_thirty(self):
+        out = candidates.text("reading", self.graph(40), {}, {})
+
+        assert "(top 30)" not in out
+        assert "== Modules by import rank ==" in out
+        assert out.count("(rank ") == 40

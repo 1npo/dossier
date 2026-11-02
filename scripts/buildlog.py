@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -50,6 +51,24 @@ def load(path_or_out) -> dict | None:
     if not p.exists():
         return None
     return json.loads(p.read_text(encoding="utf-8"))
+
+
+UNMERGED_CODES = {"UU", "AA", "DD", "AU", "UA", "DU", "UD"}
+
+
+def skill_state(root) -> dict:
+    """Which skill code is running: its folder, git commit, whether it has uncommitted edits, whether a merge is unresolved.
+
+    The values are None when `root` is not inside a git work tree.
+    """
+    root = str(root)
+    git = ["git", "-C", root]
+    head = subprocess.run(git + ["rev-parse", "HEAD"], capture_output=True, text=True)
+    if head.returncode != 0:
+        return {"path": root, "commit": None, "dirty": None, "unmerged": None}
+    status = subprocess.run(git + ["status", "--porcelain", "--", "."], capture_output=True, text=True).stdout.splitlines()
+    return {"path": root, "commit": head.stdout.strip(), "dirty": bool(status),
+            "unmerged": any(line[:2] in UNMERGED_CODES for line in status)}
 
 
 def check_record(rec: dict) -> None:

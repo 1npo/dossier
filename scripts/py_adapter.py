@@ -7,6 +7,7 @@ from __future__ import annotations
 import ast
 import fnmatch
 import os
+import re
 import shutil
 from pathlib import Path, PurePosixPath
 
@@ -27,6 +28,8 @@ RULES = Path(__file__).resolve().parent.parent / "rules" / "python"
 NO_PACKAGE = "No Python package was found, so imports were read from the files directly."
 NOT_TRUSTED = "The ref is not trusted, so Node tools did not run. Use --allow-ref to run them."
 NO_NODE = "Node is not installed."
+CALL_COMMAND_RULES = {"dossier.python.entry.argparse-subcommand", "dossier.python.entry.cli-helper-command"}
+HANDLER_ARG = re.compile(r"""\(\s*[rf]?["'][^"']*["']\s*,\s*([A-Za-z_]\w*)""")
 TRIGGERS = {"console-script": "the `{name}` command", "main-module": "running `python -m {name}`",
             "main-guard": "running `{name}` as a script", "cli-command": "the `{name}` command",
             "http-route": "a web request to `{name}`", "queue-consumer": "a message for the task `{name}`",
@@ -46,7 +49,7 @@ def module_name(path: str, roots=()) -> str:
 
 class PythonAdapter(Adapter):
     name = "python"
-    version = "1"
+    version = "2"
     languages = ("Python",)
     tools = ("grimp", "vulture", "scip-python", "semgrep", "tree-sitter-language-pack")
     expected_untracked = (".venv/**",)
@@ -145,11 +148,13 @@ class PythonAdapter(Adapter):
             elif family == "entry":
                 kind = meta["kind"]
                 name = r.get("detail") or ("__main__" if kind == "main-guard" else r["snippet"])
-                func = self._function_after(ctx, st, r["path"], r["start_line"]) if kind in ("cli-command", "http-route", "queue-consumer") else None
+                called = r["rule"] in CALL_COMMAND_RULES  # registered by a call, not by a decorator on the handler
+                func = self._function_after(ctx, st, r["path"], r["start_line"]) if kind in ("cli-command", "http-route", "queue-consumer") and not called else None
+                handler = HANDLER_ARG.search(r["snippet"]) if r["rule"].endswith("cli-helper-command") else None
                 mod = st["path_module"].get(r["path"]) or module_name(r["path"], st["roots"])
                 shown = r["path"] if kind == "main-guard" else name
-                out["entry_points"].append({**base, "kind": kind, "name": name, "trigger": TRIGGERS[kind].format(name=shown),
-                                            "target": f"{mod}:{func}" if func else r["path"]})
+                target = f"{mod}:{func}" if func else f"{mod}:{handler.group(1)}" if handler else r["path"]
+                out["entry_points"].append({**base, "kind": kind, "name": name, "trigger": TRIGGERS[kind].format(name=shown), "target": target})
             else:
                 out["io_candidates"].append({**base, "category": meta["category"], "detail": r.get("detail")})
 

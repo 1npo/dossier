@@ -30,6 +30,17 @@ from gather import Repo
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS, VENDOR = ROOT / "assets", ROOT / "vendor"
+CONFLICT_MARKER = re.compile(r"^(<{7}|={7}|>{7})( |$)")
+
+
+def load_asset(path) -> str:
+    """Read a page asset. A git conflict marker in it would break the whole page, so refuse it."""
+    path = Path(path)
+    text = path.read_text(encoding="utf-8")
+    for n, line in enumerate(text.splitlines(), 1):
+        if CONFLICT_MARKER.match(line):
+            raise SystemExit(f"render: {path} holds a git conflict marker at line {n}. Resolve the merge in {ROOT} and render again.")
+    return text
 
 REPORTS = [  # id, title, written by Claude?  The order is schema.REPORT_ORDER.
     ("dossier", "This dossier", False), ("overview", "This repository", True), ("reading", "Reading guide", True),
@@ -693,11 +704,14 @@ def cell_html(cell, refs):
     return keep_whole(inline(cell, refs))
 
 
-def render_table(columns, rows, refs, tid, filterable=True, plain=False, group=None, foot=None, sort=True):
+TALL_ROWS = 40  # a longer table scrolls inside its card; every row stays in the page
+
+
+def render_table(columns, rows, refs, tid, filterable=True, plain=False, group=None, foot=None, sort=True, cls=""):
     """rows are dicts with cells/conf/cite/note (authored) or plain lists of ready HTML (measured)."""
     head = "".join(f"<th>{E(c)}</th>" for c in columns)
     if not plain:
-        head += "<th>Basis</th><th>Sources</th>"
+        head += '<th class="basis-cell">Basis</th><th class="src-cell">Sources</th>'
     body = []
     for r in rows:
         if plain:
@@ -709,11 +723,11 @@ def render_table(columns, rows, refs, tid, filterable=True, plain=False, group=N
             tds.append(f"<td>{sev_badge(cell)}</td>" if kind == "severity" else f"<td>{status_badge(cell)}</td>" if kind == "status" else f"<td>{cell_html(cell, refs)}</td>")
         note = f'<div class="muted">{inline(r.get("note"), refs)}</div>' if r.get("note") and r.get("conf") != "confirmed" else ""
         cites_ = new_cites(r.get("cite"), *r["cells"])
-        body.append("<tr>" + "".join(tds) + f'<td class="basis-cell">{basis_for(r)}{added_tag(r)}{gid_tag(r)}{note}{user_note(r.get("user"))}</td><td>{refs.mark(cites_)}</td></tr>')
+        body.append("<tr>" + "".join(tds) + f'<td class="basis-cell">{basis_for(r)}{added_tag(r)}{gid_tag(r)}{note}{user_note(r.get("user"))}</td><td class="src-cell">{refs.mark(cites_)}</td></tr>')
     flt = f'<input class="input tbl-filter" type="search" data-target="{tid}" placeholder="Filter rows" aria-label="Filter rows">' if filterable and len(rows) > 6 else ""
     top = ("<tr class=\"group-row\">" + "".join(f'<th colspan="{n}"{" class=\"grp\"" if lbl else ""}>{E(lbl)}</th>' for lbl, n in group) + "</tr>") if group else ""
     tf = f'<tfoot><tr class="total-row">{"".join(f"<td>{c}</td>" for c in foot)}</tr></tfoot>' if foot else ""
-    return f'{flt}<div class="table-container"><table class="table" id="{tid}"{"" if sort else " data-nosort"}><thead>{top}<tr>{head}</tr></thead><tbody>{"".join(body)}</tbody>{tf}</table></div>'
+    return f'{flt}<div class="table-container{" tall" if len(rows) > TALL_ROWS else ""}"><table class="table{" " + cls if cls else ""}" id="{tid}"{"" if sort else " data-nosort"}><thead>{top}<tr>{head}</tr></thead><tbody>{"".join(body)}</tbody>{tf}</table></div>'
 
 
 def block_card(head, body, prov, extra="", action=""):
@@ -886,13 +900,39 @@ def blocks_body(card, blocks, refs, tid, unbacked=None):
     return "".join(out)
 
 
+STEP_START = re.compile(r"1[.)]\s")
+
+
+def split_steps(text):
+    """"1. a 2. b 3. c" on one line becomes one numbered step per line. Text that is not a run of steps from 1 is returned as it is."""
+    t = str(text or "").strip()
+    if not STEP_START.match(t):
+        return str(text or "")
+    cuts, n = [], 2
+    while True:
+        m = re.compile(rf"\s+(?={n}[.)]\s)").search(t, cuts[-1][1] if cuts else 0)
+        if not m:
+            break
+        cuts.append((m.start(), m.end()))
+        n += 1
+    if not cuts:
+        return str(text or "")
+    pieces, prev = [], 0
+    for start, end in cuts:
+        pieces.append(t[prev:start])
+        prev = end
+    pieces.append(t[prev:])
+    return "\n".join(pieces)
+
+
 def entries_body(card, entries, refs, tid):
     labels = card["fields"]
     out = []
     for n, e in enumerate(entries, 1):
         fl = e["fields"]
-        dl = "".join(f"<dt>{E(f['label'])}</dt><dd>{inline(fl[f['id']], refs)}</dd>" for f in labels)
-        out.append(f'<details class="entry" id="{card_dom_id(card["id"])}-e{n}" open><summary>{E(e[card["key"]])}</summary><dl class="facts">{dl}</dl>'
+        rows = "".join(f'<tr><th scope="row">{E(f["label"])}</th><td>{md(split_steps(fl[f["id"]]), refs)}</td></tr>' for f in labels)
+        out.append(f'<details class="entry" id="{card_dom_id(card["id"])}-e{n}" open><summary>{E(e[card["key"]])}</summary>'
+                   f'<table class="table kv" data-nosort><tbody>{rows}</tbody></table>'
                    f'{added_tag(e)}{provenance(e, refs, " ".join(fl.values()))}</details>')
     return "".join(out)
 
@@ -933,6 +973,8 @@ def render_card(card, entry, refs, rid, ctx=None):
         if "na" in entry:
             body = na_body(entry, refs)
         elif "blocks" in entry:
+            if card["id"] == "components.catalog":
+                entry = measured.fill_catalog(entry, ctx or {})
             body = blocks_body(card, entry["blocks"], refs, tid, ((ctx or {}).get("checks") or {}).get("unbacked"))
         elif "entries" in entry:
             body = entries_body(card, entry["entries"], refs, tid)
@@ -1732,11 +1774,11 @@ def render_html(facts, reports, state, history, version, cites, build=None, cove
             '</div>'
             f'<div class="mh-row2"><p class="lede" title="{E(mh["description"])}">{E(mh["description"][:300])}</p></div></div>'
             '</header>')
-    css = (VENDOR / "basecoat.min.css").read_text() + "\n" + (ASSETS / "dossier.css").read_text()
-    mermaid = (VENDOR / "mermaid.min.js").read_text().replace("</script", "<\\/script").replace("<!--", "<\\!--")
-    out = (ASSETS / "template.html").read_text()
+    css = load_asset(VENDOR / "basecoat.min.css") + "\n" + load_asset(ASSETS / "dossier.css")
+    mermaid = load_asset(VENDOR / "mermaid.min.js").replace("</script", "<\\/script").replace("<!--", "<\\!--")
+    out = load_asset(ASSETS / "template.html")
     for k, v in {"TITLE": E(f"{mh['name']} dossier"), "CSS": css, "NAV": groups, "RAIL": rail, "MASTHEAD": head, "REPORTS": pages, "MERMAID": mermaid,
-                 "BASECOAT_JS": (VENDOR / "basecoat.min.js").read_text(), "JS": (ASSETS / "dossier.js").read_text(),
+                 "BASECOAT_JS": load_asset(VENDOR / "basecoat.min.js"), "JS": load_asset(ASSETS / "dossier.js"),
                  "NAME": E(mh["name"]), "SHORT": E(mh["short"]), "CODE": viewer.embed(files, windows),
                  "CAL": jsn(calendar_data(facts)), "FACTS": jsn({k: {"t": v[0], "x": v[1]} for k, v in FACT_INFO.items()})}.items():
         out = out.replace(f"<!--@{k}-->", v)

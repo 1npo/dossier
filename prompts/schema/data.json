@@ -29,14 +29,8 @@
       "title": "Relationships",
       "tier": "M+A",
       "priority": "P0",
-      "writer": "claude",
-      "shape": "blocks",
-      "slots": [
-        {
-          "type": "diagram",
-          "max": null
-        }
-      ],
+      "writer": "script",
+      "shape": "computed",
       "fixed": null
     },
     {

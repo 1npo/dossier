@@ -899,7 +899,7 @@ def collect(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
                 if m and len(secret_hits) < 200:
                     nl = nl or [i for i, c in enumerate(text) if c == "\n"]
                     secret_hits.append({"path": path, "line": bisect.bisect_left(nl, m.start()) + 1, "kind": pat_name})
-            for m in list(ENV_RE.finditer(text))[:60]:
+            for m in ENV_RE.finditer(text):
                 name = m.group(1)
                 if name not in env_refs:
                     nl = nl or [i for i, c in enumerate(text) if c == "\n"]
@@ -1183,7 +1183,7 @@ def collect(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
         "hot_files": hot,
         "manifests": manifests,
         "readme": readme,
-        "env_vars": sorted(env_refs.values(), key=lambda e: (-e["count"], e["name"]))[:300],
+        "env_vars": sorted(env_refs.values(), key=lambda e: (-e["count"], e["name"])),
         "secret_signals": {"note": "Pattern matches only; values are never stored. Each needs human review.",
                            "hits": secret_hits, "sensitive_files": sensitive[:50]},
         "contributors": {"people": contributors, "not_listed": max(0, len(ranked) - 60),

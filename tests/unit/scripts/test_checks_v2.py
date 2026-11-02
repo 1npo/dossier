@@ -68,3 +68,91 @@ class TestV2:
         _, warnings, _, _ = checks.v2(reps, make_cites(BLOBS, ("src",)), set())
 
         assert len(warnings) == 1 and "Nowhere" in warnings[0]
+
+
+def recipes(conf="inferred", example="It followed the layout.", cite=("src/app.py:1",), recipe="Add a migration"):
+    entry = {"recipe": recipe, "fields": {"files_to_touch": "1. a\n2. b", "worked_example": example}, "conf": conf, "cite": list(cite)}
+    return {"conventions": {"cards": [{"card": "conventions.recipes", "entries": [entry]}]}}
+
+
+class TestV2Recipes:
+    def test_a_recipe_with_no_commit_warns_and_gives_one_inference_item(self):
+        warnings, gaps, count = checks.v2_recipes(recipes())
+
+        assert warnings == ["V2: Recipes, Add a migration: the worked example cites no commit."]
+        assert gaps == [{"kind": "inference", "report": "conventions", "cite": ["src/app.py:1"],
+                         "statement": "The recipe 'Add a migration' has a worked example that cites no commit.",
+                         "how_to_confirm": "Find the commit that did the same thing (git log -S) and cite it, or say it is unknown."}]
+        assert count == 1
+
+    def test_a_commit_in_the_entry_citations_passes(self):
+        assert checks.v2_recipes(recipes(cite=("src/app.py:1", "commit:1a2b3c4d5e6f")))[0] == []
+
+    def test_a_commit_cited_inline_in_the_example_passes(self):
+        assert checks.v2_recipes(recipes(example="Commit [[commit:1a2b3c4d5e6f]] added the table."))[0] == []
+
+    def test_an_example_marked_unknown_is_not_flagged(self):
+        assert checks.v2_recipes(recipes(conf="unknown", example="No commit did this."))[0] == []
+
+    def test_a_confirmed_recipe_is_flagged_too(self):
+        assert len(checks.v2_recipes(recipes(conf="confirmed"))[0]) == 1
+
+    def test_reports_without_recipes_are_fine(self):
+        assert checks.v2_recipes({}) == ([], [], 0)
+
+    def test_validate_returns_the_warning_and_the_count(self):
+        res = checks.validate(recipes(), {}, None, {})
+
+        assert any("worked example cites no commit" in w for w in res["warnings"])
+        assert res["counts"]["v2_recipes"] == 1
+
+
+MODULES = {"cannalerts", "cannalerts.alerts", "cannalerts.alerts.state", "cannalerts.menus"}
+
+
+def run_with_modules(make_cites, text, cite, modules=MODULES):
+    return checks.v2(reports(text, cite), make_cites(BLOBS, ("src",)), {"src/app.py", "README.md"}, modules)
+
+
+class TestV2FileAndModuleNames:
+    def test_a_bare_file_name_is_not_a_code_identifier(self, make_cites):
+        _, warnings, _, _ = run_with_modules(make_cites, "Both `cli.py` and `models.py` hold it.", ["src/app.py:1-2"])
+
+        assert warnings == []
+
+    def test_a_module_name_by_its_dotted_suffix_is_skipped(self, make_cites):
+        _, warnings, _, _ = run_with_modules(make_cites, "State lives in `alerts.state`.", ["src/app.py:1-2"])
+
+        assert warnings == []
+
+    def test_a_full_module_name_is_skipped(self, make_cites):
+        _, warnings, _, _ = run_with_modules(make_cites, "Imports `cannalerts.menus`.", ["src/app.py:1-2"])
+
+        assert warnings == []
+
+    def test_a_module_dot_name_passes_when_the_name_is_in_the_cited_text(self, make_cites):
+        _, warnings, _, _ = run_with_modules(make_cites, "It calls `menus.load_config`.", ["src/app.py:1-2"])
+
+        assert warnings == []
+
+    def test_a_module_dot_name_warns_when_the_name_is_not_in_the_cited_text(self, make_cites):
+        _, warnings, _, _ = run_with_modules(make_cites, "It calls `menus.scrape_cached`.", ["src/app.py:1-2"])
+
+        assert len(warnings) == 1 and "menus.scrape_cached" in warnings[0]
+
+    def test_a_class_name_missing_from_the_cited_text_still_warns(self, make_cites):
+        _, warnings, _, _ = run_with_modules(make_cites, "It uses `FetchClient`.", ["src/app.py:1-2"])
+
+        assert len(warnings) == 1
+
+    def test_a_longer_dotted_name_is_not_a_suffix_match(self, make_cites):
+        _, warnings, _, _ = run_with_modules(make_cites, "It uses `other.alerts.state`.", ["src/app.py:1-2"])
+
+        assert len(warnings) == 1
+
+    def test_validate_passes_the_modules_of_the_import_graph(self, make_cites):
+        extract = {"graph": [{"kind": "module", "module": "cannalerts.alerts.state", "path": "src/a.py"}]}
+
+        res = checks.validate(reports("State lives in `alerts.state`.", ["src/app.py:1-2"]), extract, make_cites(BLOBS, ("src",)), {})
+
+        assert not [w for w in res["warnings"] if w.startswith("V2")]

@@ -100,10 +100,11 @@ tr.flash, .card.flash, .refs li.flash { animation: flash 1.8s ease-out; } @keyfr
 .bar { display: inline-block; width: 6rem; height: .5rem; background: var(--muted); border-radius: 99px; vertical-align: middle; overflow: hidden; }
 .bar i { display: block; height: 100%; background: var(--primary); }
 
-.mermaid-host { overflow: auto; text-align: center; padding: .5rem; } .mermaid-host svg { max-width: 100%; height: auto; }
+.mermaid-host { overflow: auto; max-height: 80vh; text-align: center; padding: .5rem; } .mermaid-host svg { max-width: none; height: auto; }
+.scroll-hint { margin: .25rem 0 0; font-size: .8125rem; color: var(--muted-foreground); }
 .diagram details { margin-top: .75rem; } .diagram summary { cursor: pointer; }
 .diagram.expanded { position: fixed; inset: 1rem; z-index: 60; overflow: auto; background: var(--card); box-shadow: 0 0 0 100vmax rgb(0 0 0 / .55); }
-.diagram.expanded .mermaid-host svg { max-width: none; width: 100%; }
+.diagram.expanded .mermaid-host { max-height: none; } .diagram.expanded .mermaid-host svg { max-width: none; width: 100%; }
 .foot { margin-top: 3rem; border-top: 1px solid var(--border); padding-top: 1rem; }
 
 @media (max-width: 767px) { .mh-row #menu-toggle { display: inline-flex; } .page, .masthead-inner { padding-left: 1rem; padding-right: 1rem; } .remote { margin-left: 0; }
@@ -505,3 +506,22 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 .flow-bar { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
 .entry { border: 1px solid var(--border); border-radius: var(--radius); padding: .6rem .8rem; margin-bottom: .6rem; }
 .entry summary { cursor: pointer; font-weight: 600; }
+
+.graph-heading { margin: 1.25rem 0 .4rem; font-size: .9375rem; font-weight: 600; }
+.table.dsm td, .table.dsm th { min-width: 0; padding: .3rem .4rem; text-align: center; }
+.table.dsm thead th:not(:first-child) { writing-mode: vertical-rl; white-space: nowrap; text-align: left; vertical-align: bottom; }
+.table.dsm td:first-child, .table.dsm th:first-child { position: sticky; left: 0; z-index: 1; min-width: 7.5rem; text-align: left; background: var(--card); }
+.table.kv { margin-top: .5rem; } .table.kv th { width: 12rem; text-align: left; font-weight: 500; }
+.table.kv td p { margin: 0 0 .4rem; } .table.kv td p:last-child { margin: 0; } .table.kv td ol, .table.kv td ul { margin: 0; padding-left: 1.25rem; }
+/* schema tables (not report 02's, which keeps its look): narrower cells, a compact Basis and Sources, long paths break */
+.card[data-card]:not([data-card^="overview."]) .table td, .card[data-card]:not([data-card^="overview."]) .table th { min-width: 6rem; }
+.card[data-card]:not([data-card^="overview."]) .table td.basis-cell, .card[data-card]:not([data-card^="overview."]) .table th.basis-cell { min-width: 7rem; max-width: 14rem; width: 1%; }
+.card[data-card]:not([data-card^="overview."]) .table td.src-cell, .card[data-card]:not([data-card^="overview."]) .table th.src-cell { min-width: 0; width: 1%; white-space: nowrap; }
+.card[data-card]:not([data-card^="overview."]) .table.dsm td, .card[data-card]:not([data-card^="overview."]) .table.dsm th { min-width: 0; }
+.card[data-card]:not([data-card^="overview."]) .table.dsm td:first-child, .card[data-card]:not([data-card^="overview."]) .table.dsm th:first-child { min-width: 7.5rem; }
+.card[data-card]:not([data-card^="overview."]) .table code { overflow-wrap: anywhere; }
+.table-hint { margin: .25rem 0 0; font-size: .8125rem; color: var(--muted-foreground); }
+.table-container.scrolls { background: linear-gradient(to right, var(--card) 30%, transparent) left / 2rem 100% no-repeat local, linear-gradient(to left, var(--card) 30%, transparent) right / 2rem 100% no-repeat local, linear-gradient(to left, rgb(0 0 0 / .12), transparent) right / .75rem 100% no-repeat scroll; }
+.table-container.tall { max-height: 70vh; overflow: auto; }
+.table-container.tall thead th { position: sticky; top: 0; z-index: 2; background: var(--card); }
+:root { --dossier-css-end: 1; }

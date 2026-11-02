@@ -24,7 +24,6 @@
      "columns": {"Concern": "Concern", "Approach": "How it is handled", "Where": null}},
     {"from": "code-tour", "type": "diagram", "mermaid": "^\\s*sequenceDiagram", "to": "interactions.flows", "notes": "following"},
     {"from": "architecture", "type": "diagram", "mermaid": "^\\s*sequenceDiagram", "to": "interactions.flows", "notes": "following"},
-    {"from": "data", "type": "diagram", "mermaid": "^\\s*erDiagram", "to": "data.relationships"},
     {"from": "data", "type": "table", "heading": "^Entities$", "to": "data.entities",
      "columns": {"Name": "Name", "Kind": null, "Fields": "Key fields", "Defined in": null, "Owner component": "Owner module"}},
     {"from": "data", "type": "table", "heading": "^Data stores$", "to": "data.stores",

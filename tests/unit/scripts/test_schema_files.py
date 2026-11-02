@@ -22,8 +22,8 @@ def test_files_lint_clean():
 def test_card_counts():
     cards = all_cards()
     assert len(cards) == 65
-    assert sum(c["writer"] == "claude" for c in cards) == 42
-    assert sum(c["writer"] == "script" for c in cards) == 23
+    assert sum(c["writer"] == "claude" for c in cards) == 41
+    assert sum(c["writer"] == "script" for c in cards) == 24
 
 
 def test_fixed_names_a_real_column_or_key():
@@ -73,4 +73,4 @@ def test_card_counts():
     reports = {"entry": {"cards": [{"card": "entry.catalog", "blocks": []}, {"card": "entry.startup", "pending": True}]},
                "risks": {"cards": [{"card": "risks.tracker", "na": "x", "cite": ["a"]}]}}
     filled, pending = render.card_counts(reports)
-    assert filled == 2 and filled + pending == 42
+    assert filled == 2 and filled + pending == 41

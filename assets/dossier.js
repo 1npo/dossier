@@ -38,16 +38,41 @@
         signalColor: dark ? "#f3f4f6" : "#111827", signalTextColor: dark ? "#f3f4f6" : "#111827",
         labelBoxBkgColor: "#dbe7ff", labelTextColor: "#111827", loopTextColor: dark ? "#f3f4f6" : "#111827"
       },
-      fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif", fontSize: 15, flowchart: { useMaxWidth: true, htmlLabels: true },
-      er: { useMaxWidth: true }, sequence: { useMaxWidth: true } });
+      fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif", fontSize: 15, flowchart: { useMaxWidth: false, htmlLabels: true },
+      er: { useMaxWidth: false }, sequence: { useMaxWidth: false } });
   }
+  // a diagram is drawn at its natural size; one wider (or taller) than its box scrolls and says so
+  function markScroll(host) {
+    var on = !!host.querySelector("svg") && (host.scrollWidth > host.clientWidth + 1 || host.scrollHeight > host.clientHeight + 1);
+    host.classList.toggle("scrolls", on);
+    var prev = host.previousElementSibling, hint = prev && prev.classList.contains("scroll-hint") ? prev : null;
+    if (on && !hint) {
+      hint = doc.createElement("p"); hint.className = "scroll-hint";
+      hint.textContent = "Scroll to see the whole diagram, or use Expand.";
+      host.parentNode.insertBefore(hint, host);
+    } else if (!on && hint) hint.remove();
+  }
+  // a schema table wider than its card scrolls inside it and says so (report 02's tables are left as they were)
+  function markTables(root) {
+    $$(".card[data-card] .table-container", root).forEach(function (c) {
+      if (c.closest(".card[data-card]").dataset.card.indexOf("overview.") === 0) return;
+      var on = c.scrollWidth > c.clientWidth + 1;
+      c.classList.toggle("scrolls", on);
+      var prev = c.previousElementSibling, hint = prev && prev.classList.contains("table-hint") ? prev : null;
+      if (on && !hint) {
+        hint = doc.createElement("p"); hint.className = "table-hint"; hint.textContent = "Scroll sideways for more columns.";
+        c.parentNode.insertBefore(hint, c);
+      } else if (!on && hint) hint.remove();
+    });
+  }
+  window.addEventListener("resize", function () { $$(".report:not([hidden]) .mermaid-host").forEach(markScroll); $$(".report:not([hidden])").forEach(markTables); });
   function drawIn(section) {
     if (!window.mermaid) return;
     $$(".mermaid-host", section).forEach(function (host) {
       if (host.dataset.done === theme) return;
       var id = "dm" + (++seq);
       mermaid.render(id, host.dataset.src).then(function (out) {
-        host.innerHTML = out.svg; host.dataset.done = theme; host.classList.remove("failed");
+        host.innerHTML = out.svg; host.dataset.done = theme; host.classList.remove("failed"); markScroll(host);
       }).catch(function (err) {
         var stray = doc.getElementById("d" + id); if (stray) stray.remove();
         host.classList.add("failed"); host.dataset.done = theme;
@@ -66,7 +91,7 @@
     var section = target.closest(".report") || target;
     $$(".report").forEach(function (s) { s.hidden = s !== section; });
     $$("[data-nav]").forEach(function (a) { if (a.dataset.nav === section.id) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
-    drawIn(section);
+    drawIn(section); markTables(section);
     if (target !== section) {
       target.scrollIntoView();
       target.classList.remove("flash"); void target.offsetWidth; target.classList.add("flash");
@@ -1255,3 +1280,4 @@
   window.addEventListener("resize", syncHeader); syncHeader();
   applyTheme(); show();
 })();
+document.documentElement.dataset.dossierJs = "ok";

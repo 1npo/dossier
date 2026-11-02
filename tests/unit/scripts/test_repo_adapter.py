@@ -105,7 +105,7 @@ class TestSqlTables:
     def test_one_line_table(self):
         got = repo_adapter.sql_tables("db/schema.sql", "CREATE TABLE orders (id INTEGER PRIMARY KEY);\n")
 
-        assert got[0]["fields"] == [{"name": "id", "type": "INTEGER", "line": 1, "ref": None}]
+        assert got[0]["fields"] == [{"name": "id", "type": "INTEGER", "line": 1, "ref": None, "pk": True}]
 
     def test_sql_file_in_a_migrations_folder_is_one_migration_item(self):
         got = repo_adapter.sql_tables("db/migrations/001_init.sql", "CREATE TABLE a (id INT);\n")
@@ -114,6 +114,75 @@ class TestSqlTables:
 
     def test_no_create_table_gives_nothing(self):
         assert repo_adapter.sql_tables("q.sql", "SELECT 1;\n") == []
+
+
+SCRAPES = """CREATE TABLE scrapes (
+    id             INTEGER PRIMARY KEY,
+    run_id         INTEGER NOT NULL REFERENCES runs(id),
+    shop           TEXT NOT NULL,      -- internal store key
+    site           TEXT NOT NULL,
+    store          TEXT NOT NULL,
+    menu           TEXT NOT NULL CHECK (menu IN ('adult-use', 'medical')),
+    platform       TEXT,
+    status         TEXT NOT NULL CHECK (status IN ('ok', 'partial', 'failed')),
+    expected_count INTEGER,
+    product_count  INTEGER NOT NULL,
+    errors         TEXT NOT NULL,      -- JSON array
+    started_at     TEXT NOT NULL,
+    finished_at    TEXT NOT NULL
+);
+"""
+
+
+class TestSqlColumns:
+    def test_comments_do_not_become_columns_or_hide_the_next_one(self):
+        got = repo_adapter.sql_tables("db/schema.sql", SCRAPES)[0]
+
+        assert [f["name"] for f in got["fields"]] == ["id", "run_id", "shop", "site", "store", "menu", "platform", "status",
+                                                      "expected_count", "product_count", "errors", "started_at", "finished_at"]
+
+    def test_line_numbers_still_point_at_the_column(self):
+        got = repo_adapter.sql_tables("db/schema.sql", SCRAPES)[0]
+
+        assert {f["name"]: f["line"] for f in got["fields"]}["site"] == 5
+
+    def test_a_block_comment_and_a_comment_with_a_comma_are_ignored(self):
+        text = "CREATE TABLE t (\n  a INT, /* one, two */\n  b INT -- x, y\n);\n"
+
+        got = repo_adapter.sql_tables("s.sql", text)[0]
+
+        assert [f["name"] for f in got["fields"]] == ["a", "b"]
+
+    def test_an_unbalanced_bracket_in_a_comment_does_not_end_the_table_late(self):
+        text = "CREATE TABLE t (\n  a INT, -- see (note\n  b INT\n);\nCREATE TABLE u (c INT);\n"
+
+        got = repo_adapter.sql_tables("s.sql", text)
+
+        assert [t["name"] for t in got] == ["t", "u"]
+        assert [f["name"] for f in got[0]["fields"]] == ["a", "b"]
+
+    def test_inline_and_table_level_foreign_keys_become_relations(self):
+        text = "CREATE TABLE t (\n  run_id INTEGER REFERENCES runs(id),\n  a INT,\n  FOREIGN KEY (a) REFERENCES other(b)\n);\n"
+
+        got = repo_adapter.sql_tables("s.sql", text)[0]
+
+        assert got["relations"] == [{"field": "run_id", "to": "runs", "kind": "fk"}, {"field": "a", "to": "other", "kind": "fk"}]
+        assert {f["name"]: f["ref"] for f in got["fields"]} == {"run_id": "runs", "a": "other"}
+
+    def test_table_level_primary_key_marks_every_listed_column(self):
+        text = "CREATE TABLE t (\n  x INT,\n  y INT,\n  z INT,\n  PRIMARY KEY (x, y)\n);\n"
+
+        got = repo_adapter.sql_tables("s.sql", text)[0]
+
+        assert [f["name"] for f in got["fields"] if f.get("pk")] == ["x", "y"]
+
+    def test_a_table_without_foreign_keys_has_an_empty_relations_list(self):
+        assert repo_adapter.sql_tables("s.sql", "CREATE TABLE t (a INT);\n")[0]["relations"] == []
+
+    def test_the_real_scrapes_table_has_one_relation(self):
+        got = repo_adapter.sql_tables("db/schema.sql", SCRAPES)[0]
+
+        assert got["relations"] == [{"field": "run_id", "to": "runs", "kind": "fk"}]
 
 
 def context(py_repo, semgrep):

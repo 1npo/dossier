@@ -7,8 +7,11 @@ so the page falls back to its placeholder. `ctx` carries `extract` (`{output: [i
 from __future__ import annotations
 
 import re
+from collections import defaultdict
 
+import components
 import gather
+import measured_er
 import measured_graph
 
 
@@ -176,7 +179,43 @@ def _violations(cid, ctx, refs):
     return f'<p class="muted">No import cycles were found{tail}.</p>'
 
 
-DRAWN = {"reading.map": _reading_map, "conventions.tooling": _tooling, "interactions.violations": _violations, **measured_graph.DRAWN}
+DRAWN = {"reading.map": _reading_map, "conventions.tooling": _tooling, "interactions.violations": _violations, "data.relationships": measured_er.draw, **measured_graph.DRAWN}
+
+
+CATALOG_MEASURED = ("Depends on", "Used by", "Size")
+
+
+def fill_catalog(entry: dict, ctx: dict) -> dict:
+    """A copy of the `components.catalog` entry whose Depends on, Used by and Size cells are the measured ones (plan 008, A4).
+
+    Without extractor output (an older dossier) the cells stay as they were written.
+    """
+    rows, extract = ctx.get("catalog") or [], ctx.get("extract") or {}
+    if not rows or "graph" not in extract:
+        return entry
+    uses, used, size = defaultdict(set), defaultdict(set), defaultdict(int)
+    for edge in components.catalog_edges(rows, extract):
+        uses[edge["from"]].add(edge["to"])
+        used[edge["to"]].add(edge["from"])
+    lines = components.file_lines(ctx.get("facts") or {})
+    for path in components.source_files(ctx.get("tree"), extract):
+        owner = components.component_of(path, rows)[0]
+        if owner:
+            size[owner] += lines.get(path, 0)
+    blocks = []
+    for block in entry.get("blocks") or []:
+        if isinstance(block, dict) and block.get("type") == "table" and all(c in (block.get("columns") or []) for c in CATALOG_MEASURED):
+            at = {c: block["columns"].index(c) for c in CATALOG_MEASURED}
+            new_rows = []
+            for row in block.get("rows") or []:
+                cells, name = list(row["cells"]), str(row["cells"][0]).strip("`").strip()
+                cells[at["Depends on"]] = ", ".join(sorted(uses[name])) or "-"
+                cells[at["Used by"]] = ", ".join(sorted(used[name])) or "-"
+                cells[at["Size"]] = f"{size[name]} lines"
+                new_rows.append({**row, "cells": cells})
+            block = {**block, "rows": new_rows}
+        blocks.append(block)
+    return {**entry, "blocks": blocks}
 
 
 def body(cid: str, ctx: dict, refs):

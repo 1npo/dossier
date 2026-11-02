@@ -1,6 +1,6 @@
 # Method: how to write dossier content
 
-You are building a dossier for one repository at one pinned commit. Python has already counted and classified things (`facts.json`) and planned how to read the code (`chunks.json`). Your job is to read the code, understand it, and write short reports. Python then checks your citations and draws the page.
+You are building a dossier for one repository at one pinned commit. Python has already counted and classified things (`facts.json`) and planned how to read the code (`chunks.json`). Your job is to read the code, understand it, and write complete reports: every item a tool found or you found gets its own row, and size never limits content. Python then checks your citations and draws the page.
 
 Never count things yourself when `facts.json` has the number. Never re-list what the tools found: decide about it (see "Tool findings: keep, merge, dismiss"). Never write HTML. Only write the JSON files described here.
 
@@ -219,7 +219,7 @@ DOSSIER candidates <repo> --report <id>
 before you write each report. It lists the findings that feed that report, grouped under the card they belong to. Each finding has an id such as `io-3fa91c02`, and findings of one rule in one file share a group id such as `iog-7c1d0e55`. For every finding in the cards you write, decide one of these and record it:
 
 - **Keep.** Put the id in the `cand` list of the row (or entry) that covers it: `"cand": ["io-3fa91c02"]`.
-- **Merge.** Put several ids in one row's `cand` list when one row covers them all, or put the group id to cover every finding of that rule in that file: `"cand": ["io-5b10aa7e", "io-8c2d4e19"]` or `"cand": ["iog-7c1d0e55"]`.
+- **Merge.** For call-site findings only (the `io-` ids: log calls, retries, timeouts and the like), put several ids in one row's `cand` list when one row covers them all, or put the group id to cover every finding of that rule in that file: `"cand": ["io-5b10aa7e", "io-8c2d4e19"]` or `"cand": ["iog-7c1d0e55"]`. **Never merge entities (`md-`) or entry points (`ep-`).** Each gets its own row, and a group id (`mdg-…`, `epg-…`) in `cand` or `dismissed` is an error. An entry-point row may hold several `ep-` ids only when they are the same entry point found twice (the same file and name).
 - **Dismiss.** Put the ids in the card's `dismissed` list with a short plain-text reason (no citations): `"dismissed": [{"cand": ["io-0b2c4d61"], "reason": "Test helpers, not part of the application."}]`.
 - **Add.** When you found something the tools missed, write the row as usual and mark it `"added": true`. A row has either `cand` or `added`, never both.
 
@@ -228,6 +228,7 @@ Rules:
 - Never invent an id. An id the build does not know is an error.
 - Cite the code, never a finding. The citation on a row still points at `path:lines`; `cand` is the link to the tool finding.
 - A finding is decided once: it cannot be kept in one card and dismissed in another.
+- One row per entity, with every field of it named in the `Fields` cell, and one row per entry point (every CLI command included). A long table is fine: the page sorts, filters and collapses it.
 - A row with neither `cand` nor `added` gets a warning, except a "none" row in the fixed rows of inputs and outputs.
 - When you are done with a report, run `DOSSIER candidates <repo> --report <id> --open`. It prints only the findings that still have no decision, so it must print nothing.
 - Only findings are listed for you to decide. The imports, the unused code and the test list are given to you as data: use them as evidence, and do not copy them into a table by hand.
@@ -405,7 +406,7 @@ Do not use `--allow-errors` to get past a V4 or V5 error: fix the reports.
 - Keep fills pastel and text dark. When you use `classDef`, always set an explicit dark `color` (for example `classDef ext fill:#fde8c8,stroke:#b7791f,color:#111`), because the page can be in light or dark mode.
 - Use `flowchart` for context, container, component and data-flow views, `sequenceDiagram` for execution paths, `erDiagram` for entities, `classDiagram` or `stateDiagram-v2` where they fit.
 - C4 style: use a flowchart. Label each box `Name<br/>[kind]<br/>short purpose`. Use `subgraph` for boundaries. Use `classDef person|system|container|ext` so kinds look different.
-- Keep each diagram to about 6 to 10 nodes. Each node is a real module, function, table or service name plus at most one short line (a few words). Put detail in the table next to the diagram, not in the boxes.
+- A sequence diagram has at most 10 participants and a flowchart at most 12 nodes. When a flow needs more, split it into several diagrams, each with its own numbered notes; never leave a step out. Each node is a real module, function, table or service name plus at most one short line (a few words). Put detail in the table next to the diagram, not in the boxes.
 - In `entry.startup` and `interactions.flows`, name each box or participant after a real module, file or component (`cannalerts.cli`, `src/cannalerts/store.py`, a component from the catalog), so `render` can check that each arrow has an import or a call behind it. Boxes for users and outside services are not checked.
 - Show the main path and at most one or two failure or alternative branches. If more is needed, draw a second diagram.
 - Label an arrow only when what moves is not obvious, in two or three words.

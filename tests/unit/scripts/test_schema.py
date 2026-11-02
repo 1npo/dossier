@@ -26,13 +26,13 @@ def tbl(*rows, cols=("A", "B")):
 
 
 def dia(): return {"type": "diagram", "mermaid": "flowchart LR\nA-->B"}
-def txt(): return {"type": "text", "text": "hi"}
+def txt(): return {"type": "text", "text": "1. Parse the arguments.\n2. Run the handler."}
 def ent(): return {"part": "p", "fields": {"f1": "a", "f2": "b"}, "conf": "confirmed", "cite": ["a"]}
 
 
 def good():
     return {"cards": [{"card": "x.tab", "blocks": [tbl(("one", "1"), ("two", "2"))]},
-                      {"card": "x.flow", "blocks": [dia(), txt(), dia()]},
+                      {"card": "x.flow", "blocks": [dia(), txt(), dia(), txt()]},
                       {"card": "x.ent", "entries": [ent()]}]}
 
 
@@ -111,3 +111,70 @@ def test_card_entry_accepts_dismissed_and_unassigned_but_not_other_keys():
     assert schema.validate("x", r, SCH) == ([], [])
     r["cards"][0]["bogus"] = 1
     check(r, "unknown keys")
+
+
+class TestNowDrawnCards:
+    def entry(self, **kw):
+        return {"card": "data.relationships", **kw}
+
+    def test_an_old_written_entry_is_a_warning_and_not_an_error(self):
+        sch = schema.load("data")
+        blocks = [{"type": "diagram", "title": "ER", "mermaid": "erDiagram\n A ||--o{ B : x", "conf": "confirmed", "cite": ["a.py:1"]}]
+
+        errs, warns = schema.validate("data", {"cards": [self.entry(blocks=blocks)]}, sch, allow_pending=True)
+
+        assert not [e for e in errs if "data.relationships" in e]
+        assert any("drawn by code since 0.7.1" in w and "data.relationships" in w for w in warns)
+
+    def test_a_script_card_that_was_always_drawn_still_rejects_a_written_entry(self):
+        sch = schema.load("components")
+
+        errs, _ = schema.validate("components", {"cards": [{"card": "components.map", "blocks": []}]}, sch, allow_pending=True)
+
+        assert any("components.map" in e and "produced by a script" in e for e in errs)
+
+    def test_relationships_is_a_script_card_with_no_slots(self):
+        card = next(c for c in schema.load("data")["cards"] if c["id"] == "data.relationships")
+
+        assert (card["writer"], card["shape"], "slots" in card) == ("script", "computed", False)
+
+
+class TestFlowNotes:
+    def errors(self, blocks):
+        r = good()
+        r["cards"][1]["blocks"] = blocks
+        return schema.validate("x", r, SCH)[0]
+
+    def test_a_diagram_followed_by_a_paragraph_needs_numbered_notes(self):
+        errs = self.errors([dia(), {"type": "text", "text": "Onboarding tries discovery first."}])
+
+        assert any("diagram 1 needs numbered notes after it" in e for e in errs)
+
+    def test_a_diagram_with_nothing_after_it_needs_numbered_notes(self):
+        errs = self.errors([dia(), txt(), dia()])
+
+        assert any("diagram 2 needs numbered notes after it" in e for e in errs)
+
+    def test_numbered_text_with_two_steps_passes(self):
+        assert self.errors([dia(), txt()]) == []
+
+    def test_numbers_may_be_followed_by_a_bracket(self):
+        assert self.errors([dia(), {"type": "text", "text": "1) first\n2) second"}]) == []
+
+    def test_a_list_block_with_two_items_passes(self):
+        assert self.errors([dia(), {"type": "list", "items": ["first", "second"]}]) == []
+
+    def test_a_list_block_with_one_item_is_not_enough(self):
+        assert any("needs numbered notes" in e for e in self.errors([dia(), {"type": "list", "items": ["only one"]}]))
+
+    def test_one_numbered_line_is_not_enough(self):
+        assert any("needs numbered notes" in e for e in self.errors([dia(), {"type": "text", "text": "1. only one"}]))
+
+    def test_numbered_lines_mixed_with_a_paragraph_are_not_numbered_notes(self):
+        assert any("needs numbered notes" in e for e in self.errors([dia(), {"type": "text", "text": "1. first\n2. second\nAnd so on."}]))
+
+    def test_migration_can_carry_unnumbered_notes(self):
+        r = good()
+        r["cards"][1]["blocks"] = [dia(), {"type": "text", "text": "Prose notes."}]
+
+        assert schema.validate("x", r, SCH, strict_notes=False)[0] == []

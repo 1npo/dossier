@@ -140,6 +140,10 @@ MAP_CTX = {"extract": MAP_EXTRACT, "tree": {"src/app/api/x.py", "src/app/core/y.
            "facts": {"chunks": {"chunks": [{"files": [{"path": "src/app/api/x.py", "lines": 10}]}]}}}
 
 
+def table_html(html, tid):
+    return re.search(r'<table class="table[^"]*" id="%s".*?</table>' % re.escape(tid), html, re.S).group(0)
+
+
 def mermaid_source(html):
     return htmllib.unescape(re.search(r'data-src="([^"]*)"', html).group(1))
 
@@ -148,17 +152,18 @@ class TestComponentMap:
     def test_one_subgraph_per_area_and_one_node_per_component(self):
         src = mermaid_source(measured.body("components.map", MAP_CTX, Refs()))
 
-        assert src.startswith("flowchart LR")
+        assert src.startswith("flowchart TB")
         assert src.count("subgraph") == 4  # api, core, db and the unassigned loose module
         assert 'Api["Api"]' in src and 'Core["Core"]' in src and 'Db["Db"]' in src
 
-    def test_arrows_carry_the_import_counts_and_unassigned_is_a_group(self):
+    def test_arrows_carry_no_labels_and_unassigned_is_a_group(self):
         src = mermaid_source(measured.body("components.map", MAP_CTX, Refs()))
 
-        assert 'Api -->|"1 import"| Core' in src and 'Core -->|"1 import"| unassigned' in src
+        assert "Api --> Core" in src and "Core --> unassigned" in src
+        assert "-->|" not in src
 
     def test_table_has_files_lines_and_neighbours(self):
-        rows = {r[0]: r for r in rows_of(measured.body("components.map", MAP_CTX, Refs()).split("</details></div>")[-1])}
+        rows = {r[0]: r for r in rows_of(table_html(measured.body("components.map", MAP_CTX, Refs()), "t-components-map"))}
 
         assert rows["Api"][1:] == ["api", "1", "10", "Core, Db", "-"]
         assert rows["Core"][5] == "Api, Db"
@@ -171,14 +176,14 @@ class TestDependencyGraph:
     def test_table_has_one_row_per_import(self):
         html = measured.body("interactions.graph", MAP_CTX, Refs())
 
-        rows = rows_of(html.split("</details></div>")[-1])
+        rows = rows_of(table_html(html, "t-interactions-graph-edges"))
         assert len(rows) == 4
-        assert rows[0][2] == "2" and rows[0][3] == "src/app/api/x.py:2, src/app/api/x.py:9"
+        assert rows[0] == ["Api", "Core", "src.app.api.x", "src.app.core.y", "2", "src/app/api/x.py:2, src/app/api/x.py:9"]
 
     def test_without_a_catalog_nodes_are_areas(self):
         src = mermaid_source(measured.body("interactions.graph", {"extract": MAP_EXTRACT}, Refs()))
 
-        assert 'api["api"]' in src and 'api -->|"1 import"| core' in src
+        assert 'api["api"]' in src and "api --> core" in src
 
     def test_a_single_node_draws_only_the_table(self):
         extract = {"graph": [imp("a.py", "b.py")]}
@@ -189,3 +194,210 @@ class TestDependencyGraph:
 
     def test_no_imports_says_so(self):
         assert "No imports between modules were found." in measured.body("interactions.graph", {"extract": {"graph": []}}, Refs())
+
+
+class TestComponentArea:
+    ROOTS = ["src/cannalerts"]
+
+    def test_files_in_the_package_root_are_its_top_level_modules(self):
+        paths = ["src/cannalerts/cli.py", "src/cannalerts/__main__.py"]
+
+        assert measured_graph.component_area(paths, self.ROOTS) == "cannalerts (top-level modules)"
+
+    def test_a_folder_below_the_package_root_is_the_area(self):
+        assert measured_graph.component_area(["src/cannalerts/platforms/dutchie/"], self.ROOTS) == "platforms"
+
+    def test_files_in_one_folder_are_that_folder(self):
+        paths = ["src/cannalerts/platforms/__init__.py", "src/cannalerts/platforms/base.py"]
+
+        assert measured_graph.component_area(paths, self.ROOTS) == "platforms"
+
+    def test_a_path_outside_any_package_uses_its_top_folder(self):
+        assert measured_graph.component_area(["tests/"], self.ROOTS) == "tests"
+
+    def test_a_file_at_the_repository_root_has_its_own_area_name(self):
+        assert measured_graph.component_area(["setup.py"], self.ROOTS) == "(repository root)"
+
+    def test_no_paths_is_the_repository_root(self):
+        assert measured_graph.component_area([], self.ROOTS) == "(repository root)"
+
+    def test_paths_in_two_folders_use_the_first_path(self):
+        paths = ["src/cannalerts/db/a.py", "src/cannalerts/core/b.py"]
+
+        assert measured_graph.component_area(paths, self.ROOTS) == "db"
+
+
+class TestComponentMapAreas:
+    def test_area_column_names_folders_not_files(self):
+        extract = {"graph": [
+            {"kind": "module", "path": "src/app/__init__.py", "module": "app", "package": "app", "is_package": True},
+            imp("src/app/cli.py", "src/app/models.py"),
+        ]}
+        ctx = {"extract": extract, "tree": {"src/app/cli.py", "src/app/models.py"},
+               "catalog": [{"name": "Cli", "paths": ["src/app/cli.py"]}, {"name": "Models", "paths": ["src/app/models.py"]}]}
+
+        rows = rows_of(table_html(measured.body("components.map", ctx, Refs()), "t-components-map"))
+
+        assert {r[1] for r in rows} == {"app (top-level modules)"}
+
+
+def big_graph(components=16, areas=6, edges=71):
+    names = [f"C{i:02d}" for i in range(components)]
+    area = {n: f"area{i % areas}" for i, n in enumerate(names)}
+    pairs = [(a, b) for a in names for b in names if a != b]
+    chosen = {pair: 1 + i % 3 for i, pair in enumerate(pairs[::3][:edges])}
+    assert len(chosen) == edges
+    return chosen, area
+
+
+def sources(result):
+    return [src for _, src, _ in result]
+
+
+def node_count(src):
+    return len(re.findall(r'^\s+\w+\["', src, re.M))
+
+
+def edge_count(src):
+    return len(re.findall(r"^\s+\w+ --> \w+$", src, re.M))
+
+
+class TestDiagrams:
+    def test_a_small_graph_is_one_diagram(self):
+        edges = {("A", "B"): 2, ("B", "C"): 1, ("A", "C"): 1, ("C", "D"): 1, ("D", "E"): 1, ("E", "A"): 1}
+        area = {"A": "x", "B": "x", "C": "y", "D": "y", "E": "y"}
+
+        result = measured_graph.diagrams(edges, area)
+
+        assert len(result) == 1
+        assert result[0][2] == ""
+
+    def test_a_big_graph_is_split_into_an_overview_and_one_diagram_per_area(self):
+        edges, area = big_graph()
+
+        result = measured_graph.diagrams(edges, area)
+
+        assert len(result) == 1 + 6
+        assert {budget for _, _, budget in result} == {"area"}
+
+    def test_every_diagram_is_drawn_without_edge_labels(self):
+        edges, area = big_graph()
+
+        result = measured_graph.diagrams(edges, area)
+
+        assert not any("-->|" in src for src in sources(result))
+
+    def test_every_component_edge_appears_in_an_area_diagram_or_the_overview(self):
+        edges, area = big_graph()
+        result = {t: s for t, s, _ in measured_graph.diagrams(edges, area)}
+        ids = {title: dict((label, i) for i, label in re.findall(r'^\s+(\w+)\["([^"]*)"\]', src, re.M)) for title, src in result.items()}
+        arrows = {title: set(re.findall(r"^\s+(\w+) --> (\w+)$", src, re.M)) for title, src in result.items()}
+        overview = next(t for t in result if t.endswith("areas"))
+
+        for (a, b) in edges:
+            if area[a] == area[b]:
+                assert any((ids[t][a], ids[t][b]) in arrows[t] for t in result if a in ids[t] and b in ids[t]), (a, b)
+            else:
+                assert (ids[overview][area[a]], ids[overview][area[b]]) in arrows[overview], (a, b)
+                assert any((ids[t][a], ids[t][area[b] + " (area)"]) in arrows[t] for t in result if a in ids[t] and area[b] + " (area)" in ids[t]), (a, b)
+                assert any((ids[t][area[a] + " (area)"], ids[t][b]) in arrows[t] for t in result if b in ids[t] and area[a] + " (area)" in ids[t]), (a, b)
+
+    def test_the_overview_has_one_node_per_area(self):
+        edges, area = big_graph()
+
+        overview = next(src for title, src, _ in measured_graph.diagrams(edges, area) if title.endswith("areas"))
+
+        assert node_count(overview) == 6
+
+    def test_isolated_components_are_still_drawn(self):
+        edges, area = big_graph()
+        area["Lonely"] = "area0"
+
+        result = measured_graph.diagrams(edges, area, extra=["Lonely"])
+
+        assert any('Lonely["Lonely"]' in src for src in sources(result))
+
+    def test_without_areas_an_oversized_graph_is_one_diagram_marked_over_budget(self):
+        edges, _ = big_graph()
+
+        result = measured_graph.diagrams(edges, None)
+
+        assert len(result) == 1
+        assert result[0][2] == "area"
+
+
+class TestHostBudgetMark:
+    def test_budget_is_set_on_the_host_only_when_given(self):
+        marked = measured_graph._diagram("T", "flowchart TB\n  a --> b", "area")
+        plain = measured_graph._diagram("T", "flowchart TB\n  a --> b")
+
+        assert 'data-budget="area"' in marked
+        assert "data-budget" not in plain
+
+
+def big_ctx():
+    edges, area = big_graph()
+    names = sorted(area)
+    files = {n: f"src/app/{area[n]}/{n.lower()}/m.py" for n in names}
+    graph = [{"kind": "module", "path": "src/app/__init__.py", "module": "app", "package": "app", "is_package": True}]
+    for (a, b), count in edges.items():
+        for k in range(count):
+            graph.append(imp(files[a], files[b].replace("m.py", f"m_{k}.py")))
+    catalog = [{"name": n, "paths": [files[n].rsplit("/", 1)[0] + "/"]} for n in names]
+    tree = set(files.values())
+    return {"extract": {"graph": graph}, "tree": tree, "catalog": catalog, "facts": {}}, edges, area
+
+
+class TestComponentTables:
+    def test_matrix_has_one_row_and_column_per_component_and_every_edge_count(self):
+        ctx, edges, _ = big_ctx()
+
+        html = measured.body("components.map", ctx, Refs())
+        matrix = table_html(html, "t-components-map-matrix")
+        header = re.findall(r"<th(?: [^>]*)?>(.*?)</th>", matrix.split("<tbody>")[0])
+        rows = rows_of(matrix)
+
+        assert len(header) == 1 + 16
+        assert len(rows) == 16
+        cells = {(r[0], header[i + 1]): int(c) for r in rows for i, c in enumerate(r[1:]) if c}
+        assert cells == {pair: n for pair, n in edges.items()}
+
+    def test_matrix_is_marked_unsortable_and_styled_as_a_matrix(self):
+        ctx, _, _ = big_ctx()
+
+        matrix = table_html(measured.body("components.map", ctx, Refs()), "t-components-map-matrix")
+
+        assert 'class="table dsm"' in matrix and "data-nosort" in matrix
+
+    def test_component_edge_table_has_every_edge_most_imports_first(self):
+        ctx, edges, _ = big_ctx()
+
+        rows = rows_of(table_html(measured.body("interactions.graph", ctx, Refs()), "t-interactions-graph-components"))
+
+        assert len(rows) == len(edges) == 71
+        counts = [int(r[2]) for r in rows]
+        assert counts == sorted(counts, reverse=True)
+
+    def test_module_table_has_a_row_per_import_and_leads_with_the_components(self):
+        ctx, _, _ = big_ctx()
+        html = measured.body("interactions.graph", ctx, Refs())
+        table = table_html(html, "t-interactions-graph-edges")
+
+        headers = re.findall(r"<th(?: [^>]*)?>(.*?)</th>", table.split("<tbody>")[0])
+        rows = rows_of(table)
+
+        assert headers[:2] == ["From component", "To component"]
+        assert len(rows) == sum(1 for g in ctx["extract"]["graph"] if g["kind"] == "import")
+
+    def test_a_graph_within_the_budget_is_one_diagram(self):
+        html = measured.body("components.map", MAP_CTX, Refs())
+
+        assert html.count('class="mermaid-host"') == 1
+
+    def test_a_big_graph_draws_an_overview_and_area_diagrams(self):
+        ctx, _, _ = big_ctx()
+
+        html = measured.body("components.map", ctx, Refs())
+
+        assert html.count('class="mermaid-host"') == 7
+        assert html.count('data-budget="area"') == 7

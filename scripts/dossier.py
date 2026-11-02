@@ -40,6 +40,7 @@ import config  # noqa: E402
 import gather  # noqa: E402
 import incremental  # noqa: E402
 import migrate  # noqa: E402
+import page_audit  # noqa: E402
 import process  # noqa: E402
 import render  # noqa: E402
 import resolve  # noqa: E402
@@ -145,6 +146,14 @@ def cmd_home(a):
     print(f"Dossier home set to {d}")
 
 
+def skill_line(skill: dict) -> str:
+    if skill["commit"] is None:
+        return f"skill: {skill['path']} (not a git work tree)"
+    if skill["unmerged"]:
+        return f"skill: {skill['commit'][:7]} (UNMERGED: run git status in {skill['path']})"
+    return f"skill: {skill['commit'][:7]} ({'dirty' if skill['dirty'] else 'clean'})"
+
+
 def cmd_doctor(a):
     if a.all:
         report = toolcheck.preflight([], all_scopes=True)
@@ -152,8 +161,13 @@ def cmd_doctor(a):
         top = toplevel(a.repo)
         sha = subprocess.run(["git", "-C", top, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
         report = toolcheck.preflight(toolcheck.languages_at(top, sha))
-    print(json.dumps(report, indent=1) if a.json else toolcheck.format_text(report))
-    sys.exit(1 if report["missing"] else 0)
+    skill = buildlog.skill_state(ROOT)
+    if a.json:
+        print(json.dumps(dict(report, skill=skill), indent=1))
+    else:
+        print(toolcheck.format_text(report))
+        print(skill_line(skill))
+    sys.exit(1 if report["missing"] or skill["unmerged"] else 0)
 
 
 def cmd_clean(a):
@@ -362,7 +376,7 @@ def cmd_render(a):
     if build:
         buildlog.append(build_path, process.render_records(
             build, reports=reports, readers=None, v_errors=len(errors), cites_checked=len(cites.status),
-            cites_unresolved=unresolved, gap_counts={}, check_counts=res["counts"])[0])
+            cites_unresolved=unresolved, gap_counts={}, check_counts=res["counts"], skill=buildlog.skill_state(ROOT))[0])
     if errors and not a.allow_errors:
         print(f"\n{len(errors)} error(s). Fix the report files and run render again.")
         sys.exit(1)
@@ -386,7 +400,7 @@ def cmd_render(a):
         history.append(entry)
     if build:
         for rec in process.render_records(build, reports=reports, readers=a.readers, v_errors=len(errors),
-                                          cites_checked=len(cites.status), cites_unresolved=unresolved, gap_counts=counts, check_counts=res["counts"])[1:]:
+                                          cites_checked=len(cites.status), cites_unresolved=unresolved, gap_counts=counts, check_counts=res["counts"], skill=buildlog.skill_state(ROOT))[1:]:
             buildlog.append(build_path, rec)
         pending = {"step": "render", "part": "render", "by": "render", "status": "ok"}
         shown = buildlog.load(build_path)
@@ -401,7 +415,22 @@ def cmd_render(a):
     if v_errors and not a.allow_errors:
         print(f"\n{len(v_errors)} error(s). Run prepare so build.json is complete, then render again.")
         sys.exit(1)
-    page, _ = render.render_html(facts, reports, state, history, VERSION, cites, build=shown, coverage=coverage, extract=extract, checks=res)
+    def draw(records):
+        return render.render_html(facts, reports, state, history, VERSION, cites, build=records, coverage=coverage, extract=extract, checks=res)[0]
+
+    page = draw(shown)
+    v11 = page_audit.audit(page, reports, extract, facts, build=shown)
+    for line in v11:
+        print(f"error: {line}")
+    if build:
+        audit = {"step": "check", "part": "audit", "by": "render", "status": "failed" if v11 else "ok",
+                 "reason": f"{len(v11)} problems in the page." if v11 else None, "counts": {"v11": len(v11)}}
+        buildlog.append(build_path, audit)
+        shown["records"].append(audit)
+        page = draw(shown)  # the process card now says how many problems the page audit found
+    if v11 and not a.allow_errors:
+        print(f"\n{len(v11)} error(s) in the drawn page. The page was not written. Fix the cause and render again.")
+        sys.exit(1)
     if build:
         buildlog.append(build_path, pending)
     name_out = f"dossier-{name}.html"
@@ -418,7 +447,46 @@ def cmd_render(a):
                       "reports_rendered": len(reports), "cards_filled": render.card_counts(reports)[0], "cards_pending": render.card_counts(reports)[1], "citations_checked": len(cites.status),
                       "unresolved_citations": sum(1 for s in cites.status.values() if not s["ok"]),
                       "code_viewer": cites.view_counts(),
-                      "tracker": counts, "resolved_by_user": len(gaps) - sum(1 for g in gaps if render.is_open(g)), "warnings": len(warnings)}, indent=1))
+                      "tracker": counts, "resolved_by_user": len(gaps) - sum(1 for g in gaps if render.is_open(g)), "warnings": len(warnings),
+                      "browser_check": browser_check_line(buildlog.load(build_path) if build else None)}, indent=1))
+
+
+def browser_check_line(build) -> str:
+    """What the render summary says about the browser check: "not run", or how many problems it found and when."""
+    rec = buildlog.latest(build, "check", "browser") if build else None
+    if not rec:
+        return "not run"
+    n = (rec.get("counts") or {}).get("problems", 0)
+    return f"{n} problem{'' if n == 1 else 's'} at {(rec.get('started') or '')[:16].replace('T', ' ')} UTC"
+
+
+def run_browser_check(html: Path, out: Path):
+    """(exit code, output) of check_page.py on `html`; it records its result in build.json."""
+    cmd = ["uv", "run", str(ROOT / "scripts" / "check_page.py"), str(html), "--shots", str(out / ".check-shots")]
+    if (out / buildlog.FILE).exists():
+        cmd += ["--record", str(out / buildlog.FILE)]
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    return r.returncode, r.stdout + r.stderr
+
+
+def cmd_check(a):
+    """The two checks of the written page: V11 (it draws every row and entry of its sources), then V12 (the browser)."""
+    top = toplevel(a.repo)
+    out, name, _ = out_dir(top)
+    html = out / f"dossier-{name}.html"
+    if not html.exists():
+        die(f"There is no page at {html}. Run render first.")
+    reports = {rid: load(out / "reports" / f"{rid}.json") for rid, _, authored in render.REPORTS
+               if authored and (out / "reports" / f"{rid}.json").exists()}
+    audit = page_audit.audit(html.read_text(encoding="utf-8"), reports, candidates.load(out), load(out / "facts.json"), build=buildlog.load(out))
+    for line in audit:
+        print(f"FAIL {line}")
+    code, text = run_browser_check(html, out)
+    print(text.rstrip())
+    browser = sum(1 for line in text.splitlines() if line.startswith("FAIL"))
+    problems = len(audit) + (browser or (1 if code else 0))
+    print(f"problems: {problems}")
+    sys.exit(1 if problems else 0)
 
 
 def cmd_candidates(a):
@@ -458,7 +526,7 @@ def cmd_migrate(a):
     gaps_new = migrate.remap_gaps(old["gaps"], mapping["retired"]) if "gaps" in old else None
     problems = []
     for rid, rep in result["reports"].items():
-        errs, _ = schema.validate(rid, rep, schemas[rid], allow_pending=True)
+        errs, _ = schema.validate(rid, rep, schemas[rid], allow_pending=True, strict_notes=False)
         problems += errs
     if problems:
         for e in problems:
@@ -625,6 +693,9 @@ def main():
     p.add_argument("--allow-errors", action="store_true", help="write the HTML even if validation fails")
     p.add_argument("--apply-corrections", action="store_true", help="mark pending corrections as applied")
     p.set_defaults(fn=cmd_render)
+    p = sub.add_parser("check")
+    p.add_argument("repo", nargs="?")
+    p.set_defaults(fn=cmd_check)
     p = sub.add_parser("candidates")
     p.add_argument("repo", nargs="?")
     p.add_argument("--report", required=True, metavar="ID", help="the report to list findings for, such as io or components")
