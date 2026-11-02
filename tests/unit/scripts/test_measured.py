@@ -13,6 +13,13 @@ class Refs:
         return ""
 
 
+class MarkedRefs:
+    """Writes each cited source as text, so a test can see what lands in a Source cell."""
+
+    def mark(self, cites):
+        return "".join(f"[{c}]" for c in dict.fromkeys(cites))
+
+
 TREE = {"pyproject.toml", "README.md", "Makefile", "docs/index.md", "docs/guide.md", "tests/test_a.py", "tests/conftest.py", "tests/unit/test_b.py",
         "src/app/a.py", "src/app/migrations/0001_init.py", ".github/workflows/ci.yml", "scripts/run.sh", "config/app.toml", ".pre-commit-config.yaml"}
 FILES = {
@@ -36,19 +43,30 @@ def rows_of(html):
 class TestReadingMap:
     def test_each_concern_lists_its_places(self):
         html = measured.body("reading.map", CTX, Refs())
-        rows = {r[0]: r[1] for r in rows_of(html)}
+        rows = {}
+        for concern, place, _ in rows_of(html):
+            rows.setdefault(concern, []).append(place)
 
         assert list(rows) == ["configuration", "tests", "build", "docs", "migrations", "CI", "entry points", "scripts"]
         assert "docs/" in rows["docs"] and "README.md" in rows["docs"]
         assert "tests/" in rows["tests"] and "tests/unit" not in rows["tests"]
-        assert "src/app/migrations/" in rows["migrations"]
-        assert rows["CI"] == ".github/"
-        assert rows["entry points"].count("src/app/a.py") == 1
+        assert rows["migrations"] == ["src/app/migrations/"]
+        assert rows["CI"] == [".github/"]
+        assert rows["entry points"] == ["src/app/a.py"]
+
+    def test_one_row_for_each_concern_and_location_with_its_citation_in_source(self):
+        rows = rows_of(measured.body("reading.map", CTX, MarkedRefs()))
+
+        docs = [r for r in rows if r[0] == "docs"]
+        assert len(docs) == 2
+        assert all(len(r) == 3 for r in rows)
+        assert {r[1]: r[2] for r in docs} == {"docs/": "[docs/]", "README.md": "[README.md]"}
+        assert "[" not in "".join(r[1] for r in rows)
 
     def test_concern_with_nothing_says_none_found(self):
         html = measured.body("reading.map", {"tree": {"x.py"}, "extract": {}}, Refs())
 
-        assert "none found" in rows_of(html)[0][1]
+        assert rows_of(html)[0][1:] == ["none found", ""]
 
     def test_without_a_tree_the_placeholder_is_used(self):
         assert measured.body("reading.map", {}, Refs()) is None
@@ -59,9 +77,15 @@ class TestTooling:
         rows = {r[0]: r for r in rows_of(measured.body("conventions.tooling", CTX, Refs()))}
 
         assert set(rows) == {"ruff", "black", "pre-commit"}
-        assert "pyproject.toml:4" in rows["ruff"][1]
+        assert rows["ruff"][1] == "pyproject.toml"
         assert rows["ruff"][2].startswith("pre-commit") and ".github/workflows/ci.yml" in rows["ruff"][2]
         assert rows["black"][2] == "not enforced in the repository"
+
+    def test_citations_go_in_the_source_column(self):
+        rows = {r[0]: r for r in rows_of(measured.body("conventions.tooling", CTX, MarkedRefs()))}
+
+        assert rows["ruff"][3] == "[pyproject.toml:4][.github/workflows/ci.yml]"
+        assert "[" not in rows["ruff"][1] + rows["ruff"][2]
 
     def test_no_tools_gives_the_fixed_sentence(self):
         html = measured.body("conventions.tooling", {"tree": {"a.py"}, "read": lambda p: None}, Refs())
@@ -86,6 +110,11 @@ class TestViolations:
         assert rows[0][3] == "a.py:3"
         assert rows[1][1:3] == ["x.low", "x.high"]
         assert rows[2][3] == "Not checked by dossier."
+
+    def test_evidence_is_cited_in_the_source_column(self):
+        rows = rows_of(measured.body("interactions.violations", {"extract": {"graph": self.GRAPH}}, MarkedRefs()))
+
+        assert [r[4] for r in rows] == ["[a.py:3]", "[x/low.py:7]", ""]
 
     def test_nothing_found_texts(self):
         none = measured.body("interactions.violations", {"extract": {"graph": []}}, Refs())
@@ -144,23 +173,11 @@ def table_html(html, tid):
     return re.search(r'<table class="table[^"]*" id="%s".*?</table>' % re.escape(tid), html, re.S).group(0)
 
 
-def mermaid_source(html):
-    return htmllib.unescape(re.search(r'data-src="([^"]*)"', html).group(1))
-
-
 class TestComponentMap:
-    def test_one_subgraph_per_area_and_one_node_per_component(self):
-        src = mermaid_source(measured.body("components.map", MAP_CTX, Refs()))
+    def test_draws_no_diagram_of_which_component_imports_which(self):
+        html = measured.body("components.map", MAP_CTX, Refs())
 
-        assert src.startswith("flowchart TB")
-        assert src.count("subgraph") == 4  # api, core, db and the unassigned loose module
-        assert 'Api["Api"]' in src and 'Core["Core"]' in src and 'Db["Db"]' in src
-
-    def test_arrows_carry_no_labels_and_unassigned_is_a_group(self):
-        src = mermaid_source(measured.body("components.map", MAP_CTX, Refs()))
-
-        assert "Api --> Core" in src and "Core --> unassigned" in src
-        assert "-->|" not in src
+        assert "mermaid-host" not in html and "flowchart" not in html
 
     def test_table_has_files_lines_and_neighbours(self):
         rows = {r[0]: r for r in rows_of(table_html(measured.body("components.map", MAP_CTX, Refs()), "t-components-map"))}
@@ -178,19 +195,19 @@ class TestDependencyGraph:
 
         rows = rows_of(table_html(html, "t-interactions-graph-edges"))
         assert len(rows) == 4
-        assert rows[0] == ["Api", "Core", "src.app.api.x", "src.app.core.y", "2", "src/app/api/x.py:2, src/app/api/x.py:9"]
+        assert rows[0] == ["Api", "Core", "src.app.api.x", "src.app.core.y", "2", ""]
 
-    def test_without_a_catalog_nodes_are_areas(self):
-        src = mermaid_source(measured.body("interactions.graph", {"extract": MAP_EXTRACT}, Refs()))
+    def test_module_table_cites_each_import_line_in_the_source_column(self):
+        html = measured.body("interactions.graph", MAP_CTX, MarkedRefs())
 
-        assert 'api["api"]' in src and "api --> core" in src
+        rows = rows_of(table_html(html, "t-interactions-graph-edges"))
+        assert rows[0][5] == "[src/app/api/x.py:2][src/app/api/x.py:9]"
 
-    def test_a_single_node_draws_only_the_table(self):
-        extract = {"graph": [imp("a.py", "b.py")]}
+    def test_draws_only_tables_with_or_without_a_catalog(self):
+        for ctx in (MAP_CTX, {"extract": MAP_EXTRACT}):
+            html = measured.body("interactions.graph", ctx, Refs())
 
-        html = measured.body("interactions.graph", {"extract": extract}, Refs())
-
-        assert "mermaid-host" not in html and "<table" in html
+            assert "mermaid-host" not in html and html.count("<table") >= 2
 
     def test_no_imports_says_so(self):
         assert "No imports between modules were found." in measured.body("interactions.graph", {"extract": {"graph": []}}, Refs())
@@ -248,82 +265,6 @@ def big_graph(components=16, areas=6, edges=71):
     chosen = {pair: 1 + i % 3 for i, pair in enumerate(pairs[::3][:edges])}
     assert len(chosen) == edges
     return chosen, area
-
-
-def sources(result):
-    return [src for _, src, _ in result]
-
-
-def node_count(src):
-    return len(re.findall(r'^\s+\w+\["', src, re.M))
-
-
-def edge_count(src):
-    return len(re.findall(r"^\s+\w+ --> \w+$", src, re.M))
-
-
-class TestDiagrams:
-    def test_a_small_graph_is_one_diagram(self):
-        edges = {("A", "B"): 2, ("B", "C"): 1, ("A", "C"): 1, ("C", "D"): 1, ("D", "E"): 1, ("E", "A"): 1}
-        area = {"A": "x", "B": "x", "C": "y", "D": "y", "E": "y"}
-
-        result = measured_graph.diagrams(edges, area)
-
-        assert len(result) == 1
-        assert result[0][2] == ""
-
-    def test_a_big_graph_is_split_into_an_overview_and_one_diagram_per_area(self):
-        edges, area = big_graph()
-
-        result = measured_graph.diagrams(edges, area)
-
-        assert len(result) == 1 + 6
-        assert {budget for _, _, budget in result} == {"area"}
-
-    def test_every_diagram_is_drawn_without_edge_labels(self):
-        edges, area = big_graph()
-
-        result = measured_graph.diagrams(edges, area)
-
-        assert not any("-->|" in src for src in sources(result))
-
-    def test_every_component_edge_appears_in_an_area_diagram_or_the_overview(self):
-        edges, area = big_graph()
-        result = {t: s for t, s, _ in measured_graph.diagrams(edges, area)}
-        ids = {title: dict((label, i) for i, label in re.findall(r'^\s+(\w+)\["([^"]*)"\]', src, re.M)) for title, src in result.items()}
-        arrows = {title: set(re.findall(r"^\s+(\w+) --> (\w+)$", src, re.M)) for title, src in result.items()}
-        overview = next(t for t in result if t.endswith("areas"))
-
-        for (a, b) in edges:
-            if area[a] == area[b]:
-                assert any((ids[t][a], ids[t][b]) in arrows[t] for t in result if a in ids[t] and b in ids[t]), (a, b)
-            else:
-                assert (ids[overview][area[a]], ids[overview][area[b]]) in arrows[overview], (a, b)
-                assert any((ids[t][a], ids[t][area[b] + " (area)"]) in arrows[t] for t in result if a in ids[t] and area[b] + " (area)" in ids[t]), (a, b)
-                assert any((ids[t][area[a] + " (area)"], ids[t][b]) in arrows[t] for t in result if b in ids[t] and area[a] + " (area)" in ids[t]), (a, b)
-
-    def test_the_overview_has_one_node_per_area(self):
-        edges, area = big_graph()
-
-        overview = next(src for title, src, _ in measured_graph.diagrams(edges, area) if title.endswith("areas"))
-
-        assert node_count(overview) == 6
-
-    def test_isolated_components_are_still_drawn(self):
-        edges, area = big_graph()
-        area["Lonely"] = "area0"
-
-        result = measured_graph.diagrams(edges, area, extra=["Lonely"])
-
-        assert any('Lonely["Lonely"]' in src for src in sources(result))
-
-    def test_without_areas_an_oversized_graph_is_one_diagram_marked_over_budget(self):
-        edges, _ = big_graph()
-
-        result = measured_graph.diagrams(edges, None)
-
-        assert len(result) == 1
-        assert result[0][2] == "area"
 
 
 class TestHostBudgetMark:
@@ -388,16 +329,3 @@ class TestComponentTables:
 
         assert headers[:2] == ["From component", "To component"]
         assert len(rows) == sum(1 for g in ctx["extract"]["graph"] if g["kind"] == "import")
-
-    def test_a_graph_within_the_budget_is_one_diagram(self):
-        html = measured.body("components.map", MAP_CTX, Refs())
-
-        assert html.count('class="mermaid-host"') == 1
-
-    def test_a_big_graph_draws_an_overview_and_area_diagrams(self):
-        ctx, _, _ = big_ctx()
-
-        html = measured.body("components.map", ctx, Refs())
-
-        assert html.count('class="mermaid-host"') == 7
-        assert html.count('data-budget="area"') == 7

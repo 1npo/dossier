@@ -1,4 +1,4 @@
-/* Layout glue only. Basecoat (Vega style) supplies the sidebar, cards, tables, badges, buttons, inputs and alerts. */
+/* Layout glue only. Basecoat supplies the sidebar, cards, tables, badges, buttons, inputs and alerts. */
 :root { --ok: oklch(.52 .14 155); --ok-bg: oklch(.95 .05 155); --warn: oklch(.58 .14 90); --warn-bg: oklch(.96 .07 100); --bad: var(--destructive); --pend: oklch(.5 .16 260);
   --header-h: 7rem; --sidebar-width: 18.5rem; }
 .dark { --ok: oklch(.8 .15 155); --ok-bg: oklch(.3 .07 155); --warn: oklch(.85 .15 95); --warn-bg: oklch(.32 .07 95); --pend: oklch(.78 .12 260); }
@@ -64,7 +64,6 @@ mark { background: color-mix(in oklab, var(--warn) 30%, transparent); color: inh
 .report-head { margin: .25rem 0 0; } .headline { font-size: .9375rem; color: var(--muted-foreground); max-width: 80rem; }
 .part { margin-top: 1.25rem; padding: .25rem 0 .6rem; border-bottom: 2px solid var(--foreground); }
 .part h2 { font-size: .75rem; text-transform: uppercase; letter-spacing: .16em; } .part p { margin: .25rem 0 0; color: var(--muted-foreground); }
-.summary { border-left: 3px solid var(--primary); }
 .findings { display: flex; flex-direction: column; gap: 1.1rem; }
 .card .claims { padding-left: 1.2rem; margin: 0; }
 .card header p { color: var(--muted-foreground); margin: .25rem 0 0; }
@@ -382,13 +381,7 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 }
 @media (prefers-reduced-motion: reduce) { .km * { transition: none !important; animation: none !important; } }
 
-/* card shading: a card of figures measured from the repository is tinted blue, one holding statements written by Claude is outlined in amber. Contents and References stay plain */
-:root { --card-fact: color-mix(in oklab, var(--pend) 7%, var(--card)); --card-llm: color-mix(in oklab, var(--warn) 70%, var(--card)); }
-.card.fact { background: var(--card-fact); } .card.llm { border-color: var(--card-llm); box-shadow: 0 0 0 1px var(--card-llm); }
 .facts-groups.one { grid-template-columns: minmax(0, 1fr); }
-.shade-key { display: flex; flex-wrap: wrap; gap: .3rem 1.25rem; font-size: .8125rem; color: var(--muted-foreground); }
-.shade-key i { display: inline-block; width: .8rem; height: .8rem; border-radius: .2rem; margin-right: .4rem; vertical-align: -1px; border: 1px solid var(--border); }
-.shade-key .fact i { background: var(--card-fact); } .shade-key .llm i { border-color: var(--card-llm); box-shadow: 0 0 0 1px var(--card-llm); }
 
 /* dependencies card: stat tiles and a findings table, then one of six views of which files import which packages. Colour is by category; the blue ramp is for magnitude only */
 .dp { container: dp / inline-size; display: flex; flex-direction: column; gap: 1.25rem; min-width: 0;
@@ -456,12 +449,10 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 .dp-tm .cell b { display: block; font: 500 .75rem var(--font-mono, ui-monospace, Menlo, Consolas, monospace); color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dp-tm .cell small { display: block; font-size: .6875rem; color: var(--muted-foreground); white-space: nowrap; } .dp-tm .cell:hover { box-shadow: 0 0 0 2px var(--foreground); }
 
-/* reliance plot and module graph */
+/* reliance plot */
 .dp svg text { font-family: inherit; fill: var(--muted-foreground); font-size: 11px; } .dp svg .strong { fill: var(--foreground); } .dp svg .mono { font-family: var(--font-mono, ui-monospace, Menlo, Consolas, monospace); }
 .dp svg .axis { stroke: var(--border); stroke-width: 1; } .dp svg .grid { stroke: var(--border); stroke-width: 1; opacity: .55; }
 .dp svg circle { cursor: default; } .dp svg circle:hover { stroke-width: 3; }
-.dp-ge { fill: none; transition: opacity .12s; } svg.hl .dp-ge { opacity: .07 !important; } svg.hl .dp-ge.on { opacity: .85 !important; }
-.dp-gn rect.box { fill: var(--muted); stroke: var(--border); } .dp-gn:hover rect.box, .dp-gn:focus-visible rect.box { stroke: var(--foreground); } .dp-gn:focus-visible { outline: none; }
 
 /* by file */
 .dp-tree { display: grid; grid-template-columns: minmax(0, 1fr) 68px; height: 468px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--card); }
@@ -498,9 +489,8 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 :is(#t-people, .dp-rank, .dp-finds .table) tbody td { padding-top: .3rem; padding-bottom: .3rem; font-size: .75rem; vertical-align: middle; }
 :is(#t-people, .dp-rank, .dp-finds .table) tbody tr:hover { background: var(--accent); }
 
-/* schema cards: tier badges, question line, flows, entries */
-.tier { margin-left: .5rem; font-weight: 600; min-width: 1.6rem; justify-content: center; }
-.question { margin: .15rem 0 0; font-size: 1rem; font-style: italic; color: var(--muted-foreground); }
+/* schema cards: tier badges, flows, entries */
+.tier { font-weight: 600; min-width: 1.6rem; justify-content: center; }
 .tier-key { display: flex; flex-wrap: wrap; gap: .3rem 1.25rem; font-size: .8125rem; color: var(--muted-foreground); margin: 0; }
 .diagram.flow + .diagram.flow { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); }
 .flow-bar { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
@@ -524,4 +514,18 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 .table-container.scrolls { background: linear-gradient(to right, var(--card) 30%, transparent) left / 2rem 100% no-repeat local, linear-gradient(to left, var(--card) 30%, transparent) right / 2rem 100% no-repeat local, linear-gradient(to left, rgb(0 0 0 / .12), transparent) right / .75rem 100% no-repeat scroll; }
 .table-container.tall { max-height: 70vh; overflow: auto; }
 .table-container.tall thead th { position: sticky; top: 0; z-index: 2; background: var(--card); }
+/* one card style for every card (a compact, Nova-like scale): same padding, border, radius and no shadow on panels, blocks, summary, contents and references */
+.card { gap: 1rem; padding-block: 1rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); box-shadow: none; }
+.card > header, .card > section, .card > footer { padding-inline: 1rem; }
+.card > header { position: relative; }
+.card > header:has(> .card-badges) { padding-right: 7rem; }
+
+/* tier badges sit in the top right corner of the card and are colour-coded: M blue, A violet, R teal, M+A indigo */
+.card-badges { position: absolute; top: 0; right: 1rem; display: flex; align-items: center; gap: .35rem; }
+:root { --tier-m: oklch(.5 .16 260); --tier-a: oklch(.5 .18 305); --tier-r: oklch(.5 .1 190); --tier-ma: oklch(.48 .17 280); }
+.dark { --tier-m: oklch(.8 .11 260); --tier-a: oklch(.8 .12 305); --tier-r: oklch(.82 .1 190); --tier-ma: oklch(.8 .11 280); }
+.badge.tier { background: color-mix(in oklab, var(--tier) 14%, transparent); border-color: color-mix(in oklab, var(--tier) 55%, transparent); color: var(--tier); }
+.badge.tier-m { --tier: var(--tier-m); } .badge.tier-a { --tier: var(--tier-a); } .badge.tier-r { --tier: var(--tier-r); } .badge.tier-mplusa { --tier: var(--tier-ma); }
+.tier-key b { display: inline-block; min-width: 1.4rem; text-align: center; padding: 0 .3rem; border-radius: 99px; border: 1px solid; font-weight: 600; font-size: .75rem; }
+.tier-key .tier-m { color: var(--tier-m); } .tier-key .tier-a { color: var(--tier-a); } .tier-key .tier-r { color: var(--tier-r); } .tier-key .tier-mplusa { color: var(--tier-ma); }
 :root { --dossier-css-end: 1; }

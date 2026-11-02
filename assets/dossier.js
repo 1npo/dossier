@@ -945,28 +945,6 @@
       return '<div class="dp-scroll">' + s + "</svg></div>" + legend(HAS_TR ? "Circle size = packages pulled in" : "");
     }
 
-    // ---- module graph: modules on the left, the top 10 dependencies on the right, edge width = files importing
-    function viewGraph(l) {
-      var top = ranked(l).slice(0, 10), W = 680, nh = 34, Hm = Math.max(MODS.length, top.length) * 44 + 16, x1 = 150, x2 = W - 190;
-      var ly = function (i) { return 12 + i * ((Hm - 24 - nh) / Math.max(1, MODS.length - 1)); }, ry = function (i) { return 12 + i * ((Hm - 24 - nh) / Math.max(1, top.length - 1)); };
-      var s = '<svg viewBox="0 0 ' + W + " " + Hm + '" width="100%" style="min-width:35rem" role="img" aria-label="Module to dependency graph; line width shows files importing">';
-      MODS.forEach(function (m, i) {
-        top.forEach(function (d, j) {
-          var n = d.mods[m.id]; if (!n) return;
-          var y1 = ly(i) + nh / 2, y2 = ry(j) + nh / 2, mx = (x1 + x2) / 2;
-          s += '<path class="dp-ge" data-m="' + esc(m.id) + '" data-d="' + esc(d.n) + '" data-cell="' + esc(m.id + "|" + d.n) + '" d="M' + x1 + " " + y1 + " C" + mx + " " + y1 + " " + mx + " " + y2 + " " + x2 + " " + y2 + '" stroke="' + catVar(d.c) + '" stroke-width="' + (1.5 + Math.sqrt(n) * 1.1).toFixed(1) + '" opacity=".5"/>';
-        });
-      });
-      MODS.forEach(function (m, i) {
-        s += '<g class="dp-gn" data-mod="' + esc(m.id) + '" tabindex="0"><rect class="box" x="0" y="' + ly(i) + '" width="' + x1 + '" height="' + nh + '" rx="6"/><text class="strong" x="12" y="' + (ly(i) + 15) + '" style="font-weight:500;font-size:12px">' + esc(m.id) + '</text><text x="12" y="' + (ly(i) + 28) + '">' + plural(m.files, "file") + "</text></g>";
-      });
-      top.forEach(function (d, j) {
-        s += '<g class="dp-gn" data-dep="' + esc(d.n) + '" tabindex="0"><rect class="box" x="' + x2 + '" y="' + ry(j) + '" width="' + (W - x2) + '" height="' + nh + '" rx="6"/><rect x="' + x2 + '" y="' + ry(j) + '" width="4" height="' + nh + '" style="fill:' + catVar(d.c) + ';stroke:none"/>' +
-          '<text class="strong mono" x="' + (x2 + 14) + '" y="' + (ry(j) + 15) + '" style="font-size:12px">' + esc(d.n) + '</text><text x="' + (x2 + 14) + '" y="' + (ry(j) + 28) + '">' + plural(d.files, "file") + " · " + plural(d.spread, "module") + "</text></g>";
-      });
-      return '<div class="dp-scroll">' + s + "</svg></div>" + legend("Line width = files importing it · top 10 by " + MEAS[state.measure].toLowerCase());
-    }
-
     // ---- by file: the repository tree. Directory totals are summed from their files, and rows are drawn only for the part in view.
     var RH = 28, HEAD_H = 30, OVER = 8;
     var NODE = Object.create(null), TOPS = [], VIS = [], INS = Object.create(null), focusRow = false;
@@ -1187,7 +1165,7 @@
     function render(keepScroll) {
       var l = list(), V = state.view, files = V === "files";
       computeStats(); hideTip();
-      stage.innerHTML = !l.length ? EMPTY : ({ table: viewTable, matrix: viewMatrix, tree: viewTree, bubble: viewBubble, graph: viewGraph, files: viewFiles })[V](l);
+      stage.innerHTML = !l.length ? EMPTY : ({ table: viewTable, matrix: viewMatrix, tree: viewTree, bubble: viewBubble, files: viewFiles })[V](l);
       if (V === "tree" && l.length) layoutTree();
       if (files && l.length) renderFiles(keepScroll === true);
       setPressed("dp-view", state.view); setPressed("dp-measure", state.measure); setPressed("dp-scope", state.scope); setPressed("dp-zoom", state.zoom); setPressed("dp-show", state.show);
@@ -1241,11 +1219,148 @@
         return '<div class="tp-h">' + esc(p[1]) + " in " + esc(p[0]) + "</div>" + r2("Files importing", (d.mods[p[0]] || 0) + " of " + m.files + " (" + pct((d.mods[p[0]] || 0) / m.files) + "%)");
       }
       if (el.dataset.dep) { d = BYNAME[el.dataset.dep]; return d ? depTip(d) : null; }
-      if (el.dataset.mod) {
-        m = MODS.filter(function (x) { return x.id === el.dataset.mod; })[0];
-        top = DEPS.filter(function (x) { return x.mods[m.id]; }).sort(function (a, b) { return b.mods[m.id] - a.mods[m.id]; }).slice(0, 5);
-        return '<div class="tp-h">' + esc(m.id) + "</div>" + r2("Files", m.files) + top.map(function (x) { return r2(esc(x.n), x.mods[m.id]); }).join("");
+      return null;
+    }
+    var tipOwned = false;
+    function hideTip() { if (tipOwned) { tip.hidden = true; tipOwned = false; } }
+    stage.addEventListener("pointermove", function (e) { if (dragging && cv) seek(e); });
+    stage.addEventListener("pointerup", function () { dragging = false; });
+    stage.addEventListener("pointercancel", function () { dragging = false; });
+    stage.addEventListener("scroll", function (e) { if (e.target === scroller) { drawRows(); sched(); hideTip(); } }, true);
+    if (window.ResizeObserver) new ResizeObserver(function () { if (state.view === "tree") layoutTree(); else if (state.view === "files") { drawRows(); sched(); } }).observe(stage);
+    if (window.MutationObserver) new MutationObserver(sched).observe(root, { attributes: true, attributeFilter: ["class"] });   // the theme is the "dark" class on <html>
+
+    // ---- tree keyboard: Up and Down move, Right opens or enters, Left closes or leaves, Enter and Space toggle, Home and End jump
+    function toggle(n, open) { if (open) state.open[n.id] = 1; else delete state.open[n.id]; state.sel = n.id; focusRow = true; renderFiles(true); }
+    function moveTo(j) {
+      if (j < 0 || j >= VIS.length) return;
+      state.sel = VIS[j].id;
+      var y = HEAD_H + j * RH;
+      if (y < scroller.scrollTop + HEAD_H) scroller.scrollTop = y - HEAD_H; else if (y + RH > scroller.scrollTop + scroller.clientHeight) scroller.scrollTop = y + RH - scroller.clientHeight;
+      focusRow = true; drawRows(); sched();
+    }
+    stage.addEventListener("keydown", function (e) {
+      var row = e.target.closest && e.target.closest(".dp-row"); if (!row) return;
+      var n = NODE[row.dataset.path], i = VIS.indexOf(n), j;
+      if (e.key === "ArrowDown") { e.preventDefault(); moveTo(i + 1); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); moveTo(i - 1); }
+      else if (e.key === "ArrowRight") { e.preventDefault(); if (n.dir && !state.open[n.id]) toggle(n, true); else if (n.dir) moveTo(i + 1); }
+      else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        if (n.dir && state.open[n.id]) toggle(n, false);
+        else if (n.parent) moveTo(VIS.indexOf(n.parent));
       }
+      else if ((e.key === "Enter" || e.key === " ") && n.dir) { e.preventDefault(); toggle(n, !state.open[n.id]); }
+      else if (e.key === "Home") { e.preventDefault(); moveTo(0); }
+      else if (e.key === "End") { e.preventDefault(); moveTo(VIS.length - 1); }
+    });
+
+    // ---- the dependency picker: a searchable combobox. "All dependencies" clears the focus, and is not offered while Show is "Only paths it touches".
+    var combo = { open: false, q: "", idx: 0, items: [] }, depInp = $("#dp-depsel", rootEl), depList = $("#dp-deplist", rootEl);
+    function depItems() {
+      var q = combo.q.trim().toLowerCase();
+      var items = list().sort(function (a, b) { return a.n.toLowerCase() < b.n.toLowerCase() ? -1 : 1; }).filter(function (d) { return !q || d.n.toLowerCase().indexOf(q) >= 0; });
+      if (!q && state.show !== "touched") items.unshift({ all: true });
+      return items;
+    }
+    function drawCombo() {
+      depList.hidden = !combo.open; depInp.setAttribute("aria-expanded", String(combo.open));
+      if (!combo.open) { depInp.removeAttribute("aria-activedescendant"); return; }
+      combo.items = depItems(); combo.idx = Math.max(0, Math.min(combo.idx, combo.items.length - 1));
+      depList.innerHTML = combo.items.length ? combo.items.map(function (d, i) {
+        return d.all ? '<li id="dp-opt' + i + '" role="option" data-v="" aria-selected="' + (i === combo.idx) + '"><span>All dependencies</span></li>' :
+          '<li id="dp-opt' + i + '" role="option" data-v="' + esc(d.n) + '" aria-selected="' + (i === combo.idx) + '" class="' + (d.n === state.focus ? "cur" : "") + '"><i class="dp-dot" style="background:' + catVar(d.c) + ';margin:0"></i><span class="dp-nm">' + esc(d.n) + '</span><span class="dp-cnt">' + plural(d.files, "file") + "</span></li>";
+      }).join("") : '<li class="none" role="option" aria-disabled="true">No dependency matches</li>';
+      if (combo.items.length) {
+        depInp.setAttribute("aria-activedescendant", "dp-opt" + combo.idx);
+        var li = depList.children[combo.idx];
+        if (li) { if (li.offsetTop < depList.scrollTop) depList.scrollTop = li.offsetTop - 4; else if (li.offsetTop + li.offsetHeight > depList.scrollTop + depList.clientHeight) depList.scrollTop = li.offsetTop + li.offsetHeight - depList.clientHeight + 4; }
+      }
+    }
+    function openCombo() {
+      if (combo.open) return;
+      combo.open = true; combo.q = ""; combo.items = depItems();
+      var cur = state.focus || ""; combo.idx = 0;
+      combo.items.forEach(function (d, i) { if ((d.all ? "" : d.n) === cur) combo.idx = i; });
+      drawCombo(); depInp.select();
+    }
+    function closeCombo() { combo.open = false; drawCombo(); depInp.value = state.focus || ""; }
+    function pickDep(v) {
+      closeCombo();
+      if (!v) { if (state.focus) { state.focus = null; render(); } }
+      else if (v !== state.focus) { state.focus = v; if (state.show === "touched") applyZoom(); render(); }
+    }
+    depInp.addEventListener("focus", openCombo); depInp.addEventListener("click", openCombo); depInp.addEventListener("blur", closeCombo);
+    depInp.addEventListener("input", function () { combo.open = true; combo.q = depInp.value; combo.idx = 0; drawCombo(); });
+    depInp.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (!combo.open) { openCombo(); return; }
+        var n = combo.items.length; if (n) { combo.idx = (combo.idx + (e.key === "ArrowDown" ? 1 : n - 1)) % n; drawCombo(); }
+      } else if (e.key === "Enter") { if (combo.open && combo.items[combo.idx]) { e.preventDefault(); pickDep(combo.items[combo.idx].all ? "" : combo.items[combo.idx].n); } }
+      else if (e.key === "Escape") { if (combo.open) { e.preventDefault(); closeCombo(); } }
+    });
+    depList.addEventListener("mousedown", function (e) { e.preventDefault(); var li = e.target.closest('li[role="option"]'); if (li && li.dataset.v !== undefined) pickDep(li.dataset.v); });
+
+    // ---- render
+    function setPressed(id, v) { $$("#" + id + " button", rootEl).forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.v === String(v))); }); }
+    function render(keepScroll) {
+      var l = list(), V = state.view, files = V === "files";
+      computeStats(); hideTip();
+      stage.innerHTML = !l.length ? EMPTY : ({ table: viewTable, matrix: viewMatrix, tree: viewTree, bubble: viewBubble, files: viewFiles })[V](l);
+      if (V === "tree" && l.length) layoutTree();
+      if (files && l.length) renderFiles(keepScroll === true);
+      setPressed("dp-view", state.view); setPressed("dp-measure", state.measure); setPressed("dp-scope", state.scope); setPressed("dp-zoom", state.zoom); setPressed("dp-show", state.show);
+      ["zoom", "show", "dep"].forEach(function (k) { $("#dp-" + k + "-ctl", rootEl).hidden = !files; });
+      if (!combo.open) depInp.value = state.focus || "";
+      depInp.placeholder = state.show === "touched" ? "Search dependencies" : "All dependencies";
+      try { localStorage.setItem(STORE, JSON.stringify({ measure: state.measure, scope: state.scope })); } catch (e) {}
+    }
+    [["view", "dp-view"], ["measure", "dp-measure"], ["scope", "dp-scope"]].forEach(function (p) {
+      $("#" + p[1], rootEl).addEventListener("click", function (e) {
+        var b = e.target.closest("button"); if (!b) return;
+        state[p[0]] = b.dataset.v; state.all = false; if (p[0] === "measure") tsort.key = null;
+        render();
+      });
+    });
+    $("#dp-zoom", rootEl).addEventListener("click", function (e) { var b = e.target.closest("button"); if (!b) return; state.zoom = +b.dataset.v; applyZoom(); render(); });
+    $("#dp-show", rootEl).addEventListener("click", function (e) {
+      var b = e.target.closest("button"); if (!b) return;
+      state.show = b.dataset.v; if (state.show === "touched") computeStats();
+      applyZoom(); render();
+    });
+    stage.addEventListener("click", function (e) {
+      var sb = e.target.closest("[data-sort]"), row, n;
+      if (sb) { nextSort(sb.dataset.sort); render(); return; }
+      if (e.target.closest("[data-more]")) { state.all = !state.all; render(); return; }
+      row = e.target.closest(".dp-row");
+      if (row) { n = NODE[row.dataset.path]; state.sel = n.id; if (n.dir) toggle(n, !state.open[n.id]); else { focusRow = true; drawRows(); } }
+    });
+
+    // ---- tooltips: follow the pointer, use the page's shared tooltip element, and are not shown for touch
+    var r2 = function (k, v) { return '<div class="dp-r"><span>' + k + "</span><span>" + v + "</span></div>"; };
+    function depTip(d) {
+      var mods = Object.keys(d.mods).sort(function (a, b) { return d.mods[b] - d.mods[a]; }).map(function (k) { return esc(k) + " " + d.mods[k]; }).join(" · ");
+      var h = '<div class="tp-h">' + esc(d.n) + ' <span style="opacity:.75;font-weight:400">' + esc(d.v) + "</span></div>" +
+        r2("Category", d.c + (d.c === "Other" ? " (inferred)" : "")) + r2("Scope", d.s + (d.group ? " · " + esc(d.group) : "")) + r2("Files importing", d.src + " source · " + d.tst + " test") +
+        r2("Modules", mods || "none") + r2("Symbols used", d.sym);
+      if (d.tr != null) h += r2("Pulls in", plural(d.tr, "package"));
+      if (d.b !== undefined) h += r2("Breadth · spread · depth", pct(d.b) + " · " + pct(d.sp) + " · " + pct(d.dp));
+      return h;
+    }
+    function tipFor(el) {
+      var d, n, st, top, p, m;
+      if (el.dataset.path) {
+        n = NODE[el.dataset.path]; st = n.st;
+        top = Object.keys(st.per).sort(function (a, b) { return st.per[b] - st.per[a] || (a < b ? -1 : 1); }).slice(0, 5);
+        return '<div class="tp-h">' + esc(n.id) + (n.dir ? "/" : "") + "</div>" + r2(n.dir ? "Files" : "File", n.nf) + r2("Imports", st.imp) +
+          top.map(function (k) { return r2(esc(k), st.per[k] + (n.dir ? " / " + n.nf : "")); }).join("");
+      }
+      if (el.dataset.cell) {
+        p = el.dataset.cell.split("|"); m = MODS.filter(function (x) { return x.id === p[0]; })[0]; d = BYNAME[p[1]];
+        return '<div class="tp-h">' + esc(p[1]) + " in " + esc(p[0]) + "</div>" + r2("Files importing", (d.mods[p[0]] || 0) + " of " + m.files + " (" + pct((d.mods[p[0]] || 0) / m.files) + "%)");
+      }
+      if (el.dataset.dep) { d = BYNAME[el.dataset.dep]; return d ? depTip(d) : null; }
       return null;
     }
     var tipOwned = false;
@@ -1258,17 +1373,16 @@
     }
     stage.addEventListener("pointermove", function (e) {
       if (e.pointerType === "touch" || dragging) return;
-      var el = e.target.closest("[data-cell],[data-dep],[data-mod],[data-path]"), h, w, ht, x, y, svg;
-      if (!el) { hideTip(); clearHl(); return; }
+      var el = e.target.closest("[data-cell],[data-dep],[data-path]"), h, w, ht, x, y;
+      if (!el) { hideTip(); return; }
       h = tipFor(el); if (!h) { hideTip(); return; }
       tip.className = ""; tip.innerHTML = h; tip.hidden = false; tipOwned = true;
       w = tip.offsetWidth; ht = tip.offsetHeight; x = e.clientX + 16; y = e.clientY + 16;
       if (x + w > window.innerWidth - 8) x = e.clientX - w - 16;
       if (y + ht > window.innerHeight - 8) y = window.innerHeight - ht - 8;
       tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
-      svg = e.target.closest("svg"); if (svg && state.view === "graph") hl(svg, el);
     });
-    stage.addEventListener("pointerleave", function () { hideTip(); clearHl(); });
+    stage.addEventListener("pointerleave", hideTip);
 
     applyZoom(); render();
   })();

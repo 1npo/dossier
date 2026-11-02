@@ -1,8 +1,8 @@
 """The two measured graph cards (D8): `components.map` and `interactions.graph`.
 
-Both draw component-level Mermaid flowcharts (one arrow per pair of components with at least one import; a graph over the
-budget is split into an overview of areas and one diagram per area) and tables that hold every fact, so nothing is dropped:
-the dependency matrix, the component edge table and the module table. Collapsible graphs come in a later milestone.
+Both are tables that hold every fact, so nothing is dropped: the component table, the dependency matrix, the component edge table and
+the module table. They draw no diagram: a picture of which module imports which is noise, and the tables say it exactly.
+(`_diagram` stays for the entity-relationship diagrams of `measured_er`.)
 """
 from __future__ import annotations
 
@@ -94,76 +94,6 @@ def _group_of(extract: dict, rows: list, roots: list) -> dict:
     return out
 
 
-MAX_NODES, MAX_EDGES = 12, 30
-
-
-def _flowchart(edges, area_of_group: dict | None, extra=(), direction="TB") -> str:
-    """One flowchart: a subgraph per area when `area_of_group` is given, a plain arrow (no label) per pair of nodes."""
-    taken: dict = {}
-    nodes = sorted({n for pair in edges for n in pair} | set(extra))
-    lines = [f"flowchart {direction}"]
-    by_area: dict = {}
-    for n in nodes:
-        by_area.setdefault((area_of_group or {}).get(n), []).append(n)
-    for area, members in sorted(by_area.items(), key=lambda kv: (kv[0] is None, kv[0] or "")):
-        indent = "  "
-        if area is not None:
-            lines.append(f'  subgraph {mermaid_id("g_" + area, taken)}["{_label(area)}"]')
-            indent = "    "
-        lines += [f'{indent}{mermaid_id(n, taken)}["{_label(n)}"]' for n in members]
-        if area is not None:
-            lines.append("  end")
-    for (a, b) in sorted(edges):
-        lines.append(f"  {mermaid_id(a, taken)} --> {mermaid_id(b, taken)}")
-    return "\n".join(lines)
-
-
-def _overview(edges: dict, area: dict, nodes) -> str:
-    taken: dict = {}
-    areas = sorted({area[n] for n in nodes})
-    pairs = sorted({(area[a], area[b]) for (a, b) in edges if area[a] != area[b]})
-    lines = ["flowchart TB"] + [f'  {mermaid_id(a, taken)}["{_label(a)}"]' for a in areas]
-    lines += [f"  {mermaid_id(a, taken)} --> {mermaid_id(b, taken)}" for a, b in pairs]
-    return "\n".join(lines)
-
-
-def _area_diagram(name: str, edges: dict, area: dict, nodes) -> str:
-    taken: dict = {}
-    members = sorted(n for n in nodes if area[n] == name)
-    outside = {area[x] for pair in edges for x in pair if area[x] != name and any(area[y] == name for y in pair)}
-    lines = ["flowchart TB", f'  subgraph {mermaid_id("g_" + name, taken)}["{_label(name)}"]']
-    lines += [f'    {mermaid_id("c " + n, taken)}["{_label(n)}"]' for n in members]
-    lines.append("  end")
-    lines += [f'  {mermaid_id("a " + o, taken)}["{_label(o)} (area)"]' for o in sorted(outside)]
-    arrows = set()
-    for (a, b) in edges:
-        ida = mermaid_id("c " + a, taken) if area[a] == name else mermaid_id("a " + area[a], taken)
-        idb = mermaid_id("c " + b, taken) if area[b] == name else mermaid_id("a " + area[b], taken)
-        if area[a] == name or area[b] == name:
-            arrows.add((ida, idb))
-    lines += [f"  {a} --> {b}" for a, b in sorted(arrows)]
-    return "\n".join(lines)
-
-
-def diagrams(edges: dict, area: dict | None, extra=(), title="Imports between components") -> list:
-    """The diagrams for a component graph: [(title, mermaid source, budget)].
-
-    A graph of at most MAX_NODES nodes and MAX_EDGES edges is one diagram. A larger one is an overview with one node per area
-    plus one diagram per area (its components, and a node for each other area they import or are imported by). `budget` is
-    "area" for a diagram that may be over budget (an overview, an area, or a graph with no areas to split by), else "".
-    Every edge is in an area diagram, and in the overview as an edge between areas.
-    """
-    nodes = {n for pair in edges for n in pair} | set(extra)
-    within = len(nodes) <= MAX_NODES and len(edges) <= MAX_EDGES
-    if within:
-        return [(title, _flowchart(edges, area, extra), "")]
-    if not area:
-        return [(title, _flowchart(edges, None, extra), "area")]
-    out = [(f"{title}: areas", _overview(edges, area, nodes), "area")]
-    out += [(f"{title}: {name}", _area_diagram(name, edges, area, nodes), "area") for name in sorted({area[n] for n in nodes})]
-    return out
-
-
 def _diagram(title: str, source: str, budget: str = "") -> str:
     r = _render()
     mark = f' data-budget="{budget}"' if budget else ""
@@ -171,12 +101,6 @@ def _diagram(title: str, source: str, budget: str = "") -> str:
             f'type="button" data-expand title="Expand" aria-label="Expand diagram">{r.EXPAND_ICONS}</button></div></div>'
             f'<div class="mermaid-host"{mark} data-src="{r.E(source)}"><pre class="muted">Diagram loads when this report is opened.</pre></div>'
             f'<details><summary class="muted">Diagram source</summary><pre>{r.E(source)}</pre></details></div>')
-
-
-def _charts(edges: dict, area: dict | None, extra, title: str) -> str:
-    if len({n for pair in edges for n in pair}) < 2:
-        return ""
-    return "".join(_diagram(t, src, budget) for t, src, budget in diagrams(edges, area, extra, title))
 
 
 def _area_map(rows: list, roots: list) -> dict:
@@ -194,9 +118,8 @@ def _graph(cid, ctx, refs):
     imports = [(g["path"], g["paths"][0]) for g in _imports(extract)]
     edges = graphs.aggregate(imports, group)
     area = _area_map(rows, roots) if rows else None
-    charts = _charts(edges, area, (), "Imports between components" if rows else "Imports between areas")
     kind = "component" if rows else "area"
-    return (charts + measured_tables.heading(f"Imports between {kind}s")
+    return (measured_tables.heading(f"Imports between {kind}s")
             + measured_tables.component_edges(cid, imports, group, refs, kind)
             + measured_tables.heading("Every module import")
             + measured_tables.module_imports(cid, _imports(extract), group, refs, kind))
@@ -225,8 +148,7 @@ def _map(cid, ctx, refs):
         table.append([r.E(name), r.E(area[name]), (str(len(mine)), len(mine)), (str(sum(lines.get(p, 0) for p in mine)), sum(lines.get(p, 0) for p in mine)),
                       r.E(", ".join(sorted(uses.get(name, [])))) or "-", r.E(", ".join(sorted(used.get(name, [])))) or "-"])
     names = [row["name"] for row in rows]
-    charts = _charts(edges, area, names, "Components and what they import")
-    return (charts + r.render_table(["Component", "Area", "Files", "Lines", "Depends on", "Used by"], table, refs, "t-" + cid.replace(".", "-"), plain=True)
+    return (r.render_table(["Component", "Area", "Files", "Lines", "Depends on", "Used by"], table, refs, "t-" + cid.replace(".", "-"), plain=True)
             + measured_tables.heading("Dependency matrix")
             + measured_tables.matrix(cid, names, edges, area, refs))
 
