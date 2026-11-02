@@ -507,4 +507,8 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 .entry { border: 1px solid var(--border); border-radius: var(--radius); padding: .6rem .8rem; margin-bottom: .6rem; }
 .entry summary { cursor: pointer; font-weight: 600; }
 
+.graph-heading { margin: 1.25rem 0 .4rem; font-size: .9375rem; font-weight: 600; }
+.table.dsm td, .table.dsm th { min-width: 0; padding: .3rem .4rem; text-align: center; }
+.table.dsm thead th:not(:first-child) { writing-mode: vertical-rl; white-space: nowrap; text-align: left; vertical-align: bottom; }
+.table.dsm td:first-child, .table.dsm th:first-child { position: sticky; left: 0; z-index: 1; min-width: 7.5rem; text-align: left; background: var(--card); }
 :root { --dossier-css-end: 1; }
