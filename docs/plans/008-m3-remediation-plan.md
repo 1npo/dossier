@@ -566,6 +566,21 @@ Session of 2026-11-01, by Sonnet 5.5, on branch `fix/dossier-m3-remediation`. Th
 5. F1-7: extractor names come from the `extract` record's adapter tool lists (status ok only), versions from that record's `tools` list, ordered as in `tools.json`.
 6. Incident: while checking that the F1-7 tests fail on the old code I ran `git stash push` on an unmodified file and then `git stash pop`, which popped an older stash of the author's (`stash@{0}: WIP on main: fe956ae`, touching `scripts/lib/install_app.sh`) and conflicted. I restored that one file to `HEAD`; the stash entry is intact and nothing else was touched. I use `git show HEAD:` and the test failures themselves from now on.
 
+**Checkpoint B (F2-1 to F2-11).**
+
+- Tests: 1070 passed, 45 skipped (default); 1115 passed with `DOSSIER_SLOW=1` (176 s). Block E: `OK`.
+- Block R on the author's data after `prepare --no-restore` re-extracted the scratch copy (42 s): 52 entities, the four SQL tables with 4, 13, 20 and 9 fields and 2 foreign keys, 19 entry points of which 13 are `cli-command` (9 registered through the `add(...)` helper, `watch add`, and 3 argparse commands of `scripts/capture_fixtures.py`), 1 `computed-subcommand` blind spot.
+- Relationships card: 13 diagrams (12 components and "SQL tables"), 71 entities, 51 relations, and a field table of 266 rows, equal to the 266 fields extracted (46 of them SQL columns). `check_page.py` on that page: exit 0, 33 diagrams, 0 problems.
+- Errors the old reports now fail with (`render --allow-errors`): 31 V5 "decides the group" (the folded entities and entry points), 1 V5 "does not list the environment variable CANNALERTS_SKIP_AYR", 1 V5 "13 tool findings for Entry points have no decision" (the new commands), 1 V6 "diagram 2 needs numbered notes after it" (onboarding); 1 V6 warning that `data.relationships` is now drawn by code. V2 name warnings: 35 before F2-11, 25 after; plus 6 new recipe warnings (none cites a commit).
+
+**Deviations in Part B.**
+
+7. The `repo` and `python` adapters are now version "2". Their output changed (SQL columns and relations, CLI commands), and an adapter's `version` is part of the extract cache key; without the bump `prepare` reused the old extract (2.5 s instead of 42 s) and an existing dossier would never have seen the fixes.
+8. F2-2: the M0 migration rule that carried an old ER diagram into `data.relationships` was removed from `migrate_map.json`, so `migrate` reports it as not carried (the plan did not mention it; `test_shipped_map_is_consistent` requires every target to be a Claude-written card).
+9. F2-8: `schema.validate` takes `strict_notes` (default true); `migrate` passes false so it still carries older flow notes as written, and `render` then asks for numbered notes.
+10. F2-3 treats "the same entry point" as the same file and the same name, as A5 says (D8 says only the same file).
+11. F2-4 counts the missing variables as `v5_env` on the check record.
+
 ### Verification results
 
 (F3-6 writes here.)
