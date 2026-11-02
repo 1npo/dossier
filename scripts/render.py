@@ -30,6 +30,17 @@ from gather import Repo
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS, VENDOR = ROOT / "assets", ROOT / "vendor"
+CONFLICT_MARKER = re.compile(r"^(<{7}|={7}|>{7})( |$)")
+
+
+def load_asset(path) -> str:
+    """Read a page asset. A git conflict marker in it would break the whole page, so refuse it."""
+    path = Path(path)
+    text = path.read_text(encoding="utf-8")
+    for n, line in enumerate(text.splitlines(), 1):
+        if CONFLICT_MARKER.match(line):
+            raise SystemExit(f"render: {path} holds a git conflict marker at line {n}. Resolve the merge in {ROOT} and render again.")
+    return text
 
 REPORTS = [  # id, title, written by Claude?  The order is schema.REPORT_ORDER.
     ("dossier", "This dossier", False), ("overview", "This repository", True), ("reading", "Reading guide", True),
@@ -1732,11 +1743,11 @@ def render_html(facts, reports, state, history, version, cites, build=None, cove
             '</div>'
             f'<div class="mh-row2"><p class="lede" title="{E(mh["description"])}">{E(mh["description"][:300])}</p></div></div>'
             '</header>')
-    css = (VENDOR / "basecoat.min.css").read_text() + "\n" + (ASSETS / "dossier.css").read_text()
-    mermaid = (VENDOR / "mermaid.min.js").read_text().replace("</script", "<\\/script").replace("<!--", "<\\!--")
-    out = (ASSETS / "template.html").read_text()
+    css = load_asset(VENDOR / "basecoat.min.css") + "\n" + load_asset(ASSETS / "dossier.css")
+    mermaid = load_asset(VENDOR / "mermaid.min.js").replace("</script", "<\\/script").replace("<!--", "<\\!--")
+    out = load_asset(ASSETS / "template.html")
     for k, v in {"TITLE": E(f"{mh['name']} dossier"), "CSS": css, "NAV": groups, "RAIL": rail, "MASTHEAD": head, "REPORTS": pages, "MERMAID": mermaid,
-                 "BASECOAT_JS": (VENDOR / "basecoat.min.js").read_text(), "JS": (ASSETS / "dossier.js").read_text(),
+                 "BASECOAT_JS": load_asset(VENDOR / "basecoat.min.js"), "JS": load_asset(ASSETS / "dossier.js"),
                  "NAME": E(mh["name"]), "SHORT": E(mh["short"]), "CODE": viewer.embed(files, windows),
                  "CAL": jsn(calendar_data(facts)), "FACTS": jsn({k: {"t": v[0], "x": v[1]} for k, v in FACT_INFO.items()})}.items():
         out = out.replace(f"<!--@{k}-->", v)

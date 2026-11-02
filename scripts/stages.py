@@ -10,6 +10,7 @@ import subprocess
 import time
 from dataclasses import dataclass
 from datetime import date
+from pathlib import Path
 
 import adapters
 import buildlog
@@ -82,7 +83,7 @@ def stage_tools(build, top, sha, opts: Options) -> dict:
                        "missing": [{k: h[k] for k in ("id", "status", "needs", "for", "install")} for h in bad],
                        "text": toolcheck.format_text(report),
                        "how_to_continue": "Install the missing tools, or run prepare again with --allow-missing."})
-    details = dict(report)
+    details = dict(report, skill=buildlog.skill_state(Path(__file__).resolve().parent.parent))
     if report["missing"]:
         details.update(allowed_missing=True)
     record(build, t0, "tools", tools=found, details=details)

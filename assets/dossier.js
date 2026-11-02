@@ -1255,3 +1255,4 @@
   window.addEventListener("resize", syncHeader); syncHeader();
   applyTheme(); show();
 })();
+document.documentElement.dataset.dossierJs = "ok";

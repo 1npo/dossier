@@ -1,4 +1,5 @@
 import os
+import subprocess
 
 import pytest
 
@@ -116,3 +117,49 @@ class TestRecordBrowser:
 
         last = buildlog.load(path)["records"][-1]
         assert (last["status"], last["reason"]) == ("failed", "2 problems in the browser check.")
+
+
+def git(repo, *args):
+    subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@t", *args], check=False, capture_output=True)
+
+
+@pytest.fixture
+def skill_repo(tmp_path):
+    git(tmp_path, "init", "-q", "-b", "main")
+    (tmp_path / "a.css").write_text("x\n")
+    git(tmp_path, "add", ".")
+    git(tmp_path, "commit", "-q", "-m", "one")
+    return tmp_path
+
+
+class TestSkillState:
+    def test_clean_repo_is_neither_dirty_nor_unmerged(self, skill_repo):
+        state = buildlog.skill_state(skill_repo)
+
+        assert state["dirty"] is False
+        assert state["unmerged"] is False
+        assert len(state["commit"]) == 40
+
+    def test_edited_file_is_dirty(self, skill_repo):
+        (skill_repo / "a.css").write_text("y\n")
+
+        assert buildlog.skill_state(skill_repo)["dirty"] is True
+
+    def test_conflicted_merge_is_unmerged(self, skill_repo):
+        git(skill_repo, "switch", "-q", "-c", "other")
+        (skill_repo / "a.css").write_text("other\n")
+        git(skill_repo, "commit", "-q", "-am", "other")
+        git(skill_repo, "switch", "-q", "main")
+        (skill_repo / "a.css").write_text("main\n")
+        git(skill_repo, "commit", "-q", "-am", "main")
+        git(skill_repo, "merge", "other")
+
+        state = buildlog.skill_state(skill_repo)
+
+        assert state["unmerged"] is True
+        assert state["dirty"] is True
+
+    def test_folder_outside_git_has_no_values(self, tmp_path):
+        state = buildlog.skill_state(tmp_path)
+
+        assert state == {"path": str(tmp_path), "commit": None, "dirty": None, "unmerged": None}

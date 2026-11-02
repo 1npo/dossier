@@ -143,7 +143,7 @@ def process_body(build) -> str:
 # ------------------------------------------------------------------ records render adds
 
 
-def render_records(build, *, reports, readers, v_errors, cites_checked, cites_unresolved, gap_counts, check_counts=None) -> list[dict]:
+def render_records(build, *, reports, readers, v_errors, cites_checked, cites_unresolved, gap_counts, check_counts=None, skill=None) -> list[dict]:
     """The read, write, check and gaps records for this render. `check` comes first; it is part 'render'."""
     m = buildlog.latest(build, "measure") or {}
     d, c = m.get("details") or {}, m.get("counts") or {}
@@ -151,6 +151,8 @@ def render_records(build, *, reports, readers, v_errors, cites_checked, cites_un
             "reason": f"{v_errors} errors in the reports." if v_errors else None,
             "counts": {"citations": cites_checked, "unresolved": cites_unresolved, "errors": v_errors,
                        **{k: v for k, v in (check_counts or {}).items() if isinstance(v, int)}}}]
+    if skill:
+        out[0]["details"] = {"skill": skill}
     if d.get("plan_mode") == "render_only":
         for step in ("read", "write"):
             out.append({"step": step, "by": "render", "status": "reused", "reason": "Nothing changed since the previous build."})

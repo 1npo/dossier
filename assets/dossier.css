@@ -505,3 +505,5 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 .flow-bar { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
 .entry { border: 1px solid var(--border); border-radius: var(--radius); padding: .6rem .8rem; margin-bottom: .6rem; }
 .entry summary { cursor: pointer; font-weight: 600; }
+
+:root { --dossier-css-end: 1; }

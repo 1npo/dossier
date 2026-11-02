@@ -1,6 +1,8 @@
 import json
 import re
 
+import pytest
+
 import gather
 import render
 import viewer
@@ -445,3 +447,44 @@ class TestManifestAuthor:
     def test_zig_manifest_gives_name_and_version(self):
         m = gather.parse_manifest("build.zig.zon", '.{\n .name = .zapp,\n .version = "0.1.0",\n}\n')
         assert (m["ecosystem"], m["name"], m["version"]) == ("zig", "zapp", "0.1.0")
+
+
+class TestLoadAsset:
+    def test_conflict_marker_exits_naming_file_and_line(self, tmp_path):
+        css = tmp_path / "dossier.css"
+        css.write_text("a { color: red; }\n<<<<<<< Updated upstream\nb { color: blue; }\n")
+
+        with pytest.raises(SystemExit) as err:
+            render.load_asset(css)
+
+        assert "dossier.css" in str(err.value)
+        assert "line 2" in str(err.value)
+
+    def test_separator_and_end_markers_are_refused(self, tmp_path):
+        css = tmp_path / "x.css"
+        css.write_text("a {}\n=======\n")
+
+        with pytest.raises(SystemExit):
+            render.load_asset(css)
+
+    def test_a_line_of_equals_signs_inside_text_is_allowed(self, tmp_path):
+        js = tmp_path / "x.js"
+        js.write_text("var a = '=======';\n")
+
+        assert render.load_asset(js) == "var a = '=======';\n"
+
+    def test_real_assets_load(self):
+        assert render.load_asset(render.ASSETS / "dossier.css")
+        assert render.load_asset(render.ASSETS / "dossier.js")
+
+
+class TestAssetSentinels:
+    def test_css_ends_with_its_sentinel(self):
+        lines = [ln for ln in (render.ASSETS / "dossier.css").read_text().splitlines() if ln.strip()]
+
+        assert lines[-1] == ":root { --dossier-css-end: 1; }"
+
+    def test_js_ends_with_its_sentinel(self):
+        lines = [ln for ln in (render.ASSETS / "dossier.js").read_text().splitlines() if ln.strip()]
+
+        assert 'dataset.dossierJs = "ok"' in lines[-1]

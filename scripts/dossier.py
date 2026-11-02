@@ -145,6 +145,14 @@ def cmd_home(a):
     print(f"Dossier home set to {d}")
 
 
+def skill_line(skill: dict) -> str:
+    if skill["commit"] is None:
+        return f"skill: {skill['path']} (not a git work tree)"
+    if skill["unmerged"]:
+        return f"skill: {skill['commit'][:7]} (UNMERGED: run git status in {skill['path']})"
+    return f"skill: {skill['commit'][:7]} ({'dirty' if skill['dirty'] else 'clean'})"
+
+
 def cmd_doctor(a):
     if a.all:
         report = toolcheck.preflight([], all_scopes=True)
@@ -152,8 +160,13 @@ def cmd_doctor(a):
         top = toplevel(a.repo)
         sha = subprocess.run(["git", "-C", top, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
         report = toolcheck.preflight(toolcheck.languages_at(top, sha))
-    print(json.dumps(report, indent=1) if a.json else toolcheck.format_text(report))
-    sys.exit(1 if report["missing"] else 0)
+    skill = buildlog.skill_state(ROOT)
+    if a.json:
+        print(json.dumps(dict(report, skill=skill), indent=1))
+    else:
+        print(toolcheck.format_text(report))
+        print(skill_line(skill))
+    sys.exit(1 if report["missing"] or skill["unmerged"] else 0)
 
 
 def cmd_clean(a):
@@ -362,7 +375,7 @@ def cmd_render(a):
     if build:
         buildlog.append(build_path, process.render_records(
             build, reports=reports, readers=None, v_errors=len(errors), cites_checked=len(cites.status),
-            cites_unresolved=unresolved, gap_counts={}, check_counts=res["counts"])[0])
+            cites_unresolved=unresolved, gap_counts={}, check_counts=res["counts"], skill=buildlog.skill_state(ROOT))[0])
     if errors and not a.allow_errors:
         print(f"\n{len(errors)} error(s). Fix the report files and run render again.")
         sys.exit(1)
@@ -386,7 +399,7 @@ def cmd_render(a):
         history.append(entry)
     if build:
         for rec in process.render_records(build, reports=reports, readers=a.readers, v_errors=len(errors),
-                                          cites_checked=len(cites.status), cites_unresolved=unresolved, gap_counts=counts, check_counts=res["counts"])[1:]:
+                                          cites_checked=len(cites.status), cites_unresolved=unresolved, gap_counts=counts, check_counts=res["counts"], skill=buildlog.skill_state(ROOT))[1:]:
             buildlog.append(build_path, rec)
         pending = {"step": "render", "part": "render", "by": "render", "status": "ok"}
         shown = buildlog.load(build_path)
