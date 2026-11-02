@@ -566,7 +566,7 @@ Independent tasks: M2-3, M2-4, M2-6 and M2-7 need nothing but M2-2 and can be do
 
 ### M2-9. scip-python: install, run and decode (`scip_tool.py`, `scip_read.py`)
 
-- [ ] **Goal.** `symbols` items from a pinned, locked scip-python.
+- [x] **Goal.** `symbols` items from a pinned, locked scip-python.
 - **Files.** New `scripts/node/scip-python/package.json`, `scripts/node/scip-python/package-lock.json`, `scripts/scip_tool.py`, `scripts/scip_read.py`, `tests/unit/scripts/test_scip_read.py`, `tests/unit/scripts/test_scip_tool.py`, `tests/integration/scripts/test_scip_slow.py`; edit `scripts/tools.json` (`"node_lock": "node/scip-python"` on the scip-python entry), `scripts/sandbox.py` (profile `tool` sets `npm_config_cache=<cache root>/.dossier-tools/npm`), `tests/unit/scripts/test_sandbox.py`.
 - **Lockfile.** `package.json`: `{"name": "dossier-scip-python", "private": true, "dependencies": {"@sourcegraph/scip-python": "0.6.6"}}`. Generate the lock in a scratch copy with `npm install --package-lock-only --ignore-scripts --no-audit --no-fund` and copy `package-lock.json` back. A unit test asserts the lock's `packages["node_modules/@sourcegraph/scip-python"].version == tools.json` pin.
 - **Interface.**

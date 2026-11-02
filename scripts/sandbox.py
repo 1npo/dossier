@@ -90,7 +90,8 @@ def build_env(area: Path, *, profile: str = "restricted", ecosystem: str | None 
                npm_config_userconfig=str(home / ".npmrc-empty"))
     if profile == "tool":
         shared = tools_cache(area)
-        env.update(UV_CACHE_DIR=str(shared / "uv"), UV_PYTHON_INSTALL_DIR=str(shared / "python"))
+        env.update(UV_CACHE_DIR=str(shared / "uv"), UV_PYTHON_INSTALL_DIR=str(shared / "python"),
+                   npm_config_cache=str(shared / "npm"))
     else:
         env["UV_CACHE_DIR"] = str(cache / "uv")
     for d in (home / "tmp", home / ".cache", home / ".config"):
