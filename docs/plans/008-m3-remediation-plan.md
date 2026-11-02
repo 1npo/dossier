@@ -548,7 +548,23 @@ Commit each task on `fix/dossier-m3-remediation`. After F3-6, follow `git-workfl
 
 ### Results
 
-(The session writes here: dates, test counts at each checkpoint, block R page paths, diagram counts and text sizes, the checkpoint B error summary, cuts and deviations.)
+Session of 2026-11-01, by Sonnet 5.5, on branch `fix/dossier-m3-remediation`. The author approved A1 to A9 and chose the plan's option for Q3, Q4 and Q6.
+
+**Checkpoint A (F1-1 to F1-8).**
+
+- Tests: 974 passed, 43 skipped (default); 1017 passed with `DOSSIER_SLOW=1` (172 s). Block E: `OK`.
+- Block R (a scratch copy of `LIVE` rendered with the branch's code): 0 conflict markers; `check_page.py` exit 0, 21 diagrams checked, 0 problems. Page: `$SCRATCH/R/home/cannalerts/dossier-cannalerts.html` (scratchpad of this session, not kept).
+- Diagrams on that page: `components.map` 9 (an overview of 8 areas and one diagram per area; nodes per diagram 8, 5, 13, 6, 3, 7, 4, 4, 2), `interactions.graph` 8 (the same without the isolated nodes), `entry.startup` 1, `interactions.flows` 2, `data.relationships` 1. The smallest text in any diagram, at 1500 and at 400 px, is 19 px (was 1 to 6 px). The "cannalerts (top-level modules)" area diagram has 13 nodes and 46 edges: over the budget, drawn at natural size and scrolling, as D4 allows.
+- Tables on that page: 42 schema tables; 0 scroll sideways at 1500 px (3 did before the Basis fix: the dependency matrix, `data.lifecycle`, `risks.tracker`); 40 scroll inside their card at 400 px, each with the hint line; 3 are `tall` (more than 40 rows).
+
+**Deviations in Part A.**
+
+1. F1-2: the module-scoped `rendered_page` fixture renders the frozen `FIX` fixture (the block E route), not pyrepo, which needs `prepare` and every extractor. The slow tests skip when `FIX` is absent.
+2. F1-3 and F1-8 measure through two small PEP 723 scripts, `tests/tools/diagram_text.py` and `tests/tools/table_fit.py`, because the pytest environment has no Playwright. The plan's `check_page.py` check for diagram text size (D11 item 4) is still F3-2.
+3. F1-5: the tables moved to a new `scripts/measured_tables.py` (the plan allowed it). The matrix note reads "Each number is how many imports connect the two (one per importing file and imported file)", because the counts are import items, not statements (plan 007 deviation 5). `render_table` gained a `cls` parameter.
+4. F1-8: the new table rules and the script's marking apply to schema cards only (`.card[data-card]:not([data-card^="overview."])`), so report 02 is unchanged by construction rather than by comparison; no before and after screenshots were needed, and F3-3 will confirm. The Basis column is capped at 14rem and wraps (the plan said nowrap, which made note text 592 px wide).
+5. F1-7: extractor names come from the `extract` record's adapter tool lists (status ok only), versions from that record's `tools` list, ordered as in `tools.json`.
+6. Incident: while checking that the F1-7 tests fail on the old code I ran `git stash push` on an unmodified file and then `git stash pop`, which popped an older stash of the author's (`stash@{0}: WIP on main: fe956ae`, touching `scripts/lib/install_app.sh`) and conflicted. I restored that one file to `HEAD`; the stash entry is intact and nothing else was touched. I use `git show HEAD:` and the test failures themselves from now on.
 
 ### Verification results
 
