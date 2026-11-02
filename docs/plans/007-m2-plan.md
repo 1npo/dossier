@@ -870,7 +870,7 @@ Independent tasks: M2-21, M2-22 and M2-23 are independent of each other. M2-24 n
 
 ### M2-23. V7
 
-- [ ] **Goal.** D6 V7 and the fixed coverage item for runtime configuration.
+- [x] **Goal.** D6 V7 and the fixed coverage item for runtime configuration.
 - **Files.** Edit `scripts/checks.py` (`v7(extract)`, called from `validate`; `BLIND_SPOTS = {pattern id: (what it may miss, report)}` from the D6 table), new `tests/unit/scripts/test_checks_v7.py`.
 - **Tests.** Two hits of one pattern in one file give one item with `2 place(s)` and the first line's citation; two files give two items; the runtime-configuration item appears once whenever a Python adapter ran; no `blindspots` output gives only that item; statements are byte-identical across two runs (stable Gaps IDs).
 - **Done-check.** Full suite passes.

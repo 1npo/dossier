@@ -10,6 +10,7 @@ import re
 
 import candidates
 import checks_v3
+import checks_v7
 import components
 import process
 import render
@@ -291,6 +292,10 @@ def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None)
             pass
         if not any(g.get("kind") == "module" for g in extract.get("graph", [])):
             result["info"].append("V3: no import graph was extracted, so diagram arrows were not checked.")
+    if extract:
+        _, w, g, c = checks_v7.v7(extract)
+        result["gaps"] += g
+        result["counts"].update(c)
     if tree and extract:  # a dossier made before the extractors has no extract/: nothing to hold it to
         try:
             e, w, g, c = v4(reports, tree, facts)
