@@ -456,7 +456,7 @@ Read first: R2, R3, R8 to R14, R19, section 3.4 and decisions D8, D9, D13, D14.
   - Files: `scripts/render.py` (`render_card`: for `components.catalog`, replace the cells of Depends on, Used by and Size in each row with the measured values from `components.catalog_edges` and `components.file_lines` before `render_table`), `prompts/reports.md` (catalog paragraph: write `-` in those three cells).
   - Tests first in `test_render_cards.py`: a catalog row whose Depends on says "every other component" renders the measured, comma-separated list; Size renders `N lines` from `file_lines`.
   - Commit: `fix(dossier): draw the measured columns of the component catalog`.
-- [ ] **F2-7. Show every module for the reading order (R12).**
+- [x] **F2-7. Show every module for the reading order (R12).**
   - Files: `scripts/candidates.py:266` (remove `[:30]`), `:298` (heading "Modules by import rank").
   - Test first in `test_candidates.py`: a graph with 40 modules gives 40 in `report_data("reading", …)["modules"]`.
   - Commit: `fix(dossier): list every module for the reading order`.

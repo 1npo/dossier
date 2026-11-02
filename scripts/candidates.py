@@ -263,7 +263,7 @@ def report_data(rid: str, extract: dict, reports: dict, facts: dict, *, only_ope
         mods = [g for g in extract.get("graph", []) if g.get("kind") == "module"]
         rank = graphs.pagerank([m["module"] for m in mods], [(g["from"], g["to"]) for g in extract.get("graph", []) if g.get("kind") == "import"])
         data["modules"] = [{"module": m["module"], "path": m["path"], "rank": round(rank.get(m["module"], 0), 4)}
-                           for m in sorted(mods, key=lambda m: (-rank.get(m["module"], 0), m["module"]))[:30]]
+                           for m in sorted(mods, key=lambda m: (-rank.get(m["module"], 0), m["module"]))]
         data["entry_points"] = sorted({e["path"] for e in extract.get("entry_points", [])})
         data["tests"] = sorted({t["path"] for t in extract.get("tests", []) if t.get("kind") == "test-file"})
     return data
@@ -295,7 +295,7 @@ def text(rid: str, extract: dict, reports: dict, facts: dict, *, only_open: bool
         out.append(f"== Source files in no component: {len(k['unassigned'])} ==")
         out += k["unassigned"]
     if "modules" in d and not only_open:
-        out.append("== Most imported modules (top 30) ==")
+        out.append("== Modules by import rank ==")
         out += [f"{m['module']}  {m['path']}  (rank {m['rank']})" for m in d["modules"]]
         out.append("== Entry point files ==")
         out += d["entry_points"]
