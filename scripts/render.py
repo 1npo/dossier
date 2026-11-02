@@ -426,6 +426,11 @@ def badge(label, cls="", variant="outline"):
     return f'<span class="badge {cls}" data-variant="{variant}">{E(label)}</span>'
 
 
+def added_tag(node):
+    """The pill on a row or entry that Claude found and no tool listed."""
+    return badge("added by Claude", "", "outline") if isinstance(node, dict) and node.get("added") else ""
+
+
 def basis(conf):
     return badge(conf, f"basis-{conf}", {"confirmed": "secondary", "inferred": "outline", "unknown": "destructive"}.get(conf, "outline"))
 
@@ -701,7 +706,7 @@ def render_table(columns, rows, refs, tid, filterable=True, plain=False, group=N
             tds.append(f"<td>{sev_badge(cell)}</td>" if kind == "severity" else f"<td>{status_badge(cell)}</td>" if kind == "status" else f"<td>{cell_html(cell, refs)}</td>")
         note = f'<div class="muted">{inline(r.get("note"), refs)}</div>' if r.get("note") and r.get("conf") != "confirmed" else ""
         cites_ = new_cites(r.get("cite"), *r["cells"])
-        body.append("<tr>" + "".join(tds) + f'<td class="basis-cell">{basis_for(r)}{gid_tag(r)}{note}{user_note(r.get("user"))}</td><td>{refs.mark(cites_)}</td></tr>')
+        body.append("<tr>" + "".join(tds) + f'<td class="basis-cell">{basis_for(r)}{added_tag(r)}{gid_tag(r)}{note}{user_note(r.get("user"))}</td><td>{refs.mark(cites_)}</td></tr>')
     flt = f'<input class="input tbl-filter" type="search" data-target="{tid}" placeholder="Filter rows" aria-label="Filter rows">' if filterable and len(rows) > 6 else ""
     top = ("<tr class=\"group-row\">" + "".join(f'<th colspan="{n}"{" class=\"grp\"" if lbl else ""}>{E(lbl)}</th>' for lbl, n in group) + "</tr>") if group else ""
     tf = f'<tfoot><tr class="total-row">{"".join(f"<td>{c}</td>" for c in foot)}</tr></tfoot>' if foot else ""
@@ -871,11 +876,35 @@ def entries_body(card, entries, refs, tid):
         fl = e["fields"]
         dl = "".join(f"<dt>{E(f['label'])}</dt><dd>{inline(fl[f['id']], refs)}</dd>" for f in labels)
         out.append(f'<details class="entry" id="{card_dom_id(card["id"])}-e{n}" open><summary>{E(e[card["key"]])}</summary><dl class="facts">{dl}</dl>'
-                   f'{provenance(e, refs, " ".join(fl.values()))}</details>')
+                   f'{added_tag(e)}{provenance(e, refs, " ".join(fl.values()))}</details>')
     return "".join(out)
 
 
-def render_card(card, entry, refs, rid):
+def _cand_nodes(entry):
+    """The table rows and entries of a card entry that can carry `cand` or `added`."""
+    nodes = [r for b in entry.get("blocks", []) if isinstance(b, dict) and b.get("type") == "table" for r in b.get("rows", []) if isinstance(r, dict)]
+    return nodes + [e for e in entry.get("entries", []) if isinstance(e, dict)]
+
+
+def candidate_footer(card, entry, fed):
+    """A line under a card that tool findings were fed to: how many were kept, merged into rows, dismissed or added."""
+    if not fed or not isinstance(entry, dict):
+        return ""
+    nodes = _cand_nodes(entry)
+    kept = sum(len(n["cand"]) for n in nodes if isinstance(n.get("cand"), list))
+    rows = sum(1 for n in nodes if n.get("cand"))
+    added = sum(1 for n in nodes if n.get("added"))
+    dismissed = [d for d in entry.get("dismissed", []) if isinstance(d, dict)]
+    count = sum(len(d["cand"]) for d in dismissed if isinstance(d.get("cand"), list))
+    tail = f", {added} rows added by Claude" if added else ""
+    out = f'<p class="muted cand-foot">Tool findings: {fed} found, {kept} kept in {rows} rows, {count} dismissed{tail}.</p>'
+    if dismissed:
+        lis = "".join(f'<li>{" ".join("<code>" + E(c) + "</code>" for c in d.get("cand", []))} {E(d.get("reason", ""))}</li>' for d in dismissed)
+        out += f"<details><summary>Dismissed findings</summary><ul>{lis}</ul></details>"
+    return out
+
+
+def render_card(card, entry, refs, rid, ctx=None):
     tid = "t-" + card_dom_id(card["id"])[2:]
     if card["writer"] == "script" or not isinstance(entry, dict) or entry.get("pending"):
         return schema_card(card, placeholder_body(card))
@@ -890,12 +919,16 @@ def render_card(card, entry, refs, rid):
             body = placeholder_body(card)
     except (KeyError, TypeError, IndexError, AttributeError):
         body = placeholder_body(card)  # V6 reports the real error
+    try:
+        body += candidate_footer(card, entry, (ctx or {}).get("fed", {}).get(card["id"], 0))
+    except (KeyError, TypeError, AttributeError):
+        pass  # V6 and V5 report the real error
     return schema_card(card, body)
 
 
-def schema_cards_html(sch, rep, refs, rid):
+def schema_cards_html(sch, rep, refs, rid, ctx=None):
     by_id = {c["card"]: c for c in (rep or {}).get("cards", []) if isinstance(c, dict) and "card" in c}
-    return "".join(render_card(c, by_id.get(c["id"]), refs, rid) for c in sch["cards"])
+    return "".join(render_card(c, by_id.get(c["id"]), refs, rid, ctx) for c in sch["cards"])
 
 
 # --------------------------------------------------------------------------- measured panels

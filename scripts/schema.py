@@ -11,7 +11,7 @@ QUESTIONS_FILE = "questions.json"  # question list for the dossier.questions car
 TIERS = ("M", "A", "R", "M+A")
 SHAPES = ("blocks", "flows", "entries", "computed")
 SLOT_TYPES = ("table", "text", "list", "diagram")
-ENTRY_KEYS = {"card", "title", "blocks", "entries", "na", "cite", "pending"}
+ENTRY_KEYS = {"card", "title", "blocks", "entries", "na", "cite", "pending", "dismissed", "unassigned"}
 
 
 def load(rid, schema_dir=SCHEMA_DIR):

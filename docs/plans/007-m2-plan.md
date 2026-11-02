@@ -713,7 +713,7 @@ Independent tasks: M2-13 and M2-16 (measured cards) and M2-18 (partial) are inde
 
 ### M2-13. Card keys for dispositions and the unassigned list; how they show on the page
 
-- [ ] **Goal.** D3 and D4 keys are accepted by V6 and drawn.
+- [x] **Goal.** D3 and D4 keys are accepted by V6 and drawn.
 - **Files.** Edit `scripts/schema.py` (`ENTRY_KEYS |= {"dismissed", "unassigned"}`; nothing else), `scripts/render.py` (`render_table` and `entries_body`: an "added by Claude" badge `badge("added by Claude", "", "outline")` in the Basis cell of a row or entry with `added: true`; `schema_cards_html` passes the card entry to a new `candidate_footer(card, entry, fed)`), `tests/unit/scripts/test_schema.py`, `tests/unit/scripts/test_render_cards.py`.
 - **Footer.** `render.candidate_footer(card, entry, fed) -> str`, where `fed` is the number of candidates whose home is this card (from `ctx["fed"]`, filled by `cmd_render` via `candidates.for_report`): empty when `fed` is 0; else `<p class="muted cand-foot">Tool findings: {fed} found, {kept} kept in {rows} rows, {dismissed} dismissed{, {added} rows added by Claude}.</p>` followed by `<details><summary>Dismissed findings</summary><ul>` with one `<li>` per dismissed entry: its ids in `<code>` and the reason escaped (`render.E`), not passed through `inline`.
 - **Tests.** V6 accepts a card entry with `dismissed` and a catalog with `unassigned`; still rejects other unknown keys; the badge appears for `added` rows; the footer counts on a hand-made card; a dismissed reason containing `[[x]]` is shown literally.
