@@ -893,7 +893,7 @@ Independent tasks: M2-21, M2-22 and M2-23 are independent of each other. M2-24 n
 
 ### M2-26. Rewrite `prompts/reports.md`
 
-- [ ] **Goal.** D11 for `reports.md`.
+- [x] **Goal.** D11 for `reports.md`.
 - **Files.** `prompts/reports.md`; edit `tests/unit/scripts/test_prompts.py`.
 - **Steps.** One section per report in the D11 writing order (`entry`, `components`, `interactions`, `io`, `data`, `behavior`, `conventions`, `ops`, `reading`), then `overview`, `risks`, `gaps`, `corrections`. Each report section lists its cards in schema order with: what goes in it (from spec section 4's Shape and Source columns), the findings `dossier candidates` lists for it and their home card, and for measured cards "drawn by code; do not write it". Keep the fixed rows of `components.cross-cutting`, `io.inputs`, `io.outputs`, `behavior.tests`, `conventions.style` and `conventions.recipes` (from the schemas). Say that `change` and `contributors` are not written in this version. Keep the current `risks`, `gaps` and `corrections` sections, adjusting only the report names they mention.
 - **Done-check.** The test asserts that every card id with `writer: claude` in the schemas of reports 03 to 09, 11 and 12 appears in `reports.md`, and that no retired report name appears as a section heading. Full suite passes.
