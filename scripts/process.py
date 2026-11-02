@@ -86,8 +86,10 @@ def _ok_line(step, build):
         b = buildlog.latest(build, "check", "browser")
         browser = (f"Browser check at {_clock(b.get('started'))} UTC: {(b.get('counts') or {}).get('problems', 0)} problems."
                    if b else "Browser check: not run yet.")
+        found = (f" Tool findings: {rc.get('v5_candidates', 0)} found, {rc.get('v5_open', 0)} without a decision. "
+                 f"Components: {rc.get('v4', 0)} problems.") if "v5_candidates" in rc else ""
         return (f"{rc.get('citations', 0)} citations checked, {rc.get('unresolved', 0)} unresolved; "
-                f"layout check: {rc.get('errors', 0)} errors. {browser}")
+                f"layout check: {rc.get('errors', 0)} errors.{found} {browser}")
     if step == "gaps":
         return (f"{sum(c.values())} open items: {c.get('unknown', 0)} unknown, {c.get('inference', 0)} inferred, "
                 f"{c.get('assumption', 0)} assumed, {c.get('coverage', 0)} coverage.")
@@ -137,13 +139,14 @@ def process_body(build) -> str:
 # ------------------------------------------------------------------ records render adds
 
 
-def render_records(build, *, reports, readers, v_errors, cites_checked, cites_unresolved, gap_counts) -> list[dict]:
+def render_records(build, *, reports, readers, v_errors, cites_checked, cites_unresolved, gap_counts, check_counts=None) -> list[dict]:
     """The read, write, check and gaps records for this render. `check` comes first; it is part 'render'."""
     m = buildlog.latest(build, "measure") or {}
     d, c = m.get("details") or {}, m.get("counts") or {}
     out = [{"step": "check", "part": "render", "by": "render", "status": "failed" if v_errors else "ok",
             "reason": f"{v_errors} errors in the reports." if v_errors else None,
-            "counts": {"citations": cites_checked, "unresolved": cites_unresolved, "errors": v_errors}}]
+            "counts": {"citations": cites_checked, "unresolved": cites_unresolved, "errors": v_errors,
+                       **{k: v for k, v in (check_counts or {}).items() if isinstance(v, int)}}}]
     if d.get("plan_mode") == "render_only":
         for step in ("read", "write"):
             out.append({"step": step, "by": "render", "status": "reused", "reason": "Nothing changed since the previous build."})

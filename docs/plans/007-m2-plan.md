@@ -782,7 +782,7 @@ Independent tasks: M2-13 and M2-16 (measured cards) and M2-18 (partial) are inde
 
 ### M2-20. The process card's check line
 
-- [ ] **Goal.** Section 3 item 30.
+- [x] **Goal.** Section 3 item 30.
 - **Files.** Edit `scripts/process.py` (`render_records(..., check_counts=None)` puts them in the `check`/`render` record's `counts`; `_ok_line("check")` adds `Tool findings: {v5_candidates} found, {v5_open} without a decision. Components: {v4} problems.` when the counts exist), `scripts/dossier.py` (pass `res["counts"]`), `tests/unit/scripts/test_process.py`.
 - **Done-check.** Full suite passes; block E prints `OK`.
 - **Commit.** `feat(dossier): show the tool-finding and component checks on the process card`

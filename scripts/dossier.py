@@ -357,7 +357,7 @@ def cmd_render(a):
     if build:
         buildlog.append(build_path, process.render_records(
             build, reports=reports, readers=None, v_errors=len(errors), cites_checked=len(cites.status),
-            cites_unresolved=unresolved, gap_counts={}, )[0])
+            cites_unresolved=unresolved, gap_counts={}, check_counts=res["counts"])[0])
     if errors and not a.allow_errors:
         print(f"\n{len(errors)} error(s). Fix the report files and run render again.")
         sys.exit(1)
@@ -381,7 +381,7 @@ def cmd_render(a):
         history.append(entry)
     if build:
         for rec in process.render_records(build, reports=reports, readers=a.readers, v_errors=len(errors),
-                                          cites_checked=len(cites.status), cites_unresolved=unresolved, gap_counts=counts)[1:]:
+                                          cites_checked=len(cites.status), cites_unresolved=unresolved, gap_counts=counts, check_counts=res["counts"])[1:]:
             buildlog.append(build_path, rec)
         pending = {"step": "render", "part": "render", "by": "render", "status": "ok"}
         shown = buildlog.load(build_path)

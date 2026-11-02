@@ -328,3 +328,25 @@ class TestPartialCards:
         status = {"grimp": {"status": "ok", "reason": None}}
 
         assert process.partial_cards(build_with(self.tools(), self.extract(**status))) == {}
+
+
+class TestCheckLine:
+    def line(self, **counts):
+        build = build_with(rec("check", part="render", by="render", counts={"citations": 4, "unresolved": 1, "errors": 0, **counts}))
+        return process.run_line("check", build)
+
+    def test_tool_finding_and_component_counts_are_said_when_present(self):
+        got = self.line(v5_candidates=12, v5_open=3, v4=2)
+
+        assert "Tool findings: 12 found, 3 without a decision. Components: 2 problems." in got
+
+    def test_old_records_without_the_counts_read_as_before(self):
+        assert "Tool findings" not in self.line()
+
+    def test_render_records_store_the_counts_on_the_check_record(self):
+        build = build_with(rec("measure", details={"plan_mode": "full"}))
+
+        got = process.render_records(build, reports={}, readers=None, v_errors=0, cites_checked=1, cites_unresolved=0, gap_counts={},
+                                     check_counts={"v5_candidates": 5, "v5_open": 0, "v4": 0, "unbacked": {}})
+
+        assert got[0]["counts"]["v5_candidates"] == 5 and "unbacked" not in got[0]["counts"]
