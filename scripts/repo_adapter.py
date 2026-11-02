@@ -85,8 +85,23 @@ def shebang_scripts(path: str, text: str) -> list:
     return [entry(path, 1, "shebang-script", Path(path).name, first[2:].strip(), first)] if first.startswith("#!") else []
 
 
-def _columns(body: str, first_line: int) -> list:
-    """Columns from the text between the parentheses of CREATE TABLE; `first_line` is the line the text starts on."""
+def _blank_comments(text: str) -> str:
+    """The text with SQL comments (-- to the end of the line, /* ... */) replaced by spaces: offsets and line numbers hold."""
+    blank = lambda m: re.sub(r"[^\n]", " ", m.group(0))
+    return re.sub(r"/\*.*?\*/", blank, re.sub(r"--[^\n]*", blank, text), flags=re.S)
+
+
+def _names(listing: str) -> list:
+    return [n.strip().strip('"`') for n in listing.split(",") if n.strip()]
+
+
+def _columns(body: str, first_line: int) -> tuple:
+    """(fields, relations) from the text between the parentheses of CREATE TABLE; `first_line` is the line the text starts on.
+
+    Comments are ignored. A column marked PRIMARY KEY, or listed in a table-level PRIMARY KEY, has "pk": true. A REFERENCES
+    clause, or a table-level FOREIGN KEY, gives the column a `ref` and the table a relation {"field", "to", "kind": "fk"}.
+    """
+    body = _blank_comments(body)
     parts, depth, cur, begin = [], 0, "", 0
     for i, ch in enumerate(body + ","):
         depth += ch == "("
@@ -96,16 +111,35 @@ def _columns(body: str, first_line: int) -> list:
             cur, begin = "", i + 1
         else:
             cur += ch
-    fields = []
+    fields, relations, table_fks, table_pk = [], [], [], []
     for part, offset in parts:
         words = part.split()
-        if not words or words[0].lower().strip('"`') in NOT_COLUMN:
+        if not words:
+            continue
+        if words[0].lower().strip('"`') in NOT_COLUMN:
+            pk = re.search(r"primary\s+key\s*\(([^)]*)\)", part, re.I)
+            fk = re.search(r"foreign\s+key\s*\(([^)]*)\)\s*references\s+[\"`]?(\w+)", part, re.I)
+            table_pk += _names(pk.group(1)) if pk else []
+            table_fks += [{"field": n, "to": fk.group(2), "kind": "fk"} for n in _names(fk.group(1))] if fk else []
             continue
         ref = re.search(r"references\s+[\"`]?(\w+)", part, re.I)
         lead = len(part) - len(part.lstrip())
-        fields.append({"name": words[0].strip('"`'), "type": words[1] if len(words) > 1 else None,
-                       "line": first_line + body[: offset + lead].count("\n"), "ref": ref.group(1) if ref else None})
-    return fields
+        field = {"name": words[0].strip('"`'), "type": words[1] if len(words) > 1 else None,
+                 "line": first_line + body[: offset + lead].count("\n"), "ref": ref.group(1) if ref else None}
+        if re.search(r"primary\s+key", part, re.I):
+            field["pk"] = True
+        if ref:
+            relations.append({"field": field["name"], "to": ref.group(1), "kind": "fk"})
+        fields.append(field)
+    by_name = {f["name"]: f for f in fields}
+    for name in table_pk:
+        if name in by_name:
+            by_name[name]["pk"] = True
+    for rel in table_fks:
+        if rel["field"] in by_name and not by_name[rel["field"]]["ref"]:
+            by_name[rel["field"]]["ref"] = rel["to"]
+        relations.append(rel)
+    return fields, relations
 
 
 def sql_tables(path: str, text: str) -> list:
@@ -113,16 +147,18 @@ def sql_tables(path: str, text: str) -> list:
     if re.search(r"(^|/)migrations/", path):
         return [{"path": path, "kind": "migration", "tool": "sql", "rule": "repo.migration"}]
     found = []
-    for m in re.finditer(r"create\s+table\s+(?:if\s+not\s+exists\s+)?[\"`]?([\w.]+)[\"`]?\s*\(", text, re.I):
+    clean = _blank_comments(text)
+    for m in re.finditer(r"create\s+table\s+(?:if\s+not\s+exists\s+)?[\"`]?([\w.]+)[\"`]?\s*\(", clean, re.I):
         depth, i = 1, m.end()
-        while i < len(text) and depth:
-            depth += (text[i] == "(") - (text[i] == ")")
+        while i < len(clean) and depth:
+            depth += (clean[i] == "(") - (clean[i] == ")")
             i += 1
         first = text.count("\n", 0, m.start()) + 1
         snippet = text[m.start():].splitlines()[0].strip()[:200]
+        fields, relations = _columns(text[m.end():i - 1], text.count("\n", 0, m.end()) + 1)
         found.append({"path": path, "line": first, "end_line": text.count("\n", 0, i) + 1, "name": m.group(1).split(".")[-1],
                       "kind": "sql-table", "rule": "repo.sql-table", "snippet": snippet, "bases": [],
-                      "fields": _columns(text[m.end():i - 1], text.count("\n", 0, m.end()) + 1)})
+                      "fields": fields, "relations": relations})
     return found
 
 

@@ -425,7 +425,7 @@ Read first: R1, R25, R4 to R7, R15 to R18, R20 and decisions D2 to D7.
 
 Read first: R2, R3, R8 to R14, R19, section 3.4 and decisions D8, D9, D13, D14.
 
-- [ ] **F2-1. SQL columns: strip comments, record relations (R3).**
+- [x] **F2-1. SQL columns: strip comments, record relations (R3).**
   - Files: `scripts/repo_adapter.py` (`_columns` line 88, `sql_tables` line 111).
   - Test first in `tests/unit/scripts/test_repo_adapter.py`: the text of cannalerts' `scrapes` table (copy the 14 lines into the test, with the two `--` comments) gives 13 fields named `id, run_id, shop, site, store, menu, platform, status, expected_count, product_count, errors, started_at, finished_at`, no field named `--`; a table with `run_id INTEGER REFERENCES runs(id)` and a table-level `FOREIGN KEY (a) REFERENCES t(b)` gives `relations == [{"field": "run_id", "to": "runs", "kind": "fk"}, {"field": "a", "to": "t", "kind": "fk"}]`; `PRIMARY KEY (x, y)` marks fields `x` and `y` with `"pk": true`.
   - Implement: remove `--[^\n]*` and `/* … */` from the body before splitting (keep newlines so line numbers hold); read table-level `PRIMARY KEY` and `FOREIGN KEY` constraints; set `relations` on every `sql-table` item.
