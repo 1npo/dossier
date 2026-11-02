@@ -189,3 +189,48 @@ class TestDependencyGraph:
 
     def test_no_imports_says_so(self):
         assert "No imports between modules were found." in measured.body("interactions.graph", {"extract": {"graph": []}}, Refs())
+
+
+class TestComponentArea:
+    ROOTS = ["src/cannalerts"]
+
+    def test_files_in_the_package_root_are_its_top_level_modules(self):
+        paths = ["src/cannalerts/cli.py", "src/cannalerts/__main__.py"]
+
+        assert measured_graph.component_area(paths, self.ROOTS) == "cannalerts (top-level modules)"
+
+    def test_a_folder_below_the_package_root_is_the_area(self):
+        assert measured_graph.component_area(["src/cannalerts/platforms/dutchie/"], self.ROOTS) == "platforms"
+
+    def test_files_in_one_folder_are_that_folder(self):
+        paths = ["src/cannalerts/platforms/__init__.py", "src/cannalerts/platforms/base.py"]
+
+        assert measured_graph.component_area(paths, self.ROOTS) == "platforms"
+
+    def test_a_path_outside_any_package_uses_its_top_folder(self):
+        assert measured_graph.component_area(["tests/"], self.ROOTS) == "tests"
+
+    def test_a_file_at_the_repository_root_has_its_own_area_name(self):
+        assert measured_graph.component_area(["setup.py"], self.ROOTS) == "(repository root)"
+
+    def test_no_paths_is_the_repository_root(self):
+        assert measured_graph.component_area([], self.ROOTS) == "(repository root)"
+
+    def test_paths_in_two_folders_use_the_first_path(self):
+        paths = ["src/cannalerts/db/a.py", "src/cannalerts/core/b.py"]
+
+        assert measured_graph.component_area(paths, self.ROOTS) == "db"
+
+
+class TestComponentMapAreas:
+    def test_area_column_names_folders_not_files(self):
+        extract = {"graph": [
+            {"kind": "module", "path": "src/app/__init__.py", "module": "app", "package": "app", "is_package": True},
+            imp("src/app/cli.py", "src/app/models.py"),
+        ]}
+        ctx = {"extract": extract, "tree": {"src/app/cli.py", "src/app/models.py"},
+               "catalog": [{"name": "Cli", "paths": ["src/app/cli.py"]}, {"name": "Models", "paths": ["src/app/models.py"]}]}
+
+        rows = rows_of(measured.body("components.map", ctx, Refs()).split("</details></div>")[-1])
+
+        assert {r[1] for r in rows} == {"app (top-level modules)"}

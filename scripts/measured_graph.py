@@ -54,6 +54,28 @@ def area_of(path: str, roots: list) -> str:
     return stripped.split("/")[0] if "/" in stripped else "(top level)"
 
 
+def _area_of_path(path: str, roots: list) -> str:
+    stripped = path.rstrip("/")
+    is_file = not path.endswith("/") and "." in stripped.rsplit("/", 1)[-1]
+    for root in roots:
+        pkg = root.rsplit("/", 1)[-1]
+        if stripped == root:
+            return pkg
+        if stripped.startswith(root + "/"):
+            parts = stripped[len(root) + 1:].split("/")
+            return f"{pkg} (top-level modules)" if len(parts) == 1 and is_file else parts[0]
+    parts = stripped.split("/")
+    return "(repository root)" if len(parts) == 1 and is_file else parts[0]
+
+
+def component_area(paths: list, roots: list) -> str:
+    """A component's area: the first folder below its package root that holds its paths (the first path's, when they differ).
+
+    Files directly in a package root are "<package> (top-level modules)"; files at the repository root are "(repository root)".
+    """
+    return _area_of_path(paths[0], roots) if paths else "(repository root)"
+
+
 def _imports(extract: dict) -> list:
     return [g for g in extract.get("graph", []) if g.get("kind") == "import" and g.get("paths")]
 
@@ -129,7 +151,7 @@ def _map(cid, ctx, refs):
         return None
     r = _render()
     roots = package_roots(extract)
-    area = {row["name"]: area_of(row["paths"][0], roots) if row["paths"] else "(top level)" for row in rows}
+    area = {row["name"]: component_area(row["paths"], roots) for row in rows}
     group = _group_of(extract, rows, roots)
     edges = graphs.aggregate([(g["path"], g["paths"][0]) for g in _imports(extract)], group)
     files = components.source_files(ctx.get("tree"), extract)

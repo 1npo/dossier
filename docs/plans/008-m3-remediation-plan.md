@@ -392,7 +392,7 @@ Read first: R1, R25, R4 to R7, R15 to R18, R20 and decisions D2 to D7.
   - Change `useMaxWidth` to `false` for flowchart, er and sequence; CSS per D3; in `drawIn`, after `host.innerHTML = out.svg`, toggle `host.classList.toggle("scrolls", host.scrollWidth > host.clientWidth + 1)`.
   - Verify: the slow test passes; block E prints `OK` (report 02 has no Mermaid diagram, but the CSS file is shared).
   - Commit: `fix(dossier): draw diagrams at their natural size and let wide ones scroll`.
-- [ ] **F1-4. Group components by their real area (R6; D4 "Areas").**
+- [x] **F1-4. Group components by their real area (R6; D4 "Areas").**
   - Files: `scripts/measured_graph.py` (`component_area`, used by `_map` at line 132 and by F1-5).
   - Test first in `tests/unit/scripts/test_measured.py`: roots `["src/cannalerts"]`; `component_area(["src/cannalerts/cli.py", "src/cannalerts/__main__.py"], roots) == "cannalerts (top-level modules)"`; `(["src/cannalerts/platforms/dutchie/"], roots) == "platforms"`; `(["src/cannalerts/platforms/__init__.py", "src/cannalerts/platforms/base.py"], roots) == "platforms"`; `(["tests/"], roots) == "tests"`; `(["setup.py"], roots) == "(repository root)"`. And `_map` on a catalog with those rows gives an Area column without any `.py` value.
   - Verify: `pytest tests/unit/scripts/test_measured.py -q`.
