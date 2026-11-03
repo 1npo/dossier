@@ -1,4 +1,4 @@
-/* Layout glue only. Basecoat supplies the sidebar, cards, tables, badges, buttons, inputs and alerts. */
+/* Layout glue only. Basecoat (Nova style, vendor/basecoat.min.css) supplies the sidebar, cards, tables, badges, buttons, inputs and alerts. */
 :root { --ok: oklch(.52 .14 155); --ok-bg: oklch(.95 .05 155); --warn: oklch(.58 .14 90); --warn-bg: oklch(.96 .07 100); --bad: var(--destructive); --pend: oklch(.5 .16 260);
   --header-h: 7rem; --sidebar-width: 18.5rem; }
 .dark { --ok: oklch(.8 .15 155); --ok-bg: oklch(.3 .07 155); --warn: oklch(.85 .15 95); --warn-bg: oklch(.32 .07 95); --pend: oklch(.78 .12 260); }
@@ -514,9 +514,7 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 .table-container.scrolls { background: linear-gradient(to right, var(--card) 30%, transparent) left / 2rem 100% no-repeat local, linear-gradient(to left, var(--card) 30%, transparent) right / 2rem 100% no-repeat local, linear-gradient(to left, rgb(0 0 0 / .12), transparent) right / .75rem 100% no-repeat scroll; }
 .table-container.tall { max-height: 70vh; overflow: auto; }
 .table-container.tall thead th { position: sticky; top: 0; z-index: 2; background: var(--card); }
-/* one card style for every card (a compact, Nova-like scale): same padding, border, radius and no shadow on panels, blocks, summary, contents and references */
-.card { gap: 1rem; padding-block: 1rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); box-shadow: none; }
-.card > header, .card > section, .card > footer { padding-inline: 1rem; }
+/* the cards take their padding, border and radius from the Nova style of Basecoat, the same for every card; only the corner badges are added here */
 .card > header { position: relative; }
 .card > header:has(> .card-badges) { padding-right: 7rem; }
 
