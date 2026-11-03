@@ -119,8 +119,8 @@ def field_table(cid: str, extract: dict, refs) -> str:
     for e in entities(extract):
         for f in e.get("fields") or []:
             rows.append([r.E(e["name"]), r.E(f["name"]), r.E(f.get("type") or "-"), r.E(_keys(f) or "-"), r.E(f.get("ref") or "-"),
-                         r.path_cell(e["path"], refs, f.get("line"))])
-    return r.render_table(["Entity", "Field", "Type", "Key", "References", "Defined in"], rows, refs, "t-" + cid.replace(".", "-") + "-fields", plain=True)
+                         r.path_code(e["path"]), r.source_cell(refs, (e["path"], f.get("line")))])
+    return r.render_table(["Entity", "Field", "Type", "Key", "References", "Defined in", "Source"], rows, refs, "t-" + cid.replace(".", "-") + "-fields", plain=True)
 
 
 def draw(cid, ctx, refs):

@@ -67,7 +67,7 @@ Blocks inside a card are:
 {"type": "diagram", "title": "what it shows", "mermaid": "flowchart LR\n ...", "conf": "confirmed", "cite": ["path:3"], "note": ""}
 ```
 
-A `flows` card is one or more diagram blocks, each optionally followed by one `text` or `list` block that explains it. Table rows must have exactly as many `cells` as `columns`. The page adds the Basis and Sources columns itself, so do not add a "Where" column of your own for citations: inline `[[...]]` citations inside cells are the way to link code.
+A `flows` card is one or more diagram blocks, each optionally followed by one `text` or `list` block that explains it. Table rows must have exactly as many `cells` as `columns`. The page adds the Basis and Sources columns itself, so do not add a "Where" column of your own for citations: a short cell (a file name, a symbol) takes its `[[...]]` citation and the page moves it to the Source column; citations stay inline only inside long free text.
 
 Here is a complete report file with a table card, an `entries` card, a second table card and an `na` card. It is the `components` report; the measured `components.map` card is left out because a script draws it. A row of the catalog may point at several folders in its `Paths` cell (see "Components" below).
 

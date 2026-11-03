@@ -54,7 +54,7 @@ PATHS = "<code>src/cannalerts/platforms/dutchie/client.py</code>, <code>src/cann
 
 
 def _table(tid: str, columns: int) -> str:
-    head = "".join(f"<th>Column {i}</th>" for i in range(columns)) + '<th class="basis-cell">Basis</th><th class="src-cell">Sources</th>'
+    head = "".join(f"<th>Column {i}</th>" for i in range(columns)) + '<th class="basis-cell">Basis</th><th class="src-cell">Source</th>'
     row = "".join(f"<td>{PATHS}</td>" for _ in range(columns)) + '<td class="basis-cell"><span class="badge">confirmed</span></td><td class="src-cell">[1] [2]</td>'
     return f'<div class="table-container"><table class="table" id="{tid}"><thead><tr>{head}</tr></thead><tbody><tr>{row}</tr></tbody></table></div>'
 

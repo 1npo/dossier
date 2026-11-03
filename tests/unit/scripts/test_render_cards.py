@@ -44,12 +44,19 @@ def test_na_shows_reason_and_marker(make_cites):
     assert "Not applicable: no tables here" in h and "[1]" in h
 
 
-def test_badge_outside_h3_and_shades(make_cites):
-    r = refs(make_cites)
-    a = render.render_card(SCH["cards"][0], None, r, "x")
-    m = render.render_card(SCH["cards"][1], None, r, "x")
-    assert "</h3><span class=\"badge tier" in a and 'data-card="x.tab"' in a
-    assert "card block llm" in a and "card block fact" in m
+def test_tier_badge_sits_in_the_corner_after_the_title(make_cites):
+    a = render.render_card(SCH["cards"][0], None, refs(make_cites), "x")
+    assert '</h3><div class="card-badges"><span class="badge tier tier-' in a and 'data-card="x.tab"' in a
+
+
+def test_every_tier_has_its_own_badge_colour_class():
+    classes = {render.tier_badge(t).split('class="badge tier ')[1].split('"')[0] for t in render.TIER_INFO}
+    assert len(classes) == len(render.TIER_INFO)
+
+
+def test_cards_are_not_colour_coded_by_who_wrote_them():
+    css = render.load_asset(render.ASSETS / "dossier.css")
+    assert ".card.fact" not in css and ".card.llm" not in css and "shade-key" not in css
 
 
 def test_fixed_title_over_block_heading(make_cites):
@@ -129,17 +136,17 @@ import report_section  # noqa: E402
 
 
 def legacy_head(title, headline_html):
-    return f'<header class="report-head"><h1>{title}</h1><p class="headline">{headline_html}</p>{render.SHADE_KEY}</header>'
+    return f'<header class="report-head"><h1>{title}</h1><p class="headline">{headline_html}</p></header>'
 
 
 def test_head_without_schema_is_the_legacy_string():
     assert render.head_html("capabilities", "Capabilities", "Hello") == legacy_head("Capabilities", "Hello")
 
 
-def test_head_with_schema_adds_question_and_tier_key():
+def test_head_with_schema_adds_only_the_tier_key():
     sch = schema.load("entry")
     h = render.head_html("entry", "Entry points", "Hello", sch)
-    assert sch["question"] in h and render.TIER_KEY in h and render.SHADE_KEY in h
+    assert sch["question"] not in h and h.count('class="headline"') == 1 and render.TIER_KEY in h
 
 
 def test_head_for_overview_differs_from_legacy_only_by_the_additions():
@@ -260,7 +267,7 @@ class TestRenderTable:
 
         html = render.render_table(["A"], rows, refs(make_cites), "t-x")
 
-        assert '<th class="basis-cell">Basis</th><th class="src-cell">Sources</th>' in html
+        assert '<th class="basis-cell">Basis</th><th class="src-cell">Source</th>' in html
         assert '<td class="src-cell">' in html
 
 
@@ -326,3 +333,27 @@ class TestCatalogMeasuredColumns:
         render.render_card(CATALOG, entry, refs(make_cites), "x", CATALOG_CTX)
 
         assert entry["blocks"][0]["rows"][0]["cells"][4] == "every other component"
+
+
+# ------------------------------------------------------------------ Source column and risk tiles (post-M2 UAT)
+
+
+def test_short_cell_gives_its_citation_to_the_source_column(make_cites):
+    r = refs(make_cites)
+    html = render.render_table(["Where"], [{"cells": ["[[a.py:1-9]]"], "conf": "confirmed", "cite": []}], r, "t")
+    assert "<code>a.py</code>" in html and html.count('class="cite"') == 1
+    assert '<td class="src-cell"><sup class="cite">' in html
+
+
+def test_free_text_cell_keeps_its_inline_citation(make_cites):
+    text = "This long sentence explains how the loader reads the settings file and then hands each value to the validator [[a.py:3]] before anything else."
+    cell, lifted = render.lift_cites(text, refs(make_cites))
+    assert cell == text and lifted == []
+
+
+def test_risk_tiles_add_up_to_the_rows_of_the_register():
+    row = lambda sev, conf="confirmed": {"cells": ["R", "x", "c", sev, "i", "r"], "conf": conf, "cite": []}
+    rep = {"cards": [{"card": "risks.tracker", "blocks": [{"type": "table", "columns": list(render.RISK_COLUMNS),
+                                                           "rows": [row("High"), row("Low", "inferred"), row("Info")]}]}]}
+    html = render.panel_risk_counts(rep)
+    assert html.count('<div class="stat ') == 6 and "of the 3 risks" in html

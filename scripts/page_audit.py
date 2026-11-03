@@ -91,7 +91,7 @@ def _plain_tables(card: Node) -> list:
 
 
 def _check_table(cid: str, n: int, table: Node, columns: list, rows: int, authored: bool) -> list:
-    errs, want = [], list(columns) + (["Basis", "Sources"] if authored else [])
+    errs, want = [], list(columns) + (["Basis", "Source"] if authored else [])
     have = _head(table)
     for col in want:
         if col not in have:

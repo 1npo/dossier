@@ -10,6 +10,7 @@ import sys
 
 NORMALIZERS = (
     re.compile(r' data-card="[^"]*"'),
+    re.compile(r'<div class="card-badges">.*?</div>', re.S),
     re.compile(r'<span class="badge tier [^"]*"[^>]*>.*?</span>', re.S),
     re.compile(r'<p class="question">.*?</p>', re.S),
     re.compile(r'<p class="tier-key">.*?</p>', re.S),

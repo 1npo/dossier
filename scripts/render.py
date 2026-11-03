@@ -52,7 +52,6 @@ REPORTS = [  # id, title, written by Claude?  The order is schema.REPORT_ORDER.
 TITLES = {r: t for r, t, _ in REPORTS}
 CONF = ("confirmed", "inferred", "unknown")
 BLOCKS = ("text", "table", "diagram", "list")
-SHADE_KEY = '<p class="shade-key"><span class="fact"><i></i>Measured from the repository</span><span class="llm"><i></i>Written by Claude: facts mixed with cited, inferred and unknown statements</span></p>'
 BARE_REPORTS = ("risks", "gaps", "corrections")   # tracker pages: no executive summary or contents card
 GAP_KINDS = ("assumption", "unknown", "inference", "coverage")
 SEVERITIES = ("critical", "high", "medium", "low", "info")
@@ -704,6 +703,32 @@ def cell_html(cell, refs):
     return keep_whole(inline(cell, refs))
 
 
+FREE_TEXT_WORDS = 12  # a cell of more words than this is free text: its citations stay where the author put them
+
+
+def lift_cites(cell, refs):
+    """(cell, citations) for a table cell. A short cell gives its inline citations to the Source column: a marker with a label
+    or one that stands where a file name belongs is replaced by that name in code, any other marker is dropped. A cell of free text is left as it is."""
+    text = str(cell or "")
+    if not INLINE_CITE.search(text):
+        return text, []
+    text = SEE_TAIL.sub(r"\1", text)
+    if len(INLINE_CITE.sub("", text).split()) > FREE_TEXT_WORDS:
+        return text, []
+    lifted = []
+
+    def sub(m):
+        raw, _, label = m.group(1).partition("|")
+        raws = [x.strip() for x in raw.split(", ") if x.strip()]
+        lifted.extend(raws)
+        label = label.strip()
+        if not label and len(raws) == 1 and parse_cite(raws[0])["kind"] == "file" and stands_for_name(m.string[:m.start()], m.string[m.end():]):
+            label = parse_cite(raws[0])["path"]
+        return f"`{label}`" if label else ""
+    out = INLINE_CITE.sub(sub, text)
+    return re.sub(r"\s+([.,;:])", r"\1", re.sub(r"[ \t]{2,}", " ", out)).strip(), lifted
+
+
 TALL_ROWS = 40  # a longer table scrolls inside its card; every row stays in the page
 
 
@@ -711,18 +736,22 @@ def render_table(columns, rows, refs, tid, filterable=True, plain=False, group=N
     """rows are dicts with cells/conf/cite/note (authored) or plain lists of ready HTML (measured)."""
     head = "".join(f"<th>{E(c)}</th>" for c in columns)
     if not plain:
-        head += '<th class="basis-cell">Basis</th><th class="src-cell">Sources</th>'
+        head += '<th class="basis-cell">Basis</th><th class="src-cell">Source</th>'
     body = []
     for r in rows:
         if plain:
             body.append("<tr>" + "".join(f'<td data-sort="{E(c[1])}">{keep_whole(str(c[0]))}</td>' if isinstance(c, tuple) else f"<td>{keep_whole(str(c))}</td>" for c in r) + "</tr>")
             continue
-        tds = []
-        for col, cell in zip(columns, r["cells"]):
+        tds, cells, lifted = [], [], []
+        for cell in r["cells"]:
+            text, found = lift_cites(cell, refs)
+            cells.append(text)
+            lifted += found
+        for col, cell in zip(columns, cells):
             kind = col.strip().lower()
             tds.append(f"<td>{sev_badge(cell)}</td>" if kind == "severity" else f"<td>{status_badge(cell)}</td>" if kind == "status" else f"<td>{cell_html(cell, refs)}</td>")
         note = f'<div class="muted">{inline(r.get("note"), refs)}</div>' if r.get("note") and r.get("conf") != "confirmed" else ""
-        cites_ = new_cites(r.get("cite"), *r["cells"])
+        cites_ = new_cites(list(r.get("cite") or []) + lifted, *cells)
         body.append("<tr>" + "".join(tds) + f'<td class="basis-cell">{basis_for(r)}{added_tag(r)}{gid_tag(r)}{note}{user_note(r.get("user"))}</td><td class="src-cell">{refs.mark(cites_)}</td></tr>')
     flt = f'<input class="input tbl-filter" type="search" data-target="{tid}" placeholder="Filter rows" aria-label="Filter rows">' if filterable and len(rows) > 6 else ""
     top = ("<tr class=\"group-row\">" + "".join(f'<th colspan="{n}"{" class=\"grp\"" if lbl else ""}>{E(lbl)}</th>' for lbl, n in group) + "</tr>") if group else ""
@@ -836,10 +865,15 @@ def partial_badge(reason):
     return f'<span class="badge partial" data-variant="outline" tabindex="0" data-tip="{E(reason)}" data-tip-kind="note">partial</span>' if reason else ""
 
 
+def badges(*items):
+    """The badges of a card, in its upper right corner."""
+    return f'<div class="card-badges">{"".join(items)}</div>' if any(items) else ""
+
+
 def schema_card(card, body, extra="", partial=None):
     shade = "fact" if card["tier"] == "M" else "llm"
     return (f'<div class="card block {shade}{extra}" id="{card_dom_id(card["id"])}" data-card="{card["id"]}">'
-            f'<header><h3>{E(card["title"])}</h3>{tier_badge(card["tier"])}{partial_badge(partial)}</header><section>{body}</section></div>')
+            f'<header><h3>{E(card["title"])}</h3>{badges(tier_badge(card["tier"]), partial_badge(partial))}</header><section>{body}</section></div>')
 
 
 def placeholder_body(card):
@@ -1013,12 +1047,17 @@ def card(title, body, pid=None, desc=None, refs=None, cite=None, kind="fact", ci
         sc = schema_cards_by_id()[cid]
         title, badge, dcard = sc["title"], tier_badge(sc["tier"]), f' data-card="{cid}"'
         kind = "fact" if sc["tier"] == "M" else "llm"
-    return f'<div class="card panel {kind}"{idattr}{dcard}><header><h2>{E(title)} {mark}</h2>{badge}{d}</header><section>{body}</section></div>'
+    return f'<div class="card panel {kind}"{idattr}{dcard}><header><h2>{E(title)} {mark}</h2>{badges(badge)}{d}</header><section>{body}</section></div>'
 
 
-def path_cell(path, refs, line=None):
-    ref = f"{path}:{line}" if line else path
-    return f"<code>{E(ref).replace('/', '/<wbr>')}</code>{refs.mark([ref])}"
+def path_code(path):
+    """A file or folder name in code, with no citation after it: the citation goes in the table's Source column."""
+    return f"<code>{E(path).replace('/', '/<wbr>')}</code>"
+
+
+def source_cell(refs, *places):
+    """The Source column of a measured row: one numbered marker for each (path, line or None), without repeats."""
+    return refs.mark([f"{p}:{n}" if n else p for p, n in places])
 
 
 class Raw(str):
@@ -1087,7 +1126,7 @@ def languages_block(f, refs):
 # --------------------------------------------------------------------------- dependencies card
 
 DEP_CATEGORIES = depscan.CATEGORIES + ("Other",)
-DEP_VIEWS = (("files", "Files"), ("table", "Ranked list"), ("matrix", "Module matrix"), ("tree", "Treemap"), ("bubble", "Reliance plot"), ("graph", "Module graph"))
+DEP_VIEWS = (("files", "Files"), ("table", "Ranked list"), ("matrix", "Module matrix"), ("tree", "Treemap"), ("bubble", "Reliance plot"))
 DEP_MEASURES = (("breadth", "Breadth"), ("spread", "Spread"), ("depth", "Depth"))
 DEP_SCOPES = (("all", "All"), ("runtime", "Runtime"), ("dev", "Dev"))
 DEP_ZOOMS = (("1", "Top level"), ("2", "Modules"), ("3", "Folders"), ("99", "All files"))
@@ -1499,25 +1538,28 @@ def panel_corrections(state, refs, present=frozenset()):
 
 def panel_history(entries, refs):
     def num(n): return f'<span class="num">{n}</span>'
-    rows = [[f'<span class="nw">{E(h["date"][:10])}</span><div class="muted">{E(h["date"][11:16])} UTC</div>', f'<span class="nw"><code>{E(h["short"])}</code>{refs.mark(["commit:" + h["sha"]])}</span>', E(h.get("branch") or h.get("ref") or ""),
+    rows = [[f'<span class="nw">{E(h["date"][:10])}</span><div class="muted">{E(h["date"][11:16])} UTC</div>', f'<span class="nw"><code>{E(h["short"])}</code></span>', E(h.get("branch") or h.get("ref") or ""),
              E(h["summary"]) + (f'<div class="muted">{E(h["note"])}</div>' if h.get("note") else ""),
-             num(h["gaps"]["unknown"]), num(h["gaps"]["inference"]), num(h["gaps"]["assumption"]), f'<span class="nw">{E(h["skill_version"])}</span>'] for h in reversed(entries)]
-    return card("Dossier changelog", render_table(["Built", "Commit", "Branch", "What changed", "Unknown", "Inferred", "Assumed", "Skill version"], rows, refs, "t-hist", False, True,
-                group=[("", 4), ("Open items at that build", 3), ("", 1)]), "history", "Open items are the unknowns, inferences and assumptions listed in the gaps report at the time of each build.", cid="dossier.changelog")
+             num(h["gaps"]["unknown"]), num(h["gaps"]["inference"]), num(h["gaps"]["assumption"]), f'<span class="nw">{E(h["skill_version"])}</span>', refs.mark(["commit:" + h["sha"]])] for h in reversed(entries)]
+    return card("Dossier changelog", render_table(["Built", "Commit", "Branch", "What changed", "Unknown", "Inferred", "Assumed", "Skill version", "Source"], rows, refs, "t-hist", False, True,
+                group=[("", 4), ("Open items at that build", 3), ("", 2)]), "history", "Open items are the unknowns, inferences and assumptions listed in the gaps report at the time of each build.", cid="dossier.changelog")
 
 
 def panel_risk_counts(rep):
+    """One tile for each severity, so the tiles add up to the rows of the register, and one for the rows that rest on inference."""
     counts = {s: 0 for s in SEVERITIES}
+    total = inferred = 0
     for b in all_blocks(rep):
         if b.get("type") == "table" and "Severity" in b.get("columns", []):
             i = b["columns"].index("Severity")
             for r in b.get("rows", []):
+                total += 1
+                inferred += r.get("conf") == "inferred"
                 v = str(r["cells"][i]).strip().lower()
                 if v in counts:
                     counts[v] += 1
-    inferred = sum(1 for c in claims_of("risks", rep) if c["conf"] == "inferred")
-    tiles = [(Raw(sev_badge(s.capitalize())), counts[s], "", f"sev-{SEV_TONE[s]}" + ("" if counts[s] else " zero")) for s in SEVERITIES[:4]]
-    return stats_html(tiles + [("Based on inference", inferred, "risks without direct evidence")])
+    tiles = [(Raw(sev_badge(s.capitalize())), counts[s], "", f"sev-{SEV_TONE[s]}" + ("" if counts[s] else " zero")) for s in SEVERITIES]
+    return stats_html(tiles + [("Based on inference", inferred, f"of the {total} risks have no direct evidence")])
 
 
 # --------------------------------------------------------------------------- page assembly
@@ -1585,8 +1627,9 @@ def with_contents(rid, body):
     return body, f'<div class="card toc-card" id="{rid}-toc"><header><h2>Contents</h2></header><section><ol class="toc">{items}</ol></section></div>'
 
 
-TIER_KEY = ('<p class="tier-key"><span>Badge on each card:</span><span><b>M</b> measured by a tool</span>'
-            '<span><b>A</b> found by a tool, decided by Claude</span><span><b>R</b> read by Claude</span></p>')
+TIER_KEY = ('<p class="tier-key"><span>Badge on each card:</span><span><b class="tier-m">M</b> measured by a tool</span>'
+            '<span><b class="tier-a">A</b> found by a tool, decided by Claude</span><span><b class="tier-r">R</b> read by Claude</span>'
+            '<span><b class="tier-mplusa">M+A</b> measured, then named or explained by Claude</span></p>')
 
 # cards drawn by the existing panels keep their old anchors, so links to them from before still work
 PANEL_ANCHORS = {"dossier.about": "dossier-build", "dossier.reports": "report-index", "dossier.changelog": "history",
@@ -1599,9 +1642,8 @@ def card_anchor(cid):
 
 
 def head_html(rid, title, headline_html, sch=None):
-    q = f'<p class="question">{E(sch["question"])}</p>' if sch else ""
     key = TIER_KEY if sch else ""
-    return f'<header class="report-head"><h1>{E(title)}</h1>{q}<p class="headline">{headline_html}</p>{SHADE_KEY}{key}</header>'
+    return f'<header class="report-head"><h1>{E(title)}</h1><p class="headline">{headline_html}</p>{key}</header>'
 
 
 def questions_body(refs):

@@ -42,7 +42,7 @@ def module_imports(cid: str, items: list, group: dict, refs, kind: str) -> str:
     rows = []
     for g in sorted(items, key=lambda g: (group.get(g["path"], ""), g["path"], g["to"])):
         lines = g.get("lines") or []
-        places = ", ".join(r.path_cell(g["path"], refs, n) for n in lines) if lines else r.path_cell(g["path"], refs)
+        places = r.source_cell(refs, *[(g["path"], n) for n in lines]) if lines else r.source_cell(refs, (g["path"], None))
         rows.append([r.E(group.get(g["path"], "-")), r.E(group.get(g["paths"][0], "-")), r.E(g["from"]), r.E(g["to"]),
                      (str(max(len(lines), 1)), max(len(lines), 1)), places])
-    return r.render_table([f"From {kind}", f"To {kind}", "From", "To", "Imports", "Lines"], rows, refs, "t-" + cid.replace(".", "-") + "-edges", plain=True)
+    return r.render_table([f"From {kind}", f"To {kind}", "From", "To", "Imports", "Source"], rows, refs, "t-" + cid.replace(".", "-") + "-edges", plain=True)

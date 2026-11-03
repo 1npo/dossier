@@ -25,9 +25,16 @@ def _table(cid, columns, rows, refs):
     return _render().render_table(columns, rows, refs, "t-" + cid.replace(".", "-"), plain=True)
 
 
-def _paths(paths, refs):
+NONE_FOUND = '<span class="muted">none found</span>'
+
+
+def _located(rows, refs):
+    """One row for each (concern, location): the location in code, and its citation in the Source column."""
     r = _render()
-    return ", ".join(r.path_cell(p, refs) for p in paths) if paths else '<span class="muted">none found</span>'
+    out = []
+    for name, found in rows:
+        out += [[name, r.path_code(p), r.source_cell(refs, (p, None))] for p in found] or [[name, NONE_FOUND, ""]]
+    return out
 
 
 # ------------------------------------------------------------------ reading.map
@@ -90,7 +97,7 @@ def _reading_map(cid, ctx, refs):
         ("entry points", sorted({e["path"] for e in extract.get("entry_points", []) if e.get("path")})),
         ("scripts", _rollup({p for p in tree if p.startswith(("scripts/", "bin/"))}, tree)),
     ]
-    return _table(cid, ["Concern", "Location"], [[name, _paths(found, refs)] for name, found in rows], refs)
+    return _table(cid, ["Concern", "Location", "Source"], _located(rows, refs), refs)
 
 
 # ------------------------------------------------------------------ conventions.tooling
@@ -138,18 +145,26 @@ def _tooling(cid, ctx, refs):
         if not where:
             continue
         name = re.compile(r"(?<![\w-])" + re.escape(tool) + r"(?![\w-])", re.I)
-        enforced = (["pre-commit"] if tool != "pre-commit" and name.search(hooks) else []) + [r.path_cell(p, refs) for p in ci if name.search(read(p) or "")]
-        rows.append([tool, ", ".join(r.path_cell(p, refs, n) for p, n in where), ", ".join(enforced) if enforced else NOT_ENFORCED])
+        ci_hits = [p for p in ci if name.search(read(p) or "")]
+        enforced = (["pre-commit"] if tool != "pre-commit" and name.search(hooks) else []) + [r.path_code(p) for p in ci_hits]
+        rows.append([tool, ", ".join(r.path_code(p) for p, _ in where), ", ".join(enforced) if enforced else NOT_ENFORCED,
+                     r.source_cell(refs, *where, *[(p, None) for p in ci_hits])])
     if not rows:
         return '<p class="muted">No formatter or linter configuration was found.</p>'
-    return _table(cid, ["Tool", "Config file", "Enforced where"], rows, refs)
+    return _table(cid, ["Tool", "Config file", "Enforced where", "Source"], rows, refs)
 
 
 # ------------------------------------------------------------------ interactions.violations
 
 
-def _evidence(path, line, refs):
-    return _render().path_cell(path, refs, line) if path else "-"
+def _evidence(path, line):
+    """The file (and line) a finding rests on, in code; the citation to it goes in the Source column."""
+    r = _render()
+    return r.path_code(f"{path}:{line}" if line else path) if path else "-"
+
+
+def _source(path, line, refs):
+    return _render().source_cell(refs, (path, line)) if path else ""
 
 
 def _violations(cid, ctx, refs):
@@ -165,16 +180,17 @@ def _violations(cid, ctx, refs):
         inside = [g for g in imports if g["from"] in mods and g["to"] in mods and g.get("lines")]
         first = min(inside, key=lambda g: (g["path"], g["lines"][0])) if inside else None
         rows.append(["import cycle", E(mods[0]), E(" → ".join(mods[1:] + mods[:1])),
-                     _evidence(first["path"], first["lines"][0], refs) if first else _evidence(cyc["path"], None, refs)])
+                     _evidence(first["path"], first["lines"][0]) if first else _evidence(cyc["path"], None),
+                     _source(first["path"], first["lines"][0], refs) if first else _source(cyc["path"], None, refs)])
     contracts = [g for g in graph if g.get("kind") == "contract"]
     for c in contracts:
         if c["status"] == "broken":
             for v in c.get("violations") or []:
-                rows.append([E(f"breaks contract '{c['contract']}'"), E(v["from"]), E(v["to"]), _evidence(v.get("path"), v.get("line"), refs)])
+                rows.append([E(f"breaks contract '{c['contract']}'"), E(v["from"]), E(v["to"]), _evidence(v.get("path"), v.get("line")), _source(v.get("path"), v.get("line"), refs)])
         elif c["status"] == "not-checked":
-            rows.append(["contract not checked", E(c["contract"]), "-", E(c.get("reason") or "")])
+            rows.append(["contract not checked", E(c["contract"]), "-", E(c.get("reason") or ""), ""])
     if rows:
-        return _table(cid, ["Kind", "From", "To", "Evidence"], rows, refs)
+        return _table(cid, ["Kind", "From", "To", "Evidence", "Source"], rows, refs)
     tail = ", and every declared contract is kept" if contracts else ", and the repository declares no layer rules"
     return f'<p class="muted">No import cycles were found{tail}.</p>'
 

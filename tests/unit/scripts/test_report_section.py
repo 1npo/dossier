@@ -12,7 +12,7 @@ PAGE = (
     '<section class="report" id="a" hidden><p>one</p></section>'
     '<section class="report" id="b" hidden><h1>B</h1><p class="question">Q?</p>'
     '<div class="card" id="x" data-card="b.one"><header><h3>T</h3>'
-    '<span class="badge tier tier-a" data-tip="t">A</span></header></div>'
+    '<div class="card-badges"><span class="badge tier tier-a" data-tip="t">A</span></div></header></div>'
     '<p class="tier-key">key</p><p>kept</p></section>'
     '<section class="report" id="c" hidden><p>three</p></section>'
     '<footer class="foot">f</footer>'
