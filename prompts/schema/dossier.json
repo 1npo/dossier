@@ -42,6 +42,16 @@
       "fixed": null
     },
     {
+      "id": "dossier.cards",
+      "title": "Cards in this dossier",
+      "tier": "M",
+      "priority": "P0",
+      "writer": "script",
+      "shape": "computed",
+      "informational": true,
+      "fixed": null
+    },
+    {
       "id": "dossier.changelog",
       "title": "Dossier changelog",
       "tier": "M",

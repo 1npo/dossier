@@ -1,4 +1,4 @@
-"""The tables of the two measured graph cards (D4): the dependency matrix, the component edge table and the module table."""
+"""The tables of the two measured graph cards (D4): the component edge table and the module table."""
 from __future__ import annotations
 
 
@@ -10,16 +10,6 @@ def _render():
 
 def heading(text: str) -> str:
     return f'<h4 class="graph-heading">{_render().E(text)}</h4>'
-
-
-def matrix(cid: str, names: list, edges: dict, area: dict, refs) -> str:
-    """A table with one row and one column per component: the number of imports from the row to the column."""
-    r = _render()
-    order = sorted(set(names) | {n for pair in edges for n in pair}, key=lambda n: (area.get(n, ""), n))
-    rows = [[r.E(a)] + [str(edges[(a, b)]) if (a, b) in edges else "" for b in order] for a in order]
-    note = ('<p class="muted">Rows import columns. Each number is how many imports connect the two '
-            "(one per importing file and imported file).</p>")
-    return note + r.render_table(["Component"] + order, rows, refs, "t-" + cid.replace(".", "-") + "-matrix", filterable=False, plain=True, sort=False, cls="dsm")
 
 
 def component_edges(cid: str, imports: list, group: dict, refs, kind: str) -> str:

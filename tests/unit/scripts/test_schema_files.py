@@ -42,8 +42,7 @@ def test_fixed_names_a_real_column_or_key():
 def test_questions():
     ids = {c["id"]: c for c in all_cards()}
     qs = schema.load_questions()
-    nums = [tuple(int(x) for x in q["id"].split(".")) for q in qs]
-    assert nums == sorted(set(nums))
+    assert [q["id"] for q in qs] == [str(i) for i in range(1, len(qs) + 1)]
     named = set()
     for q in qs:
         assert q["question"].strip() and q["answers"]

@@ -46,6 +46,10 @@ The panel also has a row of the statement's other sources and a "Go to reference
 
 **Sharing.** The page now contains the source of every file it cites, up to 3 MB of text in total. Treat it like the repository: do not share it more widely than the code. Files that match secret patterns or are flagged by the gatherer are never embedded.
 
+## Working with tables
+
+Every table can be sorted (click a column heading; a third click restores the written order). Drag the right edge of a heading to resize that column; double-click the edge, or use the arrow keys on it, to undo or nudge it. The **Columns** menu above a table hides and shows columns, and the remaining columns are laid out again at readable widths. **Reset columns** brings back every column at its natural width.
+
 ## Contributor knowledge map
 
 The Contributors report has a card that shows which parts of the repository each person knows best. It is a tree of directories and files with one row per path. Each row has a bar split by contributor, and the top contributor beside it. Four controls change what you see:

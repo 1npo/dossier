@@ -833,7 +833,7 @@ Not worked around in the plan, except where stated.
 4. Steps 6, 7 and 9 of the process list are done by Claude, and "Claude never edits" `build.json`. The spec does not say who records them. The plan has `render` derive them from files, plus `render --readers` for the one number no file holds (Q3).
 5. Step 8 includes "the page was opened in a real browser", which happens after `render` has written the page. The plan records it from `check_page.py` and shows it on the next render (Q4).
 6. `dossier.process` says "8 to 10 steps", but the fixed list has exactly ten. The plan always shows ten.
-7. Report 01's freshness BAN (question 10.3) and "extractor list with versions" are in §4 but not in any milestone's content in §10. The plan shows tool versions in the process card; the freshness BAN is not built.
+7. Report 01's freshness BAN (question 39) and "extractor list with versions" are in §4 but not in any milestone's content in §10. The plan shows tool versions in the process card; the freshness BAN is not built.
 8. "The affected cards are badged 'partial'" needs a map from tools to cards that does not exist until adapters do. Moved to M2.
 9. §6.2's row "`dotnet list package --include-transitive`": since .NET 10 the command is `dotnet package list`, and it restores automatically unless `--no-restore` is passed, so it must run under the restore hygiene rules or with `--no-restore`.
 10. §6.2 says Node and npm are host prerequisites but gives no version. scip-typescript supports Node 22 and 24 only, and dependency-cruiser 18 needs `^22 || ^24 || >=26`; scip-python needs 16.

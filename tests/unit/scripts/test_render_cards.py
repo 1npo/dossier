@@ -357,3 +357,36 @@ def test_risk_tiles_add_up_to_the_rows_of_the_register():
                                                            "rows": [row("High"), row("Low", "inferred"), row("Info")]}]}]}
     html = render.panel_risk_counts(rep)
     assert html.count('<div class="stat ') == 6 and "of the 3 risks" in html
+
+
+def lst():
+    return {"type": "list", "items": [{"text": "Install it.", "conf": "confirmed", "cite": ["a.py:1"]}, {"text": "Run it.", "conf": "confirmed", "cite": ["a.py:2"]}]}
+
+
+def test_a_list_slot_marked_ordered_draws_a_numbered_list(make_cites):
+    r = refs(make_cites)
+    ordered = card("x.setup", slots=[{"type": "list", "ordered": True}])
+    plain = card("x.other", slots=[{"type": "list"}])
+
+    assert '<ol class="claims">' in render.blocks_body(ordered, [lst()], r, "t")
+    assert '<ul class="claims">' in render.blocks_body(plain, [lst()], r, "t")
+
+
+def test_ops_local_setup_steps_are_ordered():
+    local = next(c for c in schema.load("ops")["cards"] if c["id"] == "ops.local")
+
+    assert next(s for s in local["slots"] if s["type"] == "list")["ordered"] is True
+
+
+def test_cards_listing_has_a_row_for_every_card_of_every_report(make_cites):
+    h = render.cards_body(refs(make_cites))
+
+    total = sum(len(sch["cards"]) for sch in schema.load_all().values())
+    assert h.count("<tr>") - 1 == total  # the header row is the other one
+    assert f'href="#{render.card_anchor("dossier.cards")}"' in h and 'href="#report-index"' in h
+
+
+def test_cards_listing_follows_the_reports_listing_on_the_dossier_page():
+    ids = [c["id"] for c in schema.load("dossier")["cards"]]
+
+    assert ids.index("dossier.cards") == ids.index("dossier.reports") + 1
