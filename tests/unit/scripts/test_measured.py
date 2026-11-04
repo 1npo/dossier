@@ -290,26 +290,6 @@ def big_ctx():
 
 
 class TestComponentTables:
-    def test_matrix_has_one_row_and_column_per_component_and_every_edge_count(self):
-        ctx, edges, _ = big_ctx()
-
-        html = measured.body("components.map", ctx, Refs())
-        matrix = table_html(html, "t-components-map-matrix")
-        header = re.findall(r"<th(?: [^>]*)?>(.*?)</th>", matrix.split("<tbody>")[0])
-        rows = rows_of(matrix)
-
-        assert len(header) == 1 + 16
-        assert len(rows) == 16
-        cells = {(r[0], header[i + 1]): int(c) for r in rows for i, c in enumerate(r[1:]) if c}
-        assert cells == {pair: n for pair, n in edges.items()}
-
-    def test_matrix_is_marked_unsortable_and_styled_as_a_matrix(self):
-        ctx, _, _ = big_ctx()
-
-        matrix = table_html(measured.body("components.map", ctx, Refs()), "t-components-map-matrix")
-
-        assert 'class="table dsm"' in matrix and "data-nosort" in matrix
-
     def test_component_edge_table_has_every_edge_most_imports_first(self):
         ctx, edges, _ = big_ctx()
 

@@ -252,16 +252,24 @@
     });
     rows.forEach(function (r) { body.appendChild(r.tr); });
   }
+  // The strip above a table that holds its filter box and buttons. The filter box, when there is one, is moved into it.
+  function tableBar(table) {
+    var wrap = table.closest(".table-container") || table, prev = wrap.previousElementSibling;
+    if (prev && prev.classList.contains("tbl-bar")) return prev;
+    var bar = doc.createElement("div");
+    bar.className = "tbl-bar"; wrap.before(bar);
+    if (prev && prev.classList.contains("tbl-filter")) bar.appendChild(prev);
+    return bar;
+  }
   function makeSortable(table) {
     if (!table.tHead || !table.tBodies[0] || table.dataset.sortable || table.hasAttribute("data-nosort")) return;
     table.dataset.sortable = "1";
     $$("tr", table.tBodies[0]).forEach(function (tr, i) { tr.dataset.row = i; });
     var hr = table.tHead.rows[table.tHead.rows.length - 1];
-    var wrap = table.closest(".table-container") || table, bar = doc.createElement("div"), reset = doc.createElement("button");
-    bar.className = "tbl-bar"; reset.type = "button"; reset.className = "btn"; reset.hidden = true; reset.textContent = "Reset order";
+    var bar = tableBar(table), reset = doc.createElement("button");
+    reset.type = "button"; reset.className = "btn"; reset.hidden = true; reset.textContent = "Reset order";
     reset.setAttribute("data-variant", "outline"); reset.setAttribute("data-size", "sm"); reset.title = "Put the rows back in the order they were written";
-    var filter = wrap.previousElementSibling;
-    wrap.before(bar); if (filter && filter.classList.contains("tbl-filter")) bar.appendChild(filter); bar.appendChild(reset);
+    bar.appendChild(reset);
     function clear() { $$("th", hr).forEach(function (o) { o.removeAttribute("aria-sort"); }); reset.hidden = true; sortBy(table, 0, 0); }
     reset.addEventListener("click", clear);
     $$("th", hr).forEach(function (th, col) {
@@ -280,6 +288,113 @@
     });
   }
   $$("table.table").forEach(makeSortable);
+
+  // ---- adjustable tables: drag the edge of a column header to resize it (double-click the edge to undo), and hide or show columns
+  // from the Columns menu. Hiding or showing a column drops every manual width so the browser lays the remaining columns out again.
+  var colState = {};   // a table that is drawn again (the dependency list) keeps its hidden columns and widths, keyed by its id or label
+  function makeAdjustable(table) {
+    if (!table.tHead || !table.tBodies[0] || table.dataset.adjustable) return;
+    var hr = table.tHead.rows[table.tHead.rows.length - 1], heads = Array.prototype.slice.call(hr.cells), n = heads.length;
+    if (n < 2) return;
+    table.dataset.adjustable = "1"; table.classList.add("adj");
+    var key = table.id || table.getAttribute("aria-label") || "", st = (key && colState[key]) || { off: {}, w: null };
+    if (key) colState[key] = st;
+    var names = heads.map(function (h, i) { return h.textContent.replace(/\s+/g, " ").trim() || "Column " + (i + 1); });
+    var spans = $$("tr.group-row th", table.tHead).map(function (th) { return { th: th, n: th.colSpan }; });
+    var bar = tableBar(table), reset = doc.createElement("button"), menu = null, boxes = [];
+    reset.type = "button"; reset.className = "btn"; reset.hidden = true; reset.textContent = "Reset columns";
+    reset.setAttribute("data-variant", "outline"); reset.setAttribute("data-size", "sm"); reset.title = "Show every column again at its natural width";
+    function cellsOf(i) {
+      return $$("tr", table).map(function (tr) { return tr.cells.length === n ? tr.cells[i] : null; }).filter(Boolean);
+    }
+    function visible() { var v = []; for (var i = 0; i < n; i++) if (!st.off[i]) v.push(i); return v; }
+    function unfreeze() {
+      var cg = $("colgroup", table); if (cg) cg.remove();
+      table.style.tableLayout = table.style.width = table.style.minWidth = ""; st.w = null;
+    }
+    function freeze() {   // pin every visible column at its present width so that one can then change on its own
+      var vis = visible(), cg = $("colgroup", table);
+      if (!cg) {
+        cg = doc.createElement("colgroup");
+        vis.forEach(function (i) { var c = doc.createElement("col"); c.style.width = heads[i].getBoundingClientRect().width + "px"; cg.appendChild(c); });
+        table.insertBefore(cg, table.firstChild); table.style.tableLayout = "fixed"; table.style.minWidth = "0";
+      }
+      return cg;
+    }
+    function fit() {
+      var cg = $("colgroup", table), sum = 0;
+      if (cg) $$("col", cg).forEach(function (c) { sum += parseFloat(c.style.width) || 0; });
+      if (cg) { table.style.width = sum + "px"; st.w = $$("col", cg).map(function (c) { return parseFloat(c.style.width); }); }
+    }
+    function apply() {
+      for (var i = 0; i < n; i++) cellsOf(i).forEach(function (c) { c.classList.toggle("col-off", !!st.off[i]); });
+      var at = 0;   // the group headers over the columns span only the columns still shown
+      spans.forEach(function (g) {
+        var shown = 0; for (var i = at; i < at + g.n; i++) if (!st.off[i]) shown++;
+        at += g.n; g.th.classList.toggle("col-off", !shown); if (shown) g.th.colSpan = shown;
+      });
+      var off = Object.keys(st.off).filter(function (k) { return st.off[k]; }).length;
+      reset.hidden = !off && !st.w;
+      boxes.forEach(function (b, i) { b.checked = !st.off[i]; b.disabled = b.checked && n - off <= 1; });   // the last column shown cannot be hidden
+      if (menu) $("summary", menu).textContent = off ? "Columns (" + off + " hidden)" : "Columns";
+    }
+    function restore() {   // widths saved from an earlier drawing of this table
+      if (!st.w) return;
+      var cg = freeze(), w = st.w; $$("col", cg).forEach(function (c, i) { if (w[i]) c.style.width = w[i] + "px"; }); fit();
+    }
+    function relayout() { unfreeze(); apply(); }
+    reset.addEventListener("click", function () { st.off = {}; relayout(); });
+
+    if (n > 2) {
+      menu = doc.createElement("details"); menu.className = "col-menu";
+      var sum = doc.createElement("summary"), list = doc.createElement("div");
+      sum.className = "btn"; sum.setAttribute("data-variant", "outline"); sum.setAttribute("data-size", "sm"); sum.title = "Choose which columns to show";
+      list.className = "col-list"; menu.appendChild(sum); menu.appendChild(list);
+      names.forEach(function (nm, i) {
+        var lab = doc.createElement("label"), box = doc.createElement("input");
+        box.type = "checkbox"; box.checked = true; boxes.push(box);
+        box.addEventListener("change", function () { if (box.checked) delete st.off[i]; else st.off[i] = true; relayout(); });
+        lab.appendChild(box); lab.appendChild(doc.createTextNode(" " + nm)); list.appendChild(lab);
+      });
+      bar.appendChild(menu);
+    }
+    bar.appendChild(reset);
+
+    heads.forEach(function (th, i) {
+      var grip = doc.createElement("span");
+      grip.className = "col-grip"; grip.setAttribute("role", "separator"); grip.setAttribute("aria-orientation", "vertical"); grip.tabIndex = 0;
+      grip.title = "Drag to resize this column; double-click to undo"; th.appendChild(grip);
+      function nth() { return visible().indexOf(i); }
+      function widen(w) {
+        var cg = freeze(), c = $$("col", cg)[nth()]; if (!c) return;
+        c.style.width = Math.max(40, w) + "px"; fit(); apply();
+      }
+      grip.addEventListener("click", function (e) { e.stopPropagation(); });
+      grip.addEventListener("pointerdown", function (e) {
+        if (e.button) return;
+        e.preventDefault(); e.stopPropagation();
+        var x0 = e.clientX, w0 = th.getBoundingClientRect().width;
+        grip.setPointerCapture(e.pointerId); grip.classList.add("on"); doc.body.classList.add("col-dragging");
+        function move(ev) { widen(w0 + ev.clientX - x0); }
+        function done() {
+          grip.classList.remove("on"); doc.body.classList.remove("col-dragging");
+          grip.removeEventListener("pointermove", move); grip.removeEventListener("pointerup", done); grip.removeEventListener("pointercancel", done);
+        }
+        grip.addEventListener("pointermove", move); grip.addEventListener("pointerup", done); grip.addEventListener("pointercancel", done);
+      });
+      grip.addEventListener("dblclick", function (e) { e.stopPropagation(); relayout(); });
+      grip.addEventListener("keydown", function (e) {
+        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+        e.preventDefault(); widen(th.getBoundingClientRect().width + (e.key === "ArrowRight" ? 16 : -16));
+      });
+    });
+    apply(); restore();
+  }
+  doc.addEventListener("click", function (e) {   // a Columns menu closes when anything else is clicked
+    $$("details.col-menu[open]").forEach(function (d) { if (!d.contains(e.target)) d.open = false; });
+  });
+  function adjustTables(scope) { $$("table.table", scope).forEach(makeAdjustable); }
+  adjustTables();
 
 
   // ---- code viewer: a source marker [n] opens the cited code in a panel on the right. The files are embedded in #code-data.
@@ -1166,6 +1281,7 @@
       var l = list(), V = state.view, files = V === "files";
       computeStats(); hideTip();
       stage.innerHTML = !l.length ? EMPTY : ({ table: viewTable, matrix: viewMatrix, tree: viewTree, bubble: viewBubble, files: viewFiles })[V](l);
+      adjustTables(stage);
       if (V === "tree" && l.length) layoutTree();
       if (files && l.length) renderFiles(keepScroll === true);
       setPressed("dp-view", state.view); setPressed("dp-measure", state.measure); setPressed("dp-scope", state.scope); setPressed("dp-zoom", state.zoom); setPressed("dp-show", state.show);
@@ -1223,154 +1339,7 @@
     }
     var tipOwned = false;
     function hideTip() { if (tipOwned) { tip.hidden = true; tipOwned = false; } }
-    stage.addEventListener("pointermove", function (e) { if (dragging && cv) seek(e); });
-    stage.addEventListener("pointerup", function () { dragging = false; });
-    stage.addEventListener("pointercancel", function () { dragging = false; });
-    stage.addEventListener("scroll", function (e) { if (e.target === scroller) { drawRows(); sched(); hideTip(); } }, true);
-    if (window.ResizeObserver) new ResizeObserver(function () { if (state.view === "tree") layoutTree(); else if (state.view === "files") { drawRows(); sched(); } }).observe(stage);
-    if (window.MutationObserver) new MutationObserver(sched).observe(root, { attributes: true, attributeFilter: ["class"] });   // the theme is the "dark" class on <html>
 
-    // ---- tree keyboard: Up and Down move, Right opens or enters, Left closes or leaves, Enter and Space toggle, Home and End jump
-    function toggle(n, open) { if (open) state.open[n.id] = 1; else delete state.open[n.id]; state.sel = n.id; focusRow = true; renderFiles(true); }
-    function moveTo(j) {
-      if (j < 0 || j >= VIS.length) return;
-      state.sel = VIS[j].id;
-      var y = HEAD_H + j * RH;
-      if (y < scroller.scrollTop + HEAD_H) scroller.scrollTop = y - HEAD_H; else if (y + RH > scroller.scrollTop + scroller.clientHeight) scroller.scrollTop = y + RH - scroller.clientHeight;
-      focusRow = true; drawRows(); sched();
-    }
-    stage.addEventListener("keydown", function (e) {
-      var row = e.target.closest && e.target.closest(".dp-row"); if (!row) return;
-      var n = NODE[row.dataset.path], i = VIS.indexOf(n), j;
-      if (e.key === "ArrowDown") { e.preventDefault(); moveTo(i + 1); }
-      else if (e.key === "ArrowUp") { e.preventDefault(); moveTo(i - 1); }
-      else if (e.key === "ArrowRight") { e.preventDefault(); if (n.dir && !state.open[n.id]) toggle(n, true); else if (n.dir) moveTo(i + 1); }
-      else if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        if (n.dir && state.open[n.id]) toggle(n, false);
-        else if (n.parent) moveTo(VIS.indexOf(n.parent));
-      }
-      else if ((e.key === "Enter" || e.key === " ") && n.dir) { e.preventDefault(); toggle(n, !state.open[n.id]); }
-      else if (e.key === "Home") { e.preventDefault(); moveTo(0); }
-      else if (e.key === "End") { e.preventDefault(); moveTo(VIS.length - 1); }
-    });
-
-    // ---- the dependency picker: a searchable combobox. "All dependencies" clears the focus, and is not offered while Show is "Only paths it touches".
-    var combo = { open: false, q: "", idx: 0, items: [] }, depInp = $("#dp-depsel", rootEl), depList = $("#dp-deplist", rootEl);
-    function depItems() {
-      var q = combo.q.trim().toLowerCase();
-      var items = list().sort(function (a, b) { return a.n.toLowerCase() < b.n.toLowerCase() ? -1 : 1; }).filter(function (d) { return !q || d.n.toLowerCase().indexOf(q) >= 0; });
-      if (!q && state.show !== "touched") items.unshift({ all: true });
-      return items;
-    }
-    function drawCombo() {
-      depList.hidden = !combo.open; depInp.setAttribute("aria-expanded", String(combo.open));
-      if (!combo.open) { depInp.removeAttribute("aria-activedescendant"); return; }
-      combo.items = depItems(); combo.idx = Math.max(0, Math.min(combo.idx, combo.items.length - 1));
-      depList.innerHTML = combo.items.length ? combo.items.map(function (d, i) {
-        return d.all ? '<li id="dp-opt' + i + '" role="option" data-v="" aria-selected="' + (i === combo.idx) + '"><span>All dependencies</span></li>' :
-          '<li id="dp-opt' + i + '" role="option" data-v="' + esc(d.n) + '" aria-selected="' + (i === combo.idx) + '" class="' + (d.n === state.focus ? "cur" : "") + '"><i class="dp-dot" style="background:' + catVar(d.c) + ';margin:0"></i><span class="dp-nm">' + esc(d.n) + '</span><span class="dp-cnt">' + plural(d.files, "file") + "</span></li>";
-      }).join("") : '<li class="none" role="option" aria-disabled="true">No dependency matches</li>';
-      if (combo.items.length) {
-        depInp.setAttribute("aria-activedescendant", "dp-opt" + combo.idx);
-        var li = depList.children[combo.idx];
-        if (li) { if (li.offsetTop < depList.scrollTop) depList.scrollTop = li.offsetTop - 4; else if (li.offsetTop + li.offsetHeight > depList.scrollTop + depList.clientHeight) depList.scrollTop = li.offsetTop + li.offsetHeight - depList.clientHeight + 4; }
-      }
-    }
-    function openCombo() {
-      if (combo.open) return;
-      combo.open = true; combo.q = ""; combo.items = depItems();
-      var cur = state.focus || ""; combo.idx = 0;
-      combo.items.forEach(function (d, i) { if ((d.all ? "" : d.n) === cur) combo.idx = i; });
-      drawCombo(); depInp.select();
-    }
-    function closeCombo() { combo.open = false; drawCombo(); depInp.value = state.focus || ""; }
-    function pickDep(v) {
-      closeCombo();
-      if (!v) { if (state.focus) { state.focus = null; render(); } }
-      else if (v !== state.focus) { state.focus = v; if (state.show === "touched") applyZoom(); render(); }
-    }
-    depInp.addEventListener("focus", openCombo); depInp.addEventListener("click", openCombo); depInp.addEventListener("blur", closeCombo);
-    depInp.addEventListener("input", function () { combo.open = true; combo.q = depInp.value; combo.idx = 0; drawCombo(); });
-    depInp.addEventListener("keydown", function (e) {
-      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-        e.preventDefault();
-        if (!combo.open) { openCombo(); return; }
-        var n = combo.items.length; if (n) { combo.idx = (combo.idx + (e.key === "ArrowDown" ? 1 : n - 1)) % n; drawCombo(); }
-      } else if (e.key === "Enter") { if (combo.open && combo.items[combo.idx]) { e.preventDefault(); pickDep(combo.items[combo.idx].all ? "" : combo.items[combo.idx].n); } }
-      else if (e.key === "Escape") { if (combo.open) { e.preventDefault(); closeCombo(); } }
-    });
-    depList.addEventListener("mousedown", function (e) { e.preventDefault(); var li = e.target.closest('li[role="option"]'); if (li && li.dataset.v !== undefined) pickDep(li.dataset.v); });
-
-    // ---- render
-    function setPressed(id, v) { $$("#" + id + " button", rootEl).forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.v === String(v))); }); }
-    function render(keepScroll) {
-      var l = list(), V = state.view, files = V === "files";
-      computeStats(); hideTip();
-      stage.innerHTML = !l.length ? EMPTY : ({ table: viewTable, matrix: viewMatrix, tree: viewTree, bubble: viewBubble, files: viewFiles })[V](l);
-      if (V === "tree" && l.length) layoutTree();
-      if (files && l.length) renderFiles(keepScroll === true);
-      setPressed("dp-view", state.view); setPressed("dp-measure", state.measure); setPressed("dp-scope", state.scope); setPressed("dp-zoom", state.zoom); setPressed("dp-show", state.show);
-      ["zoom", "show", "dep"].forEach(function (k) { $("#dp-" + k + "-ctl", rootEl).hidden = !files; });
-      if (!combo.open) depInp.value = state.focus || "";
-      depInp.placeholder = state.show === "touched" ? "Search dependencies" : "All dependencies";
-      try { localStorage.setItem(STORE, JSON.stringify({ measure: state.measure, scope: state.scope })); } catch (e) {}
-    }
-    [["view", "dp-view"], ["measure", "dp-measure"], ["scope", "dp-scope"]].forEach(function (p) {
-      $("#" + p[1], rootEl).addEventListener("click", function (e) {
-        var b = e.target.closest("button"); if (!b) return;
-        state[p[0]] = b.dataset.v; state.all = false; if (p[0] === "measure") tsort.key = null;
-        render();
-      });
-    });
-    $("#dp-zoom", rootEl).addEventListener("click", function (e) { var b = e.target.closest("button"); if (!b) return; state.zoom = +b.dataset.v; applyZoom(); render(); });
-    $("#dp-show", rootEl).addEventListener("click", function (e) {
-      var b = e.target.closest("button"); if (!b) return;
-      state.show = b.dataset.v; if (state.show === "touched") computeStats();
-      applyZoom(); render();
-    });
-    stage.addEventListener("click", function (e) {
-      var sb = e.target.closest("[data-sort]"), row, n;
-      if (sb) { nextSort(sb.dataset.sort); render(); return; }
-      if (e.target.closest("[data-more]")) { state.all = !state.all; render(); return; }
-      row = e.target.closest(".dp-row");
-      if (row) { n = NODE[row.dataset.path]; state.sel = n.id; if (n.dir) toggle(n, !state.open[n.id]); else { focusRow = true; drawRows(); } }
-    });
-
-    // ---- tooltips: follow the pointer, use the page's shared tooltip element, and are not shown for touch
-    var r2 = function (k, v) { return '<div class="dp-r"><span>' + k + "</span><span>" + v + "</span></div>"; };
-    function depTip(d) {
-      var mods = Object.keys(d.mods).sort(function (a, b) { return d.mods[b] - d.mods[a]; }).map(function (k) { return esc(k) + " " + d.mods[k]; }).join(" · ");
-      var h = '<div class="tp-h">' + esc(d.n) + ' <span style="opacity:.75;font-weight:400">' + esc(d.v) + "</span></div>" +
-        r2("Category", d.c + (d.c === "Other" ? " (inferred)" : "")) + r2("Scope", d.s + (d.group ? " · " + esc(d.group) : "")) + r2("Files importing", d.src + " source · " + d.tst + " test") +
-        r2("Modules", mods || "none") + r2("Symbols used", d.sym);
-      if (d.tr != null) h += r2("Pulls in", plural(d.tr, "package"));
-      if (d.b !== undefined) h += r2("Breadth · spread · depth", pct(d.b) + " · " + pct(d.sp) + " · " + pct(d.dp));
-      return h;
-    }
-    function tipFor(el) {
-      var d, n, st, top, p, m;
-      if (el.dataset.path) {
-        n = NODE[el.dataset.path]; st = n.st;
-        top = Object.keys(st.per).sort(function (a, b) { return st.per[b] - st.per[a] || (a < b ? -1 : 1); }).slice(0, 5);
-        return '<div class="tp-h">' + esc(n.id) + (n.dir ? "/" : "") + "</div>" + r2(n.dir ? "Files" : "File", n.nf) + r2("Imports", st.imp) +
-          top.map(function (k) { return r2(esc(k), st.per[k] + (n.dir ? " / " + n.nf : "")); }).join("");
-      }
-      if (el.dataset.cell) {
-        p = el.dataset.cell.split("|"); m = MODS.filter(function (x) { return x.id === p[0]; })[0]; d = BYNAME[p[1]];
-        return '<div class="tp-h">' + esc(p[1]) + " in " + esc(p[0]) + "</div>" + r2("Files importing", (d.mods[p[0]] || 0) + " of " + m.files + " (" + pct((d.mods[p[0]] || 0) / m.files) + "%)");
-      }
-      if (el.dataset.dep) { d = BYNAME[el.dataset.dep]; return d ? depTip(d) : null; }
-      return null;
-    }
-    var tipOwned = false;
-    function hideTip() { if (tipOwned) { tip.hidden = true; tipOwned = false; } }
-    function clearHl() { var s = $("svg.hl", stage); if (s) { s.classList.remove("hl"); $$(".on", s).forEach(function (p) { p.classList.remove("on"); }); } }
-    function hl(svg, el) {
-      var cell = el.dataset.cell ? el.dataset.cell.split("|") : null, m = el.dataset.mod || (cell && cell[0]), d = cell ? cell[1] : el.dataset.dep;
-      svg.classList.add("hl");
-      $$(".dp-ge", svg).forEach(function (p) { p.classList.toggle("on", cell ? (p.dataset.m === m && p.dataset.d === d) : (el.dataset.mod ? p.dataset.m === m : p.dataset.d === d)); });
-    }
     stage.addEventListener("pointermove", function (e) {
       if (e.pointerType === "touch" || dragging) return;
       var el = e.target.closest("[data-cell],[data-dep],[data-path]"), h, w, ht, x, y;

@@ -1,6 +1,6 @@
 """The two measured graph cards (D8): `components.map` and `interactions.graph`.
 
-Both are tables that hold every fact, so nothing is dropped: the component table, the dependency matrix, the component edge table and
+Both are tables that hold every fact, so nothing is dropped: the component table, the component edge table and
 the module table. They draw no diagram: a picture of which module imports which is noise, and the tables say it exactly.
 (`_diagram` stays for the entity-relationship diagrams of `measured_er`.)
 """
@@ -147,10 +147,7 @@ def _map(cid, ctx, refs):
         mine = [p for p in files if owner[p] == name]
         table.append([r.E(name), r.E(area[name]), (str(len(mine)), len(mine)), (str(sum(lines.get(p, 0) for p in mine)), sum(lines.get(p, 0) for p in mine)),
                       r.E(", ".join(sorted(uses.get(name, [])))) or "-", r.E(", ".join(sorted(used.get(name, [])))) or "-"])
-    names = [row["name"] for row in rows]
-    return (r.render_table(["Component", "Area", "Files", "Lines", "Depends on", "Used by"], table, refs, "t-" + cid.replace(".", "-"), plain=True)
-            + measured_tables.heading("Dependency matrix")
-            + measured_tables.matrix(cid, names, edges, area, refs))
+    return r.render_table(["Component", "Area", "Files", "Lines", "Depends on", "Used by"], table, refs, "t-" + cid.replace(".", "-"), plain=True)
 
 
 DRAWN = {"interactions.graph": _graph, "components.map": _map}

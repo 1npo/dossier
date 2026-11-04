@@ -774,7 +774,7 @@ Expect `data.entities` rows = entities; the relationships field table (V11 alrea
 - **Q2.** Approve or reject each of A1 to A9 (section 4).
 - **Q3.** Component details: keep one collapsible entry per component, each a two-column table (D6, the spec's shape), or one wide table with a row per component and a column per field? The plan does the first.
 - **Q4.** Recipes: keep them as numbered entries (spec 11) with steps as an ordered list (D6), or make the card a table Recipe, Step, File, Change? The plan does the first.
-- **Q5.** The freshness BAN (spec 4, question 10.3) is in no milestone. Add it to the M3 plan?
+- **Q5.** The freshness BAN (spec 4, question 39) is in no milestone. Add it to the M3 plan?
 - **Q6.** Report 02's Dependencies card calls `playwright` a testing package. Leave report 02 exactly as is (the spec's rule), or allow category fixes in `deps.py`, which would change report 02's content?
 - **Q7.** M3 was never built, and the acceptance pause in `docs/process.md` happened on M2 output. After this plan, should the next step be the M3 plan (reports 10 and 13, `summary.json`, V8) followed by the full M3 acceptance, as `docs/process.md` says?
 - **Q8.** `~/.config/systemd` is one symlink into `~/.local/share/encamp`, so `systemctl --user enable/disable` changes tracked files there (today: two `default.target.wants` links deleted, `timers.target.wants/` untracked). The new `sync.sh` carries such edits safely, but they keep the clone dirty. Do you want the systemd package stowed with `--no-folding` (real directories in `~/.config/systemd/user`, so enable links stay out of the repository), or to keep enable links tracked in the repository on purpose?

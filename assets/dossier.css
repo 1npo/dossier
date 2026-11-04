@@ -66,6 +66,7 @@ mark { background: color-mix(in oklab, var(--warn) 30%, transparent); color: inh
 .part h2 { font-size: .75rem; text-transform: uppercase; letter-spacing: .16em; } .part p { margin: .25rem 0 0; color: var(--muted-foreground); }
 .findings { display: flex; flex-direction: column; gap: 1.1rem; }
 .card .claims { padding-left: 1.2rem; margin: 0; }
+.card ol.claims { padding-left: 1.6rem; } .card .claims:not(:last-child) { margin-bottom: 1.5rem; }
 .card header p { color: var(--muted-foreground); margin: .25rem 0 0; }
 .prov { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
 .cite a:hover { background: var(--primary); color: var(--primary-foreground); }
@@ -108,7 +109,7 @@ tr.flash, .card.flash, .refs li.flash { animation: flash 1.8s ease-out; } @keyfr
 
 @media (max-width: 767px) { .mh-row #menu-toggle { display: inline-flex; } .page, .masthead-inner { padding-left: 1rem; padding-right: 1rem; } .remote { margin-left: 0; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } .lede { white-space: normal; } dl.facts { grid-template-columns: 1fr; } }
-@media print { .sidebar, .tbl-filter, [data-expand], #menu-toggle { display: none !important; } main { margin: 0 !important; } .masthead { position: static; }
+@media print { .sidebar, .tbl-filter, .tbl-bar, .col-grip, [data-expand], #menu-toggle { display: none !important; } main { margin: 0 !important; } .masthead { position: static; }
   .report[hidden] { display: flex !important; break-before: page; } .page { max-width: none; padding: 0; } details { display: none; } }
 
 .side-source { display: block; font-size: .8125rem; color: var(--muted-foreground); overflow-wrap: break-word; }
@@ -222,6 +223,21 @@ details.deps { margin: .5rem 0; } details.deps summary { cursor: pointer; overfl
 /* table toolbar: filter and reset-order button */
 .tbl-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-bottom: .6rem; } .tbl-bar:not(:has(> :not([hidden]))) { display: none; }
 .tbl-bar .tbl-filter { margin-bottom: 0; }
+/* adjustable tables: a grip on the right edge of each header, and a Columns menu */
+.table th { position: relative; }
+.table .col-off { display: none; }
+.table.adj td, .table.adj th { min-width: 0; }
+.col-grip { position: absolute; top: 0; right: 0; bottom: 0; width: 7px; cursor: col-resize; z-index: 3; touch-action: none; }
+.col-grip::after { content: ""; position: absolute; top: 25%; bottom: 25%; left: 3px; width: 1px; background: var(--border); }
+.col-grip:hover::after, .col-grip:focus-visible::after, .col-grip.on::after { left: 2px; width: 3px; border-radius: 2px; background: var(--ring); top: 15%; bottom: 15%; }
+.col-grip:focus-visible { outline: none; }
+body.col-dragging { cursor: col-resize; user-select: none; }
+.col-menu { position: relative; }
+.col-menu > summary { list-style: none; cursor: pointer; } .col-menu > summary::-webkit-details-marker { display: none; }
+.col-menu > summary::after { content: "\25BE"; margin-left: .35rem; font-size: .8em; opacity: .6; }
+.col-list { position: absolute; z-index: 20; top: calc(100% + .25rem); left: 0; min-width: 12rem; max-width: 20rem; max-height: 18rem; overflow: auto; padding: .35rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--popover, var(--card)); color: var(--foreground); box-shadow: 0 4px 16px rgb(0 0 0 / .15); }
+.col-list label { display: flex; align-items: center; gap: .5rem; padding: .3rem .45rem; border-radius: calc(var(--radius) - 2px); font-size: .8125rem; cursor: pointer; }
+.col-list label:hover { background: var(--accent); }
 
 /* contents list under the executive summary */
 .toc { margin: 0 !important; padding-left: 1.6rem !important; }
@@ -492,23 +508,21 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 /* schema cards: tier badges, flows, entries */
 .tier { font-weight: 600; min-width: 1.6rem; justify-content: center; }
 .tier-key { display: flex; flex-wrap: wrap; gap: .3rem 1.25rem; font-size: .8125rem; color: var(--muted-foreground); margin: 0; }
-.diagram.flow + .diagram.flow { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+/* each flow (key flows) and each diagram (relationships) is an inner card, like an entry of the component details */
+.diagram.flow { border: 1px solid var(--border); border-radius: var(--radius); padding: .8rem 1rem; margin-bottom: .75rem; }
+.diagram.flow:last-child { margin-bottom: 0; }
+.diagram.flow.expanded { margin: 0; }
 .flow-bar { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
 .entry { border: 1px solid var(--border); border-radius: var(--radius); padding: .6rem .8rem; margin-bottom: .6rem; }
 .entry summary { cursor: pointer; font-weight: 600; }
 
 .graph-heading { margin: 1.25rem 0 .4rem; font-size: .9375rem; font-weight: 600; }
-.table.dsm td, .table.dsm th { min-width: 0; padding: .3rem .4rem; text-align: center; }
-.table.dsm thead th:not(:first-child) { writing-mode: vertical-rl; white-space: nowrap; text-align: left; vertical-align: bottom; }
-.table.dsm td:first-child, .table.dsm th:first-child { position: sticky; left: 0; z-index: 1; min-width: 7.5rem; text-align: left; background: var(--card); }
 .table.kv { margin-top: .5rem; } .table.kv th { width: 12rem; text-align: left; font-weight: 500; }
 .table.kv td p { margin: 0 0 .4rem; } .table.kv td p:last-child { margin: 0; } .table.kv td ol, .table.kv td ul { margin: 0; padding-left: 1.25rem; }
 /* schema tables (not report 02's, which keeps its look): narrower cells, a compact Basis and Sources, long paths break */
 .card[data-card]:not([data-card^="overview."]) .table td, .card[data-card]:not([data-card^="overview."]) .table th { min-width: 6rem; }
 .card[data-card]:not([data-card^="overview."]) .table td.basis-cell, .card[data-card]:not([data-card^="overview."]) .table th.basis-cell { min-width: 7rem; max-width: 14rem; width: 1%; }
 .card[data-card]:not([data-card^="overview."]) .table td.src-cell, .card[data-card]:not([data-card^="overview."]) .table th.src-cell { min-width: 0; width: 1%; white-space: nowrap; }
-.card[data-card]:not([data-card^="overview."]) .table.dsm td, .card[data-card]:not([data-card^="overview."]) .table.dsm th { min-width: 0; }
-.card[data-card]:not([data-card^="overview."]) .table.dsm td:first-child, .card[data-card]:not([data-card^="overview."]) .table.dsm th:first-child { min-width: 7.5rem; }
 .card[data-card]:not([data-card^="overview."]) .table code { overflow-wrap: anywhere; }
 .table-hint { margin: .25rem 0 0; font-size: .8125rem; color: var(--muted-foreground); }
 .table-container.scrolls { background: linear-gradient(to right, var(--card) 30%, transparent) left / 2rem 100% no-repeat local, linear-gradient(to left, var(--card) 30%, transparent) right / 2rem 100% no-repeat local, linear-gradient(to left, rgb(0 0 0 / .12), transparent) right / .75rem 100% no-repeat scroll; }

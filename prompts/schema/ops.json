@@ -12,7 +12,8 @@
       "shape": "blocks",
       "slots": [
         {
-          "type": "list"
+          "type": "list",
+          "ordered": true
         },
         {
           "type": "table",

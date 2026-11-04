@@ -232,7 +232,7 @@ Report 12: Build, run and ship. Question: *How do I get it running and into prod
 
 How to set up a machine: ordered steps, then a table of prerequisites (runtimes and versions, services, data, secret names).
 
-Shape: a list; then a table with columns Prerequisite, Kind, Version or detail, Where stated.
+Shape: a list, drawn as a numbered list, so one step per item and no numbers in the text; then a table with columns Prerequisite, Kind, Version or detail, Where stated.
 
 ### Build and packaging (`ops.build`)
 

@@ -887,20 +887,21 @@ def na_body(entry, refs):
     return f'<p>Not applicable: {inline(entry["na"], refs)}</p>' + provenance({"conf": "confirmed", "cite": entry["cite"]}, refs, entry["na"])
 
 
-def list_html(items, refs):
+def list_html(items, refs, ordered=False):
     lis = "".join(f'<li>{inline(i["text"], refs)} {basis_for(i) if (i["conf"] != "confirmed" or i.get("user")) else ""}{gid_tag(i)}{refs.mark(new_cites(i.get("cite"), i["text"]))}'
                   + (f'<div class="muted">{inline(i.get("note"), refs)}</div>' if i.get("note") and i["conf"] != "confirmed" else "") + user_note(i.get("user")) + "</li>"
                   for i in items)
-    return f'<ul class="claims">{lis}</ul>'
+    tag = "ol" if ordered else "ul"
+    return f'<{tag} class="claims">{lis}</{tag}>'
 
 
-def block_body(b, refs, tid):
+def block_body(b, refs, tid, ordered=False):
     t = b["type"]
     if t == "table":
         cap = f'<p class="muted">{inline(b["caption"], refs)}</p>' if b.get("caption") else ""
         return cap + render_table(b["columns"], b["rows"], refs, tid)
     if t == "list":
-        return list_html(b["items"], refs)
+        return list_html(b["items"], refs, ordered)
     if t == "text":
         return md(b["text"], refs) + provenance(b, refs, b["text"])
     src = b["mermaid"].strip()
@@ -919,8 +920,9 @@ def blocks_body(card, blocks, refs, tid, unbacked=None):
     `unbacked` maps "card id#n" to the arrows of the card's n-th diagram that V3 found no import or call behind."""
     out = []
     drawn = 0
+    ordered = any(s.get("ordered") for s in card.get("slots") or [] if s["type"] == "list")
     for i, b in enumerate(blocks):
-        h = block_body(b, refs, f"{tid}-{i}")
+        h = block_body(b, refs, f"{tid}-{i}", ordered)
         if b["type"] == "diagram":
             drawn += 1
             arrows = (unbacked or {}).get(f"{card['id']}#{drawn}")
@@ -1632,7 +1634,7 @@ TIER_KEY = ('<p class="tier-key"><span>Badge on each card:</span><span><b class=
             '<span><b class="tier-mplusa">M+A</b> measured, then named or explained by Claude</span></p>')
 
 # cards drawn by the existing panels keep their old anchors, so links to them from before still work
-PANEL_ANCHORS = {"dossier.about": "dossier-build", "dossier.reports": "report-index", "dossier.changelog": "history",
+PANEL_ANCHORS = {"dossier.about": "dossier-build", "dossier.reports": "report-index", "dossier.cards": "card-index", "dossier.changelog": "history",
                  "overview.repository": "facts-git", "overview.contributors": "facts-contributors", "overview.dependencies": "facts-dependencies",
                  "gaps.tracker": "tracker", "corrections.tracker": "corrections-list", "corrections.decisions": "resolutions-list"}
 
@@ -1659,6 +1661,20 @@ def questions_body(refs):
             links.append(f'<a href="#{card_anchor(a)}">{E(cards[a]["title"])}</a> <span class="muted">(report {n:02d})</span>')
         rows.append([E(q["id"]), E(q["question"]), "<br>".join(links) or '<span class="muted">not answered in this version</span>'])
     return render_table(["No.", "Question", "Answered in"], rows, refs, "t-questions", True, True)
+
+
+WRITERS = {"script": "A tool", "claude": "Claude"}
+
+
+def cards_body(refs):
+    """One row for every card of every report, in page order, each linked to the card."""
+    rows = []
+    for n, rid in enumerate(schema.REPORT_ORDER, 1):
+        sch = schema.load(rid)
+        for c in (sch or {}).get("cards", []):
+            rows.append([f'<a href="#{rid}">{n:02d} {E(TITLES[rid])}</a>', f'<a href="#{card_anchor(c["id"])}">{E(c["title"])}</a>',
+                         (tier_badge(c["tier"]), c["tier"]), E(WRITERS[c["writer"]])])
+    return render_table(["Report", "Card", "Tier", "Written by"], rows, refs, "t-cards", True, True)
 
 
 def measured_ctx(ctx, reports, facts):
@@ -1705,6 +1721,9 @@ def build_page(rid, reports, facts, state, ctx):
                      group=[("", 2), ("Statements by basis", 3)],
                      foot=["<strong>Total</strong>", f'<span class="muted">{sum(tot.values())} statements in all</span>', *[count_pill(tot[k], k) for k in CONF]]), "report-index",
                      "Each count is a number of statements. Confirmed ones are stated in the code or history, inferred ones are reasoned from context, and unknown ones were not found.", cid="dossier.reports"))
+        parts.append(card("Cards in this dossier", cards_body(refs), "card-index",
+                          "Every card in every report. The tier says who produced it: M a tool measured it, A a tool found it and Claude decided, R Claude read it, M+A a tool measured it and Claude explained it.",
+                          cid="dossier.cards"))
         parts.append(panel_history(ctx["history"], refs))
     elif rid == "corrections":
         headline = "Everything the user has corrected, and whether the correction has been applied."
@@ -1812,7 +1831,7 @@ def render_html(facts, reports, state, history, version, cites, build=None, cove
     head = (f'<header class="masthead"><div class="masthead-inner"><div class="mh-row">'
             f'<button class="btn" data-variant="outline" data-size="sm" id="menu-toggle" type="button">Menu</button>'
             f'<h1>{E(mh["name"])}</h1>{source}'
-            f'<span class="chips">{badge(mh["ref"], "", "secondary")}{badge("commit " + mh["short"], "", "outline")}{badge(mh["date"], "", "outline")}{open_pills(reports)}</span>'
+            f'<span class="chips">{badge(mh["ref"], "", "outline")}{badge("commit " + mh["short"], "", "outline")}{badge(mh["date"], "", "outline")}{open_pills(reports)}</span>'
             '</div>'
             f'<div class="mh-row2"><p class="lede" title="{E(mh["description"])}">{E(mh["description"][:300])}</p></div></div>'
             '</header>')

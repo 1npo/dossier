@@ -11,7 +11,6 @@ import json
 from html.parser import HTMLParser
 
 import buildlog
-import components
 import measured_er
 import schema
 
@@ -161,7 +160,8 @@ def _check_entry(card: Node, cid: str, entry: dict, sch_card: dict) -> list:
 
 def _drawn_counts(extract, build) -> dict:
     """card id -> (table id, rows the source has) for the cards code draws."""
-    out = {"dossier.questions": ("t-questions", len(schema.load_questions()))}
+    out = {"dossier.questions": ("t-questions", len(schema.load_questions())),
+           "dossier.cards": ("t-cards", sum(len(sch["cards"]) for sch in schema.load_all().values()))}
     if build is not None:  # a dossier without build.json has a placeholder in place of the process card
         out["dossier.process"] = ("t-dossier-process", len(buildlog.STEPS))
     extract = extract or {}
@@ -203,10 +203,4 @@ def audit(page: str, reports: dict, extract=None, facts=None, whole_page=True, b
                 errs.append(f"V11: {cid}: the table {tid} is not drawn.")
             elif len(_rows(table[0])) != rows:
                 errs.append(f"V11: {cid}: the table has {len(_rows(table[0]))} rows, expected {rows}.")
-    if "components.map" in cards:
-        cat = components.catalog_rows((reports or {}).get("components") or {})
-        for table in cards["components.map"][0].find("table", id="t-components-map-matrix"):
-            size, columns = len(_rows(table)), len(_head(table)) - 1
-            if size < len(cat) or size != columns:
-                errs.append(f"V11: components.map: the dependency matrix has {size} rows and {columns} columns for {len(cat)} components.")
     return errs
