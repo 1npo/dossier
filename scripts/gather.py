@@ -20,6 +20,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import PurePosixPath
 
 import deps as depscan
+import markers as markerscan
 
 try:
     import tomllib
@@ -845,6 +846,7 @@ def collect(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
     lang_stats = defaultdict(lambda: {"kind": "", "files": 0, "lines": 0, "bytes": 0})
     files = []                       # analyzable text files, for chunk planning
     env_refs, secret_hits, manifests, sensitive = {}, [], [], []
+    marker_items, todo_items = [], []
     test_files = 0
     readme = None
     for path, typ, oid, size in entries:
@@ -899,6 +901,10 @@ def collect(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
         files.append({"path": path, "blob": oid, "bytes": len(data), "lines": lines, "tokens": tokens_for(len(data)), "role": role})
         if len(data) <= 2_000_000 and (not lang or lang[1] != "docs"):
             nl = None
+            found, todo_n = markerscan.scan(path, text)
+            marker_items += found
+            if todo_n:
+                todo_items.append({"kind": "todo", "path": path, "count": todo_n})
             for pat_name, pat in SECRET_PATTERNS:
                 m = pat.search(text)
                 if m and len(secret_hits) < 200:
@@ -1204,7 +1210,8 @@ def collect(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
         "knowledge": knowledge,            # likewise written to knowledge.json
         "dependencies": dependencies,      # likewise written to dependencies.json
         "history_input": {"canon": canon, "display": display, "ctype": ctype, "blamed": blamed, "as_of": as_of.isoformat(),
-                          "lines": {f["path"]: f["lines"] for f in files},
+                          "lines": {f["path"]: f["lines"] for f in files}, "tree": sorted(tree_paths),
+                          "markers": marker_items, "todos": todo_items,
                           "shallow": repo.git("rev-parse", "--is-shallow-repository", check=False).strip() == "true"},   # popped by dossier.py
     }
     repo.close()

@@ -467,7 +467,7 @@ Read section 2, section 3, D1 to D6, D9, D16, D17 and D18. Load the skills in se
   - Done-check: `uv run --with pytest --with pygments python -m pytest tests/unit/scripts/test_workflow.py tests/integration/scripts/test_history_git.py -q` passes.
   - Commit: `feat(dossier): measure the team workflow and the branches in flight`
 
-- [ ] **M3-4. Markers and hints.**
+- [x] **M3-4. Markers and hints.**
   - Goal: findings for `change.decisions` and `change.unfinished`.
   - Files: `scripts/markers.py`, `scripts/gather.py`, `scripts/history.py`, `scripts/candidates.py`, `tests/unit/scripts/test_markers.py`.
   - Interface: `markers.scan(path, text) -> (marker_items, todo_count)`; `markers.decision_docs(tree) -> list[str]`; `markers.long_commits(commits) -> list[dict]`.

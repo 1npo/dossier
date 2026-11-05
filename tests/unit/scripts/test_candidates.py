@@ -76,6 +76,17 @@ def write(out, name, adapters_data):
     (out / "extract" / f"{name}.json").write_text(json.dumps({"schema": 1, "sha": "s", "adapters": adapters_data}))
 
 
+class TestHistoryIds:
+    def test_marker_items_get_mk_ids_that_survive_a_line_move(self):
+        a = {"path": "a.py", "line": 3, "end_line": 3, "rule": "marker.hack", "snippet": "# HACK: x"}
+        b = {**a, "line": 30, "end_line": 30}
+
+        first, second = candidates.assign_ids("history", [a]), candidates.assign_ids("history", [b])
+
+        assert first[0]["id"].startswith("mk-") and first[0]["group"].startswith("mkg-")
+        assert first[0]["id"] == second[0]["id"]
+
+
 class TestLoad:
     def test_items_of_every_adapter_come_in_adapter_name_order(self, tmp_path):
         write(tmp_path, "entry_points", {"repo": {"items": [{"id": "ep-2"}]}, "python": {"items": [{"id": "ep-1"}]}})

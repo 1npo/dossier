@@ -115,3 +115,28 @@ class TestWorkflowAndBranches:
         branches = items(world(), "branch")
 
         assert [(b["ref"], b["remote"]) for b in branches] == [("feat/x", False)]
+
+
+class TestMarkers:
+    def test_marker_gets_an_id_and_a_group(self, world):
+        found = items(world(), "marker")
+
+        assert [(m["path"], m["line"], m["rule"]) for m in found] == [("src/x.py", 1, "marker.hack")]
+        assert found[0]["id"].startswith("mk-") and found[0]["group"].startswith("mkg-")
+
+    def test_ids_do_not_change_when_the_line_moves(self, world):
+        handed = dict(world.facts["history_input"])
+        before = items(world(handed), "marker")[0]["id"]
+        moved = [{**m, "line": m["line"] + 5, "end_line": m["end_line"] + 5} for m in handed["markers"]]
+
+        after = items(world({**handed, "markers": moved}), "marker")[0]["id"]
+
+        assert before == after
+
+    def test_decision_documents_and_todos_come_from_the_hand_over(self, world):
+        handed = {**world.facts["history_input"], "tree": ["docs/adr/1.md"], "todos": [{"kind": "todo", "path": "a.py", "count": 2}]}
+
+        data = world(handed)
+
+        assert [d["path"] for d in items(data, "decision-doc")] == ["docs/adr/1.md"]
+        assert items(data, "todo") == [{"kind": "todo", "path": "a.py", "count": 2}]

@@ -13,7 +13,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterator, NamedTuple
 
+import candidates
 import gather
+import markers
 import workflow
 
 RECENT_DAYS = gather.KNOWLEDGE_RECENT_DAYS
@@ -200,6 +202,10 @@ def collect(top, sha, run, handed, timeout) -> dict:
     default = workflow.default_branch(top, sha, run)
     items += workflow.rows(folded.commits, workflow.merge_sizes(top, sha, run, timeout), workflow.tags(top, sha, run), default)
     items += workflow.branches(top, sha, run, default)
+    items += candidates.assign_ids("history", handed.get("markers", []))
+    items += handed.get("todos", [])
+    items += [{"kind": "decision-doc", "path": p} for p in markers.decision_docs(handed.get("tree", []))]
+    items += markers.long_commits(commits)
     for b in folded.bulk:
         items.append({"kind": "bulk", "path": "", **{**b, "author": display.get(b["author"], b["author"])}})
     items += _assistants(labelled)
