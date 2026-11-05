@@ -16,6 +16,7 @@ import measured_change
 import measured_er
 import measured_graph
 import measured_people
+import measured_upgrade
 
 
 def _render():
@@ -198,7 +199,7 @@ def _violations(cid, ctx, refs):
     return f'<p class="muted">No import cycles were found{tail}.</p>'
 
 
-DRAWN = {"reading.map": _reading_map, "conventions.tooling": _tooling, "interactions.violations": _violations, "data.relationships": measured_er.draw, **measured_graph.DRAWN, **measured_change.DRAWN, **measured_blast.DRAWN, **measured_people.DRAWN}
+DRAWN = {"reading.map": _reading_map, "conventions.tooling": _tooling, "interactions.violations": _violations, "data.relationships": measured_er.draw, **measured_graph.DRAWN, **measured_change.DRAWN, **measured_blast.DRAWN, **measured_people.DRAWN, **measured_upgrade.DRAWN}
 
 
 CATALOG_MEASURED = ("Depends on", "Used by", "Size")

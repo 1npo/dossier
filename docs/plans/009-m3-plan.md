@@ -536,7 +536,7 @@ Read section 2, section 3, D1 to D6, D9, D16, D17 and D18. Load the skills in se
   - Done-check: both test files pass and block E prints `OK`.
   - Commit: `feat(dossier): add the blast radius picker`
 
-- [ ] **M3-13. Upgrade burden (P1).**
+- [x] **M3-13. Upgrade burden (P1).**
   - Goal: the card, from a shipped snapshot.
   - Files: `scripts/eol.json`, `scripts/measured_upgrade.py`, `scripts/measured.py`, `tests/tools/refresh_eol.py`, `tests/unit/scripts/test_measured_upgrade.py`.
   - Interface: `eol.json` is `{"as_of": "YYYY-MM-DD", "source": "https://endoflife.date/api/v1/products/", "products": {"python": [{"cycle": "3.14", "eol": "2030-10-31", "latest": "3.14.10"}]}}`. `measured_upgrade.rows(ctx) -> list`.
