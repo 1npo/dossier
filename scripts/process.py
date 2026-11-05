@@ -39,10 +39,19 @@ def _clock(stamp):
 
 
 def _extractors(build) -> str:
-    """The extractors that ran (status ok in any adapter) with their versions, in the order of tools.json."""
+    """The extractors that ran (status ok) with their versions, in the order of tools.json.
+
+    The status comes from `details.tool_status`, which is read from the extract files and so covers a reused adapter. A build
+    that has none (made before 0.8.0) falls back to the adapters that ran this time.
+    """
     rec = buildlog.latest(build, "extract") or {}
-    ran = {name for a in (rec.get("details") or {}).get("adapters", []) for name, t in (a.get("tools") or {}).items() if (t or {}).get("status") == "ok"}
-    versions = {t["name"]: t.get("version") for t in rec.get("tools") or []}
+    status = (rec.get("details") or {}).get("tool_status")
+    if status:
+        ran = {n for n, t in status.items() if (t or {}).get("status") == "ok"}
+        versions = {n: (t or {}).get("version") for n, t in status.items()}
+    else:
+        ran = {name for a in (rec.get("details") or {}).get("adapters", []) for name, t in (a.get("tools") or {}).items() if (t or {}).get("status") == "ok"}
+        versions = {t["name"]: t.get("version") for t in rec.get("tools") or []}
     order = {t["id"]: i for i, t in enumerate(toolcheck.load_tools()["tools"])}
     return ", ".join(f"{n} {versions[n]}" if versions.get(n) else n for n in sorted(ran, key=lambda n: (order.get(n, len(order)), n)))
 
@@ -109,15 +118,23 @@ def _ok_line(step, build):
             found += f" Names: {rc['v2']} not found in the code they cite."
         if "v3_checked" in rc:
             found += f" Diagram arrows: {rc.get('v3', 0)} of {rc['v3_checked']} have no import or call behind them."
+        if "v5_people" in rc:
+            found += f" People and components: {rc['v5_people']} missing."
         audit = buildlog.latest(build, "check", "audit")
         page = f" Page: {_plural((audit.get('counts') or {}).get('v11', 0), 'problem')}." if audit else ""
+        summary = buildlog.latest(build, "check", "summary")
+        page += f" Summary: {_plural((summary.get('counts') or {}).get('v8', 0), 'problem')}." if summary else ""
         return (f"{rc.get('citations', 0)} citations checked, {rc.get('unresolved', 0)} unresolved; "
                 f"layout check: {rc.get('errors', 0)} errors.{found}{page} {browser}")
     if step == "gaps":
         return (f"{sum(c.values())} open items: {c.get('unknown', 0)} unknown, {c.get('inference', 0)} inferred, "
                 f"{c.get('assumption', 0)} assumed, {c.get('coverage', 0)} coverage.")
     if step == "render":
-        return "Page written. The machine-readable summary is not produced in this version."
+        summary = buildlog.latest(build, "check", "summary")
+        bad = (summary.get("counts") or {}).get("v8", 0) if summary else 0
+        if bad:
+            return f"Page written. summary.json was not written: {_plural(bad, 'problem')}."
+        return "Page and machine-readable summary written."
     return ""
 
 
@@ -216,8 +233,8 @@ def render_records(build, *, reports, readers, v_errors, cites_checked, cites_un
 # ------------------------------------------------------------------ Gaps coverage items
 
 
-def _item(statement, how):
-    return {"kind": "coverage", "report": "dossier", "statement": statement, "how_to_confirm": how}
+def _item(statement, how, report="dossier"):
+    return {"kind": "coverage", "report": report, "statement": statement, "how_to_confirm": how}
 
 
 def coverage_items(build) -> list[dict]:
@@ -233,6 +250,8 @@ def coverage_items(build) -> list[dict]:
     if tools:
         d = tools.get("details") or {}
         for h in d.get("host", []):
+            if h.get("optional"):
+                continue
             if h["status"] == "missing":
                 items.append(_item(f"The tool {h['id']} was not installed, so this build ran without it. Install it with: {h['install']}",
                                    "Install the tool and build again."))
@@ -272,10 +291,41 @@ def coverage_items(build) -> list[dict]:
             for a in (ex.get("details") or {}).get("adapters", []):
                 if a["status"] in ("skipped", "failed"):
                     items.append(_item(f"The extractor {a['name']} did not run: {a['reason']}", "Build again once the problem is fixed."))
+                else:
+                    for tool, st in sorted((a.get("tools") or {}).items()):
+                        if st.get("status") in ("failed", "skipped"):
+                            items.append(_item(f"The tool {tool} did not finish, so the cards that use it are marked partial: {st.get('reason') or 'it did not run'}",
+                                               "Fix the problem and build again."))
+    items += history_items(((mine.get(("measure", None)) or {}).get("details") or {}).get("history"))
     for (step, part), r in mine.items():
         if r["status"] == "failed" and (step, part) not in {("tools", None), ("copy", "checkout"), ("copy", "restore"), ("extract", None)}:
             items.append(_item(f"Step '{step}' failed: {r['reason']}", "Fix the problem and build again."))
     return items
+
+
+def history_items(meta) -> list[dict]:
+    """Gaps for a history that was cut short (D9). `meta` is the `meta` item of extract/history.json, or None."""
+    if not meta:
+        return []
+    items = []
+    if meta.get("shallow"):
+        items.append(_item(f"This is a shallow clone, so the history covers only {meta['commits_seen']} commits. "
+                           "Hotspots, co-change, ownership and workflow figures are incomplete.", "Build from a full clone.", "change"))
+    if meta.get("stopped_early"):
+        items.append(_item(f"Reading the history took too long, so only the newest {meta['commits_seen']} of {meta['commits_total']} commits were used.",
+                           "Raise timeouts.history in the dossier config and build again.", "change"))
+    if meta.get("blame_done", 0) < meta.get("blame_total", 0):
+        items.append(_item(f"Only {meta['blame_done']} of {meta['blame_total']} files have line ownership, because git blame ran out of time. "
+                           "The rest count commits only.", "Build again on a faster machine.", "contributors"))
+    if meta.get("owner_status") == "partial":
+        items.append(_item(f"Pull request approvals could not be read, so commits by agents and bots count for their authors: {meta.get('owner_reason')}",
+                           "Run gh auth login, or install gh, and build again.", "contributors"))
+    return items
+
+
+HISTORY_CARDS = ("change.hotspots", "change.cochange", "change.blast-radius", "contributors.people", "contributors.ask",
+                 "contributors.concentration", "contributors.agents", "contributors.workflow")
+OWNER_CARDS = ("contributors.ask", "contributors.concentration")
 
 
 def partial_cards(build, tools=None) -> dict:
@@ -310,6 +360,13 @@ def partial_cards(build, tools=None) -> dict:
     for tool, why in sorted(absent.items()):
         for card in cards_of[tool]:
             reasons.setdefault(card, []).append(f"Made without {tool}: {why}.")
+    meta = (mine.get(("measure", None), {}).get("details") or {}).get("history") or {}
+    if meta.get("status") == "partial" and meta.get("reasons"):
+        for card in HISTORY_CARDS:
+            reasons.setdefault(card, []).append(f"Made from incomplete history: {meta['reasons'][0]}.")
+    if meta.get("owner_status") == "partial":
+        for card in OWNER_CARDS:
+            reasons.setdefault(card, []).append(f"Made without pull request approvals: {meta.get('owner_reason')}.")
     return {card: " ".join(r) for card, r in reasons.items()}
 
 

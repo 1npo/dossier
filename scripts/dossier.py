@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import os
 import posixpath
@@ -38,14 +39,17 @@ import checks  # noqa: E402
 import components  # noqa: E402
 import config  # noqa: E402
 import gather  # noqa: E402
+import history as historyscan  # noqa: E402
 import incremental  # noqa: E402
 import migrate  # noqa: E402
 import page_audit  # noqa: E402
 import process  # noqa: E402
 import render  # noqa: E402
 import resolve  # noqa: E402
+import sandbox  # noqa: E402
 import schema  # noqa: E402
 import stages  # noqa: E402
+import summary  # noqa: E402
 import toolcheck  # noqa: E402
 import workarea  # noqa: E402
 
@@ -278,6 +282,15 @@ def cmd_prepare(a):
                 raise stages.PrepareError("The ref moved while prepare was running. Run it again.")
             if state.get("last_sha") and state["last_sha"] != sha:
                 facts["delta"] = gather.delta(top, state["last_sha"], sha, state.get("snapshot"), facts)
+            handed = facts.pop("history_input")
+            owners_cache = load(out / "github-owners.json", {}) or {}
+            past = historyscan.collect(top, sha, functools.partial(sandbox.run, area=area, cwd=Path(top)), handed,
+                                       config.timeouts()["history"], owners_cache, config.timeouts()["github"])
+            historyscan.write(out, past)
+            if owners_cache:
+                save(out / "github-owners.json", owners_cache)
+            meta = historyscan.meta_of(past)
+            facts["history"] = {k: meta[k] for k in ("status", "reasons", "commits_seen", "commits_total", "shallow", "as_of")}
             plan = update_plan(top, out, state, facts, prev_version, a.full, candidates.digests(candidates.load(out)))
             cached = 0
             for c in chunks["chunks"]:
@@ -288,7 +301,7 @@ def cmd_prepare(a):
                              "commits": facts["git"]["commits"], "contributors": facts["git"]["contributors"]["total"]}
             rec["details"] = {"reading_mode": facts["chunks"]["mode"], "chunks": len(chunks["chunks"]),
                               "chunks_with_current_notes": cached, "plan_mode": plan["mode"],
-                              "stale": sorted(plan["stale"]), "fresh": plan["fresh"]}
+                              "stale": sorted(plan["stale"]), "fresh": plan["fresh"], "history": meta}
     except stages.PrepareError as e:
         die(str(e))
     (out / "reports").mkdir(parents=True, exist_ok=True)
@@ -419,7 +432,8 @@ def cmd_render(a):
         return render.render_html(facts, reports, state, history, VERSION, cites, build=records, coverage=coverage, extract=extract, checks=res)[0]
 
     page = draw(shown)
-    v11 = page_audit.audit(page, reports, extract, facts, build=shown)
+    v11 = page_audit.audit(page, reports, extract, facts, build=shown,
+                           measured=render.measured_ctx({"cites": cites, "extract": extract}, reports, facts))
     for line in v11:
         print(f"error: {line}")
     if build:
@@ -431,10 +445,25 @@ def cmd_render(a):
     if v11 and not a.allow_errors:
         print(f"\n{len(v11)} error(s) in the drawn page. The page was not written. Fix the cause and render again.")
         sys.exit(1)
+    summary_doc = summary.build(facts, reports, extract, build, counts, VERSION, facts.get("dependencies"), cites.tree()[0],
+                                tools=candidates.tool_list(out))
+    v8 = summary.validate(summary_doc)
+    for line in v8:
+        print(f"error: {line}")
+    if build:
+        record = {"step": "check", "part": "summary", "by": "render", "status": "failed" if v8 else "ok",
+                  "reason": f"{len(v8)} problems in summary.json." if v8 else None, "counts": {"v8": len(v8)}}
+        buildlog.append(build_path, record)
+        shown["records"].append(record)
+        page = draw(shown)  # the process card now says what summary.json came to
+    if v8 and not a.allow_errors:
+        print(f"\n{len(v8)} error(s) in summary.json. The page was not written. Fix the reports and render again.")
+        sys.exit(1)
     if build:
         buildlog.append(build_path, pending)
     name_out = f"dossier-{name}.html"
     (out / name_out).write_text(page, encoding="utf-8")
+    summary.remove(out) if v8 else summary.write(out, summary_doc)
     state.update(history=history, last_sha=sha, snapshot=gather.snapshot(facts))
     state["extract_digests"] = {rid: dg for rid, dg in candidates.digests(extract).items() if rid in reports}
     state.pop("pending_update", None)
@@ -478,13 +507,23 @@ def cmd_check(a):
         die(f"There is no page at {html}. Run render first.")
     reports = {rid: load(out / "reports" / f"{rid}.json") for rid, _, authored in render.REPORTS
                if authored and (out / "reports" / f"{rid}.json").exists()}
-    audit = page_audit.audit(html.read_text(encoding="utf-8"), reports, candidates.load(out), load(out / "facts.json"), build=buildlog.load(out))
+    facts = load(out / "facts.json")
+    extract = candidates.load(out)
+    try:
+        facts["dependencies"] = load(out / "dependencies.json")
+        measured = render.measured_ctx({"cites": render.Cites(facts), "extract": extract}, reports, facts)
+    except Exception:  # noqa: BLE001 - a repository that cannot be opened here: the new cards are then not counted
+        measured = None
+    audit = page_audit.audit(html.read_text(encoding="utf-8"), reports, extract, facts, build=buildlog.load(out), measured=measured)
     for line in audit:
+        print(f"FAIL {line}")
+    v8 = summary.check_file(out, facts, VERSION)
+    for line in v8:
         print(f"FAIL {line}")
     code, text = run_browser_check(html, out)
     print(text.rstrip())
     browser = sum(1 for line in text.splitlines() if line.startswith("FAIL"))
-    problems = len(audit) + (browser or (1 if code else 0))
+    problems = len(audit) + len(v8) + (browser or (1 if code else 0))
     print(f"problems: {problems}")
     sys.exit(1 if problems else 0)
 

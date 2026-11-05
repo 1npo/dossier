@@ -14,6 +14,7 @@ from pathlib import Path
 
 import adapters
 import buildlog
+import candidates
 import config
 import restore
 import sandbox
@@ -75,7 +76,7 @@ def stage_tools(build, top, sha, opts: Options) -> dict:
     langs = toolcheck.languages_at(top, sha)
     report = toolcheck.preflight(langs)
     found = [{"name": h["id"], "version": h["version"]} for h in report["host"] if h["version"]]
-    bad = [h for h in report["host"] if h["status"] != "ok"]
+    bad = [h for h in report["host"] if h["status"] != "ok" and not h.get("optional")]
     if report["missing"] and not opts.allow_missing:
         names = ", ".join(report["missing"])
         record(build, t0, "tools", status="failed", reason=f"Missing: {names}.", tools=found, details=report)
@@ -149,5 +150,6 @@ def stage_extract(build, top, sha, area, out, langs, trust, opts: Options, resto
         adapters=adapters.detect(langs), checkout=checkout, sha=sha, tree=tree, area=area, out=out, trusted=trust,
         allow_ref=opts.allow_ref, restored=restored, treesitter=shared_tools.TreeSitter(tool_run),
         semgrep=shared_tools.Semgrep(tool_run), tool_versions=versions, timeout=timeouts["extract"])
+    rec.setdefault("details", {})["tool_status"] = candidates.tool_status(out)
     record(build, t0, "extract", **rec)
     return rec

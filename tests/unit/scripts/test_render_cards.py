@@ -390,3 +390,31 @@ def test_cards_listing_follows_the_reports_listing_on_the_dossier_page():
     ids = [c["id"] for c in schema.load("dossier")["cards"]]
 
     assert ids.index("dossier.cards") == ids.index("dossier.reports") + 1
+
+
+class TestContributorCardsFilledByCode:
+    def ctx(self):
+        person = {"kind": "person", "person": "a@x", "name": "Ann", "type": "human", "commits": 3, "owned_lines": 30, "aliases": []}
+        history = [{"kind": "meta", "status": "ok"}, person,
+                   {"kind": "file", "path": "src/a.py", "authors": {"a@x": 3}, "blame": {"a@x": 30}, "owner_lines": {"a@x": 30}}]
+        return {"extract": {"history": history}, "catalog": [{"name": "Core", "paths": ["src/"]}]}
+
+    def entry(self):
+        cols = ["Area", "Owner", "Share", "Status"]
+        return {"card": "contributors.concentration", "blocks": [{"type": "table", "columns": cols, "rows": [
+            {"cells": ["Core", "Ann", "-", "single owner"], "conf": "confirmed", "cite": ["a.py:1"]}]}]}
+
+    def test_the_share_is_drawn_from_the_history_and_the_bus_factor_line_comes_first(self, make_cites):
+        sch = next(c for c in schema.load_all()["contributors"]["cards"] if c["id"] == "contributors.concentration")
+
+        html = render.render_card(sch, self.entry(), refs(make_cites), "contributors", self.ctx())
+
+        assert "<td>100%</td>" in html
+        assert html.index('class="bus-factor"') < html.index("<table")
+
+    def test_without_history_the_card_has_no_bus_factor_line(self, make_cites):
+        sch = next(c for c in schema.load_all()["contributors"]["cards"] if c["id"] == "contributors.concentration")
+
+        html = render.render_card(sch, self.entry(), refs(make_cites), "contributors", {"extract": {}})
+
+        assert "bus-factor" not in html

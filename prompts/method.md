@@ -27,7 +27,7 @@ Do not present an inference as confirmed. Do not leave a gap unstated. If a topi
 Write citations inline as `[[path]]`, `[[path:12]]` or `[[path:12-30]]`, or list them in a `cite` array. Other forms:
 
 - `commit:<sha>` for a commit in this history.
-- `facts:<key>` for a measured figure. Keys: `git`, `languages`, `hot_files`, `manifests`, `env_vars`, `secret_signals`, `contributors`, `ownership`, `areas`, `file_activity`, `knowledge`, `dependencies`, `chunks`.
+- `facts:<key>` for a measured figure. Keys: `git`, `languages`, `hot_files`, `manifests`, `env_vars`, `secret_signals`, `contributors`, `ownership`, `areas`, `file_activity`, `knowledge`, `dependencies`, `chunks`, `history`.
 
 Rules:
 
@@ -56,7 +56,7 @@ A card entry is exactly one of:
 - `entries`: for cards whose shape is `entries`. Each entry has the key the schema names (for example `component`), a `fields` object holding **every** field id as non-empty text, and `conf`, `cite`, `note` like any statement.
 - `na`: a plain-text reason the card does not apply, with a non-empty `cite` list pointing at the evidence. Use it instead of an empty table.
 
-Every card of the reports you write must be filled. `pending` is not allowed. Do **not** write cards the schema marks as drawn by a script (`writer: script`, tier M): leave them out of the file, because the page draws them from the tool findings. `change` (report 10) and `contributors` (report 13) are not written in this version.
+Every card of the reports you write must be filled. `pending` is not allowed. Do **not** write cards the schema marks as drawn by a script (`writer: script`, tier M): leave them out of the file, because the page draws them from the tool findings. The cards of `change` (report 10) and `contributors` (report 13) that a script draws are left out. Where a card you write has a measured column (`Share`, `Areas touched`, `Share of commits`), write `-` in it: the page fills it from the history, and a figure you write is replaced.
 
 Blocks inside a card are:
 
@@ -396,7 +396,9 @@ The report `components` is written around a catalog of components, and `render` 
 - **V3, diagram arrows (warning).** Every arrow in a flow diagram of `entry.startup` and `interactions.flows` should have an import or a call behind it. An arrow with none is listed under the diagram as inferred.
 - **V4, components (error).** Every tracked source file belongs to one component or is listed as unassigned, and every component has a detail entry.
 - **V5, tool findings (error).** Every finding is kept, merged or dismissed, ids exist, none is both kept and dismissed, and every dismissal has a reason. A row with no `cand` and no `added` is a warning.
+- **V5, people and components (error).** Report 13 names every person, agent and component, nobody who is not in the build, and an owner of the only human on a one-human project. `Status` is one of three words. Each Risks row has a `Source` of `extractor` or `read`.
 - **V6, card layout (error).** Cards, columns, fields, `na` reasons and the rules above. Pending cards are not allowed.
+- **V8, `summary.json` (error).** `render` writes the machine-readable summary and checks it against its schema. A contract's Direction must be exactly `offered` or `consumed`.
 - **V7, blind spots (never fails).** Places where static analysis may miss something (dynamic imports, registries, generated code, feature flags) are listed in Gaps. Read the code there before you rely on a report.
 
 Do not use `--allow-errors` to get past a V4 or V5 error: fix the reports.

@@ -11,11 +11,26 @@ import dossier  # noqa: E402
 import page_audit  # noqa: E402
 
 
+SHA = "c" * 40
+
+
+def summary_doc(**over):
+    doc = {"schema_version": 1, "dossier_version": dossier.VERSION, "generated_at": "t", "repo": {"name": "n", "remote": None, "branch": None, "sha": SHA, "commit_date": None},
+           "languages": [], "extractors": [], "components": [], "entry_points": [], "contributors": [], "contracts": [], "external_dependencies": [],
+           "data_stores": [], "risks": {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0},
+           "ownership": {"top_owner_share": None, "bus_factor": None, "at_risk_paths": []},
+           "change": {"hotspots": [], "cochange_pairs_unlinked": 0}, "gaps": {"unknown": 0, "inference": 0, "assumption": 0, "coverage": 0}}
+    doc.update(over)
+    return doc
+
+
 @pytest.fixture
 def out(tmp_path, monkeypatch):
     out = tmp_path / "home" / "demo"
     (out / "reports").mkdir(parents=True)
     (out / "dossier-demo.html").write_text("<html><body></body></html>")
+    (out / "facts.json").write_text(json.dumps({"repo": {"sha": SHA}}))
+    (out / "summary.json").write_text(json.dumps(summary_doc()))
     monkeypatch.setattr(dossier, "toplevel", lambda repo: str(tmp_path / "repo"))
     monkeypatch.setattr(dossier, "out_dir", lambda top: (out, "demo", "abc"))
     return out
@@ -85,6 +100,50 @@ class TestCmdCheck:
             dossier.cmd_check(type("A", (), {"repo": "."})())
 
         assert exit_.value.code == 1 and "Run render first" in capsys.readouterr().err
+
+
+class TestSummaryCheck:
+    def test_a_missing_summary_is_one_problem(self, out, monkeypatch, capsys):
+        stub(monkeypatch)
+        (out / "summary.json").unlink()
+
+        code, text = run_check(capsys)
+
+        assert code == 1 and "FAIL V8: summary.json: the file is missing. Run render." in text and text.strip().endswith("problems: 1")
+
+    def test_a_tampered_summary_is_named(self, out, monkeypatch, capsys):
+        stub(monkeypatch)
+        doc = summary_doc()
+        doc["risks"]["high"] = "many"
+        (out / "summary.json").write_text(json.dumps(doc))
+
+        code, text = run_check(capsys)
+
+        assert code == 1 and "FAIL V8: summary.json: $.risks.high: must be integer." in text
+
+    def test_a_summary_that_is_not_json_is_named(self, out, monkeypatch, capsys):
+        stub(monkeypatch)
+        (out / "summary.json").write_text("{nope")
+
+        _, text = run_check(capsys)
+
+        assert "FAIL V8: summary.json: the file is not valid JSON. Run render." in text
+
+    def test_a_summary_from_another_commit_is_named(self, out, monkeypatch, capsys):
+        stub(monkeypatch)
+        (out / "summary.json").write_text(json.dumps(summary_doc(repo={"name": "n", "remote": None, "branch": None, "sha": "d" * 40, "commit_date": None})))
+
+        code, text = run_check(capsys)
+
+        assert code == 1 and "FAIL V8: summary.json: $.repo.sha: made at dddddddddd, not the commit of this dossier. Run render." in text
+
+    def test_a_summary_from_another_skill_version_is_named(self, out, monkeypatch, capsys):
+        stub(monkeypatch)
+        (out / "summary.json").write_text(json.dumps(summary_doc(dossier_version="0.0.1")))
+
+        _, text = run_check(capsys)
+
+        assert f"FAIL V8: summary.json: $.dossier_version: made by 0.0.1, not {dossier.VERSION}. Run render." in text
 
 
 class TestBrowserCheckLine:

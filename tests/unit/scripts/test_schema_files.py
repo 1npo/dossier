@@ -73,3 +73,9 @@ def test_card_counts():
                "risks": {"cards": [{"card": "risks.tracker", "na": "x", "cite": ["a"]}]}}
     filled, pending = render.card_counts(reports)
     assert filled == 2 and filled + pending == 41
+
+
+def test_risks_table_ends_with_a_source_column():
+    card = next(c for c in all_cards() if c["id"] == "risks.tracker")
+
+    assert card["slots"][0]["columns"][-2:] == ["Recommendation", "Source"]

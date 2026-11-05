@@ -76,6 +76,17 @@ def write(out, name, adapters_data):
     (out / "extract" / f"{name}.json").write_text(json.dumps({"schema": 1, "sha": "s", "adapters": adapters_data}))
 
 
+class TestHistoryIds:
+    def test_marker_items_get_mk_ids_that_survive_a_line_move(self):
+        a = {"path": "a.py", "line": 3, "end_line": 3, "rule": "marker.hack", "snippet": "# HACK: x"}
+        b = {**a, "line": 30, "end_line": 30}
+
+        first, second = candidates.assign_ids("history", [a]), candidates.assign_ids("history", [b])
+
+        assert first[0]["id"].startswith("mk-") and first[0]["group"].startswith("mkg-")
+        assert first[0]["id"] == second[0]["id"]
+
+
 class TestLoad:
     def test_items_of_every_adapter_come_in_adapter_name_order(self, tmp_path):
         write(tmp_path, "entry_points", {"repo": {"items": [{"id": "ep-2"}]}, "python": {"items": [{"id": "ep-1"}]}})
@@ -134,6 +145,11 @@ class TestDigest:
 
         assert changed(BASE, shifted) == set()
 
+    def test_a_complexity_number_on_a_module_changes_no_digest(self):
+        with_complexity = {**BASE, "graph": [{**mod("a"), "complexity": 12}, mod("b"), edge("a", "b")]}
+
+        assert changed(BASE, with_complexity) == set()
+
     def test_new_candidate_changes_only_its_home_report(self):
         after = {**BASE, "io_candidates": BASE["io_candidates"] + [cand("io-3", "log")]}
 
@@ -182,3 +198,57 @@ class TestReadingModules:
         assert "(top 30)" not in out
         assert "== Modules by import rank ==" in out
         assert out.count("(rank ") == 40
+
+
+def marker(i, line=3, path="a.py"):
+    return {"kind": "marker", "id": i, "group": "mkg-" + i, "path": path, "line": line, "end_line": line, "rule": "marker.hack", "snippet": "# HACK"}
+
+
+def human(ident="a@x", commits=3):
+    return {"kind": "person", "path": "", "person": ident, "name": ident, "type": "human", "commits": commits, "commits_12m": commits}
+
+
+class TestHistoryDigests:
+    def test_a_new_marker_changes_only_the_change_digest(self):
+        before = {"history": [marker("mk-1")]}
+        after = {"history": [marker("mk-1"), marker("mk-2", line=9)]}
+
+        assert changed(before, after) == {"change"}
+
+    def test_moving_a_marker_to_another_line_changes_nothing(self):
+        assert changed({"history": [marker("mk-1", line=3)]}, {"history": [marker("mk-1", line=40)]}) == set()
+
+    def test_a_new_decision_document_changes_the_change_digest(self):
+        assert changed({"history": []}, {"history": [{"kind": "decision-doc", "path": "docs/adr/1.md"}]}) == {"change"}
+
+    def test_a_new_commit_by_a_known_person_leaves_the_contributors_digest_alone(self):
+        assert changed({"history": [human(commits=3)]}, {"history": [human(commits=4)]}) == set()
+
+    def test_a_new_person_changes_the_contributors_digest(self):
+        assert changed({"history": [human()]}, {"history": [human(), human("b@x")]}) == {"contributors"}
+
+    def test_a_person_who_changes_type_changes_the_contributors_digest(self):
+        assert changed({"history": [human()]}, {"history": [{**human(), "type": "bot"}]}) == {"contributors"}
+
+
+class TestToolStatus:
+    def write(self, tmp_path, name, adapters):
+        (tmp_path / "extract").mkdir(exist_ok=True)
+        (tmp_path / "extract" / f"{name}.json").write_text(json.dumps({"schema": 1, "sha": "s", "adapters": adapters}))
+
+    def test_status_is_read_from_every_section_including_reused_ones(self, tmp_path):
+        self.write(tmp_path, "graph", {"python": {"tools": {"grimp": "3.17"}, "tool_status": {"grimp": {"status": "ok", "reason": None}}, "items": []}})
+        self.write(tmp_path, "dead", {"python": {"tools": {}, "tool_status": {"vulture": {"status": "failed", "reason": "timed out"}}, "items": []}})
+
+        got = candidates.tool_status(tmp_path)
+
+        assert got == {"grimp": {"status": "ok", "reason": None, "version": "3.17"}, "vulture": {"status": "failed", "reason": "timed out", "version": ""}}
+
+    def test_a_tool_named_twice_keeps_its_worst_status(self, tmp_path):
+        self.write(tmp_path, "a", {"x": {"tools": {"semgrep": "1"}, "tool_status": {"semgrep": {"status": "ok", "reason": None}}, "items": []}})
+        self.write(tmp_path, "b", {"x": {"tools": {}, "tool_status": {"semgrep": {"status": "skipped", "reason": "no"}}, "items": []}})
+
+        assert candidates.tool_status(tmp_path)["semgrep"]["status"] == "skipped"
+
+    def test_no_extract_folder_gives_nothing(self, tmp_path):
+        assert candidates.tool_status(tmp_path) == {}

@@ -220,6 +220,11 @@ class TestCoverageItems:
 
         assert got == ["The tool node was not installed, so this build ran without it. Install it with: brew install node"]
 
+    def test_missing_optional_tool_is_not_a_gap(self):
+        host = [{"id": "gh", "status": "missing", "optional": True, "install": "brew install gh"}]
+
+        assert self.statements(rec("tools", details={"host": host, "languages": []})) == []
+
     def test_old_tool(self):
         host = [{"id": "node", "status": "old", "version": "20", "needs": "22", "install": "x"}]
 
@@ -428,3 +433,136 @@ class TestCheckLine:
                                      check_counts={"v5_candidates": 5, "v5_open": 0, "v4": 0, "unbacked": {}})
 
         assert got[0]["counts"]["v5_candidates"] == 5 and "unbacked" not in got[0]["counts"]
+
+
+def history_meta(**kw):
+    return {"kind": "meta", "status": "ok", "reasons": [], "commits_seen": 40, "commits_total": 40, "shallow": False, "stopped_early": False,
+            "blame_done": 5, "blame_total": 5, "owner_status": "ok", "owner_reason": None, **kw}
+
+
+def measure_with(meta):
+    return rec("measure", details={"history": meta})
+
+
+class TestHistoryGaps:
+    def statements(self, meta):
+        return [(i["report"], i["statement"], i["how_to_confirm"]) for i in process.history_items(meta)]
+
+    def test_complete_history_gives_nothing(self):
+        assert self.statements(history_meta()) == [] and self.statements(None) == []
+
+    def test_shallow_clone(self):
+        got = self.statements(history_meta(shallow=True, commits_seen=1, status="partial"))
+
+        assert got == [("change", "This is a shallow clone, so the history covers only 1 commits. "
+                                  "Hotspots, co-change, ownership and workflow figures are incomplete.", "Build from a full clone.")]
+
+    def test_stopped_early(self):
+        got = self.statements(history_meta(stopped_early=True, commits_seen=300, commits_total=900))
+
+        assert got == [("change", "Reading the history took too long, so only the newest 300 of 900 commits were used.",
+                        "Raise timeouts.history in the dossier config and build again.")]
+
+    def test_blame_cut_short(self):
+        got = self.statements(history_meta(blame_done=3, blame_total=5))
+
+        assert got == [("contributors", "Only 3 of 5 files have line ownership, because git blame ran out of time. The rest count commits only.",
+                        "Build again on a faster machine.")]
+
+    def test_approvals_not_read(self):
+        got = self.statements(history_meta(owner_status="partial", owner_reason="gh is not installed or not logged in"))
+
+        assert got == [("contributors", "Pull request approvals could not be read, so commits by agents and bots count for their authors: "
+                                        "gh is not installed or not logged in", "Run gh auth login, or install gh, and build again.")]
+
+    def test_coverage_items_include_them_from_the_measure_record(self):
+        build = build_with(measure_with(history_meta(shallow=True, commits_seen=2)))
+
+        assert [i["report"] for i in process.coverage_items(build)] == ["change"]
+
+    def test_a_tool_that_failed_inside_a_working_adapter_is_a_gap(self):
+        ex = rec("extract", details={"adapters": [{"name": "python", "status": "ok", "tools": {"vulture": {"status": "failed", "reason": "crashed"},
+                                                                                              "grimp": {"status": "ok", "reason": None}}}]})
+
+        got = [i["statement"] for i in process.coverage_items(build_with(ex))]
+
+        assert got == ["The tool vulture did not finish, so the cards that use it are marked partial: crashed"]
+
+
+class TestHistoryPartialCards:
+    def cards(self, meta):
+        return process.partial_cards(build_with(rec("tools", details={"self_installing": [], "missing": [], "languages": []}), measure_with(meta)))
+
+    def test_partial_history_marks_every_history_card_with_the_first_reason(self):
+        got = self.cards(history_meta(status="partial", reasons=["this is a shallow clone", "git blame ran out of time for some files"]))
+
+        assert set(process.HISTORY_CARDS) <= set(got)
+        assert got["change.hotspots"] == "Made from incomplete history: this is a shallow clone."
+
+    def test_complete_history_marks_nothing(self):
+        assert not {c for c in self.cards(history_meta()) if c in process.HISTORY_CARDS}
+
+    def test_missing_approvals_mark_the_ownership_cards(self):
+        got = self.cards(history_meta(owner_status="partial", owner_reason="the repository is not on GitHub"))
+
+        assert got["contributors.concentration"] == "Made without pull request approvals: the repository is not on GitHub."
+        assert "contributors.people" not in got
+
+
+class TestPeopleCheckLine:
+    def line(self, counts):
+        build = build_with(*[r for r in FULL if r["step"] != "check"], rec("check", part="render", by="render", counts=counts))
+        return row_of(process.process_body(build), "check")[2]
+
+    def test_missing_names_are_counted_when_the_check_ran(self):
+        assert " People and components: 3 missing." in self.line({"citations": 4, "unresolved": 0, "errors": 0, "v5_people": 3})
+
+    def test_the_line_is_left_out_when_the_check_did_not_run(self):
+        assert "People and components" not in self.line({"citations": 4, "unresolved": 0, "errors": 0})
+
+
+class TestSummaryLines:
+    def rows(self, v8):
+        records = [r for r in FULL if r["step"] not in ("check", "render")]
+        records += [rec("check", part="render", by="render", counts={"citations": 4, "unresolved": 0, "errors": 0})]
+        if v8 is not None:
+            records.append(rec("check", part="summary", by="render", counts={"v8": v8}))
+        records.append(rec("render", part="render", by="render"))
+        body = process.process_body(build_with(*records))
+        return row_of(body, "check")[2], row_of(body, "render")[2]
+
+    def test_a_clean_summary_is_reported_in_both_steps(self):
+        check, render_ = self.rows(0)
+
+        assert " Summary: 0 problems." in check and render_ == "Page and machine-readable summary written."
+
+    def test_problems_are_counted_and_the_file_is_said_to_be_missing(self):
+        check, render_ = self.rows(2)
+
+        assert " Summary: 2 problems." in check and render_ == "Page written. summary.json was not written: 2 problems."
+
+    def test_no_summary_record_leaves_both_lines_alone(self):
+        check, render_ = self.rows(None)
+
+        assert "Summary:" not in check and render_ == "Page and machine-readable summary written."
+
+
+class TestExtractorsOnReuse:
+    def line(self, details, tools=()):
+        extract = rec("extract", tools=list(tools), details=details)
+        build = build_with(*[r for r in FULL if r["step"] not in ("tools", "extract")],
+                           rec("tools", tools=[], details={"languages": [{"name": "Python", "tier": "A"}], "missing": []}), extract)
+        return row_of(process.process_body(build), "tools")[2]
+
+    def test_a_reused_adapter_with_no_tools_key_still_lists_its_extractors(self):
+        status = {"grimp": {"status": "ok", "reason": None, "version": "3.17"}, "vulture": {"status": "failed", "reason": "x", "version": "2.14"},
+                  "scip-python": {"status": "ok", "reason": None, "version": "0.6.6"}}
+
+        got = self.line({"adapters": [{"name": "python", "status": "reused"}], "tool_status": status})
+
+        assert "Extractors: grimp 3.17, scip-python 0.6.6." in got and "none recorded" not in got
+
+    def test_a_build_without_tool_status_uses_the_adapters_that_ran(self):
+        details = {"adapters": [{"name": "python", "status": "ok", "tools": {"grimp": {"status": "ok"}}}]}
+
+        assert "Extractors: grimp 3.1." in self.line(details, tools=[{"name": "grimp", "version": "3.1"}])

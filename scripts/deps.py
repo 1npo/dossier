@@ -909,7 +909,7 @@ def analyze(repo, entries, files, is_test=None, max_files=MAX_FILES):
             elif d["tooling"]:
                 config_only[d["scope"]] += 1
             else:
-                unused.append({"n": d["shown"], "v": ver, "s": d["scope"], "group": ", ".join(d["groups"]),
+                unused.append({"n": d["shown"], "v": ver, "s": d["scope"], "group": ", ".join(d["groups"]), "ecosystem": eco,
                                "note": "No file in the repository imports it, and no script or configuration file mentions it."})
     roots_of = {eco: [k for k, d in ds.items()] for eco, ds in decls.items()}
     und = []

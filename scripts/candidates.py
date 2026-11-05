@@ -12,7 +12,7 @@ from pathlib import Path
 
 from components import catalog_edges, catalog_rows, component_candidates, component_of, file_lines, parse_paths, source_files  # noqa: F401
 
-ID_OUTPUTS = {"entry_points": "ep", "io_candidates": "io", "models": "md", "dead": "dd", "blindspots": "bs"}
+ID_OUTPUTS = {"entry_points": "ep", "io_candidates": "io", "models": "md", "dead": "dd", "blindspots": "bs", "history": "mk"}
 
 
 def norm(s: str) -> str:
@@ -68,6 +68,33 @@ def load(out) -> dict:
     return loaded
 
 
+def tool_list(out) -> list:
+    """[{"name", "version", "status", "reason"}], one per tool named in any `extract/*.json` section. Status is ok, failed or skipped.
+
+    A tool named by several sections keeps its worst status. The version is empty for a tool that did not run.
+    """
+    rank = {"ok": 0, "failed": 1, "skipped": 2}
+    found: dict = {}
+    for f in sorted((Path(out) / "extract").glob("*.json")):
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+        except ValueError:
+            continue
+        for section in (data.get("adapters") or {}).values():
+            versions, status = section.get("tools") or {}, section.get("tool_status") or {}
+            for name in sorted(set(versions) | set(status)):
+                s = status.get(name) or {}
+                new = {"name": name, "version": str(versions.get(name) or ""), "status": s.get("status") or "ok", "reason": s.get("reason")}
+                if name not in found or rank.get(new["status"], 2) > rank.get(found[name]["status"], 2):
+                    found[name] = new
+    return sorted(found.values(), key=lambda t: t["name"])
+
+
+def tool_status(out) -> dict:
+    """{tool: {"status", "reason", "version"}} read from every `extract/*.json` section, so a reused adapter is covered too."""
+    return {t["name"]: {"status": t["status"], "reason": t["reason"], "version": t["version"]} for t in tool_list(out)}
+
+
 def by_id(extract: dict) -> dict:
     """Item ids and group ids -> item (a group maps to its first item)."""
     found = {}
@@ -102,7 +129,7 @@ CATEGORY_CARD = {
     "metric": "behavior.observability", "trace": "behavior.observability", "retry": "behavior.failures",
     "timeout": "behavior.failures", "catch-all": "behavior.failures", "transaction": "behavior.failures",
 }
-DECIDED_OUTPUTS = ("entry_points", "io_candidates", "models")
+DECIDED_OUTPUTS = ("entry_points", "io_candidates", "models", "history")
 
 
 def card_titles() -> dict:
@@ -125,6 +152,8 @@ def home_card(output: str, item: dict):
         return CATEGORY_CARD.get(item.get("category"))
     if output == "models" and item.get("kind") != "migration":
         return "data.entities"
+    if output == "history" and item.get("kind") == "marker":
+        return "change.decisions"
     return None
 
 
@@ -180,6 +209,8 @@ FEEDS = {
     "behavior": ("test_files", "cand:behavior"),
     "conventions": ("cand:all", "modules"),
     "ops": ("entry_points", "test_configs"),
+    "change": ("markers", "decision_docs"),
+    "contributors": ("people",),
 }
 
 
@@ -206,6 +237,12 @@ def _feed(name, extract):
     if name == "test_configs":
         return ([["config", t["path"], t.get("tool"), t.get("settings")] for t in extract.get("tests", []) if t.get("kind") == "config"]
                 + [["ci", t["path"], t.get("command")] for t in extract.get("tests", []) if t.get("kind") == "ci-command"])
+    if name == "markers":
+        return [["marker", i["id"]] for i in extract.get("history", []) if i.get("kind") == "marker" and "id" in i]
+    if name == "decision_docs":
+        return [["doc", i["path"]] for i in extract.get("history", []) if i.get("kind") == "decision-doc"]
+    if name == "people":
+        return [["person", i["person"], i["type"]] for i in extract.get("history", []) if i.get("kind") == "person"]
     if name in ("entry_points", "models"):
         return [[name, i["id"]] for i in extract.get(name, []) if "id" in i]
     if name.startswith("cand:"):
@@ -266,6 +303,11 @@ def report_data(rid: str, extract: dict, reports: dict, facts: dict, *, only_ope
                            for m in sorted(mods, key=lambda m: (-rank.get(m["module"], 0), m["module"]))]
         data["entry_points"] = sorted({e["path"] for e in extract.get("entry_points", [])})
         data["tests"] = sorted({t["path"] for t in extract.get("tests", []) if t.get("kind") == "test-file"})
+    import candidates_history  # late: it imports this module
+
+    extra = candidates_history.data(rid, extract, reports, catalog, tree)
+    if extra:
+        data["history"] = extra
     return data
 
 
@@ -301,4 +343,7 @@ def text(rid: str, extract: dict, reports: dict, facts: dict, *, only_open: bool
         out += d["entry_points"]
         out.append("== Test files ==")
         out += d["tests"]
+    import candidates_history  # late: it imports this module
+
+    out += candidates_history.lines(rid, extract, reports, catalog, tree, only_open)
     return "\n".join(out) + ("\n" if out else "")

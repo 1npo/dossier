@@ -19,10 +19,12 @@ from pathlib import Path
 from urllib.parse import quote
 
 import deps as depscan
+import history as historyscan
 import gather
 import candidates
 import components
 import measured
+import measured_people
 import process
 import schema
 import viewer
@@ -63,12 +65,16 @@ FACT_KEYS["hot_files"] = FACT_KEYS["manifests"] = "facts-git"   # their cards we
 FACT_KEYS["env_vars"] = FACT_KEYS["secret_signals"] = "facts-git"   # their panels were removed in 0.5.0; the figures still back statements about the repository
 FACT_KEYS["chunks"] = "dossier-build"
 FACT_KEYS["inventory"] = "facts-git"  # retired file-name inventory; old reports may still cite it
-OPTIONAL_REPORTS = ("change", "contributors")  # M3 writes these; until then a missing file is a warning
+FACT_KEYS["history"] = "c-change-hotspots"   # the uncapped git history behind the change and contributors reports
+CUT_CARDS = ()   # cards cut from a milestone (plan 009, D16): each draws a fixed sentence and a Gaps item
+OPTIONAL_REPORTS = ()  # reports a build may leave out; none since M3 made change and contributors required
 UNRENDERED_BLOCKS = ("overview",)  # overview.json's written blocks are no longer drawn; do not count what is not shown
 DIAGRAM_START = re.compile(r"^\s*(%%\{.*?\}%%\s*)?(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram(-v2)?|erDiagram|journey|gantt|pie|mindmap|timeline|gitGraph|quadrantChart|requirementDiagram|C4\w+|sankey-beta|xychart-beta|block-beta|architecture-beta)\b", re.S)
 INLINE_CITE = re.compile(r"\[\[(.+?)\]\]")
 GATHERER_PATH = "dossier-gatherer/gather.py"   # the gatherer's source, embedded in the code viewer under this name
 DEPS_PATH = "dossier-gatherer/deps.py"         # likewise the dependency analysis, which the Dependencies card cites
+HISTORY_PATH = "dossier-gatherer/history.py"   # likewise the history pass behind the change and contributors reports
+GATHERER_FILES = {"gather": GATHERER_PATH, "deps": DEPS_PATH, "history": HISTORY_PATH}
 # What each "measured facts: <key>" citation means: (what it is, how the gatherer measured it, first line of its code, line that ends it)
 FACT_INFO = {
     "git": ("Commit history", "Totals and timelines from the repository's commit history: commits, merges, first and last commit, commits per day and month, release tags, and who made them. Everything is counted by the gatherer, not written by Claude.",
@@ -97,6 +103,8 @@ FACT_INFO = {
                      r"^def analyze\(", r'^            "deps": deps, "unused": unused', "deps"),
     "chunks": ("Reading coverage", "How the repository was divided up for reading: file sizes are estimated in tokens (bytes divided by 3.5) and packed into chunks that fit one context window.",
                r"# -+ chunk planning", r"# -+ main collection"),
+    "history": ("Git history", "Every commit read once from git: how often each file changed, which files change together, who made the changes and who owns them, the branches in flight, and the team's workflow. Nothing is capped. A commit that touches a very large number of files (an import or a reformat) is listed on its own and counts for no file.",
+                r"^def collect\(", r"^def items_of\(", "history"),
 }
 FACT_INFO["inventory"] = FACT_INFO["git"]
 E = lambda s: html.escape(str(s if s is not None else ""), quote=True)
@@ -121,12 +129,19 @@ def parse_cite(raw):
 
 @lru_cache(maxsize=None)
 def gatherer_source(which="gather"):
-    return viewer.split_lines(Path((depscan if which == "deps" else gather).__file__).read_bytes())
+    module = {"deps": depscan, "history": historyscan}.get(which, gather)
+    return viewer.split_lines(Path(module.__file__).read_bytes())
+
+
+def gatherer_which(key):
+    """Which source file measures a fact: the fifth entry of its FACT_INFO, else the gatherer."""
+    info = FACT_INFO.get(key, ())
+    return info[4] if len(info) > 4 else "gather"
 
 
 def gatherer_path(key):
     """The name the code viewer knows the gatherer code behind a fact by."""
-    return DEPS_PATH if len(FACT_INFO.get(key, ())) > 4 else GATHERER_PATH
+    return GATHERER_FILES[gatherer_which(key)]
 
 
 @lru_cache(maxsize=None)
@@ -135,7 +150,7 @@ def gatherer_range(key):
     info = FACT_INFO.get(key)
     if not info:
         return None
-    lines = gatherer_source("deps" if len(info) > 4 else "gather")
+    lines = gatherer_source(gatherer_which(key))
     first = next((i for i, l in enumerate(lines) if re.search(info[2], l)), None)
     last = next((i for i in range((first or 0) + 1, len(lines)) if re.search(info[3], lines[i])), None)
     if first is None or last is None:
@@ -615,7 +630,8 @@ def validate(reports, facts, cites, partial=False):
     for rid in names:
         rep = reports.get(rid)
         if rep is None:
-            (warnings if partial or rid in OPTIONAL_REPORTS else errors).append(f"Report '{rid}' is missing (expected reports/{rid}.json).")
+            (warnings if partial or rid in OPTIONAL_REPORTS else errors).append(
+                f"Report '{rid}' is missing (expected reports/{rid}.json). Run /dossier build to write it.")
             continue
         if not isinstance(rep, dict):
             errors.append(f"Report '{rid}' must be a JSON object.")
@@ -732,11 +748,18 @@ def lift_cites(cell, refs):
 TALL_ROWS = 40  # a longer table scrolls inside its card; every row stays in the page
 
 
+def auto_columns(columns):
+    """The two headings render adds to an authored table: (basis, citations). A schema column of the same name gets the other word."""
+    have = {c.strip().lower() for c in columns}
+    return ("Confidence" if "basis" in have else "Basis", "Citations" if "source" in have else "Source")
+
+
 def render_table(columns, rows, refs, tid, filterable=True, plain=False, group=None, foot=None, sort=True, cls=""):
     """rows are dicts with cells/conf/cite/note (authored) or plain lists of ready HTML (measured)."""
     head = "".join(f"<th>{E(c)}</th>" for c in columns)
     if not plain:
-        head += '<th class="basis-cell">Basis</th><th class="src-cell">Source</th>'
+        basis_h, cite_h = auto_columns(columns)
+        head += f'<th class="basis-cell">{basis_h}</th><th class="src-cell">{cite_h}</th>'
     body = []
     for r in rows:
         if plain:
@@ -1011,7 +1034,11 @@ def render_card(card, entry, refs, rid, ctx=None):
         elif "blocks" in entry:
             if card["id"] == "components.catalog":
                 entry = measured.fill_catalog(entry, ctx or {})
+            elif card["id"] in ("contributors.concentration", "contributors.agents"):
+                entry = measured.fill_people(entry, card["id"], ctx or {})
             body = blocks_body(card, entry["blocks"], refs, tid, ((ctx or {}).get("checks") or {}).get("unbacked"))
+            if card["id"] == "contributors.concentration":
+                body = measured_people.bus_line(ctx or {}) + body
         elif "entries" in entry:
             body = entries_body(card, entry["entries"], refs, tid)
         else:
@@ -1407,7 +1434,43 @@ def knowledge_card(f, people_html=""):
             f'<script type="application/json" id="km-data">{jsn}</script>')
 
 
-def panel_contributors(f, refs):
+def owner_view(f, pal, history):
+    """(note, tiles, bar, table) of the Owner view of the Contributors card, read from the history alone. Every identity that owns something is listed."""
+    people = [i for i in history if i.get("kind") == "person"]
+    meta = next((i for i in history if i.get("kind") == "meta"), {})
+    owners = sorted((p for p in people if p["owned_commits"] or p["owned_lines"]), key=lambda p: (-p["owned_lines"], -p["owned_commits"], p["name"]))
+    by_type = {t: [p for p in owners if p["type"] == t] for t in ("human", "agent", "bot")}
+    total_commits = sum(p["owned_commits"] for p in owners) or 1
+    tiles = stats_html([(t.capitalize(), str(len(by_type[t])), f"{fmt(sum(p['owned_commits'] for p in by_type[t]))} commits owned · "
+                         f"{100 * sum(p['owned_commits'] for p in by_type[t]) / total_commits:.0f}%") for t in ("human", "agent", "bot")])
+    lines_total = sum(p["owned_lines"] for p in owners)
+    if lines_total:
+        top = owners[:PALETTE]
+        items = [(pal.get(p["person"]) or pal.get(p["name"]) or "own-other", p["name"], p["owned_lines"], "") for p in top]
+        items.append(("lang-8", "Everyone else", lines_total - sum(p["owned_lines"] for p in top), ""))
+        bar = share_bar(items, lines_total)
+    else:
+        bar = '<p class="muted">No line ownership was measured, so there is no bar of owned lines.</p>'
+    rows = [[f'<b class="own-dot {pal.get(p["person"]) or pal.get(p["name"]) or "own-other"}"></b>{E(p["name"])}', type_badge(p["type"]),
+             (fmt(p["owned_commits"]), p["owned_commits"]), (fmt(p["commits"]), p["commits"]), (fmt(p["owned_lines"]), p["owned_lines"])] for p in owners]
+    table = (render_table(["Name", "Type", "Commits owned", "Commits authored", "Lines owned"], rows, None, "t-people-owner", True, True) if rows
+             else '<p class="muted none-found">Nobody owns a commit or a line.</p>')
+    if meta.get("owner_rule") == "one-human":
+        sole = next((p["name"] for p in people if p["type"] == "human"), "The only human")
+        rule = f"{sole} is the only person on this project, so they own every commit."
+    else:
+        rule = "Commits by agents and bots belong to the person who approved their pull request, or to their author when there was none."
+    return f"{rule} The calendar and the knowledge map always show who authored each commit.", tiles, bar, table
+
+
+def who_buttons():
+    btns = "".join(f'<button type="button" class="btn" data-variant="outline" data-size="sm" data-who-set="{v}" aria-pressed="{"true" if v == "author" else "false"}">{t}</button>'
+                   for v, t in (("owner", "Owner"), ("author", "Author")))
+    return ('<div class="km-ctl" id="who-ctl"><span class="muted" id="who-l">Credit commits to</span>'
+            f'<div class="button-group" id="who-mode" role="group" aria-labelledby="who-l">{btns}</div></div>')
+
+
+def panel_contributors(f, refs, history=None):
     g, c = f["git"], f["git"]["contributors"]
     cb = g["commits_by_type"]
     commits_total = sum(cb.values()) or 1
@@ -1449,8 +1512,18 @@ def panel_contributors(f, refs):
     when = calendar_html(g, names, pal, g.get("tags") or [])
     know = ('<p class="muted">Which parts of the repository each person knows best, based on surviving lines, commit history and recent activity.</p>'
             + knowledge_card(f, table + more))
+    cites = ["facts:contributors", "facts:git", "facts:knowledge"] + (["facts:ownership"] if o else [])
+    if history and any(i.get("kind") == "person" for i in history):
+        note, o_tiles, o_bar, o_table = owner_view(f, pal, history)
+        by_author = lambda html: f'<div data-who="author">{html}</div>'
+        by_owner = lambda html: f'<div data-who="owner" hidden>{html}</div>'
+        know = ('<p class="muted">Which parts of the repository each person knows best, based on surviving lines, commit history and recent activity.</p>'
+                + knowledge_card(f, by_author(table + more) + by_owner(o_table)))
+        body = (who_buttons() + f'<p class="muted" data-who="owner" hidden>{E(note)}</p>' + by_author(tiles) + by_owner(o_tiles) + assisted + when
+                + by_author(f'<div class="who-bar">{who_bar}</div>') + by_owner(f'<div class="who-bar">{o_bar}</div>') + know)
+        return card("Contributors", body, "facts-contributors", None, refs, cites + (["facts:history"] if f.get("history") else []), cid="overview.contributors")
     return card("Contributors", tiles + assisted + when + f'<div class="who-bar">{who_bar}</div>' + know,
-                "facts-contributors", None, refs, ["facts:contributors", "facts:git", "facts:knowledge"] + (["facts:ownership"] if o else []), cid="overview.contributors")
+                "facts-contributors", None, refs, cites, cid="overview.contributors")
 
 
 # --------------------------------------------------------------------------- tracker pages
@@ -1547,8 +1620,8 @@ def panel_history(entries, refs):
                 group=[("", 4), ("Open items at that build", 3), ("", 2)]), "history", "Open items are the unknowns, inferences and assumptions listed in the gaps report at the time of each build.", cid="dossier.changelog")
 
 
-def panel_risk_counts(rep):
-    """One tile for each severity, so the tiles add up to the rows of the register, and one for the rows that rest on inference."""
+def risk_counts(rep):
+    """(rows per severity, rows in all, rows that rest on inference) of the register in a risks report."""
     counts = {s: 0 for s in SEVERITIES}
     total = inferred = 0
     for b in all_blocks(rep):
@@ -1560,6 +1633,12 @@ def panel_risk_counts(rep):
                 v = str(r["cells"][i]).strip().lower()
                 if v in counts:
                     counts[v] += 1
+    return counts, total, inferred
+
+
+def panel_risk_counts(rep):
+    """One tile for each severity, so the tiles add up to the rows of the register, and one for the rows that rest on inference."""
+    counts, total, inferred = risk_counts(rep)
     tiles = [(Raw(sev_badge(s.capitalize())), counts[s], "", f"sev-{SEV_TONE[s]}" + ("" if counts[s] else " zero")) for s in SEVERITIES]
     return stats_html(tiles + [("Based on inference", inferred, f"of the {total} risks have no direct evidence")])
 
@@ -1734,7 +1813,7 @@ def build_page(rid, reports, facts, state, ctx):
         summary_html = md(summary_text(rep), refs) or '<p class="muted">Not generated.</p>'
         if rid == "overview":
             parts.append(panel_git(facts, refs, ctx))
-            parts.append(panel_contributors(facts, refs))
+            parts.append(panel_contributors(facts, refs, ctx["extract"].get("history")))
             parts.append(panel_dependencies(facts, refs))
         if rid == "risks" and rep:
             parts.append(panel_risk_counts(rep))
@@ -1815,7 +1894,7 @@ def render_html(facts, reports, state, history, version, cites, build=None, cove
         print(f"warning: {len(dropped)} cited file(s) are not embedded in the code viewer, to keep the page small: {', '.join(dropped[:5])}{' ...' if len(dropped) > 5 else ''}")
     files = {p: {"lines": cites.source(p)[0]} for p in cites.windows}
     windows = dict(cites.windows)
-    for which, path in (("gather", GATHERER_PATH), ("deps", DEPS_PATH)):      # the gatherer's own code, so a "measured facts" citation can show how its numbers were measured
+    for which, path in GATHERER_FILES.items():      # the gatherer's own code, so a "measured facts" citation can show how its numbers were measured
         src = gatherer_source(which)
         files[path], windows[path] = {"lines": src}, viewer.pick_window(src, [gatherer_range(k) for k in FACT_INFO if gatherer_path(k) == path])
     jsn = lambda d: json.dumps(d, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/").replace("<!--", "<\\u0021--")

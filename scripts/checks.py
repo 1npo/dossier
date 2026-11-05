@@ -9,6 +9,7 @@ import keyword
 import re
 
 import candidates
+import checks_people
 import checks_v3
 import checks_v7
 import components
@@ -375,6 +376,12 @@ def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None)
     result["errors"] += env_errors
     result["counts"]["v5_env"] = len(env_errors)
     try:
+        people_errors = checks_people.risk_source(reports) + checks_people.people(reports, extract or {}, components.catalog_rows(reports.get("components") or {}))
+    except (AttributeError, TypeError, KeyError):
+        people_errors = []
+    result["errors"] += people_errors
+    result["counts"]["v5_people"] = len(people_errors)
+    try:
         w, g, n = v2_recipes(reports)
         result["warnings"] += w
         result["gaps"] += g
@@ -409,6 +416,9 @@ def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None)
         _, w, g, c = checks_v7.v7(extract)
         result["gaps"] += g
         result["counts"].update(c)
+    if extract and any(g.get("kind") == "module" for g in extract.get("graph", [])):
+        result["gaps"].append({"kind": "coverage", "report": "change", "statement": "Stale feature flags and unused routes are not detected for Python.",
+                               "how_to_confirm": "This is a known limit of this version of dossier."})
     if tree and extract:  # a dossier made before the extractors has no extract/: nothing to hold it to
         try:
             e, w, g, c = v4(reports, tree, facts)

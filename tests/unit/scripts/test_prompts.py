@@ -48,7 +48,7 @@ class TestMethodExamples:
 
 class TestReportsGuide:
     guide = (PROMPTS / "reports.md").read_text(encoding="utf-8")
-    written = ("entry", "components", "interactions", "io", "data", "behavior", "conventions", "ops", "reading")
+    written = ("entry", "components", "interactions", "io", "data", "behavior", "conventions", "ops", "change", "contributors", "reading")
 
     def test_every_card_written_by_claude_is_described(self):
         ids = [c["id"] for rid in self.written for c in schema.load(rid)["cards"] if c["writer"] == "claude"]
@@ -96,3 +96,45 @@ class TestCompleteness:
 
     def test_diagrams_are_split_not_trimmed(self, both):
         assert "never leave a step out" in both
+
+
+class TestChangeAndContributorsGuide:
+    guide = (PROMPTS / "reports.md").read_text(encoding="utf-8")
+    method = (PROMPTS / "method.md").read_text(encoding="utf-8")
+
+    def test_every_card_of_both_reports_is_described(self):
+        ids = [c["id"] for rid in ("change", "contributors") for c in schema.load(rid)["cards"]]
+
+        assert [i for i in ids if f"(`{i}`)" not in self.guide] == []
+
+    def test_neither_report_is_called_unwritten(self):
+        assert "not written in this version" not in self.guide + self.method
+
+    def test_the_writing_order_puts_change_and_contributors_before_reading_and_risks_last(self):
+        line = next(l for l in self.guide.splitlines() if l.startswith("**Write the reports in this order"))
+
+        assert line.index("`ops`") < line.index("`change`") < line.index("`contributors`") < line.index("`reading`") < line.index("`risks`")
+
+    def test_the_status_words_and_the_unknown_owner_rule_are_given(self):
+        section = self.guide.split("(`contributors.concentration`)", 1)[1].split("###", 1)[0]
+
+        assert "`single owner`, `departed` or `shared`" in section and "`inferred`" in section and "`unknown`" in section
+
+    def test_a_group_id_may_decide_markers(self):
+        section = self.guide.split("(`change.decisions`)", 1)[1].split("###", 1)[0]
+
+        assert "group id" in section and "`unknown`" in section
+
+    def test_contract_directions_are_exactly_offered_or_consumed(self):
+        assert "exactly `offered`" in self.guide and "`consumed`" in self.guide
+
+    def test_risks_gain_the_source_column_with_its_two_values(self):
+        section = self.guide.split("## risks", 1)[1]
+
+        assert "`Source`" in section and "`extractor`" in section and "`read`" in section
+
+    def test_people_are_written_by_display_name(self):
+        assert "never email addresses" in self.guide
+
+    def test_history_is_a_citation_key_and_v8_is_listed(self):
+        assert "`history`" in self.method and "V8" in self.method

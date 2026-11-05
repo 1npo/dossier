@@ -19,7 +19,8 @@
             "Category",
             "Severity",
             "Impact",
-            "Recommendation"
+            "Recommendation",
+            "Source"
           ],
           "max": null
         }

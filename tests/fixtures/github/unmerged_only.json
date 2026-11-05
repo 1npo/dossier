@@ -1,0 +1,28 @@
+{
+ "data": {
+  "repository": {
+   "c0": {
+    "author": {
+     "user": {
+      "login": "bot-author"
+     }
+    },
+    "associatedPullRequests": {
+     "nodes": [
+      {
+       "number": 13,
+       "merged": false,
+       "mergedBy": {
+        "login": "amy",
+        "__typename": "User"
+       },
+       "reviews": {
+        "nodes": []
+       }
+      }
+     ]
+    }
+   }
+  }
+ }
+}

@@ -20,6 +20,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import PurePosixPath
 
 import deps as depscan
+import markers as markerscan
 
 try:
     import tomllib
@@ -469,8 +470,9 @@ BLAME_HEADER = re.compile(r"^([0-9a-f]{40}) \d+ \d+")
 BLAME_BUDGET_S = 150
 
 
-def blame_file(repo_path, sha, path, deadline):
-    """Non-blank lines per (name, email) that survive in one file at the pinned commit."""
+def blame_file(repo_path, sha, path, deadline, by_commit=None):
+    """Non-blank lines per (name, email) that survive in one file at the pinned commit.
+    When `by_commit` is a dict, it is also filled with {commit sha: [(name, email), lines]}."""
     if time.monotonic() > deadline:
         return None
     try:
@@ -495,21 +497,27 @@ def blame_file(repo_path, sha, path, deadline):
     per = Counter()
     for c, n in counts.items():
         per[tuple(info.get(c, ("", "")))] += n
+        if by_commit is not None:
+            by_commit[c] = [tuple(info.get(c, ("", ""))), n]
     return per
 
 
-def ownership(repo_path, sha, files, area_of, canon, display, ctype, per_file=None):
+def ownership(repo_path, sha, files, area_of, canon, display, ctype, per_file=None, per_commit=None):
     """Share of today's code lines written by each contributor, from git blame over every analysed text file.
-    When `per_file` is a dict, it is filled with {path: {contributor id: lines}} for every file that was blamed."""
+    When `per_file` is a dict, it is filled with {path: {contributor id: lines}} for every file that was blamed.
+    When `per_commit` is a dict, it is filled with {path: {commit sha: [contributor id, lines]}}."""
     deadline = time.monotonic() + BLAME_BUDGET_S
     paths = [f["path"] for f in files if f["lines"]]
     by_person, by_area, done = Counter(), defaultdict(Counter), 0
     with ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 4)) as pool:
-        futs = {pool.submit(blame_file, repo_path, sha, p, deadline): p for p in paths}
+        infos = {p: ({} if per_commit is not None else None) for p in paths}
+        futs = {pool.submit(blame_file, repo_path, sha, p, deadline, infos[p]): p for p in paths}
         for fut, p in futs.items():
             per = fut.result()
             if per is None:
                 continue
+            if per_commit is not None:
+                per_commit[p] = {c: [canon.get(ident_id(*who)) or ident_id(*who), n] for c, (who, n) in infos[p].items()}
             done += 1
             ar = area_of(p)
             mine = Counter()
@@ -629,6 +637,11 @@ def parse_commit(rec):
     meta = head.decode("utf-8", "replace").strip().split("\x1f")
     if len(meta) < 4:
         return None
+    return (*meta[:4], parse_numstat(rest))
+
+
+def parse_numstat(rest):
+    """The `-z --numstat` part of a log record: [(added, deleted, old path or None, path)]."""
     toks, entries, i = rest.decode("utf-8", "replace").lstrip("\n").split("\0"), [], 0
     while i < len(toks):
         f = toks[i].split("\t", 2)
@@ -644,7 +657,7 @@ def parse_commit(rec):
             i += 3
         else:
             break
-    return (*meta[:4], entries)
+    return entries
 
 
 def history_commits(repo_path, sha):
@@ -840,6 +853,7 @@ def collect(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
     lang_stats = defaultdict(lambda: {"kind": "", "files": 0, "lines": 0, "bytes": 0})
     files = []                       # analyzable text files, for chunk planning
     env_refs, secret_hits, manifests, sensitive = {}, [], [], []
+    marker_items, todo_items = [], []
     test_files = 0
     readme = None
     for path, typ, oid, size in entries:
@@ -894,6 +908,10 @@ def collect(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
         files.append({"path": path, "blob": oid, "bytes": len(data), "lines": lines, "tokens": tokens_for(len(data)), "role": role})
         if len(data) <= 2_000_000 and (not lang or lang[1] != "docs"):
             nl = None
+            found, todo_n = markerscan.scan(path, text)
+            marker_items += found
+            if todo_n:
+                todo_items.append({"kind": "todo", "path": path, "count": todo_n})
             for pat_name, pat in SECRET_PATTERNS:
                 m = pat.search(text)
                 if m and len(secret_hits) < 200:
@@ -1133,10 +1151,10 @@ def collect(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
                   "share_pct": pct(v["lines"], code_total if v["kind"] == "code" else all_total)}
                  for n, v in sorted(lang_stats.items(), key=lambda kv: -kv[1]["lines"])]
 
-    blamed = {}
+    blamed, blamed_commits = {}, {}
     with ThreadPoolExecutor(max_workers=1) as bg:     # the knowledge map's history pass runs alongside the blame
         scan = bg.submit(knowledge_scan, repo.path, sha, as_of, files, canon, display, ctype)
-        own = ownership(repo.path, sha, files, area_of, canon, display, ctype, blamed)
+        own = ownership(repo.path, sha, files, area_of, canon, display, ctype, blamed, blamed_commits)
         knowledge = knowledge_map(scan.result(), blamed, sha, as_of, display, ctype)
 
     # ---- dependencies
@@ -1198,6 +1216,11 @@ def collect(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
         "file_activity": file_activity,    # kept out of facts.json: dossier.py writes it to activity.json
         "knowledge": knowledge,            # likewise written to knowledge.json
         "dependencies": dependencies,      # likewise written to dependencies.json
+        "history_input": {"canon": canon, "display": display, "ctype": ctype, "blamed": blamed, "blamed_commits": blamed_commits,
+                          "remote": remote, "as_of": as_of.isoformat(),
+                          "lines": {f["path"]: f["lines"] for f in files}, "tree": sorted(tree_paths),
+                          "markers": marker_items, "todos": todo_items,
+                          "shallow": repo.git("rev-parse", "--is-shallow-repository", check=False).strip() == "true"},   # popped by dossier.py
     }
     repo.close()
     return facts, {"budget": chunk_tokens, "total_tokens": total_tokens, "chunks": chunks}

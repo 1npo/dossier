@@ -267,3 +267,8 @@ class TestHandlerArgument:
 
     def test_both_command_rules_are_registered_by_call(self):
         assert py_adapter.CALL_COMMAND_RULES == {"dossier.python.entry.argparse-subcommand", "dossier.python.entry.cli-helper-command"}
+
+
+class TestComplexityOnModules:
+    def test_adapter_version_is_3_so_old_extracts_are_not_reused(self):
+        assert py_adapter.PythonAdapter.version == "3"

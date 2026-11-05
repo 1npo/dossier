@@ -1,3 +1,4 @@
+import re
 import sys
 from pathlib import Path
 
@@ -215,3 +216,164 @@ class TestParse:
         root = page_audit.parse("<div><script>var x = 'Not yet generated';</script>ok</div>")
 
         assert root.text() == "ok"
+
+
+class TestMeasuredCards:
+    """V11 on the cards code draws from the history (M3): the right tables, columns and row counts, and `.none-found` for nothing."""
+
+    TREE = {"src/a.py", "src/b.py", "src/c.py"}
+
+    def ctx(self, **over):
+        pair = lambda a, b, n: {"kind": "pair", "path": a, "a": a, "b": b, "co_commits": n, "commits_a": 5, "commits_b": 5, "share": 50}
+        history = [{"kind": "meta", "path": ""}] + [
+            {"kind": "file", "path": p, "lines": 10, "commits": 2, "commits_12m": 1, "last_changed": "2026-01-01"} for p in sorted(self.TREE)] + [
+            pair("src/a.py", "src/b.py", 4), {"kind": "branch", "path": "", "ref": "origin/x", "sha": "a" * 40, "date": "2026-01-01", "ahead": 1, "behind": 0,
+                                               "author": "Ann", "remote": True}] + [
+            {"kind": "workflow", "path": "", "convention": c, "observed": "o", "evidence": "e", "commits": []} for c in ("a", "b", "c", "d", "e", "f")]
+        graph = [{"kind": "module", "path": p, "module": p[:-3].replace("/", ".")} for p in sorted(self.TREE)]
+        ctx = {"extract": {"history": history, "graph": graph, "dead": []}, "tree": set(self.TREE), "catalog": [{"name": "core", "paths": ["src/"]}],
+               "facts": {}, "read": lambda p: None}
+        ctx.update(over)
+        return ctx
+
+    def page(self, ctx):
+        import measured
+
+        class Refs:
+            def mark(self, cites):
+                return ""
+
+        ids = ("change.hotspots", "change.cochange", "change.blast-radius", "change.dead-code", "change.in-flight", "contributors.workflow")
+        return "".join(f'<div class="card" data-card="{cid}">{measured.body(cid, ctx, Refs())}</div>' for cid in ids)
+
+    def errors(self, page, ctx):
+        cards = {}
+        for n in page_audit.parse(page).walk():
+            if "data-card" in n.attrs:
+                cards.setdefault(n.attrs["data-card"], []).append(n)
+        return page_audit._check_measured(cards, ctx, page)
+
+    def test_a_complete_page_has_no_error(self):
+        ctx = self.ctx()
+
+        assert self.errors(self.page(ctx), ctx) == []
+
+    def test_a_missing_hotspot_row_is_an_error(self):
+        ctx = self.ctx()
+
+        errs = self.errors(broken_pages.hotspot_row_removed(self.page(ctx)), ctx)
+
+        assert errs == ["V11: change.hotspots: table t-change-hotspots-files has 2 rows, expected 3."]
+
+    def test_a_renamed_column_is_an_error(self):
+        ctx = self.ctx()
+        page = self.page(ctx).replace("<th>Co-commits</th>", "<th>Together</th>")
+
+        assert any("t-change-cochange is missing the column 'Co-commits'" in e or "has the columns" in e for e in self.errors(page, ctx))
+
+    def test_a_table_replaced_by_text_is_an_error(self):
+        ctx = self.ctx()
+
+        errs = self.errors(broken_pages.workflow_table_to_text(self.page(ctx)), ctx)
+
+        assert errs == ["V11: contributors.workflow: the table t-contributors-workflow is not drawn."]
+
+    def test_zero_rows_need_a_none_found_note_and_no_table(self):
+        ctx = self.ctx()
+        ctx["extract"]["history"] = [i for i in ctx["extract"]["history"] if i["kind"] != "branch"]
+        page = self.page(ctx)
+
+        assert self.errors(page, ctx) == []
+        assert "none-found" in page
+        assert any("does not say so" in e for e in self.errors(page.replace("none-found", "plain"), ctx))
+
+    def test_blast_data_must_hold_every_file(self):
+        ctx = self.ctx()
+        page = self.page(ctx)
+
+        assert self.errors(broken_pages.blast_data_removed(page), ctx) == ["V11: change.blast-radius: blast-data holds None files, expected 3."]
+
+    def test_a_blast_table_row_missing_is_an_error(self):
+        ctx = self.ctx()
+        page = self.page(ctx)
+        start = page.index('id="t-change-blast-radius"')
+        end = page.index("</tbody>", start)
+        page = page[:page.rindex("<tr", start, end)] + page[end:]
+
+        assert any("t-change-blast-radius has 2 rows, expected 3" in e for e in self.errors(page, ctx))
+
+
+class TestNotYetGenerated:
+    def page(self, cid):
+        return f'<div class="card" data-card="{cid}"><p class="muted"><strong>Not yet generated.</strong> A tool fills this card in.</p></div>'
+
+    def test_a_change_card_that_says_so_is_an_error(self):
+        errs = page_audit.audit(self.page("change.hotspots"), {}, whole_page=False)
+
+        assert errs == ["V11: change.hotspots: the card still says 'Not yet generated'."]
+
+    def test_other_reports_are_not_held_to_it(self):
+        assert page_audit.audit(self.page("io.inputs"), {}, whole_page=False) == []
+
+    def test_a_cut_card_is_accepted(self, monkeypatch):
+        monkeypatch.setattr(render, "CUT_CARDS", ("change.hotspots",))
+
+        assert page_audit.audit(self.page("change.hotspots"), {}, whole_page=False) == []
+
+
+class TestOwnerTable:
+    def build(self, history):
+        import test_render
+
+        t = test_render.TestContributorsOwnerButtons()
+        return f'<div data-card="overview.contributors">{render.panel_contributors(t.facts(), t.Refs(), history)}</div>'
+
+    def history(self, extra=()):
+        import test_render
+
+        return test_render.TestContributorsOwnerButtons().history() + list(extra)
+
+    def errors(self, page, history):
+        cards = {}
+        for n in page_audit.parse(page).walk():
+            if "data-card" in n.attrs:
+                cards.setdefault(n.attrs["data-card"], []).append(n)
+        return page_audit._check_measured(cards, {"extract": {"history": history}, "tree": {"a.py"}}, page)
+
+    def test_the_owner_table_has_one_row_per_identity_that_owns_something(self):
+        history = self.history()
+
+        assert self.errors(self.build(history), history) == []
+
+    def test_a_row_removed_from_the_owner_table_is_an_error(self):
+        history = self.history([{"kind": "person", "path": "", "person": "bob@x.io", "name": "Bob", "type": "human", "commits": 2,
+                                 "owned_commits": 2, "owned_lines": 5}])
+        page = self.build(history)
+        start = page.index('id="t-people-owner"')
+        end = page.index("</tbody>", start)
+        broken = page[:page.rindex("<tr>", start, end)] + page[end:]
+
+        assert self.errors(broken, history) == ["V11: overview.contributors: table t-people-owner has 1 rows, expected 2."]
+
+
+class TestAddedColumnNames:
+    def entry(self, cid, rows=2):
+        cols = card_of(cid)["slots"][0]["columns"]
+        return {"card": cid, "blocks": [{"type": "table", "columns": cols, "rows": [row(*[f"v{i}"] * len(cols)) for i in range(rows)]}]}
+
+    def test_decisions_table_with_a_source_column_passes(self, make_cites):
+        e = self.entry("change.decisions")
+
+        assert audit(page(make_cites, e), e) == []
+
+    def test_ask_table_with_a_basis_column_passes(self, make_cites):
+        e = self.entry("contributors.ask")
+
+        assert audit(page(make_cites, e), e) == []
+
+    def test_decisions_table_draws_source_then_basis_then_citations(self, make_cites):
+        e = self.entry("change.decisions")
+
+        html = page(make_cites, e)
+
+        assert re.findall(r"<th[^>]*>([^<]*)</th>", html)[-3:] == ["Source", "Basis", "Citations"]

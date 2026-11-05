@@ -30,6 +30,10 @@ One `<report>.json` file per report, listing its cards in page order. A report f
 - Not applicable, with evidence: `{"card": "<id>", "na": "reason", "cite": ["path:1-30"]}`.
 - Not yet generated: `{"card": "<id>", "pending": true}` (accepted while `schema.ALLOW_PENDING` is true).
 
+## Columns the page adds
+
+An authored table gets two columns after the schema columns: `Basis` (the confidence) and `Source` (the citations). When a schema column already has one of those names, the added column is named differently: `Confidence` instead of `Basis`, `Citations` instead of `Source`. `change.decisions` has a schema column `Source`, and `contributors.ask` has a schema column `Basis`. `risks.tracker` has a `Source` column whose value is `extractor` or `read`.
+
 ## Temporary tools and defaults
 
 `scripts/migrate.py` and `scripts/migrate_map.json` exist only to convert the old encamp fixture for the M0 check. They can be deleted once M2 can write the new layout, together with the fixture folder `tests/fixtures/encamp-m0/` and its line in `.gitignore`.

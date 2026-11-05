@@ -24,6 +24,31 @@ def env_for(area, **kw):
     return sandbox.build_env(area, parent=parent, **kw)
 
 
+class TestGithubProfile:
+    def test_gets_the_config_folder_and_the_no_prompt_names(self, area):
+        env = env_for(area, profile="github", parent={"HOME": "/home/u"})
+
+        assert env["GH_CONFIG_DIR"] == "/home/u/.config/gh"
+        assert env["GH_PROMPT_DISABLED"] == "1" and env["GH_NO_UPDATE_NOTIFIER"] == "1"
+        assert set(env) <= sandbox.ALLOWED_NAMES
+
+    def test_parent_config_dir_wins_then_xdg(self, area):
+        assert env_for(area, profile="github", parent={"GH_CONFIG_DIR": "/x/gh", "HOME": "/h"})["GH_CONFIG_DIR"] == "/x/gh"
+        assert env_for(area, profile="github", parent={"XDG_CONFIG_HOME": "/xdg", "HOME": "/h"})["GH_CONFIG_DIR"] == "/xdg/gh"
+
+    def test_no_other_profile_gets_the_names(self, area):
+        for profile in ("restricted", "tool"):
+            env = env_for(area, profile=profile, parent={"GH_CONFIG_DIR": "/x"})
+
+            assert not {k for k in env if k.startswith("GH_")}
+
+    def test_no_variable_name_holds_a_token(self, area):
+        env = env_for(area, profile="github", parent={"GH_TOKEN": "t", "GITHUB_TOKEN": "t", "HOME": "/h"})
+
+        assert not [k for k in env if "TOKEN" in k.upper()]
+        assert not [n for n in sandbox.ALLOWED_NAMES if "TOKEN" in n.upper()]
+
+
 class TestBuildEnv:
     def test_forbidden_names_are_absent(self, area):
         assert not FORBIDDEN.keys() & env_for(area).keys()
