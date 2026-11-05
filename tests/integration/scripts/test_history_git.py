@@ -262,3 +262,24 @@ class TestOwnership:
 
         stranger = next(p for p in items(data, "person") if p["person"] == "github:stranger")
         assert (stranger["name"], stranger["type"], stranger["commits"], stranger["owned_commits"]) == ("stranger", "human", 0, 2)
+
+
+class TestDegrading:
+    def test_shallow_clone_is_partial_with_a_reason(self, tmp_path, history_repo, world):
+        clone = tmp_path / "shallow"
+        history_repo_url = "file://" + str(history_repo)
+        import subprocess
+        subprocess.run(["git", "clone", "-q", "--depth", "1", history_repo_url, str(clone)], check=True, capture_output=True)
+        facts, _ = gather.collect(str(clone), "HEAD", 400_000, None)
+        run = functools.partial(sandbox.run, area=tmp_path / "area2", cwd=Path(clone))
+
+        meta = history.meta_of(history.collect(str(clone), facts["repo"]["sha"], run, facts["history_input"], 60))
+
+        assert (meta["status"], meta["shallow"], meta["commits_seen"]) == ("partial", True, 1)
+        assert meta["reasons"][0] == "this is a shallow clone"
+
+    def test_a_timeout_keeps_the_complete_records_and_does_not_crash(self, world):
+        meta = history.meta_of(world(timeout=0.001))
+
+        assert meta["status"] == "partial" and meta["stopped_early"] is True
+        assert meta["commits_seen"] < meta["commits_total"]

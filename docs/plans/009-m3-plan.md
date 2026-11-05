@@ -506,7 +506,7 @@ Read section 2, section 3, D1 to D6, D9, D16, D17 and D18. Load the skills in se
   - Done-check: `DOSSIER_SLOW=1 uv run --with pytest --with pygments python -m pytest tests/unit/scripts/test_py_queries.py tests/integration/scripts/test_py_queries_slow.py -q` passes.
   - Commit: `feat(dossier): count branches per Python file as a complexity proxy`
 
-- [ ] **M3-9. Degrading: Gaps and "partial".**
+- [x] **M3-9. Degrading: Gaps and "partial".**
   - Goal: D9.
   - Files: `scripts/process.py`, `scripts/tools.json`, `tests/unit/scripts/test_process.py`, `tests/integration/scripts/test_history_git.py`.
   - Steps: (1) Tests for each D9 statement, word for word, and for `partial_cards` with a partial history. (2) Per-tool items: read `details.adapters[].tools` of the `prepare` extract record. (3) Integration test: `git clone --depth 1 file://...` of `history_repo`, run `history.collect`, expect `status: partial` and `shallow: true`. Add a timeout test with `timeout=0.001`, expecting `stopped_early` or no crash and a `partial` status. (4) Edit `tools.json` as D9 says.

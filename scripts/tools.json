@@ -136,7 +136,8 @@
     "data.entities",
     "data.relationships",
     "behavior.tests",
-    "interactions.state"
+    "interactions.state",
+    "change.hotspots"
    ]
   },
   {
@@ -180,7 +181,8 @@
     "components.catalog",
     "interactions.graph",
     "interactions.violations",
-    "interactions.flows"
+    "interactions.flows",
+    "change.blast-radius"
    ]
   },
   {
