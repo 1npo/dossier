@@ -92,6 +92,7 @@
     $$(".report").forEach(function (s) { s.hidden = s !== section; });
     $$("[data-nav]").forEach(function (a) { if (a.dataset.nav === section.id) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
     drawIn(section); markTables(section);
+    if (section.id === "change") initBlast();
     if (target !== section) {
       target.scrollIntoView();
       target.classList.remove("flash"); void target.offsetWidth; target.classList.add("flash");
@@ -1361,6 +1362,48 @@
   // keep the sticky header height in sync so anchors land below it
   function syncHeader() { var h = $(".masthead"); if (h) root.style.setProperty("--header-h", (h.offsetHeight + 12) + "px"); }
   window.addEventListener("resize", syncHeader); syncHeader();
+  // ---- blast radius: pick a file or a component and list what depends on it
+  var blastReady = false;
+  function initBlast() {
+    var blob = doc.getElementById("blast-data"), pick = doc.getElementById("blast-pick");
+    if (blastReady || !blob || !pick) return;
+    blastReady = true;
+    var d = JSON.parse(blob.textContent), n = d.files.length;
+    var bits = d.dep.map(function (b) {
+      if (!b) return null;
+      var s = atob(b), a = new Uint8Array(s.length);
+      for (var k = 0; k < s.length; k++) a[k] = s.charCodeAt(k);
+      return a;
+    });
+    function fill(id, rows, labelOf) {
+      doc.getElementById(id).innerHTML = rows.map(function (r) { return "<li>" + labelOf(r) + "</li>"; }).join("");
+      doc.getElementById("blast-n-" + id.slice(6)).textContent = rows.length;
+    }
+    function show1(value) {
+      var own = {}, dep = {}, tests = {}, co = {};
+      if (value !== "") {
+        var idx = [];
+        if (value.charAt(0) === "c") { var c = +value.slice(1); for (var i = 0; i < n; i++) if (d.component[i] === c) idx.push(i); }
+        else idx.push(+value);
+        idx.forEach(function (i) { own[i] = 1; });
+        idx.forEach(function (i) {
+          if (bits[i]) for (var j = 0; j < n; j++) if (bits[i][j >> 3] & (1 << (j & 7))) dep[j] = 1;
+        });
+        idx.forEach(function (i) { delete dep[i]; });
+        idx.forEach(function (i) { d.ft[i].forEach(function (t) { tests[t] = 1; }); });
+        Object.keys(dep).forEach(function (j) { d.ft[j].forEach(function (t) { tests[t] = 1; }); });
+        idx.forEach(function (i) {
+          (d.co[d.files[i]] || []).forEach(function (p) { co[p[0]] = (co[p[0]] || 0) + p[1]; });
+        });
+        idx.forEach(function (i) { delete co[d.files[i]]; });
+      }
+      fill("blast-dependents", Object.keys(dep).map(Number).sort(function (a, b) { return a - b; }), function (j) { return "<code>" + esc(d.files[j]) + "</code>"; });
+      fill("blast-tests", Object.keys(tests).map(Number).sort(function (a, b) { return a - b; }), function (t) { return "<code>" + esc(d.tests[t]) + "</code>"; });
+      fill("blast-co", Object.keys(co).sort(), function (p) { return "<code>" + esc(p) + "</code> (" + co[p] + ")"; });
+    }
+    pick.addEventListener("change", function () { show1(pick.value); });
+  }
+
   applyTheme(); show();
 })();
 document.documentElement.dataset.dossierJs = "ok";

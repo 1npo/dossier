@@ -67,3 +67,23 @@ class TestAggregate:
 
     def test_edge_with_an_ungrouped_end_is_dropped(self):
         assert graphs.aggregate([("a", "zzz")], {"a": "X"}) == {}
+
+
+class TestReverseClosure:
+    def test_chain_gives_every_upstream_file(self):
+        got = graphs.reverse_closure(["a", "b", "c"], [("a", "b"), ("b", "c")])
+
+        assert got == {"a": set(), "b": {"a"}, "c": {"a", "b"}}
+
+    def test_diamond_counts_each_dependent_once(self):
+        got = graphs.reverse_closure(list("abcd"), [("a", "b"), ("a", "c"), ("b", "d"), ("c", "d")])
+
+        assert got["d"] == {"a", "b", "c"}
+
+    def test_a_file_is_never_its_own_dependent_even_in_a_cycle(self):
+        got = graphs.reverse_closure(["a", "b"], [("a", "b"), ("b", "a")])
+
+        assert got == {"a": {"b"}, "b": {"a"}}
+
+    def test_edges_to_unknown_nodes_are_ignored(self):
+        assert graphs.reverse_closure(["a"], [("a", "z")]) == {"a": set()}

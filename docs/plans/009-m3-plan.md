@@ -529,7 +529,7 @@ Read section 2, section 3, D1 to D6, D9, D16, D17 and D18. Load the skills in se
   - Done-check: both test files pass and block E prints `OK`.
   - Commit: `feat(dossier): draw co-change, dead code, work in flight and team workflow`
 
-- [ ] **M3-12. Blast radius.**
+- [x] **M3-12. Blast radius.**
   - Goal: D5.
   - Files: `scripts/graphs.py`, `scripts/measured_blast.py`, `scripts/measured.py`, `assets/dossier.js`, `assets/dossier.css`, `tests/unit/scripts/test_graphs.py`, `tests/unit/scripts/test_measured_blast.py`.
   - Steps: (1) Tests: `reverse_closure` on a chain, a diamond and a cycle (a file is never its own dependent). Bits decode back to the same set. A file outside the graph shows `not in the graph`. Tests reached through the closure are counted. (2) Implement. (3) Write `initBlast` as D5 says; it must escape paths with `esc`. (4) CSS: `.blast-lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; } .blast-list { max-height: 20rem; overflow: auto; } #blast-pick { max-width: 100%; }`, scoped to the card. (5) Assert `dossierJs = "ok"` is still the last line (the existing test covers it).

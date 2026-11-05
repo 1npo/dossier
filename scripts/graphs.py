@@ -13,6 +13,26 @@ def _adjacency(edges) -> dict:
     return adj
 
 
+def reverse_closure(nodes, edges) -> dict:
+    """{node: set of nodes that depend on it, directly or through others}. `edges` are (importer, imported) pairs.
+    A node is never its own dependent, even inside a cycle."""
+    back: dict = {n: set() for n in nodes}
+    for a, b in edges:
+        if a in back and b in back:
+            back[b].add(a)
+    out = {}
+    for n in sorted(back):
+        seen, todo = set(), sorted(back[n])
+        while todo:
+            m = todo.pop()
+            if m in seen:
+                continue
+            seen.add(m)
+            todo.extend(back[m] - seen)
+        out[n] = seen - {n}
+    return out
+
+
 def cycles(edges: list) -> list:
     """Strongly connected components with more than one node (Tarjan, iterative). Each is sorted; the list is sorted."""
     adj = _adjacency(edges)
