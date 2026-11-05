@@ -394,6 +394,8 @@ def check_owner_buttons(page, scheme):
     if not page.query_selector("#who-mode"):
         return []
     problems = []
+    if page.query_selector("#km-vw"):
+        page.click("#km-vw button[data-v='people']")
     for mode, shown, hidden in (("owner", "#t-people-owner", "#t-people"), ("author", "#t-people", "#t-people-owner")):
         button = f"#who-mode button:text-is('{mode.capitalize()}')"
         page.click(button)
