@@ -1,4 +1,5 @@
 import incremental
+import render
 
 
 def report(*cites, text=""):
@@ -191,3 +192,17 @@ class TestHistoryReports:
         res = incremental.plan({"change": report("src/a.py:1-3")}, ["change"], {}, hunks_of({}), False, {}, 0, digest_changed=frozenset({"change"}))
 
         assert "change" in res["stale"]
+
+
+class TestChangeAndContributorsAreExpected:
+    def test_both_are_expected_even_when_nobody_wrote_them(self):
+        authored = ["entry", "change", "contributors", "gaps"]
+
+        got = incremental.expected_reports(authored, {"entry", "gaps"}, render.OPTIONAL_REPORTS)
+
+        assert got == authored
+
+    def test_a_dossier_without_them_plans_them_as_not_written_yet(self):
+        res = incremental.plan({"entry": report("src/a.py:1")}, ["entry", "change", "contributors"], {}, hunks_of({}), False, {}, 0)
+
+        assert res["stale"] == {"change": ["it has not been written yet"], "contributors": ["it has not been written yet"]}

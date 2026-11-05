@@ -68,3 +68,22 @@ def test_summary_text_accepts_string_and_list():
     assert render.summary_text({"summary": "- a\n- b"}) == "- a\n- b"
     assert render.summary_text({"summary": ["a", "b"]}) == "- a\n- b"
     assert render.summary_text({}) == ""
+
+
+class TestRequiredReports:
+    def validate(self, make_cites, partial):
+        return render.validate({}, {}, make_cites({"a.py": b"x\n"}), partial=partial)
+
+    def test_no_report_is_optional(self):
+        assert render.OPTIONAL_REPORTS == ()
+
+    def test_a_missing_change_report_is_an_error_with_the_fix(self, make_cites):
+        errors, _ = self.validate(make_cites, partial=False)
+
+        assert "Report 'change' is missing (expected reports/change.json). Run /dossier build to write it." in errors
+        assert "Report 'contributors' is missing (expected reports/contributors.json). Run /dossier build to write it." in errors
+
+    def test_partial_keeps_a_missing_report_a_warning(self, make_cites):
+        errors, warnings = self.validate(make_cites, partial=True)
+
+        assert errors == [] and any(w.startswith("Report 'change' is missing") for w in warnings)

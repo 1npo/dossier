@@ -677,7 +677,7 @@ Read section 2, section 3, D7, D8, D10 to D14, and D16. Load the skills in secti
   - Done-check: both test files pass.
   - Commit: `feat(dossier): check summary.json in dossier check and show extractors on reuse`
 
-- [ ] **M3-23. Reports 10 and 13 are required.**
+- [x] **M3-23. Reports 10 and 13 are required.**
   - Goal: section 3 row 24.
   - Files: `scripts/render.py`, `tests/unit/scripts/test_render_validate.py`, `tests/unit/scripts/test_incremental.py`.
   - Steps: (1) Tests: a missing `change.json` is an error with the text `Report 'change' is missing (expected reports/change.json). Run /dossier build to write it.`; `--partial` keeps it a warning. (2) `OPTIONAL_REPORTS = ()`. Keep the name, so `update_plan` needs no change. (3) Update block E's expected lines in section 6 of this file if they differ, and record that.
@@ -889,7 +889,7 @@ grep '^error:' $SCR/e.log | sed -E 's/: card [^:]+:/: card …:/' | cut -c1-70 |
 python3 tests/tools/report_section.py $E/encamp/dossier-encamp.html overview --digest --normalize | grep -q "^$BASE " && echo OK || echo DIFFERENT
 ```
 
-Expect `migrate exit 0`, `render exit 0`, `OK`. Error lines allowed: the V10 line, V6 "pending is not allowed", a V6 column line for `risks`, `Report 'change' is missing` if the fixture lacks it, V11 "Not yet generated" lines for reports 10 and 13, and V8 lines. No V4 or V5 lines.
+Expect `migrate exit 0`, `render exit 0`, `OK`. Error lines allowed: the V10 line, V6 "pending is not allowed", a V6 column line for `risks`, `Report 'change' is missing` if the fixture lacks it, V11 "Not yet generated" lines for reports 10 and 13, `V5: Risks: Source must be extractor or read, found 'Not yet recorded'` lines (the migration leaves the new Risks `Source` column as a placeholder), and V8 lines. No V4 lines and no other V5 lines.
 
 **Block G2: report 02 visual golden.** `DOSSIER_SLOW=1 uv run --with pytest --with pygments python -m pytest tests/integration/scripts/test_golden02_slow.py -q` passes.
 
