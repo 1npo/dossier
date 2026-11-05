@@ -684,7 +684,7 @@ Read section 2, section 3, D7, D8, D10 to D14, and D16. Load the skills in secti
   - Done-check: both test files pass and block E prints `OK`.
   - Commit: `feat(dossier): require reports 10 and 13`
 
-- [ ] **M3-24. Prompts.**
+- [x] **M3-24. Prompts.**
   - Goal: Claude can write reports 10, 13 and 14.
   - Files: `prompts/method.md`, `prompts/reports.md`, `prompts/schema/README.md`, `tests/unit/scripts/test_prompts.py`.
   - Steps: (1) `method.md`: drop "`change` and `contributors` are not written"; add `facts:history` to the citation keys; add the rule that a measured cell is written as `-`; add V8 and the report 13 completeness rule to "What render checks". (2) `reports.md`: new sections `## change` and `## contributors`, one heading per card in schema order, saying what D7 says. Measured cards say **Do not write this card**. `change.decisions` says to decide every marker, and that a group id is allowed. `change.unfinished` says to use the hints and that `Progress` must come from counts Claude can cite. `contributors.people` says to use display names, never email addresses. `contributors.concentration` gives the three Status words, says `departed` is `inferred`, gives D4's ownership rule, and says to judge Owner from owned lines, not authored ones. `contributors.ask` names people. (3) `## risks`: add the `Source` column with its two values and when to use `extractor`. `io.contracts`: Direction is exactly `offered` or `consumed`, one row each. (4) Writing order from D12. (5) Test: every card id of both reports appears in `reports.md`, and each `writer: script` card's section holds the words "Do not write".

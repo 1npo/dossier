@@ -1,10 +1,10 @@
 # Report specifications
 
-Write one file per report to `reports/<id>.json`, following `method.md`: `headline`, `summary` and `cards`. Each report below lists its cards in schema order. Write every card marked as written by you, in that order, and leave out the cards that code draws. Reports `change` (10) and `contributors` (13) are not written in this version.
+Write one file per report to `reports/<id>.json`, following `method.md`: `headline`, `summary` and `cards`. Each report below lists its cards in schema order. Write every card marked as written by you, in that order, and leave out the cards that code draws.
 
 Before each report, run `DOSSIER candidates <repo> --report <id>`. It lists the tool findings that feed the report, grouped by the card they belong to. After the report, run it again with `--open`; it must print nothing.
 
-**Write the reports in this order:** `entry`, `components`, `interactions`, `io`, `data`, `behavior`, `conventions`, `ops`, then `reading` (it needs the entry points and components), then `overview`, `risks` and `gaps`.
+**Write the reports in this order:** `entry`, `components`, `interactions`, `io`, `data`, `behavior`, `conventions`, `ops`, `change`, `contributors` (it needs the component catalog), then `reading` (it needs the entry points and components), then `overview`, `risks` (last of the three, so it can use the measured findings and `change`) and `gaps`.
 
 A report is as long as its content. Never merge items to shorten a table; the page sorts, filters and collapses long tables.
 
@@ -126,7 +126,7 @@ Tool findings that arrive here (home card): stdout, file-write, outbound-call, m
 
 Written agreements with other systems: OpenAPI, protobuf, GraphQL and JSON-schema files, public exports, route tables, client SDK use. Consumers outside the repository are `unknown` unless declared.
 
-Shape: a table with columns Contract, Direction, Counterparty, Schema location, Versioning.
+Shape: a table with columns Contract, Direction, Counterparty, Schema location, Versioning. One row per contract and direction. `Direction` is exactly `offered` (this repository publishes it) or `consumed` (this repository relies on it); `summary.json` joins repositories on that word, and `render` fails on anything else.
 
 ## data
 
@@ -269,6 +269,96 @@ Shape: a table with columns Environment, How released, How rolled back, Versioni
 Two tables: settings (default, what overrides it) and secrets by name only, never values. Start from `facts:env_vars` and `facts:secret_signals`.
 
 Shape: a table with columns Setting, Default, Overridden by; then a table with columns Secret, Unlocks, Supplied how.
+
+## change
+
+Report 10: Change and history. Question: *Where is it safe to change, and how did it get here?*
+
+Most cards of this report are drawn from the git history and the tool findings. Run `DOSSIER candidates <repo> --report change` first: it lists the decision markers (`HACK`, `XXX`, workaround and bug-id comments) as findings to decide, then suggestions that are not findings: decision documents, long commit messages, TODO and FIXME counts per file, old-looking names, names defined in more than one file, and bulk commits.
+
+### Hotspots (`change.hotspots`)
+
+**Do not write this card.** The page draws it from the history: every source file with its changes in the 12 months before the pinned commit, a scatter chart and a table by component.
+
+### Co-change coupling (`change.cochange`)
+
+**Do not write this card.** The page draws it: pairs of files that changed together in at least 3 commits, and whether an import joins them.
+
+### Blast radius (`change.blast-radius`)
+
+**Do not write this card.** The page draws it from the import graph, with a picker for one file or component.
+
+### Unfinished migrations (`change.unfinished`)
+
+Patterns in the code where an old way and a new way live side by side. Use the hints that `candidates` prints (old-looking names, names defined more than once, TODO density) and the code itself. One row per pattern. `Progress` must be a count or a fraction you can cite, such as `14 of 20 call sites use the new client`, never a feeling. When nothing is half-finished, use `na` with the evidence you looked at.
+
+Shape: a table with columns Pattern, Old way, New way, Progress, Evidence.
+
+### Decisions and oddities (`change.decisions`)
+
+Things that look odd and the reason, as far as it is known. Decide every marker the tools found (see "Tool findings" in `method.md`): keep it in a row, add the id to `dismissed` with a reason, or cover a group of markers with its group id (`mkg-...`), which is allowed here. Add decision documents (ADRs, design notes) and long commit messages that explain a choice, marked `added: true` when no marker covers them. When the reason is not written anywhere, say `unknown`; do not invent one. `Source` says where the reason comes from: a comment, a commit message, a document, or `none`.
+
+Shape: a table with columns Item, Why (as far as known), Evidence, Source. The page adds its own Basis and Citations columns after `Source`.
+
+### Dead code and stale flags (`change.dead-code`)
+
+**Do not write this card.** The page draws the tool findings: unused code, unused dependencies, and modules nothing imports. Stale feature flags and unused routes are not detected for Python, and Gaps says so.
+
+### Docs versus code (`change.docs-drift`)
+
+Sample the claims in the README and the documents (install steps, architecture statements, endpoint lists) and check each against the code. One row per claim. `Verdict` is one of `matches`, `outdated` or `cannot tell`. Cite the document and the code.
+
+Shape: a table with columns Claim, Document, What the code shows, Verdict.
+
+### Upgrade burden (`change.upgrade-burden`)
+
+**Do not write this card.** The page draws it from the lockfile versions and a shipped end-of-life snapshot.
+
+### Work in flight (`change.in-flight`)
+
+**Do not write this card.** The page draws it from the remote branches.
+
+## contributors
+
+Report 13: Contributors. Question: *Who owns and knows what, and what is the bus factor?*
+
+Run `DOSSIER candidates <repo> --report contributors` first. It lists every person, possible duplicate identities, and for each component who wrote it, who owns it and who changed it lately. Write display names, never email addresses. Every person, agent and component must appear: `render` fails when one is left out or when a name matches nobody in this build.
+
+**Ownership.** A line belongs to the owner of the commit that last changed it. The owner of a commit is: the only human in the history, when there is exactly one; the author, when the author is a human; the human who approved or merged the pull request, when an agent or a bot was the author; otherwise the author. Judge `Owner` from the owned lines in the candidates output, not from the authored ones. Measured cells are written as `-` and the page fills them.
+
+### Who the people are (`contributors.people`)
+
+One row per human, with a plain description of their role (from commits, files and areas, not guesses about job titles) and whether they are still active. A person you think is a duplicate of another goes in `contributors.doubts` instead of here, or in both.
+
+Shape: a table with columns Person, Role in the project, Areas, Active?.
+
+### Who to ask (`contributors.ask`)
+
+One row per component of the catalog. `Ask first` and `Then` name people. `Basis` is the evidence: most owned lines, most recent changes, or both.
+
+Shape: a table with columns Subsystem, Ask first, Then, Basis. The page adds a Confidence column and a Source column after `Basis`.
+
+### Knowledge concentration (`contributors.concentration`)
+
+One row per component. Write `Area`, `Owner` and `Status`; write `-` in `Share`, because the page fills it from the owned lines and states the bus factor above the table. `Status` is exactly `single owner`, `departed` or `shared`. `departed` and any at-risk statement are `inferred`, with a note saying what would confirm it. On a project with one human, that human is the owner of every component. When nobody owns a line or has a commit in a component, `Owner` is `unknown` and the row is `conf: unknown`.
+
+Shape: a table with columns Area, Owner, Share, Status.
+
+### Agents and bots (`contributors.agents`)
+
+One row per identity that is an agent or a bot, and one row per assistant that only appears as a co-author of human commits (`candidates` lists them as agent markers). Models that share an email address are one identity. `Kind` is `agent`, `bot` or `assistant`. Write `-` in `Areas touched` and `Share of commits`; the page fills them. When the history has no agents, bots or assistants, use `na` with `facts:contributors`.
+
+Shape: a table with columns Identity, Kind, Areas touched, Share of commits.
+
+### Classification doubts (`contributors.doubts`)
+
+Identities that might be one person, or that the tools may have classed wrongly (a human called `ci`, a bot with a human name). Use the possible duplicates that `candidates` lists. Say what would settle each one. When there are none, use `na`.
+
+Shape: a table with columns Identity, Doubt, What would settle it.
+
+### Team workflow (`contributors.workflow`)
+
+**Do not write this card.** The page draws the six workflow rows from git: branch naming, merge style, commit message style, pull request size, review rate and release cadence.
 
 ## reading
 
