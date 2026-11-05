@@ -7,8 +7,8 @@ How the work in [plans/004-v1-spec.md](plans/004-v1-spec.md) gets planned, built
 | Who | Does |
 |---|---|
 | **Sonnet** | Writes the planning prompt for each milestone. Implements each milestone from its plan. |
-| **Opus** | Writes the plan for each milestone from the spec and the code, and nothing else. |
-| **You** | Pastes the prompt into Opus. Reviews each plan before building and each milestone after. Runs the acceptance test at M3. |
+| **Opus** | Writes the plan for each milestone from the spec and the code. For a public test repository, also writes the ground truth before any build, rules on every disagreement with the dossier, and checks the component map (spec decision 34). Nothing else. |
+| **You** | Pastes the prompt into Opus. Reviews each plan before building and each milestone after. Runs the acceptance tests. Spot-checks ground truth for public repositories. |
 
 ## The loop, per milestone
 
@@ -25,13 +25,13 @@ How the work in [plans/004-v1-spec.md](plans/004-v1-spec.md) gets planned, built
 |---|---|
 | M0 | 1 |
 | M1 | 1 |
-| M2 | at most 3 |
-| M3 | 1, then **pause** |
-| M4 | 1 |
+| M2 | 3 |
+| M3 | 3, then **pause** |
+| M4 | 5 Sonnet, 2 Opus, and 1 more Sonnet if Opus finds faults (plan 010, D16) |
 | M5 | 1 |
 | M6 | 1 |
 
-M3 is assumed to be one session, since the process notes did not say. Cut M2's sessions at a committed, tested boundary, for example: framework and Python adapter; reports built on the extractors; checks V2 to V5. A new session starts from the spec, the milestone plan and the git log, never from an earlier session's memory.
+Cut a milestone's sessions at a committed, tested boundary, for example: framework and Python adapter; reports built on the extractors; checks V2 to V5. A new session starts from the spec, the milestone plan and the git log, never from an earlier session's memory.
 
 ## Pause at M3: acceptance testing
 
@@ -43,7 +43,7 @@ After M3 is implemented, stop. The Python pipeline is complete end to end at tha
 - no fabricated citations;
 - everything you find wrong or missing is explained by a Gaps entry or a new blind-spot rule.
 
-The findings update the spec and the M4 to M6 plans. Work on TS/JS and C# starts only after that.
+The findings update the spec and the M4 to M6 plans. Work on TS/JS and C# starts only after that. A second acceptance test runs before M4 is implemented.
 
 ## Rules
 

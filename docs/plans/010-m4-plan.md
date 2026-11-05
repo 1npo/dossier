@@ -1,6 +1,8 @@
 # Plan 010: milestone M4 (the TypeScript, JavaScript and React adapter, its rules and its blind-spot list)
 
-Status: written by Opus on 2026-11-05 from `docs/prompts/plan-m4.md`. **Not yet reviewed.** The author answers section 7 and rules on section 8 before Phase 1 starts. Q1 and Q2 block the start.
+Status: written by Opus on 2026-11-05 from `docs/prompts/plan-m4.md`. **Reviewed by the author on 2026-11-05:** section 7 is answered and section 8 is ruled, and the spec, `process.md` and `post-v1.md` carry the rulings. **On hold:** Phase 1 starts only after the author's second acceptance test.
+
+**If you were started for Phase 3a, stop reading here.** Find the heading `## Phase 3a` and read only that section. It must stay independent of everything else in this file.
 
 Written from: `plans/004-v1-spec.md`, `docs/process.md`, plans 007, 008 and 009 (including results, deviations and findings), and the code at commit `3a68c36` (version 0.8.0). The pinned test repositories were read from shallow clones in a scratch folder. Nothing was installed or built. Writing this plan changed no other file. Section 7 says what I read and what I did not.
 
@@ -15,6 +17,7 @@ Paths used below:
 - `JSFIX` = `SKILL/tests/fixtures/jsrepo/`, the new JS fixture repository (M4-5). It is committed as plain files and becomes a git repository only in a temporary folder at test time.
 - `RW` = `gothinkster/node-express-realworld-example-app` at `30b68e1e881462b2f4164ea09ab4c4f5699c7b0b`, the **primary** repository. It has no LICENSE file, so nothing from it is ever committed here.
 - `BP` = `alan2207/bulletproof-react` at `9506629ed003a561c6627735480cce4994244bb4` (MIT), the **React** repository.
+- `LIB` = `pmndrs/zustand` at `382d29c485e67018c06e75ec7235130d0968522c` (MIT), the **library** repository. Block Y uses it for the public API check only. It gets no dossier and no ground truth.
 - Tests run from `SKILL`: `uv run --with pytest --with pygments python -m pytest tests -q`. **Baseline: 1426 passed, 66 skipped** (2026-11-05, `3a68c36`, 55 s).
 - Slow tests need `DOSSIER_SLOW=1`. They need the network and the real tools.
 
@@ -26,19 +29,13 @@ Paths used below:
 - The restore step learns `npm ci` for real, plus yarn and pnpm, and handles lockfiles below the repository root. All Node tools install from one lockfile shipped with the skill.
 - The TS/JS blind-spot list (V7), the shared cards and checks, and the prompts are extended without changing any card schema. A React component table joins `interactions.graph` (S3).
 - `VERSION` goes to 0.9.0, which forces a full rebuild. Python output must stay identical, and section 6 proves it.
-- **Five sessions, not one.** Phase 1 tools and install. Phase 2 extractors. Phase 3 shared layer, prompts and version. Phase 4 primary repository and Python golden. Phase 5 React and mixed repositories, then merge. See D16.
+- A separate measured table reports each package's **real public API**, what other packages can actually import, in `io.contracts` (D17).
+- **Opus writes the ground truth, and Sonnet builds the dossier** (D18). Opus also rules on every disagreement in Phase 4a.
+- **Five Sonnet sessions, two Opus sessions, and one more Sonnet session if Opus finds faults.** Phase 1 tools and install. Phase 2 extractors. Phase 3 shared layer, prompts and version. Phase 4 primary repository and Python golden. Phase 5 React and mixed repositories, then merge. See D16.
 
 ### Acceptance pause status
 
-**There is no record in the repository that the acceptance pause happened.** What I found:
-
-- `git log 413c284..HEAD` (everything after the merge of `feat/dossier-m3`) holds four commits: the M4 planning prompt, the test repositories change, and their two merges. No code, rule, prompt or spec change follows the merge.
-- The spec was last changed in `778b4f4`, before M3 was built. Section 12 ends at "Settled in the M3 plan review". There is no list from the acceptance test, and no measured recall figures anywhere.
-- `docs/post-v1.md` has no entry from it.
-- The "Findings for the acceptance pause" in plan 009 are three notes that the implementing session wrote about itself. They are not the author's verdict.
-- Plan 009's own verification kept 12 of the reports from an older build (block D's cut line). So no full 0.8.0 build of `REPO` is recorded in the repository at all.
-
-I did not open `LIVE`, because the prompt says to find out from the repository. Its `build.json` could show whether a 0.8.0 build exists, and the author can check that. This is question Q1, which must be answered before Phase 1. **This plan is written to the spec as it stands today.**
+The author ran an acceptance test after M2, and it took a long time. It left no record in this repository, which is why the first draft of this plan wrongly doubted it. The author will run a **second acceptance test** before M4 is implemented. Its findings come first: they may change the spec or this plan, and Phase 1 does not start until the author says they are in.
 
 ### Carried over from the pause
 
@@ -87,8 +84,8 @@ None of this is in M4. It is listed for the author, and the Python adapter and s
 | 2 | How Node tools install | 6.2 says `npx`; 5.4 rule 7 forbids floating dependencies | `via: "npx"` in `tools.json`. scip-python already uses a shipped lockfile | One shipped lockfile, `scripts/node/js-tools/`, as decision 15 did for scip-python (D2, S5). `via` stays `npx`, because `toolcheck.HOST_FOR_VIA` uses it to mean "needs node and npm"; `node_lock` makes `doctor` print "from a lockfile with npm" | Absorb |
 | 3 | Tool pins | Pinned; re-check at first use | dependency-cruiser 18.6.0, knip 6.42.0, scip-typescript 0.4.0, typescript `null` | New pins (D2): 18.7.0, 6.42.1, 0.5.2, 6.0.3 | Absorb |
 | 4 | Which TypeScript | "shipped script on the TypeScript compiler API" | Left open (M1 spec issue 11) | **6.0.3.** 7.0 has no API; dependency-cruiser 18.7.0 accepts only `<7.0.0`; scip-typescript 0.5.2 needs `^6.0.3` (D2) | Absorb |
-| 5 | Node version | 6.2 names Node with no version | `tools.json` says 22.0.0 for JS. **This machine has 20.19.2**, from `/usr/bin`, with no version manager holding Node | The minimum becomes 22.13.0 (scip-typescript's `engines`). **The host must be upgraded before Phase 1** (Q2) | **Decision** (Q2) |
-| 6 | Restore | 5.1: `npm ci --ignore-scripts`, lockfiles only | `npm` entry is `enabled: false`. `restore.plans` finds lockfiles **at the root only**. `yarn` and `pnpm` are not known | Enable npm. Add yarn (classic and berry) and pnpm, installed from the same lockfile. Find lockfiles in project folders (D3, S6). `BP` has three `yarn.lock` files below `apps/` and none at the root, so without this it gets no restore at all | **Decision** (Q4) |
+| 5 | Node version | 6.2 names Node with no version | `tools.json` says 22.0.0 for JS. **This machine has 20.19.2**, from `/usr/bin`, with no version manager holding Node | The minimum becomes 22.13.0 (scip-typescript's `engines`). **The host must be upgraded before Phase 1** (Q2) | Ruled (Q2) |
+| 6 | Restore | 5.1: `npm ci --ignore-scripts`, lockfiles only | `npm` entry is `enabled: false`. `restore.plans` finds lockfiles **at the root only**. `yarn` and `pnpm` are not known | Enable npm. Add yarn (classic and berry) and pnpm, installed from the same lockfile. Find lockfiles in project folders (D3, S6). `BP` has three `yarn.lock` files below `apps/` and none at the root, so without this it gets no restore at all | Ruled (Q4) |
 | 7 | No lockfile | Lockfile only | `decide` skips with a reason, and `process.py` tests for a reason that starts "There is no lockfile" | Same text kept. No install; extractors run without installed packages, and knip may fail, which gives a "partial" badge | Absorb |
 | 8 | Private caches | 5.4 rule 3 lists npm, NuGet, uv and pip | Nothing for yarn or pnpm | New allowlisted names (D3, S6). `test_hygiene.py` must still pass | Absorb |
 | 9 | Trusted refs | 5.4 rule 4: without a trusted ref, Node extractors are skipped and "the Python static extractors still run" | `loads_repo_code=True` would skip a whole adapter | `loads_repo_code` stays `False`. The four Node tools are gated one by one, as `_symbols` does for scip-python, so semgrep and tree-sitter still run (S7) | Absorb |
@@ -99,15 +96,15 @@ None of this is in M4. It is listed for the author, and the Python adapter and s
 | 14 | Import lines | Evidence cites a line | dependency-cruiser gives no line numbers | Lines come from `ts_facts` and are joined by file and specifier (D4). `measured_tables` already accepts an empty list | Absorb |
 | 15 | Test files in the graph | - | grimp's graph has no test files, but dependency-cruiser sees them. `dead_rows` would list every test as "module nothing imports" | Test files and `.d.ts` files are left out of `module` items, and their edges feed `tests.paths` (D4) | Absorb |
 | 16 | Areas | D4 of plan 008: first folder below the package root | `measured_graph.package_roots` reads Python packages only. For JS every component's area would be `src` or `apps`, which defeats the diagram budgets | New `source-root` graph item (D4) | Absorb |
-| 17 | Public surface | 6.1 defines it for Python only | `scip_read._public` is Python's rule | For JS, public means exported from its file (D11, S9) | **Decision** (S9) |
+| 17 | Public surface | 6.1 defines it for Python only | `scip_read._public` is Python's rule | For JS, public means exported from its file (D11, S9) | Ruled (S9) |
 | 18 | Barrels, default exports | - | - | Barrels are edges to `index.*` in the graph, and a blind spot (D10). Default exports use the name `default` | Absorb |
 | 19 | Workspaces and path aliases | - | - | D3 and D5: tools run once per project, `ts_facts` picks the tsconfig, references are followed by scip-typescript itself (read in its source) | Absorb |
-| 20 | Data entities | "TS types and interfaces" | A5 needs one row per entity, with no group decisions | Every interface would be unworkable: `BP` has 33 `*Props` types in one app. Filter in D7 (S10) | **Decision** (S10) |
+| 20 | Data entities | "TS types and interfaces" | A5 needs one row per entity, with no group decisions | Every interface would be unworkable: `BP` has 33 `*Props` types in one app. Filter in D7 (S10) | Ruled (S10) |
 | 21 | Prisma | "ORM models" | Nothing. `repo_adapter.sql_tables` already turns `.sql` under `migrations/` into `migration` items | Standard-library parser (D7). `DATABASE_URL` is only in `schema.prisma`, so the parser also yields `env-var` and `db-connect` findings | Absorb |
 | 22 | Name clashes in the ER card | - | `measured_er._relations` looks up by name; `RW` has a Prisma `User` and an interface `User` | Lookup keeps Prisma with Prisma (D7) | Absorb |
 | 23 | Tests | Tree-sitter plus config parsing | Python only | `js_queries.py` (D8). `repo_adapter.TEST_COMMAND` knows no JS runner | Absorb |
-| 24 | React tree and router | 6.2: the shipped script gives them; 6.4: context and hooks wiring is a blind spot. **No output in 6.1 and no card** | Nothing | Tree in `graph` items and a measured table in `interactions.graph`; routes in `entry_points` (D9, S3) | **Decision** (S3) |
-| 25 | DI | 6.2: semgrep finds DI "where the language has a common container: C# and TS" | No category and no home card | A blind-spot pattern, so hits reach Gaps (D10, S2) | **Decision** (S2) |
+| 24 | React tree and router | 6.2: the shipped script gives them; 6.4: context and hooks wiring is a blind spot. **No output in 6.1 and no card** | Nothing | Tree in `graph` items and a measured table in `interactions.graph`; routes in `entry_points` (D9, S3) | Ruled (S3) |
+| 25 | DI | 6.2: semgrep finds DI "where the language has a common container: C# and TS" | No category and no home card | A blind-spot pattern, so hits reach Gaps (D10, S2) | Ruled (S2) |
 | 26 | V7 for TS/JS | 6.4 list, each with a rule | Python and All only | D10 | Absorb |
 | 27 | V5 and dispositions | Every candidate decided | Works on any adapter's items, and group decisions stay limited to `io_candidates` | No new category and no new candidate list. New `entry_points` kinds and `models` kinds pass V5, A5 and "Fields complete" unchanged | Absorb |
 | 28 | Git-derived cards | Language-independent | Checked by reading: `history.py`, `markers.py` (`//` and `*` count as comments), blast radius and co-change work on paths and on `graph` items. **Three changes are needed**: complexity needs a JS query (M4-11); `dead_rows` assumes a `confidence` (KeyError on a knip item) and would duplicate knip (M4-19); the stale-flags Gaps item says "for Python" (M4-19) | As listed | Absorb |
@@ -119,12 +116,12 @@ None of this is in M4. It is listed for the author, and the Python adapter and s
 | 34 | Node removed | Fails clearly or degrades | `sandbox._host_path` always appends `/usr/bin`, so a PATH trick cannot hide `/usr/bin/node`. Plan 007 cut that block | Test with a fake `node` that fails, placed first on `PATH`. `check_host` reports it missing, and the adapter's own gate skips the four tools (D1, block N) | Absorb |
 | 35 | Mixed repositories | Spec 11 item 2: same card skeleton | `run_extract` keeps one section per adapter; `candidates.load` joins them | No merging code is needed (D13). The skeleton is fixed by the schema, and a new tool checks it mechanically | Absorb |
 | 36 | Staleness | 5.3 | `FEEDS` and `_feed` | Add `ui` to `interactions`. JS symbols are stored without package or version (D11, D14) | Absorb |
-| 37 | Golden TS repo | Sections 10 and 11 assume the author's own apps | The author has none | `RW` and `BP`, with a hand-built ground truth (S1) | **Decision** (S1) |
+| 37 | Golden TS repo | Sections 10 and 11 assume the author's own apps | The author has none | `RW` and `BP`, with a hand-built ground truth (S1) | Ruled (S1) |
 | 38 | `BP` layout | One repository, one dossier | - | **One dossier of the whole repository; no subfolder scope is needed.** 535 tracked files, 447 of them code, in three near-copies of an app. Each app is its own project (D3). It costs about three times the rows, not a new feature (Q8) | Absorb |
 | 39 | Semgrep file types | Rules cover JS and TS | `lang.json`: js `.cjs .js .jsx .mjs`; ts `.ts .tsx`, with `.d.ts` excluded. **`.mts` and `.cts` are not listed** | `.d.ts` files are not sent. M4-1 tests `.mts` and `.cts`. If they are not parsed, M4-15 adds the fixed Gaps item in D10 | Absorb |
 | 40 | `test_rules.py` | - | Hard-codes `{"python", "all"}`, a `#` comment, and a `.py` target | Generalised in M4-14 | Absorb |
 | 41 | P0 versus P1 | Cut line | P1 cards in play: `change.upgrade-burden` only | M4-22 is the only cut that touches a card | Absorb |
-| 42 | Session count | `process.md`: M4 is one session | M2 and M3 each took three | Five (D16) | **Decision** (Q3) |
+| 42 | Session count | `process.md`: M4 is one session | M2 and M3 each took three | Five (D16) | Ruled (Q3) |
 
 Amendments from plans 008 and 009 that this plan relies on: A2 (diagram budgets), A3 (`data.relationships` drawn by code), A4 (code fills measured cells), A5 (one row per entity and entry point), A6 (no card reads capped facts), A8 (V11, V12), and spec decisions 24, 25 and 31.
 
@@ -456,14 +453,55 @@ Both adapters run, each with its own `extract/*.json` section. `candidates.load`
 | 1 | Tool re-check, pins, projects, restore, fixture, adapter frame, package entries | Ends with a registered adapter on a verified install. Everything later stands on this |
 | 2 | The four tools, queries, Prisma, routes, rules, V7, the fixture test of record | Ends with real `extract/*.json`. Nothing reads them yet except V7 |
 | 3 | Shared readers, React table, prompts, docs, version | Everything that makes a build complete, tested on a fixture page |
-| 4 | Ground truth, the `RW` build, every verification block, the Python golden | A full build needs a clean context, and it is the exit criterion |
+| 3a | Opus: the ground truth for `RW` | Must exist before any build, and be written apart from everything else (D18) |
+| 4 | The ground truth tool, the `RW` build, every verification block, the Python golden | A full build needs a clean context, and it is the exit criterion |
+| 4a | Opus: rulings on block T, and the component check | Sonnet must not judge its own misses (D18) |
+| 4b | Sonnet: fix what Phase 4a found. Skipped if it found nothing | Fixes need Opus's rulings first |
 | 5 | The `BP` build, the mixed build, the merge | About three times `RW`'s rows, and the React checks |
 
-`process.md` says one session. M2 and M3 each took three, and M4 holds more tools than either. The split is at committed, tested boundaries. **Merge only in Phase 5.**
+`process.md` said one session, and now gives this count. M2 and M3 each took three, and M4 holds more tools than either. The split is at committed, tested boundaries. **Merge only in Phase 5.**
 
 **Cut, in this order, only if a phase cannot finish:** M4-22 (upgrade burden: a P1 card, which then keeps its Python-only rows); the ORM forms other than Prisma in M4-12, and `zod`; Fastify and NestJS route rules; berry and pnpm restore (then a Gaps item says they are not installed). Record any cut under "Results"; it becomes the first item of the next plan.
 
-**Never cut:** extractor fixture tests, V7 for TS/JS, the plan 008 checks on anything new, the Python golden, the `RW` ground truth, any P0 card.
+**Never cut:** extractor fixture tests, V7 for TS/JS, the plan 008 checks on anything new, the Python golden, the `RW` ground truth, Phase 4a, the real public API, any P0 card.
+
+### D17. The real public API (S9)
+
+The author ruled that S9's rule stands, and that the real public API must also be identified and reported, separately. S9's `public` flag says a name is exported from its file. This says a name can be imported by another package.
+
+**Which packages.** Every project with `exports`, `main`, `module` or `types` in `package.json`, whether or not it is marked private. A private workspace package still has an API for its siblings, and `LIB` is marked `"private": true` although it is published, because its release step rewrites the manifest. So `Audience` is `marked private` or `not marked private`, and never claims a package is or is not published. A project with none of these fields has no API. **`RW` and `BP` have none:** all four of their `package.json` files are marked private and declare none of these, so `JSFIX` and `LIB` exercise this code.
+
+**Entries** (`js_api.entries(project, tracked, tsconfig) -> [{"package", "subpath", "file", "resolved", "audience"}]`), following Node's rules:
+
+- `exports` takes precedence over `main`, and when it is present, nothing else in the package can be imported.
+- A string or a `.`-free conditions object is subpath `.`. Otherwise each key starting `.` is a subpath. `./package.json` and any other non-code target are skipped.
+- Conditions can nest. Walk them in order, depth first, and take the first target that maps to a tracked source file. One row per subpath, not per condition.
+- `null` targets are excluded. `*` is expanded over the **source** files the mapping below gives, not over the target, which is usually untracked. It can span `/`. `.d.ts` files are left out. This can list a subpath that the release step does not ship, so a `*` row means importable by the manifest's rules.
+- Without `exports`: `main`, then `module`, then `types`, as subpath `.`.
+
+**Mapping built output to source.** Targets usually name files that are not tracked, such as `./dist/index.js`. In order: the target if tracked; a tsconfig `paths` entry for the package's own name plus the subpath, because that names the source directly (`LIB` has `"zustand/*": ["./src/*.ts"]`); tsconfig `outDir` swapped for `rootDir`; the same relative path under `src/`. The last two try `.ts`, `.tsx`, `.js`, `.jsx`, and remove `.d` from `.d.ts`, `.d.mts` and `.d.cts`. If all fail, `resolved` is false.
+
+**Names.** `ts_facts.mjs` takes `"entries"` on stdin and adds `"api": [{"entry", "subpath", "name", "kind", "path", "line"}]` and `"api_unresolved": [{"entry", "subpath", "specifier"}]` to its D9 response. For each entry file it calls `checker.getExportsOfModule` on the file's module symbol, and for a symbol with `ts.SymbolFlags.Alias` it calls `checker.getAliasedSymbol`, then reads the first declaration's source file. `path` is null for a name from outside the repository, and the row says which package. `kind` is `function`, `class`, `interface`, `type`, `enum`, `variable` or `namespace`. A target the checker cannot resolve, for example `export * from` a package that was not installed, goes in `api_unresolved`, so it is never lost silently. This behaviour through `export *` chains is open fact O8.
+
+**Items.** `symbols` kind `public-api`: `{"kind", "path", "line", "name", "symbol_kind", "package", "subpath", "audience"}`. They are measured, not candidates, so V5 does not apply (spec decision 24).
+
+**The card.** `io.contracts` stays written by Claude, and no schema file changes. `render_card` appends `measured_tables.public_api(...)` to its body, for any entry but a pending one. Heading `Public API of each package`, table `t-io-contracts-api`: Package, Import path, Name, Kind, Defined in, Audience, Source. Import path is the package name plus the subpath. One row per name, sorted by package, subpath, name. Nothing is pruned. With no items, if any `module` item has `language: "js"`, the card adds one line: `No package here declares a public API. What this repository offers from outside is in Entry points.` A repository with no JS is byte-identical to today.
+
+**Gaps.** Report `io`, per unresolved entry or `api_unresolved` row: `The public API of {package} could not be fully worked out from {subpath}.` How to confirm: `Read this package's entry file by hand.`
+
+**Staleness.** `FEEDS["io"]` gains `"public_api"`, with `_feed` keys `["api", package, subpath, name, path]`. Python gives no keys, so its digest does not change.
+
+**Not in M4.** The Python adapter must not change here, so Python gets the same report as its own change in M6, and the M5 plan proposes the C# equivalent (spec decision 42).
+
+### D18. Who does what for the ground truth
+
+- **Phase 3a, Opus, fresh session:** writes the truth file from the source, before any build. It reads only its own section of this plan, because the rest holds notes on `RW`.
+- **Phase 4, Sonnet:** builds the dossier and runs block T. It lists disagreements and does not judge them. **It never edits the truth file.**
+- **Phase 4a, Opus, fresh session:** gives every disagreement one verdict. `list wrong` amends the truth file, with the reason and a new hash. `dossier wrong` goes to Phase 4b. `blind spot` means an existing Gaps entry or blind-spot rule explains it. Opus also checks every component's paths and responsibility against the code (S1).
+- **Phase 4b, Sonnet:** fixes each `dossier wrong` row, rebuilds and reruns block T. A new disagreement goes back to Phase 4a.
+- **The author:** the spot-check in the hand-over, which needs no TS knowledge. It only confirms that the cited code says what the row says.
+
+Both models are Claude, so this reduces shared blind spots and does not remove them. The figures are provisional until the author corrects dossier against work codebases (S1).
 
 ---
 
@@ -474,7 +512,7 @@ Both adapters run, each with its own `extract/*.json` section. `candidates.load`
 Read section 2, section 3, D1 to D3, D6 and D16. Load the skills in section 2. Then:
 
 1. `git log --oneline -5`. The top should be `3a68c36`, or a later commit that does not touch `scripts/`, `prompts/`, `rules/` or `assets/`. If it does, read the change and stop if it contradicts this plan.
-2. Read sections 7 and 8. **Stop if Q1 or Q2 has no answer.** If an answer differs from the plan text, stop and report.
+2. Read sections 7 and 8. **Stop unless the author has said the second acceptance test is finished and its findings are in the spec or this plan (Q1).**
 3. `node --version` must print 22.13.0 or later, with a major version of 22, 24, or 26 and above. dependency-cruiser's `engines` rule out 23 and 25, and `toolcheck` checks a minimum only, so it would not catch them. `npm --version` must print a version. If not, stop: Q2 is not done.
 4. Run the suite and confirm the baseline. The Node upgrade may have moved nothing, but run `DOSSIER_SLOW=1 ... tests/integration/scripts/test_scip_slow.py` once to confirm scip-python still works on the new Node. If it fails, stop and report.
 5. `git switch -c feat/dossier-m4`.
@@ -535,6 +573,7 @@ Read section 2, section 3, D1 to D3, D6 and D16. Load the skills in section 2. T
     - `src/db.ts`: `new PrismaClient()` (`// @io-db-connect`). `src/a.ts`, `src/b.ts`: an import cycle (`// @cycle-a`, `// @cycle-b`). `src/c.ts`, `src/d.ts`: a cycle through `import type` only. `src/types.ts`: exported `interface Order` (`// @model-order`), `type Item = {...}` (`// @model-item`), `enum Status`, `interface ButtonProps`, non-exported `interface Local`. `src/orm.ts`: a `@Entity()` class with `@Column()` fields. `src/barrel/index.ts`: `export * from '../a'` (`// @bs-barrel`). `src/unused.ts`: nothing imports it. `src/plugins.ts`: `` import(`./${name}`) `` (`// @bs-import`), `require(name)` (`// @bs-require`), `container.bind(X)` (`// @bs-di`). `src/state.ts`: `export let current = null` (`// @state-let`), `const cache = new Map()` (`// @state-map`), `const NAMES = {a: 1}` (a constant, not state). `src/cli.ts`: `program.command('sync')` (`// @ep-cli`), `process.exit(1)` (`// @io-exit`). `src/jobs.ts`: `cron.schedule(...)` (`// @ep-cron`), `new Worker('mail', fn)` (`// @ep-queue`). `src/flags.ts`: `launchdarkly` (`// @bs-flag`).
     - `packages/web/`: `package.json` (dependencies `react`, `react-router`), `src/router.tsx` with `createBrowserRouter`, a literal path (`// @ui-literal`), a path through a constant object in `src/paths.ts` (`// @ui-constant`), a computed path (`// @ui-computed`), and `lazy: () => import('./pages/Home')`. `src/pages/Home.tsx`, `src/App.tsx` rendering `Home` and `Button`, `src/Button.tsx`, `src/context.tsx` with `createContext` (`// @bs-context`) and `export function useCart` (`// @bs-hook`), a `<CartContext.Provider>`. `src/App.test.tsx` under vitest: `it`, `it.skip`, `vi.mock`. `src/Button.stories.tsx`. `vite.config.ts`.
     - `packages/site/`: `package.json` (dependency `next`), `app/page.tsx`, `app/(shop)/items/[id]/page.tsx`, `app/api/ping/route.ts`, `pages/about.tsx`, `pages/_app.tsx`.
+    - `packages/lib/` (D17): `package.json` with name `@shopjs/lib`, `exports` holding `"."` as conditions (`types` then `import`, both under `dist/`), `"./utils/*": "./src/utils/*.ts"` and `"./internal/*": null`. `tsconfig.json` with `outDir: dist`, `rootDir: src`. `src/index.ts`: `export { sum } from './math'` (`// @api-reexport`), `export { twice as double } from './math'` (`// @api-rename`), `export * from './barrel'`, `export const version = '1'` (`// @api-own`). `src/barrel.ts`: `export * from './deep'`. `src/deep.ts`: `export function deep` (`// @api-deep`). `src/math.ts`: `export function sum`, `export function twice`, and `export function hidden` (`// @api-hidden`), which is public by S9 but not in the API. `src/utils/fmt.ts`: `export function fmt` (`// @api-wild`). `src/internal/x.ts`: an export that must not appear. `packages/web/` has no such field, so it gives no API.
     - `tests/users.test.ts`: `describe`, `it`, `test.todo`, `jest.mock`, `beforeEach`, importing `src/users/service.ts`. `e2e/smoke.spec.ts`: Playwright.
   - Steps: (1) `test_jsfixture.py` asserts each marker named above appears once. (2) Write the fixture. It is original code, not copied from `RW` or `BP`.
   - Done-check: `... pytest tests/unit/scripts/test_jsfixture.py -q` passes.
@@ -641,6 +680,14 @@ Read section 2, D1, D4 to D12, and "Results (Phase 1)", especially M4-1's values
   - Done-check: `... pytest tests/unit/scripts/test_js_reduce.py -q` passes.
   - Commit: `feat(dossier): record React components and browser routes`
 
+- [ ] **M4-13a. Find the real public API.**
+  - Goal: D17's entries, names and items.
+  - Files: new `scripts/js_api.py`, `tests/unit/scripts/test_js_api.py`; edit `scripts/node/js-tools/ts_facts.mjs`, `scripts/js_tools.py`, `tests/integration/scripts/test_ts_facts_slow.py`, and the adapter's `symbols` step.
+  - Interface: `js_api.entries(project, tracked, tsconfig) -> list`; `js_api.items(entries, api, unresolved) -> list`.
+  - Steps: (1) Unit tests on `entries`: `exports` beats `main`; nested conditions give one row; `./package.json` is skipped; `null` is excluded; `*` expands over source files across folders, without `.d.ts`; a target maps through a `paths` entry, and `./dist/index.js` maps to `src/index.ts` through `outDir` and `rootDir`; an unmappable target gives `resolved: false`; `private` sets `audience`; no fields gives no rows. (2) Slow test on `js_repo`: `@shopjs/lib` lists `sum`, `double` (not `twice`), `version`, `deep` (through two `export *` hops, with `path` at `src/deep.ts`) and `fmt` under `./utils/fmt`, and does not list `hidden` or anything from `src/internal/`. (3) Record the result of O8 under "Results (Phase 2)". If `export *` does not behave as D17 says, follow the chain by hand with `getImmediateAliasedSymbol`, and say so. (4) Implement.
+  - Done-check: `... pytest tests/unit/scripts/test_js_api.py -q` passes, and so does `test_ts_facts_slow.py` under `DOSSIER_SLOW=1`.
+  - Commit: `feat(dossier): find what each JavaScript package really exports`
+
 - [ ] **M4-14. The JS semgrep rules.**
   - Goal: D10's rule files, each proven to fire and not to fire.
   - Files: new `rules/js/{entry,inputs,outputs,state,concurrency,resilience,observability}.yml`, `tests/fixtures/semgrep/js/*`; edit `tests/unit/scripts/test_rules.py`, `scripts/js_adapter.py`, `rules/README.md`.
@@ -668,7 +715,7 @@ Read section 2, D1, D4 to D12, and "Results (Phase 1)", especially M4-1's values
 - [ ] **M4-17. The fixture test of record.**
   - Goal: prove all eight outputs on `JSFIX`, end to end.
   - Files: new `tests/integration/scripts/test_js_adapter_slow.py`.
-  - Interface: runs `stages.stage_extract` on `js_repo` after `workarea.ensure_checkout`, with `DOSSIER_*` under `tmp_path`, then asserts on `extract/*.json`.
+  - Interface: runs `stages.stage_extract` on `js_repo` after `workarea.ensure_checkout`, with `DOSSIER_*` under `tmp_path`, then asserts on `extract/*.json`, including D17's `public-api` items.
   - Steps: assert:
     - `entry_points`: exactly the list in M4-5's markers and keys, by kind and line, and no item at `@not-route`. Build the expected list in the test, and fail on any extra.
     - `graph`: the `a`, `b` cycle and no `c`, `d` cycle; the `.dependency-cruiser.json` rule `broken` with the `import-up` edge; no test file as a `module`; `@/` aliases resolved; a `source-root` item per D4.
@@ -747,6 +794,14 @@ Read section 2, D4, D9, D10, D13 to D15, and "Results" of Phases 1 and 2. Load t
   - Done-check: the two test files pass; block E prints `OK`.
   - Commit: `feat(dossier): list React components in the dependency graph card`
 
+- [ ] **M4-21a. The public API table.**
+  - Goal: D17's card, Gaps and staleness.
+  - Files: edit `scripts/render.py` (`render_card`), `scripts/measured_tables.py`, `scripts/page_audit.py`, `scripts/candidates.py`, `scripts/checks.py`, `tests/unit/scripts/test_measured.py`, `tests/unit/scripts/test_page_audit.py`.
+  - Interface: `measured_tables.public_api(ctx, refs) -> str`, table id `t-io-contracts-api`. Add `io.contracts` beside `interactions.graph` in the counts at `page_audit.py:176`, not in `_measured_counts`, which returns early when there is no history.
+  - Steps: (1) Tests: one row per item, in D17's order; the table survives an `na` entry and is absent from a pending one; the fixed line appears for a JS repository with no items; a repository with no JS has byte-identical HTML; V11 fails when a row is missing; an unresolved entry gives the Gaps item; a Python repository's `io` digest does not change. (2) Implement.
+  - Done-check: the two test files pass; block E prints `OK`.
+  - Commit: `feat(dossier): report the real public API in the contracts card`
+
 - [ ] **M4-22. Upgrade burden (P1).**
   - Goal: row 32.
   - Files: edit `scripts/measured_upgrade.py`, `tests/tools/refresh_eol.py`, `scripts/eol.json`, `tests/unit/scripts/test_measured_upgrade.py`.
@@ -780,6 +835,7 @@ Read section 2, D4, D9, D10, D13 to D15, and "Results" of Phases 1 and 2. Load t
     - `reports.md`, `entry`: write a route's **full** path, adding any prefix from `route-mount` findings. Keep one row per entry point. Package scripts are entry points; a script that only wraps another may be merged only when it is the same `path` and `name`, otherwise dismiss it with a reason.
     - `reports.md`, `data` (line 137): add interfaces, object types, enums, Prisma models and ORM classes. Props types are left out by the tool.
     - `reports.md`, `components`: for a repository of several apps, one component per folder with a clear job; do not merge apps.
+    - `reports.md`, `io`: the page draws the public API table, so never copy it. Write one `io.contracts` row per package that has an API, as `offered`. In `components.catalog`, Public surface names what the component offers to other packages, or says it is internal.
     - `reports.md`, `interactions`: the card lists React components; use them for flows; context wiring is in Gaps.
     - `reports.md`, line 305: "are not detected for Python" becomes "are not detected".
     - `reports.md`, technologies (line 381): add React state, routing and data-fetching idioms to the examples.
@@ -824,26 +880,75 @@ Commit on `feat/dossier-m4`. Do not merge. Write "Results (Phase 3)" and commit:
 
 ---
 
+## Phase 3a: Ground truth for the primary repository
+
+**Run this with Opus, in a fresh session (`/model opus`).** Read only this section. Do not read the rest of this plan, the spec, `rules/`, `scripts/` or any dossier: they hold notes on this repository, and your list must not depend on them.
+
+### Before you start (Phase 3a)
+
+Load `git-commit`. Then:
+
+```bash
+SKILL=/home/nick/dev/projects/encamp/configs/user/claude/.claude/skills/dossier
+RW_PIN=30b68e1e881462b2f4164ea09ab4c4f5699c7b0b
+SCR=$(mktemp -d -p "$HOME/.cache" dossier-m4-XXXX); echo "SCR=$SCR"
+mkdir -p $SCR/src $SCR/truth
+git clone -q https://github.com/gothinkster/node-express-realworld-example-app $SCR/src/rw
+git -C $SCR/src/rw checkout -q $RW_PIN
+```
+
+Do not install anything, run the repository's code, or build a dossier. The repository has no licence, so **nothing from it is ever committed**.
+
+### Tasks (Phase 3a)
+
+- [ ] **T-1. Write the truth file.**
+  - Goal: an independent list that the dossier is scored against.
+  - Files: `$SCR/truth/rw.json`, which is never committed.
+  - Format: `{"entry_points": [{"kind", "key", "where"}], "io": [{"direction": "input"|"output", "category", "key", "where"}]}`. `key` is a short string the matching row must contain, such as `GET /api/orders` or `API_KEY`. `where` is `path:line`.
+  - Steps: (1) Read every tracked source and config file yourself. Do not sample. (2) List every entry point, one per row. Kinds: console scripts and package bins, package scripts, package `main`, monorepo task targets, server start, `__main__`-style start files, CLI commands, HTTP routes (with the **full** path, including any prefix), browser routes, queue consumers, scheduled jobs, container `CMD` or `ENTRYPOINT`, CI schedules, Makefile targets, shebang scripts, systemd units. (3) List inputs. Categories: CLI arguments, environment variables, config files, files read, stdin, network requests (grouped by route group), messages consumed, database reads (by model), scheduled triggers. Environment variables include those in schema files and Dockerfiles. (4) List outputs. Categories: stdout/stderr, files written, network responses, outbound calls, messages produced, database writes (by model), logs, metrics, exit codes, error responses. (5) Include test helpers, and say so in `where`. (6) Write the file, and run `sha256sum $SCR/truth/rw.json`.
+  - Done-check: the file parses with `python3 -m json.tool`, and every `where` names a line that exists.
+  - Commit: none for the file. See below.
+
+### Deliverables and checks (Phase 3a)
+
+| Deliverable | Checked by |
+|---|---|
+| Truth file | The done-check, and the hash below |
+
+### Cut line (Phase 3a)
+
+Nothing is cut. If the session cannot finish, keep the file and record how far it got.
+
+### Acceptance criteria (Phase 3a)
+
+Every tracked source and config file was read, and the hash and `SCR` path are recorded.
+
+### Branch and release (Phase 3a)
+
+On `feat/dossier-m4`, write under "Results (Phase 3a)": the `SCR` path, the hash, the row counts and the date. Record no content from the repository. Tick T-1 and commit: `docs(dossier): record the ground truth hash in plan 010`. Do not merge.
+
+### Results (Phase 3a)
+
 ## Phase 4: Primary repository and Python golden
 
 ### Before you start (Phase 4)
 
-Read section 2, section 6 and "Results" of Phases 1 to 3. Load the skills in section 2. `git switch feat/dossier-m4`. `cat VERSION` prints `0.9.0`. Do first any task moved here. Run `df -h "$HOME/.cache"`: at least 15 GB free.
+Read section 2, section 6 and "Results" of Phases 1 to 3. Load the skills in section 2. `git switch feat/dossier-m4`. `cat VERSION` prints `0.9.0`. Do first any task moved here. **Stop if "Results (Phase 3a)" has no hash.** Set `SCR` to the path recorded there before section 6's setup, and never read the truth file except through `ground_truth.py`. Run `df -h "$HOME/.cache"`: at least 15 GB free.
 
 ### Tasks (Phase 4)
 
-- [ ] **M4-27. Build the ground truth for `RW`.**
-  - Goal: section 11 item 3 needs a truth the author cannot supply from memory.
-  - Files: `$SCR/truth/rw.json`, in scratch. Never committed, because `RW` has no licence. New `tests/tools/ground_truth.py`, which holds no data from `RW`.
-  - Interface: truth file `{"entry_points": [{"kind", "key", "where"}], "io": [{"direction": "input"|"output", "category", "key", "where"}]}`. `key` is a short string the matching row must contain, such as `GET /api/tags` or `JWT_SECRET`. `ground_truth.py TRUTH REPORTS_DIR` prints recall, precision and each miss.
-  - Steps: (1) **Do this before any build of `RW`, and without reading a dossier of it.** Read every source file by hand. (2) List entry points over the 6.1 kinds and package scripts: every route with its full path (about 20), `src/main.ts`, the package scripts, `prisma.seed`, Nx targets, the Dockerfile `CMD`. (3) List inputs and outputs over the fixed categories in `io.inputs` and `io.outputs`: environment variables (`process.env` uses, `env()` in the Prisma schema, `ENV` in the Dockerfile), HTTP requests by route group, database reads and writes by Prisma model, outbound calls, logs, exit codes, error responses, files. E2E test helpers count, marked `"where"`. (4) Write the file, then `sha256sum` it into "Results (Phase 4)", so it cannot change after the build.
-  - Done-check: the file parses, and the hash is recorded.
+- [ ] **M4-27. The ground truth comparison tool.**
+  - Goal: score a dossier against the truth file that Opus wrote in Phase 3a (D18).
+  - Files: new `tests/tools/ground_truth.py` and its unit test. It holds no data from `RW`; the test uses made-up rows.
+  - Interface: `ground_truth.py TRUTH REPORTS_DIR` prints recall, precision and each disagreement, and with `--review FILE` writes them there. A truth row matches when a row of the home card contains its `key`.
+  - Steps: (1) Tests: a matched row, a missed row, an unmatched dossier row, recall and precision figures. (2) Implement. (3) `sha256sum $SCR/truth/rw.json` must equal the hash in "Results (Phase 3a)".
+  - Done-check: the test passes and the hash matches.
   - Commit: `test(dossier): add the ground truth comparison tool`
 
 - [ ] **M4-28. Run the blocks for `RW`, and the Python golden.**
   - Goal: the exit criterion on the primary repository.
   - Files: this plan only, unless a block finds a bug.
-  - Steps: run, in order, blocks S, A, B, C, D, F, G, H, T, J, N, K, P, E, I, as section 6 gives them. **A failure is a finding:** fix the cause on this branch with a test first, in its own commit, then rerun the block. Fix the code, not the check.
+  - Steps: run, in order, blocks S, A, B, C, D, F, G, H, L, T, J, N, K, P, E, I, as section 6 gives them. **A failure is a finding:** fix the cause on this branch with a test first, in its own commit, then rerun the block. Fix the code, not the check. **Block T is the exception:** record its disagreements and carry on, because Phase 4a judges them. Never edit the truth file.
   - Done-check: every block's result is recorded under "Verification results (Phase 4)".
   - Commit: `docs(dossier): record the M4 verification on the primary repository`
 
@@ -851,7 +956,7 @@ Read section 2, section 6 and "Results" of Phases 1 to 3. Load the skills in sec
 
 | Deliverable | Checked by |
 |---|---|
-| Ground truth | Hash in "Results (Phase 4)" |
+| Ground truth | Hash matches "Results (Phase 3a)" |
 | `RW` dossier | Blocks B to H |
 | Recall and precision | Block T |
 | Python unchanged | Block P |
@@ -863,10 +968,8 @@ Nothing is cut. If block D cannot finish, stop and say which reports are left; t
 ### Acceptance criteria (Phase 4)
 
 - `dossier check` prints `problems: 0`, `render` prints no `error:` line, V1 to V10 pass.
-- Block T: entry points recall 100% and precision at least 95%; inputs and outputs recall at least 95%; every miss is explained by a Gaps entry or a new blind-spot rule.
+- Block T has run, and `$SCR/truth/review.md` lists every disagreement. Its targets are judged after Phase 4a, in Phase 4b.
 - Block P prints `SAME`.
-
-If block T misses a target, fix rules on this branch, rebuild only what changed, and record both figures.
 
 ### Branch and release (Phase 4)
 
@@ -878,11 +981,93 @@ Do not merge. Commit results: `docs(dossier): record phase 4 of M4 in plan 010`.
 
 ---
 
+## Phase 4a: Rulings on the ground truth
+
+**Run this with Opus, in a fresh session (`/model opus`).** Read this section and D18 only. You are a judge here: you change no code and no report.
+
+### Before you start (Phase 4a)
+
+Load `git-commit`. `git switch feat/dossier-m4`. Set `SCR` from "Results (Phase 3a)". Sonnet's disagreements are in `$SCR/truth/review.md`, the repository is `$SCR/src/rw`, and the reports are in `$SCR/home/rw/reports`.
+
+### Tasks (Phase 4a)
+
+- [ ] **T-2. Rule on every disagreement.**
+  - Goal: a miss or an extra row is settled by reading the code, not by the session that built the dossier.
+  - Files: `$SCR/truth/rulings.md`, and `$SCR/truth/rw.json` when the list was wrong.
+  - Steps: for each row, read the cited code and give one verdict with a reason: `list wrong` (amend the truth file), `dossier wrong` (Phase 4b fixes it), or `blind spot` (name the Gaps entry or blind-spot rule that explains it). For a dossier row that matches nothing, say whether it is a true entry point or input or output. Sonnet's explanation is not evidence. Then rerun `sha256sum` if the file changed.
+  - Done-check: every row in `review.md` has a verdict.
+  - Commit: none for the files. See below.
+
+- [ ] **T-3. Check the component map.**
+  - Goal: section 11's component check for a public repository (S1).
+  - Files: `$SCR/truth/rulings.md`.
+  - Steps: for every row of `components.catalog`, open its paths and confirm that they exist, that the files belong together, and that Responsibility says what the code does. Give each `ok` or `dossier wrong`, with a reason.
+  - Done-check: every component has a verdict.
+  - Commit: none for the files. See below.
+
+### Deliverables and checks (Phase 4a)
+
+| Deliverable | Checked by |
+|---|---|
+| Rulings | Every row and every component has a verdict |
+
+### Cut line (Phase 4a)
+
+Nothing is cut.
+
+### Acceptance criteria (Phase 4a)
+
+The two done-checks pass, and any new hash is recorded.
+
+### Branch and release (Phase 4a)
+
+Write under "Results (Phase 4a)": the count of each verdict, every `list wrong` change with its reason and new hash, and each `dossier wrong` row by path and name, with no code from the repository. Tick T-2 and T-3 and commit: `docs(dossier): record the ground truth rulings in plan 010`. Do not merge.
+
+### Results (Phase 4a)
+
+## Phase 4b: Fixes after the rulings
+
+Skip this phase if Phase 4a found no `dossier wrong` row **and** block T met its targets.
+
+### Before you start (Phase 4b)
+
+Read section 2, section 6 and "Results" of Phases 3a to 4a. Load the skills in section 2. `git switch feat/dossier-m4`. Set `SCR` from "Results (Phase 3a)".
+
+### Tasks (Phase 4b)
+
+- [ ] **M4-28a. Fix each `dossier wrong` row.**
+  - Goal: the exit criterion on the primary repository.
+  - Files: whatever each fix needs, under the rules in section 2.
+  - Steps: (1) For each row, fix the rule or add a Gaps entry where no rule can work, with a test first, in its own commit. (2) Rebuild what changed. (3) Rerun blocks T, P and E. (4) If block T shows a new disagreement, stop and ask the author to run Phase 4a again.
+  - Done-check: block T meets the targets below, with no unruled disagreement.
+  - Commit: `docs(dossier): record the M4 fixes on the primary repository`, plus one commit per fix.
+
+### Deliverables and checks (Phase 4b)
+
+| Deliverable | Checked by |
+|---|---|
+| Recall and precision | Block T |
+| Python unchanged | Block P |
+
+### Cut line (Phase 4b)
+
+Nothing is cut.
+
+### Acceptance criteria (Phase 4b)
+
+Entry points recall 100% and precision at least 95%; inputs and outputs recall at least 95%; every miss is explained by a Gaps entry or a new blind-spot rule. Record the figures from before and after the fixes.
+
+### Branch and release (Phase 4b)
+
+Do not merge. Commit results: `docs(dossier): record phase 4b of M4 in plan 010`.
+
+### Results (Phase 4b)
+
 ## Phase 5: React and mixed repositories, then merge
 
 ### Before you start (Phase 5)
 
-Read section 2, section 6 and "Results" of Phases 1 to 4. Load the skills in section 2. `git switch feat/dossier-m4`. Do first any task moved here. Reuse `$SCR` from Phase 4 if it exists; otherwise set it up again with block S.
+Read section 2, section 6 and "Results" of Phases 1 to 4b. Load the skills in section 2. `git switch feat/dossier-m4`. **Stop if Phase 4a has no results, or if Phase 4b was needed and has none.** Do first any task moved here. Set `SCR` from "Results (Phase 3a)", because the truth file is there; never set it up afresh.
 
 ### Tasks (Phase 5)
 
@@ -896,7 +1081,7 @@ Read section 2, section 6 and "Results" of Phases 1 to 4. Load the skills in sec
 - [ ] **M4-30. Run the mixed block and the final checks.**
   - Goal: mixed repositories, card skeletons, the full suite.
   - Files: this plan only.
-  - Steps: blocks M, X, I, E, then Z.
+  - Steps: blocks M, Y, X, I, E, then Z.
   - Done-check: as those blocks say.
   - Commit: `docs(dossier): record the M4 mixed repository run`
 
@@ -913,6 +1098,7 @@ Read section 2, section 6 and "Results" of Phases 1 to 4. Load the skills in sec
 |---|---|
 | `BP` dossier | Block R |
 | Mixed build | Block M |
+| Public API on a real library | Block Y |
 | Same skeletons | Block X |
 | Merge | M4-31 done-check |
 
@@ -937,7 +1123,7 @@ The author does this. **Needed on the machine:** Node 22.13 or later, and npm. Y
 1. `encamp-sync pull`, so `INSTALLED` is at the merge. `git -C ~/.local/share/encamp status --short` must show no `UU` line.
 2. `/dossier doctor <repo>` on a clone of `RW`. It must print `skill: <merge commit> (clean)`, and the JS tools as "from a lockfile with npm".
 3. Read `RW`'s and `BP`'s pages, kept under `$SCR` until the author has seen them. Open them at full width and at 400 px, in light and dark.
-4. **Spot-check the ground truth.** Pick ten rows of the truth file at random, open the cited code, and confirm each. Then pick ten rows of `entry.catalog` and `io.inputs` and confirm each.
+4. **Spot-check the ground truth.** Pick ten rows of the truth file at random, open the cited code, and confirm that it says what the row says. Then do the same for ten rows of `entry.catalog` and `io.inputs`. This needs no TS knowledge. Read Phase 4a's rulings, especially any `list wrong`.
 5. In `BP`, look at the React table in `interactions.graph` and at the areas in `components.map`. The checks cannot tell whether either is useful.
 6. Rule on anything recorded under "Findings for the milestone review".
 7. When content is judged, delete `$SCR`.
@@ -960,6 +1146,7 @@ FIX=$SKILL/tests/fixtures/encamp-m0
 PIN=5923c09
 RW_PIN=30b68e1e881462b2f4164ea09ab4c4f5699c7b0b
 BP_PIN=9506629ed003a561c6627735480cce4994244bb4
+LIB_PIN=382d29c485e67018c06e75ec7235130d0968522c
 BASE_SHA=3a68c36
 SCR=${SCR:-$(mktemp -d -p "$HOME/.cache" dossier-m4-XXXX)}; echo "SCR=$SCR"
 export DOSSIER_HOME=$SCR/home DOSSIER_CONFIG=$SCR/cfg.json DOSSIER_CACHE=$SCR/cache PYTHONDONTWRITEBYTECODE=1
@@ -971,8 +1158,8 @@ cd $SKILL
 
 ```bash
 mkdir -p $SCR/src $SCR/truth
-git clone -q https://github.com/gothinkster/node-express-realworld-example-app $SCR/src/rw
-git clone -q https://github.com/alan2207/bulletproof-react $SCR/src/bp
+[ -d $SCR/src/rw ] || git clone -q https://github.com/gothinkster/node-express-realworld-example-app $SCR/src/rw
+[ -d $SCR/src/bp ] || git clone -q https://github.com/alan2207/bulletproof-react $SCR/src/bp
 git -C $SCR/src/rw checkout -q $RW_PIN && git -C $SCR/src/bp checkout -q $BP_PIN
 git -C $SCR/src/rw merge-base --is-ancestor $RW_PIN origin/master && echo rw-trusted
 git -C $SCR/src/bp merge-base --is-ancestor $BP_PIN origin/master && echo bp-trusted
@@ -1030,7 +1217,9 @@ PY
 
 Expect `data.entities` rows equal to entities, a blind-spot count above 0, 0 partial badges, and `summary.json` listing the JS tools as `ok`.
 
-**Block T: recall and precision.** Check the hash of the truth file first. Then `python3 tests/tools/ground_truth.py $SCR/truth/rw.json $OUT/reports`. Expect the Phase 4 targets. For each row of `entry.catalog` the tool could not match, decide by reading the code whether it is a true entry point, and record the verdict and why. Record under "Verification results (Phase 4)": recall, precision, inputs and outputs recall, and **every miss with its Gaps entry or blind-spot rule**. A miss with neither means adding a rule, or a Gaps entry where no rule can work, then rebuilding.
+**Block L: public API.** `RW` declares no API, so report `io`'s card must show `No package here declares a public API.` and no `t-io-contracts-api` table, and there must be no `public-api` item. Block R repeats this for `BP`. Real rows are proved on `JSFIX` and in block Y.
+
+**Block T: recall and precision.** Check the hash of the truth file first. Then `python3 tests/tools/ground_truth.py $SCR/truth/rw.json $OUT/reports --review $SCR/truth/review.md`. Targets: entry points recall 100%, precision at least 95%; inputs and outputs recall at least 95%. Add to `review.md` every disagreement, with the cited line, the Gaps entry or blind-spot rule you think explains it, and each `entry.catalog` row the tool could not match. **Do not decide them, and never edit the truth file:** Phase 4a rules. Record under "Verification results (Phase 4)" the recall, precision, inputs and outputs recall, and the number of disagreements.
 
 **Block J: incremental rebuild.** Never commit to `RW`'s clone; use a copy.
 
@@ -1127,7 +1316,7 @@ Expect `OK`, with both files about 250,000 characters. `report_section.py` print
 2. Confirm projects: three, with root `apps`, and `source-root` items accordingly.
 3. Confirm `ui-route` items for `apps/react-vite`, with paths resolved through `paths.*`, and `http-route` items for the Next apps, including `[discussionId]`.
 4. Block D on `$BP`, all reports. **`components.catalog` paths with `[discussionId]` must pass V4.**
-5. Blocks F, G, H. `interactions.graph` shows the React table. Read the shots of reports 04, 05 and 06 at both widths, and check the area diagrams.
+5. Blocks F, G, H, L. `interactions.graph` shows the React table. Read the shots of reports 04, 05 and 06 at both widths, and check the area diagrams.
 
 No ground truth is built for `BP`: it is the React check, and section 11's figures are measured on `RW`. A hand count of `apps/react-vite`'s routes against `entry.catalog` is recorded, because it is cheap (about ten rows).
 
@@ -1141,6 +1330,25 @@ DOSSIER_HOME=$M/home DOSSIER_CACHE=$M/cache $D prepare $M/repo --no-restore > $S
 ```
 
 Expect exit 0 and adapters `js`, `python` and `repo` ok. Write the reports as in block D (the repository is small). `render`, then `dossier check`, must give `problems: 0`, with rows from both languages in `entry.catalog`, `data.entities` and `interactions.graph`, and Node tools named on the process card beside Python's.
+
+**Block Y: public API on a real library.** No restore, because `LIB` pins pnpm 11 and nothing here needs its packages. Only `prepare` runs.
+
+```bash
+L=$SCR/src/lib; [ -d $L ] || git clone -q https://github.com/pmndrs/zustand $L
+git -C $L checkout -q $LIB_PIN
+git -C $L merge-base --is-ancestor $LIB_PIN origin/main && echo lib-trusted
+$D prepare $L --ref $LIB_PIN --full --no-restore > $SCR/pl.json; echo "exit $?"
+```
+
+Expect `lib-trusted` and exit 0. Then in the `public-api` items of `extract/symbols.json`:
+
+- every item has `audience` `marked private`;
+- subpath `.` holds `create` and `useStore` (defined in `src/react.ts`) and `createStore` and `StoreApi` (defined in `src/vanilla.ts`), which proves the chain through `export *`;
+- subpath `./middleware` holds `persist` (defined in `src/middleware/persist.ts`), `StateStorage` and `unstable_ssrSafe`, and does not hold `ssrSafe`, which proves renames;
+- no subpath `./package.json`, and no subpath from `src/types.d.ts`;
+- no `resolved: false` entry, and no `api_unresolved` row for a relative import. A row for an uninstalled package is allowed, and must reach Gaps.
+
+A failure is a finding, handled as in M4-28. Record the item count. `LIB` is not read further, and its output is not committed.
 
 **Block X: same skeleton.** `python3 tests/tools/skeleton.py $OUT/dossier-*.html $OUTB/dossier-*.html $M/home/*/dossier-*.html $P/b/cannalerts/dossier-*.html; echo "exit $?"`. Expect exit 0.
 
@@ -1156,7 +1364,7 @@ Expect exit 0 and adapters `js`, `python` and `repo` ok. Write the reports as in
 
 ### Risks (most important first)
 
-1. **The acceptance pause may never have happened.** Rule precision was never judged against the spec's targets on a repository the author knows, and M4 copies the Python approach. A flaw in the approach would now be repeated for a second language (Q1).
+1. **The second acceptance test may change this plan.** Its findings come first, and M4 copies the Python approach, so a flaw in that approach would repeat for a second language (Q1).
 2. **No tool in this plan has been run.** I was told not to install anything, and this machine's Node is too old to run them. Flags and output shapes come from docs, registry metadata and source. M4-1 goes first for this reason, and Phase 2 is told to trust its results over this text. Knip's report of an unused file, and dependency-cruiser's `summary.violations` fields, are the least certain.
 3. **Recall of 100% on entry points may need rule work.** `RW` is small, but routes split over a multi-line call, a prefix, and an entry file known only from `project.json` and `app.listen`. D6 covers each one, untested. Block T may send Sonnet back to fix rules, and Phase 4 may run long.
 4. **Without install scripts, some tools see less.** Prisma's generated client is absent in `RW`, so references into it stay unresolved. Knip loads repository config with `jiti`; `BP`'s configs import packages, so a failed restore makes knip fail. That is a "partial" badge, not a silent loss, but it would mean `change.dead-code` is thin.
@@ -1168,6 +1376,8 @@ Expect exit 0 and adapters `js`, `python` and `repo` ok. Write the reports as in
 10. **Prisma's language is moving.** The current docs describe `contract.prisma` and `prisma.config.ts`. `RW` uses a Prisma 4 `schema.prisma`, which is what the fixture tests. The parser reads any `*.prisma`, but a connection string in `prisma.config.ts` is not found.
 11. **`yarn.lock` and pnpm paths are tested only on tiny cases until `BP`** (yarn classic), and berry and pnpm are never tested on a real repository in this plan.
 12. **`/usr/bin` first?** After the upgrade, if the new Node is not ahead of `/usr/bin/node` on `PATH`, `sandbox._host_path` still puts the found folder first, so it works; but a shell started without the version manager finds Node 20. `doctor` shows it, and Phase 1 step 3 checks it.
+13. **The TS figures are provisional.** The author is new to TS, and both models are Claude, so a shared blind spot can survive Phases 3a and 4a. Corrections come from work codebases (S1, D18).
+14. **The real public API is proved on one real library.** `RW` and `BP` declare none, so D17 rests on `JSFIX` and on `LIB` (block Y). `LIB` is a single package with `exports` and `paths`. A package mapped only through `outDir`, or a monorepo of published packages, is tested on the fixture alone.
 
 ### What I could not verify (open facts)
 
@@ -1178,43 +1388,44 @@ Expect exit 0 and adapters `js`, `python` and `repo` ok. Write the reports as in
 - **O5.** Whether semgrep parses `.mts` and `.cts` when named on the command line. M4-1 step 7 decides, and D10 has the fallback.
 - **O6.** Knip's JSON for unused files, and `IViolation`'s fields. M4-1 decides.
 - **O7.** Whether `--ts-config` is honoured beside `--no-config`. M4-1 decides.
+- **O8.** Whether `getExportsOfModule` returns every name through chained `export *` barrels, and what `export *` from an uninstalled package gives. The sources show the API, not this case. M4-13a decides, and D17 has the fallback.
 
 **What I read.** In full: the spec, `process.md`, `post-v1.md`, `SKILL.md`, `adapters.py`, `py_adapter.py`, `py_tools.py`, `ts_worker.py`, `semgrep_worker.py`, `shared_tools.py`, `tools.json`, `toolcheck.py`, `restore.py`, `sandbox.py`, `scip_tool.py`, `scip_read.py`, `checks_v7.py`, `stages.py`, `config.py`, `repo_adapter.py`, `candidates.py`, `components.py`, `graphs.py`, `workarea.py`, `incremental.py`, `measured_er.py`, `markers.py`. In part: plans 007 (D1 to D13, Phase 1, verification, risks, questions, spec issues), 008 (sections 1, 2, 3.1, 4, 5, Results, 7 to 10), 009 (sections 1 to 4, Results, verification, risks, spec issues), `process.py`, `page_audit.py`, `measured.py`, `measured_change.py`, `measured_graph.py`, `measured_blast.py`, `measured_upgrade.py`, `measured_tables.py`, `checks.py`, `checks_v3.py`, `gather.py` (language, noise and test patterns), `deps.py` (its JS adapter), `py_queries.py` (names and two queries), `render.py` (citations), `test_rules.py`, `conftest.py`, `m3_page.py`, `report_section.py`. Searched only, by keyword: `prompts/method.md`, `prompts/reports.md`, `rules/python/*` beyond `blindspot.yml`, `check_page.py`, `check_layout.py`, `summary.py`, `dossier.py`. Line numbers given for the prompts are from those searches. **Not read:** `assets/`, `viewer.py` beyond its lexer call, `migrate.py`, `LIVE`.
 
 ### Questions for the human
 
-Defaults are what the plan does. **Q1 and Q2 must be answered before Phase 1.**
+All answered by the author on 2026-11-05.
 
-- **Q1. Did the acceptance pause happen?** The repository shows no sign of it. If you built and judged a Python repository, what did you find, and does it change the spec or this plan? If you did not, do you want to do it first, as `process.md` says, or start M4 now? Default: none; this is yours. I recommend doing it first. A full 0.8.0 build of `cannalerts` is cheap next to M4, and M4 repeats whatever it would find.
-- **Q2. Node.** This machine has Node 20.19.2 in `/usr/bin`. M4 needs 22.13 or later, for implementation and for every JS build. Upgrade it? Default: install Node 24 LTS before Phase 1. `asdf` is present but has no Node plugin.
-- **Q3. Five sessions**, where `process.md` says one? Default: yes (D16).
-- **Q4. yarn and pnpm.** The spec names only `npm ci`, but `BP` needs yarn. Default: support yarn classic, berry and pnpm from the shipped lockfile (D3, S6). The smaller option is yarn classic only, with Gaps items for the other two.
-- **Q5. React table.** Add it to `interactions.graph` as a measured table (D9, S3)? Default: yes. Alternatives: `components.map`; or no card at all, printing it only through `dossier candidates`, so Claude uses it in writing.
-- **Q6. Installing third-party code.** Verification runs `npm ci` and `yarn install` for `RW` and `BP` on this machine, with install scripts off, and `RW` and `BP` config files load through knip. The spec accepts this risk for your own repositories (decision 5). Are you happy to accept it for these two? Default: yes.
-- **Q7. Report 02 golden.** G2 has failed since `5518e74`. Will you remake its baselines before Phase 4, so report 02's look is checked in M4? Default: no; block E still proves the HTML is the same.
-- **Q8. `BP` as one dossier.** Default: yes, the whole repository, three apps. Alternative: build only `apps/react-vite`, which needs a subfolder scope the spec does not have.
-- **Q9. Who reviews the ground truth?** You do not know `RW`, so Sonnet writes both the ground truth and the dossier, in separate steps of one phase. Default: accept that, with your ten-row spot-check. For a stricter test, a fresh session could write the truth file.
+- **Q1. Did the acceptance pause happen?** The repository shows no sign of it. If you built and judged a Python repository, what did you find, and does it change the spec or this plan? If you did not, do you want to do it first, as `process.md` says, or start M4 now? Default: none; this is yours. I recommend doing it first. A full 0.8.0 build of `cannalerts` is cheap next to M4, and M4 repeats whatever it would find. **Answer:** the author ran one after M2 and will run a second before M4 is implemented. Phase 1 waits for it.
+- **Q2. Node.** This machine has Node 20.19.2 in `/usr/bin`. M4 needs 22.13 or later, for implementation and for every JS build. Upgrade it? Default: install Node 24 LTS before Phase 1. `asdf` is present but has no Node plugin. **Answer: yes, it can be upgraded.**
+- **Q3. Five sessions**, where `process.md` says one? Default: yes (D16). **Answer: default.**
+- **Q4. yarn and pnpm.** The spec names only `npm ci`, but `BP` needs yarn. Default: support yarn classic, berry and pnpm from the shipped lockfile (D3, S6). The smaller option is yarn classic only, with Gaps items for the other two. **Answer: default.**
+- **Q5. React table.** Add it to `interactions.graph` as a measured table (D9, S3)? Default: yes. Alternatives: `components.map`; or no card at all, printing it only through `dossier candidates`, so Claude uses it in writing. **Answer: default.**
+- **Q6. Installing third-party code.** Verification runs `npm ci` and `yarn install` for `RW` and `BP` on this machine, with install scripts off, and `RW` and `BP` config files load through knip. The spec accepts this risk for your own repositories (decision 5). Are you happy to accept it for these two? Default: yes. **Answer: default.**
+- **Q7. Report 02 golden.** G2 has failed since `5518e74`. Will you remake its baselines before Phase 4, so report 02's look is checked in M4? Default: no; block E still proves the HTML is the same. **Answer: default.**
+- **Q8. `BP` as one dossier.** Default: yes, the whole repository, three apps. Alternative: build only `apps/react-vite`, which needs a subfolder scope the spec does not have. **Answer: default.**
+- **Q9. Who reviews the ground truth?** You do not know `RW`, so Sonnet writes both the ground truth and the dossier, in separate steps of one phase. Default: accept that, with your ten-row spot-check. For a stricter test, a fresh session could write the truth file. **Answer:** Opus writes the ground truth and rules on disagreements, Sonnet builds the dossier, and the author keeps the spot-check (D18).
 
 ---
 
 ## 8. Spec issues
 
-Each needs the author's ruling. The plan follows the "Proposal" where a choice was forced, and says so.
+All ruled by the author on 2026-11-05, and written into the spec as decisions 33 to 46.
 
-- **S1. Sections 10 and 11 assume the author's own apps.** Item 2 says "Three of your own solo-built apps (one Python, one TS/React, one C#)". Item 3 says "you are the ground truth". The author has no TS, JS or C# repository. **Proposed wording.** Item 2: "Three repositories (one Python, one TS/React, one C#) build without manual intervention, and their reports have identical card skeletons, checked mechanically. The Python one is your own. For a language where you have no repository of your own, a public repository pinned to a commit may stand in." Item 3, first line: "Measured against ground truth: your own knowledge for your own repository; for a public repository, a list of entry points and inputs and outputs written by hand from the source before the build, without reading the dossier, and spot-checked by you (at least ten rows of the list and ten rows of the dossier)." The "you agree with the component map" line becomes: "for your own repository only; for a public one, every component's paths and responsibility are checked against the code in the same spot-check." Section 10's M4 and M5 rows change "golden TS repo" and "golden C# repo" to "the TS repositories" and "the C# repository named in that milestone's plan". This also covers M5. I did not work around it: the plan runs the check as proposed, and if you rule otherwise, block T changes and nothing else.
-- **S2. DI has no home.** 6.2 says semgrep finds DI registration for TS, but no category, home card or 6.1 row takes it, and 6.4's TS list omits it. Proposal: for TS, a blind-spot pattern, so hits reach Gaps, and add it to 6.4. M5 faces the same choice, and C#'s list already has it.
-- **S3. The React tree has no output and no card.** 6.2 says the script gives a "React component tree and router config". 6.1 has no output for it, and section 4 no card. Router config fits `entry_points`. The tree needs a place, or principle 1 ("tools find") is not met for it. Proposal: `ui-component` and `renders` in `graph`, and a measured table in `interactions.graph`. This adds a table to a card, not a card, and changes no schema file (Q5).
-- **S4. Entry-point kinds.** Section 4 says "package scripts and bins"; 6.1 says "console scripts and package bins", and recall is measured over 6.1's list. Proposal: add to 6.1 package scripts, package `main`, monorepo task targets, server start and browser routes.
-- **S5. `npx` in 6.2.** All four JS rows say `npx`, which breaks 5.4 rule 7 for the same reason decision 15 gave. Proposal: the rows say "installed from a lockfile shipped with the skill".
-- **S6. Restores.** 5.1 step 3 names only `npm ci`, and 5.4 rule 3 names no yarn or pnpm cache. Plan 006 limited restores to the root, which leaves `BP` with none. Proposal: name yarn and pnpm, say lockfiles are found in project folders, and add `YARN_CACHE_FOLDER`, `YARN_GLOBAL_FOLDER`, `YARN_ENABLE_TELEMETRY` and `npm_config_store_dir` to 5.4.
-- **S7. 5.4 rule 4 says "the Python static extractors still run".** It should say every extractor that loads no repository code, so semgrep and tree-sitter run for JS too.
-- **S8. 6.2 gives no Node version.** Proposal: "Node 16 for Python alone; Node 22.13 or later for JS or TS". Section 12's decision 3 stands.
-- **S9. Public surface for TS.** 6.1 defines it for Python only, and Python's rule rests on `_`. Proposal: "For TS and JS, a name is public when it is exported from its file, or is a member of an exported class. A name reachable only through a barrel counts in the file that defines it." This says nothing about a package's real public API, which needs `exports` analysis. It can be refined later.
-- **S10. Which TS types are entities.** Section 4 says "TS types and interfaces" with no limit, and A5 needs a row for each, with no group decisions. `BP` has 88 declared types in one app, 33 of them `*Props`. Proposal: D7's filter, stated in section 4. The spec's Python list already excludes plain classes, so a filter is in keeping.
-- **S11. "dynamic `import()`" in 6.4.** A literal `import('./x')` is an edge the tool sees, and is not a blind spot. Proposal: the rule covers computed targets only, and 6.4 says so.
-- **S12. `change.dead-code` source text.** It lists "unused route/flag detection", which exists for no language (plan 009, S8). Proposal: as S8 proposed. Also, "module nothing imports" is a Python stand-in; for JS, knip's unused files replace it.
-- **S13. `process.md`.** It lists M4 as one session, and nothing records M2's and M3's real counts. Proposal: update the table (Q3).
-- **S14. Plan 009's S10 still stands.** A1 to A9, V11, V12 and `dossier.cards` are not in the spec file. This plan treats them as the spec, as the prompt says.
+- **S1. Sections 10 and 11 assume the author's own apps.** Item 2 says "Three of your own solo-built apps (one Python, one TS/React, one C#)". Item 3 says "you are the ground truth". The author has no TS, JS or C# repository. **Proposed wording.** Item 2: "Three repositories (one Python, one TS/React, one C#) build without manual intervention, and their reports have identical card skeletons, checked mechanically. The Python one is your own. For a language where you have no repository of your own, a public repository pinned to a commit may stand in." Item 3, first line: "Measured against ground truth: your own knowledge for your own repository; for a public repository, a list of entry points and inputs and outputs written by hand from the source before the build, without reading the dossier, and spot-checked by you (at least ten rows of the list and ten rows of the dossier)." The "you agree with the component map" line becomes: "for your own repository only; for a public one, every component's paths and responsibility are checked against the code in the same spot-check." Section 10's M4 and M5 rows change "golden TS repo" and "golden C# repo" to "the TS repositories" and "the C# repository named in that milestone's plan". This also covers M5. I did not work around it: the plan runs the check as proposed, and if you rule otherwise, block T changes and nothing else. **Ruling:** accepted, with a change. The author is new to TS and C#, has no repositories to test against, and will correct dossier when taking over codebases at work. So the TS and C# results are provisional, Opus does the component check, and `post-v1.md` records the follow-up.
+- **S2. DI has no home.** 6.2 says semgrep finds DI registration for TS, but no category, home card or 6.1 row takes it, and 6.4's TS list omits it. Proposal: for TS, a blind-spot pattern, so hits reach Gaps, and add it to 6.4. M5 faces the same choice, and C#'s list already has it. **Ruling: proposal accepted.**
+- **S3. The React tree has no output and no card.** 6.2 says the script gives a "React component tree and router config". 6.1 has no output for it, and section 4 no card. Router config fits `entry_points`. The tree needs a place, or principle 1 ("tools find") is not met for it. Proposal: `ui-component` and `renders` in `graph`, and a measured table in `interactions.graph`. This adds a table to a card, not a card, and changes no schema file (Q5). **Ruling: proposal accepted** (Q5).
+- **S4. Entry-point kinds.** Section 4 says "package scripts and bins"; 6.1 says "console scripts and package bins", and recall is measured over 6.1's list. Proposal: add to 6.1 package scripts, package `main`, monorepo task targets, server start and browser routes. **Ruling: proposal accepted.**
+- **S5. `npx` in 6.2.** All four JS rows say `npx`, which breaks 5.4 rule 7 for the same reason decision 15 gave. Proposal: the rows say "installed from a lockfile shipped with the skill". **Ruling: proposal accepted.**
+- **S6. Restores.** 5.1 step 3 names only `npm ci`, and 5.4 rule 3 names no yarn or pnpm cache. Plan 006 limited restores to the root, which leaves `BP` with none. Proposal: name yarn and pnpm, say lockfiles are found in project folders, and add `YARN_CACHE_FOLDER`, `YARN_GLOBAL_FOLDER`, `YARN_ENABLE_TELEMETRY` and `npm_config_store_dir` to 5.4. **Ruling: proposal accepted** (Q4).
+- **S7. 5.4 rule 4 says "the Python static extractors still run".** It should say every extractor that loads no repository code, so semgrep and tree-sitter run for JS too. **Ruling: proposal accepted.**
+- **S8. 6.2 gives no Node version.** Proposal: "Node 16 for Python alone; Node 22.13 or later for JS or TS". Section 12's decision 3 stands. **Ruling: proposal accepted.**
+- **S9. Public surface for TS.** 6.1 defines it for Python only, and Python's rule rests on `_`. Proposal: "For TS and JS, a name is public when it is exported from its file, or is a member of an exported class. A name reachable only through a barrel counts in the file that defines it." This says nothing about a package's real public API, which needs `exports` analysis. It can be refined later. **Ruling: proposal accepted, and the real public API must also be identified and reported, separately.** See D17. The author also chose to test it on a real library (`LIB`, block Y) and to give Python the same report, in M6.
+- **S10. Which TS types are entities.** Section 4 says "TS types and interfaces" with no limit, and A5 needs a row for each, with no group decisions. `BP` has 88 declared types in one app, 33 of them `*Props`. Proposal: D7's filter, stated in section 4. The spec's Python list already excludes plain classes, so a filter is in keeping. **Ruling: proposal accepted.** The author isn't yet experienced enough in TS to judge this, so it is one of the things to correct from work codebases.
+- **S11. "dynamic `import()`" in 6.4.** A literal `import('./x')` is an edge the tool sees, and is not a blind spot. Proposal: the rule covers computed targets only, and 6.4 says so. **Ruling: proposal accepted.**
+- **S12. `change.dead-code` source text.** It lists "unused route/flag detection", which exists for no language (plan 009, S8). Proposal: as S8 proposed. Also, "module nothing imports" is a Python stand-in; for JS, knip's unused files replace it. **Ruling: proposal accepted.**
+- **S13. `process.md`.** It lists M4 as one session, and nothing records M2's and M3's real counts. Proposal: update the table (Q3). **Ruling: proposal accepted** (Q3). Done.
+- **S14. Plan 009's S10 still stands.** A1 to A9, V11, V12 and `dossier.cards` are not in the spec file. This plan treats them as the spec, as the prompt says. **Ruling:** write them into the spec. Done.
 
 ---
 
@@ -1252,6 +1463,10 @@ Checked on 2026-11-05.
 | Test annotations and how test files are found (partial: O4) | M4-14 | https://docs.semgrep.dev/writing-rules/testing-rules |
 | tree-sitter-language-pack lists JavaScript, TSX, TypeScript (partial: O3) | D8 | https://github.com/xberg-io/tree-sitter-language-pack |
 | Prisma model, enum, relation, optional and list syntax; `contract.prisma` | D7, risk 10 | https://www.prisma.io/docs/orm/prisma-schema/data-model/models |
+| `exports` beats `main`; unlisted subpaths are blocked; `*` patterns; `null` targets; condition order | D17 | https://nodejs.org/api/packages.html |
+| `getExportsOfModule` gives alias symbols that need resolving (partial: O8) | D17 | https://gist.github.com/krisselden/6f1e8640a3edc4438672187f8ee9e878 |
+| `getImmediateAliasedSymbol` steps one alias at a time | D17 fallback | https://github.com/Microsoft/TypeScript/pull/25708/files |
+| `LIB`: MIT, not archived, pin resolves; its `package.json`, `tsconfig.json`, `src/index.ts`, `src/middleware.ts` and the exported names in block Y, read at the pin | D17, block Y | `gh api repos/pmndrs/zustand`, read only |
 | `RW` and `BP` exist; pins resolve; not archived; `RW` has no licence and `BP` is MIT | Section 3 | `gh api repos/...` and shallow clones of each pin, read only |
 
 Measured on this machine: Node 20.19.2, npm 9.2.0, git 2.47.3, uv 0.11.19, `gh` 2.103.2; yarn and pnpm absent; suite baseline at `3a68c36`; `fnmatch` and `INLINE_CITE` on bracket paths; `REPO` holds no JS config files at `5923c09`; type counts in `BP`'s `apps/react-vite/src`.

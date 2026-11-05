@@ -1,6 +1,6 @@
 # dossier 1.0.0 specification
 
-Status: draft for review. Amended on 2026-11-01 after the review of the M2 plan (`plans/007-m2-plan.md`, section 8); the amendments are listed in section 12 under "Settled in the M2 plan review". Amended again on 2026-11-05 after the review of the M3 plan (`plans/009-m3-plan.md`), listed under "Settled in the M3 plan review". Supersedes the middle-report design in `prompts/reports.md` (everything between "This repository" and "Risks"). The decisions in plans 001 to 003 (renames, colours, card clean-ups, Dependencies card, gatherer terminology) still apply unless this document says otherwise.
+Status: draft for review. Amended on 2026-11-01 after the review of the M2 plan (`plans/007-m2-plan.md`, section 8); the amendments are listed in section 12 under "Settled in the M2 plan review". Amended again on 2026-11-05 after the review of the M3 plan (`plans/009-m3-plan.md`), listed under "Settled in the M3 plan review". Amended again on 2026-11-05 after the review of the M4 plan (`plans/010-m4-plan.md`, section 8), listed under "Settled in the M4 plan review"; that amendment also wrote in the changes approved in `plans/008-m3-remediation-plan.md` (A1 to A9, including V11 and V12) and the `dossier.cards` card. Supersedes the middle-report design in `prompts/reports.md` (everything between "This repository" and "Risks"). The decisions in plans 001 to 003 (renames, colours, card clean-ups, Dependencies card, gatherer terminology) still apply unless this document says otherwise.
 
 ## 1. Purpose and boundaries
 
@@ -33,7 +33,7 @@ A map is not a mental model. The map orients the reader, and the model forms whe
 ## 2. Design principles
 
 1. **Tools find, Claude explains.** Anything that can be enumerated (entry points, routes, imports, I/O sites, models, tests) is extracted by a tool. Claude never has to remember it.
-2. **Candidate, adjudicate, reconcile.** For every candidate list, each candidate gets a recorded disposition: included, merged, or dismissed with a reason. Claude may add items the tool missed, marked as such. A candidate with no disposition fails the build. The candidate lists are entry points, input/output and related sites (`io_candidates`: inputs, outputs, state, concurrency, failure handling, observability, data-store connections) and data entities. Measured outputs are not candidate lists and are never pruned by a model: the import graph, symbols, test counts, dead code (drawn by code) and blind-spot hits (which go to Gaps). Neither are the computed suggestions for components, reading order and glossary terms, since V4 already reconciles components file by file. Decision markers (`HACK`, `XXX`, workaround and bug-id comments) are a fourth candidate list, with `change.decisions` as their home card. Each kind of candidate has one home card where it is decided (6.1); a decision on any other card counts too, and a candidate kept on one card and dismissed on another is an error.
+2. **Candidate, adjudicate, reconcile.** For every candidate list, each candidate gets a recorded disposition: included, merged, or dismissed with a reason. Claude may add items the tool missed, marked as such. A candidate with no disposition fails the build. A group id (all hits of one rule in one file) may decide call-site findings only: `io_candidates` and decision markers. Each entry point and each data entity gets its own row; an entry-point row may hold several ids only when they are the same entry point found twice (the same `path` and `name`), and each `data.entities` row's Fields cell lists every field. The candidate lists are entry points, input/output and related sites (`io_candidates`: inputs, outputs, state, concurrency, failure handling, observability, data-store connections) and data entities. Measured outputs are not candidate lists and are never pruned by a model: the import graph, symbols, test counts, dead code (drawn by code) and blind-spot hits (which go to Gaps). Neither are the computed suggestions for components, reading order and glossary terms, since V4 already reconciles components file by file. Decision markers (`HACK`, `XXX`, workaround and bug-id comments) are a fourth candidate list, with `change.decisions` as their home card. Each kind of candidate has one home card where it is decided (6.1); a decision on any other card counts too, and a candidate kept on one card and dismissed on another is an error.
 3. **Three provenance tiers**, shown on every card as a small badge:
    - **M, measured:** tool output only, no model involved.
    - **A, adjudicated:** tool candidates, with Claude classifying, pruning, adding and explaining.
@@ -43,7 +43,7 @@ A map is not a mental model. The map orients the reader, and the model forms whe
 4. **A closed card schema.** Writers do not choose cards or titles. A report is a fixed ordered list of cards with fixed ids, titles, shapes and required columns. A card that does not apply is still present and says so as a `confirmed` statement with evidence (`"na": "reason", "cite": [...]`). Two repos therefore always produce the same report skeleton.
 5. **Each fact lives in one place.** Other reports link to the owning card and do not restate it.
 6. **Say where the analysis is blind.** Every extractor declares the dynamic patterns it cannot see (section 6.4), and the dossier searches for them and reports hits.
-7. **The structure is fixed; size only changes content.** The number of reports and cards never depends on the size of the repository. A larger repository gets longer tables, more diagram detail and more entries inside a card, not more cards, and nothing is dropped to fit a limit. There are no caps on components, entities, entry points, flows or rows. Only the executive summary is bounded (3 to 5 bullets of 20 words or fewer), because it is a summary. Keeping large content readable is the page's job (sorting, filtering, collapsing, search), never omission.
+7. **The structure is fixed; size only changes content.** The number of reports and cards never depends on the size of the repository. A larger repository gets longer tables, more diagram detail and more entries inside a card, not more cards, and nothing is dropped to fit a limit. There are no caps on components, entities, entry points, flows or rows. Only the executive summary is bounded (3 to 5 bullets of 20 words or fewer), because it is a summary. Keeping large content readable is the page's job (sorting, filtering, collapsing, search), never omission. Report 02 is the one exception: it keeps its pre-1.0 limits and says on the page when it trims, and no schema card reads those capped facts.
 
 ## 3. Questions, and where they are answered
 
@@ -118,14 +118,15 @@ Their existing cards are part of the schema and of 1.0.0, with their content unc
 
 **Owner and Author buttons.** The Contributors card has a button group, Owner and Author. Author is selected when the page opens and shows the card as it has always been. Owner shows the tiles, the share-of-code bar and the contributor table by who owns each commit ("Who owns a commit", under report 13). The commit calendar and the knowledge map always show authors, and the Owner view says so. The buttons appear only when the build holds ownership data.
 
-The order of report 01 is: `dossier.about`, `dossier.process`, `dossier.questions`, `dossier.reports`, `dossier.changelog`.
+The order of report 01 is: `dossier.about`, `dossier.process`, `dossier.questions`, `dossier.reports`, `dossier.cards`, `dossier.changelog`.
 
 New cards in 01:
 
 | Card id | Title | Tier | Shape | Source | P |
 |---|---|---|---|---|---|
-| `dossier.process` | How this dossier was made | M | A short numbered list of 8 to 10 steps in plain language. Each step has one sentence on what was done and a small run record: counts, tools used, and "skipped: reason" where a step did not run. Ends with one line: how many cards are measured, adjudicated and read | Written by a script from `build.json` (section 5.1), using fixed wording per step. **Claude does not write this card**, because a model's account of its own process drifts from what actually happened |
+| `dossier.process` | How this dossier was made | M | A table with columns No., Step, What happened, Status: one row per fixed step, in plain language. What happened holds the run record (counts, tools used, and "skipped: reason" where a step did not run). Status is a badge: ok, skipped, failed, reused or not run. Ends with one line: how many cards are measured, adjudicated and read | Written by a script from `build.json` (section 5.1), using fixed wording per step. **Claude does not write this card**, because a model's account of its own process drifts from what actually happened |
 | `dossier.questions` | Questions this dossier answers | M | Table: No., Question, Answered in. One row for every question in section 3, in order. "Answered in" lists each card that answers it, as a link to that card (card title and report number), plus any panel outside the schema (for example the report 02 Dependencies card, or the report 01 freshness BAN). A question with no answering card is shown as "not answered in this version". Deferred and removed questions are not listed | Written by a script from `questions.json` and the card schemas. **Claude does not write this card.** A check fails the build if a question names a card id that does not exist, or a schema card answers no question and is not marked `informational` in the schema | P0 |
+| `dossier.cards` | Cards in this dossier | M | Table of every card in the schema, with its tier and who writes it | Written by a script from the card schemas. **Claude does not write this card** | P0 |
 
 The fixed steps, in plain words:
 
@@ -165,8 +166,8 @@ Question: *What are the main parts, what does each do, and how does it work?*
 
 | Card id | Title | Tier | Shape | Source | P |
 |---|---|---|---|---|---|
-| `components.map` | Component map | M+A | Interactive hierarchical graph of every component, grouped by area. Groups collapse and expand, so any number of components stays readable. Until M6 delivers the interactive graph, the card shows a component diagram grouped by area plus a table of every component and its edges | Candidates from package and folder boundaries plus import-graph community detection. Claude names, merges and splits them (through `components.catalog`). The layout is computed, not drawn by Claude | P0 |
-| `components.catalog` | Component catalog | A | Table: Component, Paths, Responsibility, Public surface, Depends on, Used by, Size | Paths, edges and size are measured. Responsibility is read | P0 |
+| `components.map` | Component map | M+A | Interactive hierarchical graph of every component, grouped by area. Groups collapse and expand, so any number of components stays readable. Until M6 delivers the interactive graph, the card shows a component diagram grouped by area plus a table of every component and its edges. Diagrams follow the V12 budgets, and a component dependency matrix holds the full edge set | Candidates from package and folder boundaries plus import-graph community detection. Claude names, merges and splits them (through `components.catalog`). The layout is computed, not drawn by Claude | P0 |
+| `components.catalog` | Component catalog | A | Table: Component, Paths, Responsibility, Public surface, Depends on, Used by, Size | Paths, edges and size are measured: `render` fills Depends on, Used by and Size, and Claude writes `-` in those cells. Responsibility is read | P0 |
 | `components.detail` | Component details | R | One card holding one entry for every component in the catalog, each with the same fixed template: Purpose, How it works, Public surface, State owned, Key files, Gotchas. Entries are collapsible and searchable | Claude, with one subagent per group of components. V4 requires an entry for every component | P0 |
 | `components.cross-cutting` | Cross-cutting concerns | R | Table: Concern, Approach, Where. Fixed rows: configuration, authentication/authorisation, logging, error handling, caching, validation, i18n, feature flags | Claude | P0 |
 | `components.extension-points` | Extension points | R | Table: Point, How to extend, Example | Claude | P1 |
@@ -178,9 +179,9 @@ Question: *How do the parts talk to each other, and where does state live?*
 
 | Card id | Title | Tier | Shape | Source | P |
 |---|---|---|---|---|---|
-| `interactions.graph` | Dependency graph | M | Interactive module graph, edges weighted by import count. Until M6 delivers the interactive graph, the card shows a component-level diagram plus a sortable, filterable table of every module import | grimp, dependency-cruiser, Roslyn/SCIP | P0 |
+| `interactions.graph` | Dependency graph | M | Interactive module graph, edges weighted by import count. Until M6 delivers the interactive graph, the card shows a component-level diagram plus a sortable, filterable table of every module import. Diagrams follow the V12 budgets, and tables always hold the full edge set. When a repository has React components, the card adds a measured table of every one: Component, File, Renders, Rendered by, Hooks, Context | grimp, dependency-cruiser, Roslyn/SCIP, the shipped TypeScript script | P0 |
 | `interactions.violations` | Cycles and layer violations | M | Table: Kind, From, To, Evidence | Cycles from the graph. Layer rules taken from the repo's own config if present (import-linter contracts, dependency-cruiser rules, folder conventions). Otherwise only cycles | P0 |
-| `interactions.flows` | Key flows | A | Sequence diagrams, one entry per flow, each followed by notes. At least one flow per kind of entry point; Claude adds more wherever a flow teaches something the others do not | Claude chooses flows from the entry points. V3 checks every arrow against a graph or call edge | P0 |
+| `interactions.flows` | Key flows | A | Sequence diagrams, one entry per flow, each followed by numbered notes, one per step of the diagram. At least one flow per kind of entry point; Claude adds more wherever a flow teaches something the others do not | Claude chooses flows from the entry points. V3 checks every arrow against a graph or call edge | P0 |
 | `interactions.state` | State ownership | A | Table: State, Held in, Written by, Read by, Lifetime | Candidates: DB access sites, caches, globals, module-level mutables, files. Claude adjudicates | P0 |
 | `interactions.concurrency` | Concurrency model | A | Table: Mechanism, Where, Shared state, Notes | Candidates: threads, async, process pools, workers, queues, locks | P0 |
 
@@ -191,7 +192,7 @@ Question: *What goes in and what comes out?*
 |---|---|---|---|---|---|
 | `io.inputs` | Inputs | A | Table: Category, Input, Format, Validation, Where read. Fixed categories: CLI arguments, environment variables, config files, files read, stdin, network requests (grouped by route), messages consumed, database reads, scheduled triggers | Candidates from rule queries (6.1) plus `facts:env_vars`. Every candidate dispositioned (V5) | P0 |
 | `io.outputs` | Outputs | A | Same shape. Categories: stdout/stderr, files written, network responses, outbound calls, messages produced, database writes, logs, metrics, exit codes, error responses | Same | P0 |
-| `io.contracts` | Contracts | A | Table: Contract, Direction (offered/consumed), Counterparty, Schema location, Versioning | OpenAPI/proto/GraphQL/JSON-schema files, public exports, route tables, client SDK usage. Consumers outside the repo are `unknown` unless declared | P0 |
+| `io.contracts` | Contracts | A | Table: Contract, Direction (offered/consumed), Counterparty, Schema location, Versioning. For TS and JS, followed by a measured table of the real public API (6.1): Package, Import path, Name, Kind, Defined in, Audience (marked private or not, which does not prove whether a package is published). If no package declares one, one line says so | OpenAPI/proto/GraphQL/JSON-schema files, public exports, route tables, client SDK usage. Consumers outside the repo are `unknown` unless declared | P0 |
 
 The error catalog, the configuration table and the secrets table from the old Failures and Delivery reports are absorbed here (exit codes and error responses in `io.outputs`, config in `io.inputs`) and in 12.
 
@@ -200,8 +201,8 @@ Question: *What data exists, and what is true about it?*
 
 | Card id | Title | Tier | Shape | Source | P |
 |---|---|---|---|---|---|
-| `data.entities` | Entities and types | M+A | Table: Name, Kind, Fields, Defined in, Owner component | Extracted: classes, dataclasses/Pydantic, TS types and interfaces, EF entities, ORM models, SQL DDL, protobuf. Claude adds purpose | P0 |
-| `data.relationships` | Relationships | M+A | ER diagram, split by component beyond 12 entities | Foreign keys, ORM relations, type references | P0 |
+| `data.entities` | Entities and types | M+A | Table: Name, Kind, Fields, Defined in, Owner component | Extracted: classes, dataclasses/Pydantic, TS types and interfaces, EF entities, ORM models, SQL DDL, protobuf. For TS and JS, an entity is exported and is an interface, an object-shaped type, an enum, a class with `@Entity`, or a schema constant (for example Zod's `z.object`). Names ending in `Props` and anything in a test, `.d.ts` or stories file are left out. Claude adds purpose | P0 |
+| `data.relationships` | Relationships | M+A | ER diagram, split by component beyond 12 entities | Foreign keys, ORM relations, type references. Drawn by code, with every entity, field and relation; Claude's part is the rows in `data.entities` | P0 |
 | `data.stores` | Data stores | A | Table: Store, Technology, Holds, Migration approach | Config, connection sites, migration folders | P0 |
 | `data.truth` | Source of truth | R | Table: Data, Source of truth, Derived copies | Claude | P0 |
 | `data.lifecycle` | Lifecycle and sensitive fields | A | Table: Data, Created, Changed, Retained, Deleted, Sensitive? | Migrations, delete paths, field-name rules for likely-sensitive fields. Identification only, not an audit | P0 |
@@ -226,7 +227,7 @@ Question: *Where is it safe to change, and how did it get here?*
 | `change.blast-radius` | Blast radius | M | Interactive picker: choose a file or component, see its transitive dependents, importing tests and co-changing files | Reverse closure precomputed from the graph | P0 |
 | `change.unfinished` | Unfinished migrations | R | Table: Pattern, Old way, New way, Progress, Evidence | Claude, helped by candidates: duplicate abstractions, `legacy`/`v1`/`v2`/`deprecated`/`old` names, TODO density, mixed-style counts | P0 |
 | `change.decisions` | Decisions and oddities | A | Table: Item, Why (as far as known), Evidence, Source | ADRs, design docs, `HACK`/`XXX`/`workaround`/bug-ID comments, long commit messages on the file. Unknown reasons stay `unknown` | P0 |
-| `change.dead-code` | Dead code and stale flags | M | Table: Item, Kind, Evidence | vulture, knip, unused route/flag detection | P0 |
+| `change.dead-code` | Dead code and stale flags | M | Table: Item, Kind, Evidence | vulture and modules nothing imports (Python), knip including its unused files (JS and TS). Stale flags and unused routes are not detected for any language, and Gaps says so | P0 |
 | `change.docs-drift` | Docs versus code | R | Table: Claim, Document, What the code shows, Verdict | Claude samples the claims in README and docs (install steps, architecture statements, endpoint lists) and checks them | P1 |
 | `change.upgrade-burden` | Upgrade burden | M | Table: Runtime or package, Pinned, Latest or supported, Gap | Lockfile versions against an end-of-life dataset. Needs a data source, see open decisions | P1 |
 | `change.in-flight` | Work in flight | M | Table: Branch, Last commit, Ahead/behind, Author | Remote branches. Issue and PR content is out of reach and is listed as `unknown` | P0 |
@@ -304,11 +305,11 @@ Capabilities (folded into `components.catalog`), Interfaces (split into 04 and 0
 
 1. **Preflight.** Detect languages (gatherer already classifies them), compute the tools each needs, check they are present, and print the full list of anything missing with install commands. Stop unless `--allow-missing` is given. With the flag, continue; every missing tool becomes a coverage item in Gaps and the affected cards are badged "partial".
 2. **Checkout.** `git clone --local --no-checkout <repo> ~/.local/cache/dossier/<repo>/checkout`, then `git checkout --detach <sha>`. Reused between builds and moved to the new SHA on incremental runs. `dossier clean` deletes it. The user's own working tree is never touched. Everything dossier needs while building but can regenerate (the checkout, the scratch `HOME`, package caches) lives in one per-repository working area, `~/.local/cache/dossier/<repo>/`, kept apart from the dossier output folder (`<home>/<repo>/`), which holds only what is worth keeping and sharing. The root is configurable with `cache_dir` in the dossier home config.
-3. **Restore (Tier 2 only).** Install from lockfiles only: `npm ci --ignore-scripts`, `uv sync --frozen`, `dotnet restore --locked-mode`. These run on the host and can still execute the repository's own build code (source-package builds, MSBuild targets). Before the first restore of a repository, ask once, naming what will run. All restores follow the rules in 5.4. The answer is stored in `state.json` and applies to later builds of that repository. `--no-restore` always skips it. A failed restore falls back to Tier 1 for that language and is recorded in Gaps.
+3. **Restore (Tier 2 only).** Install from lockfiles only, in the repository root and in project folders: `npm ci --ignore-scripts`, yarn and pnpm from a frozen lockfile with install scripts off, `uv sync --frozen`, `dotnet restore --locked-mode`. These run on the host and can still execute the repository's own build code (source-package builds, MSBuild targets). Before the first restore of a repository, ask once, naming what will run. All restores follow the rules in 5.4. The answer is stored in `state.json` and applies to later builds of that repository. `--no-restore` always skips it. A failed restore falls back to Tier 1 for that language and is recorded in Gaps.
 4. **Extract.** Run all extractors (section 6) into `extract/*.json`.
 5. **Path filter.** Drop any extracted path not in `git ls-tree -r <sha>`. Verify `HEAD == sha` before and after extraction.
 6. Existing steps (facts, chunks, update plan) continue as today. Git-history facts (blame, log, co-change) keep reading the original repository's objects.
-7. **Run record.** Every stage appends to `build.json` as it runs: step, start and end time, tools and versions, counts, skipped-with-reason, reading mode, chunks, subagent count, reports rewritten versus reused. `render` turns it into the `dossier.process` card. Claude never edits this file.
+7. **Run record.** Every stage appends to `build.json` as it runs: step, start and end time, tools and versions, counts, skipped-with-reason, reading mode, chunks, subagent count, reports rewritten versus reused, and the skill's path, commit and whether its working tree is dirty or unmerged. `render` turns it into the `dossier.process` card and refuses assets with conflict markers; `doctor` reports an unmerged skill. Claude never edits this file.
 
 ### 5.2 New CLI
 
@@ -327,12 +328,12 @@ These rules reduce the damage a bad install or build script can do. They are not
    - `PATH` (system directories plus the directories of the tools dossier needs), `LANG`/`LC_ALL`, `TERM`.
    - `HOME` set to a scratch directory at `~/.local/cache/dossier/<repo>/home`, plus `TMPDIR`, `XDG_CACHE_HOME` and `XDG_CONFIG_HOME` inside it.
    - Proxy and certificate variables (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`, `SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE`, `NODE_EXTRA_CA_CERTS`).
-   - Telemetry opt-outs (`DOTNET_CLI_TELEMETRY_OPTOUT`, `DOTNET_NOLOGO`).
+   - Telemetry opt-outs (`DOTNET_CLI_TELEMETRY_OPTOUT`, `DOTNET_NOLOGO`, `YARN_ENABLE_TELEMETRY`).
 
    Everything else is absent, including `SSH_AUTH_SOCK`, `GIT_*`, cloud credentials and any token, secret or connection-string variable. `build.json` records the names (never the values) of the variables passed. One exception: `gh` alone runs with `GH_CONFIG_DIR` pointing at the user's `gh` configuration folder, so it can read its own login. No token is passed as a variable, and no repository code runs in that step.
 2. **Private registry credentials are opt-in.** Restores from private feeds (npm, NuGet, a Python index) need credentials, and the scrubbed `HOME` hides your normal config. A `registry_auth` list in the dossier home config names the variables or config files to pass, per ecosystem. The default is empty. A restore that fails for authentication reports that reason in Gaps, with the setting to change.
-3. **Private caches.** Package caches live under `~/.local/cache/dossier/<repo>/cache/` (`UV_CACHE_DIR`, `npm_config_cache`, `NUGET_PACKAGES`, `DOTNET_CLI_HOME`, `PIP_CACHE_DIR`) and are never shared with your global caches or with other repositories. `npm_config_userconfig` points at an empty file. `dossier clean` removes the whole working area for the repository.
-4. **Trusted refs only, by default.** Restores and the Node and .NET extractors run without a flag only when the pinned ref is: a tag; the tip of the default branch (the branch `origin/HEAD` points to, else `main` or `master`); or a commit reachable from that branch. Any other ref (a feature branch, a pull-request ref, a fork) needs `--allow-ref`. Without it, those stages are skipped, the Python static extractors still run, and Gaps records the skip and the reason.
+3. **Private caches.** Package caches live under `~/.local/cache/dossier/<repo>/cache/` (`UV_CACHE_DIR`, `npm_config_cache`, `YARN_CACHE_FOLDER`, `YARN_GLOBAL_FOLDER`, `npm_config_store_dir`, `NUGET_PACKAGES`, `DOTNET_CLI_HOME`, `PIP_CACHE_DIR`) and are never shared with your global caches or with other repositories. `npm_config_userconfig` points at an empty file. `dossier clean` removes the whole working area for the repository.
+4. **Trusted refs only, by default.** Restores and the Node and .NET extractors run without a flag only when the pinned ref is: a tag; the tip of the default branch (the branch `origin/HEAD` points to, else `main` or `master`); or a commit reachable from that branch. Any other ref (a feature branch, a pull-request ref, a fork) needs `--allow-ref`. Without it, those stages are skipped, every extractor that loads no repository code still runs (semgrep and tree-sitter for any language), and Gaps records the skip and the reason.
 5. **Submodules are off by default.** They would pull in other repositories. `--submodules` turns them on and is recorded in `build.json`. When off and the repository has submodules, Gaps lists them as not analysed.
 6. **Time limits.** Each stage has a wall-clock timeout (configurable). On expiry the whole process group is killed and the stage is recorded as failed in Gaps.
 7. **Extractor tools are pinned.** Versions are fixed (6.2) and recorded, so a tool cannot change under you between builds.
@@ -345,9 +346,9 @@ All extractors write normalized JSON that `render.py` and the prompts consume. O
 
 | Output file | Contents | Feeds |
 |---|---|---|
-| `entry_points.json` | Kind, name, location, trigger. Kinds: console scripts and package bins, `__main__` modules and guards, CLI commands, HTTP routes, queue consumers, scheduled jobs, container `CMD`/`ENTRYPOINT`, CI schedules, Makefile targets, shebang scripts, systemd units (and `Main`/`Program.cs` for C#). Entry-point recall (section 11) is measured over these kinds | 04 |
+| `entry_points.json` | Kind, name, location, trigger. Kinds: console scripts and package bins, package scripts, package `main`, monorepo task targets, server start, `__main__` modules and guards, CLI commands, HTTP routes, browser routes, queue consumers, scheduled jobs, container `CMD`/`ENTRYPOINT`, CI schedules, Makefile targets, shebang scripts, systemd units (and `Main`/`Program.cs` for C#). Entry-point recall (section 11) is measured over these kinds | 04 |
 | `graph.json` | Nodes (modules, files), edges (import, call where SCIP gives it), cycles | 05, 06, 10 |
-| `symbols.json` | Definitions and references (SCIP), public surface per module. For Python a name is public when no part of it starts with `_` and it is top-level or a class member; `__all__` is not used | 05, 07, 10 |
+| `symbols.json` | Definitions and references (SCIP), public surface per module. For Python a name is public when no part of it starts with `_` and it is top-level or a class member; `__all__` is not used. For TS and JS a name is public when it is exported from its file or is a member of an exported class; a name reachable only through a barrel counts in the file that defines it. Separately, for TS and JS, the **real public API**: what another package can actually import. It is read from each package's `exports` (else `main`, `module`, `types`), followed through barrels to the defining file. A private package with none of these has no such API | 05, 07, 10 |
 | `io_candidates.json` | Category, location, snippet, rule id | 07, 06 |
 | `models.json` | Entities, fields, relations, migrations | 08 |
 | `tests.json` | Test files, counts, skip markers, mock use, fixtures, config | 09 |
@@ -384,15 +385,15 @@ All tools run at pinned versions, recorded in 01 This dossier. Python tools run 
 | Python | vulture | Dead code | `uv` |
 | Python | import-linter config (read only) | Declared layer rules. import-linter itself is never run: dossier evaluates `layers` and `forbidden` contracts with grimp and lists every other contract type as "not checked" | parsed from repo config |
 | Python | scip-python | References and call data | Installed once from a lockfile shipped with the skill (`npm ci --ignore-scripts`) into the shared tool cache, then run with Node; bare `npx` would leave its dependencies unpinned (5.4 rule 7). Needs Node. Installed packages are passed in an environment file written from the restored `.venv`, because uv environments have no `pip` for scip-python to ask |
-| JS/TS | dependency-cruiser | Import graph, cycles, rule violations | `npx`, needs Node |
-| JS/TS | knip | Unused files, exports, dependencies | `npx`, needs Node |
-| JS/TS | scip-typescript | References and call data | `npx`, needs Node |
-| JS/TS | shipped script on the TypeScript compiler API | Types, exports, React component tree, router config | Node |
+| JS/TS | dependency-cruiser | Import graph, cycles, rule violations | Installed once from a lockfile shipped with the skill (5.4 rule 7). Needs Node |
+| JS/TS | knip | Unused files, exports, dependencies | Installed once from a lockfile shipped with the skill. Needs Node |
+| JS/TS | scip-typescript | References and call data | Installed once from a lockfile shipped with the skill. Needs Node |
+| JS/TS | shipped script on the TypeScript compiler API | Types, exports, the real public API, React component tree (`ui-component` and `renders` items in `graph.json`), router config (`entry_points.json`) | Installed once from a lockfile shipped with the skill. Needs Node |
 | C# | scip-dotnet (Roslyn-based) | References and call data | `dotnet tool`, needs .NET SDK |
 | C# | `dotnet list package --include-transitive` | Packages (`deps.py` already adapts this) | .NET SDK |
 | C# | tree-sitter plus semgrep | Controllers, minimal APIs, DI registrations, EF models and migrations | `uv` |
 
-Preflight therefore expects on the host: `git` and `uv` always; Node and npm for any Python, JS or TS repo (scip-python and the JS tools run on Node); the .NET SDK for any C# repo. Everything else installs itself. `gh` is optional: without it, or without a login, the build carries on and Gaps says commits by agents count for their authors.
+Preflight therefore expects on the host: `git` and `uv` always; Node and npm for any Python, JS or TS repo (scip-python and the JS tools run on Node: Node 16 or later for Python alone, Node 22.13 or later for JS or TS, and not 23 or 25, which dependency-cruiser rules out); the .NET SDK for any C# repo. Everything else installs itself. `gh` is optional: without it, or without a login, the build carries on and Gaps says commits by agents count for their authors.
 
 ### 6.3 Language tiers
 
@@ -404,7 +405,7 @@ Preflight therefore expects on the host: `git` and `uv` always; Node and npm for
 Each adapter ships a list of patterns that static edges miss and a rule that finds them. The hit count and locations go to Gaps. Starting set:
 
 - **Python:** `importlib`, `__import__`, string-based plugin or entry-point loading, decorator-registered handlers, `getattr` dispatch, Django `INSTALLED_APPS` and signals, pytest fixtures resolved by name.
-- **TS/JS:** dynamic `import()`, `require` with variables, barrel-file re-exports, React context and hooks wiring, string-based routes, module federation.
+- **TS/JS:** `import()` with a computed target (a literal target is an edge the tool sees), `require` with variables, barrel-file re-exports, React context and hooks wiring, string-based routes, module federation, dependency injection registration.
 - **C#:** DI container registrations and resolution, reflection, attribute-based routing and filters, `MediatR`-style handlers, source generators, `partial` classes.
 - **All:** codegen output, runtime config selecting implementations, feature flags. "Runtime config selecting implementations" has no rule (no pattern finds it without many false matches); every build lists it in Gaps once as a fixed coverage item instead.
 
@@ -422,6 +423,8 @@ Each adapter ships a list of patterns that static edges miss and a rule that fin
 | V8 | `summary.json` validates against its schema | error |
 | V9 | Extractor path filter removed nothing unexpected (counts logged) | info |
 | V10 | `build.json` has a record for every step in the fixed process list, or an explicit skip reason | error |
+| V11 | Page completeness, run by `render`: every table-shaped card renders a real `<table>` with every schema column and one row per source record; every entries card renders one entry per source entry with every field; measured cards render every source item | error |
+| V12 | Page layout and readability, run by `dossier check` in a browser at 1500 and 400 px in both themes: the stylesheet and script loaded completely; no element wider than the viewport outside a scroll container; icons no larger than 48 px; diagrams drawn at natural size with text at least 11 px; a flowchart holds at most 12 nodes and 30 edges, and a larger graph is an overview of areas plus one diagram per area; numbered notes after every flow; no overlapping text in a card | error |
 
 An optional **verifier pass** samples N claims per report. A separate agent gets only the claim and the cited code, not the report's conclusion, and returns supported / not supported / cannot tell. Disagreements are written to Gaps. This is off by default and runs with `--verify`.
 
@@ -477,20 +480,20 @@ Build the pipeline end to end for one language first, so the schema and verifica
 | M1 | Checkout, preflight, `doctor`, `clean`, path filter, `build.json` run record, the `dossier.process` card in report 01 rendered from it, V9 and V10, restore hygiene (5.4), adapter interface, shared tree-sitter and semgrep layer | `doctor` lists missing tools correctly; a Python repo gets a verified checkout; the process card renders from a real build and V10 passes; the hygiene tests in section 11 pass |
 | M2 | Python vertical slice: grimp, vulture, scip-python, Python rules and the Python blind-spot list, the repository-wide adapter; reports 03 to 09, 11, 12; V2 to V5 and V7 (Python). Reports 10 and 13 are not written: their absence is a warning, not an error | A Python repo builds all reports from extractors; candidates reconcile |
 | M3 | Report 10 (git-derived cards, blast radius), report 13 (all six cards: people, ask, concentration, agents, doubts, workflow), the report 14 and 15 additions, `summary.json` and V8. Reports 10 and 13 become required again | Golden-set run on the Python repo meets section 11 |
-| M4 | TS/JS/React adapter, rules and blind-spot list (V7 for TS/JS) | Same checks on the golden TS repo |
-| M5 | C# adapter, rules and blind-spot list (V7 for C#). Starts by verifying scip-dotnet (decision 2) | Same checks on the golden C# repo |
-| M6 | Tier B fallback badges, review of the blind-spot lists across all languages, the interactive collapsible graphs for `components.map` and `interactions.graph`, `--verify`, docs, README rewrite (including the stale description of where the Contributors cards live), version bump | Definition of done below |
+| M4 | TS/JS/React adapter, rules and blind-spot list (V7 for TS/JS) | Same checks on the TS repositories named in the M4 plan |
+| M5 | C# adapter, rules and blind-spot list (V7 for C#). Starts by verifying scip-dotnet (decision 2) | Same checks on the C# repository named in the M5 plan |
+| M6 | Tier B fallback badges, the real public API for Python (decision 42), review of the blind-spot lists across all languages, the interactive collapsible graphs for `components.map` and `interactions.graph`, `--verify`, docs, README rewrite (including the stale description of where the Contributors cards live), version bump | Definition of done below |
 
 Cut line: if time runs short, drop P1 cards first, then Tier B polish. Do not drop V2 to V5, since they are what make the answers trustworthy.
 
 ## 11. Definition of done for 1.0.0
 
 1. All P0 cards in section 4 exist, validate against the schema, and render with the correct tier badge.
-2. Three of your own solo-built apps (one Python, one TS/React, one C#) build without manual intervention, and their reports have **identical card skeletons**, checked mechanically.
-3. Measured against your own knowledge of those apps (you are the ground truth):
+2. Three repositories (one Python, one TS/React, one C#) build without manual intervention. The Python one is your own. You are new to TS and C# and have no repository in either, so public repositories pinned to a commit stand in. All three have **identical card skeletons**, checked mechanically.
+3. Measured against ground truth. For your own repository, that is your own knowledge. For a public repository, it is a list of entry points, inputs and outputs written from the source by a separate Opus session before any build, without reading the dossier. Sonnet builds the dossier, Opus rules on every disagreement, and you spot-check at least ten rows of the list and ten of the dossier against the cited code. TS and C# results are provisional: the real correction comes from the codebases you take over at work (`post-v1.md`).
    - entry points: recall 100%, precision at least 95%, over the entry-point kinds listed in 6.1 (for a library, its public functions are not entry points);
    - inputs and outputs: recall at least 95%;
-   - components: you agree with the component map after at most minor renaming;
+   - components: for your own repository, you agree with the component map after at most minor renaming; for a public one, Opus checks every component's paths and responsibility against the code;
    - zero fabricated citations (V1 and V2 failures);
    - every item you find wrong or missing in the dossier is explained either by a Gaps entry or by a blind-spot rule that is now added.
 4. `doctor`, `--allow-missing`, `--no-restore`, `--allow-ref`, `--submodules` and `clean` work as specified, and a build with a tool removed produces the correct Gaps entries.
@@ -546,3 +549,20 @@ Settled in the M3 plan review (2026-11-05):
 30. **`at_risk_paths`** means components whose status is `departed`.
 31. **Decision markers** are a fourth candidate list (principle 2); group ids may decide them.
 32. **Co-change** lists pairs with at least 3 co-commits. Fewer is chance, not coupling, so this is a definition rather than a cap (principle 7), and the card prints both counts.
+
+Settled in the M4 plan review (2026-11-05; the S numbers are the spec issues in `plans/010-m4-plan.md`, section 8):
+
+33. **Test repositories** (S1): the author has no TS or C# repository and is new to both, so public repositories stand in, and those results are provisional until the author corrects dossier against work codebases (section 11, `post-v1.md`).
+34. **Ground truth for a public repository** is written by a separate Opus session before any build. Sonnet builds the dossier, and Opus rules on every disagreement and checks the component map (section 11).
+35. **DI in TS** is a blind-spot pattern, so hits reach Gaps (S2).
+36. **The React tree** is `ui-component` and `renders` items, with a measured table in `interactions.graph` (S3).
+37. **Entry-point kinds** in 6.1 gain package scripts, package `main`, monorepo task targets, server start and browser routes (S4).
+38. **Node tools** install from a shipped lockfile, never bare `npx` (S5).
+39. **Restores** cover yarn and pnpm, and find lockfiles in project folders (S6). A skipped ref still runs every extractor that loads no repository code (S7).
+40. **Node version:** 16 for Python alone; 22.13 or later for JS or TS, not 23 or 25 (S8). Decision 3 stands.
+41. **Public surface for TS and JS** means exported from its file, or a member of an exported class (S9).
+42. **Real public API for TS and JS** is measured separately from decision 41 and reported under `io.contracts`. The M5 plan proposes the C# equivalent. Python gets the same report as its own change in M6; decision 21 still defines Python's public surface. A public library pinned to a commit tests this in M4, because the M4 test repositories declare no API.
+43. **TS entities** are filtered as section 4 says (S10). The `Props` rule goes by name, so a real entity with that suffix is left out.
+44. **`import()`** is a blind spot only with a computed target (S11).
+45. **`change.dead-code`** names only sources that exist (S12).
+46. **Plan 008's A1 to A9**, V11, V12 and `dossier.cards` are written into this file (S14).
