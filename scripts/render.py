@@ -65,6 +65,7 @@ FACT_KEYS["env_vars"] = FACT_KEYS["secret_signals"] = "facts-git"   # their pane
 FACT_KEYS["chunks"] = "dossier-build"
 FACT_KEYS["inventory"] = "facts-git"  # retired file-name inventory; old reports may still cite it
 FACT_KEYS["history"] = "c-change-hotspots"   # the uncapped git history behind the change and contributors reports
+CUT_CARDS = ()   # cards cut from a milestone (plan 009, D16): each draws a fixed sentence and a Gaps item
 OPTIONAL_REPORTS = ("change", "contributors")  # M3 writes these; until then a missing file is a warning
 UNRENDERED_BLOCKS = ("overview",)  # overview.json's written blocks are no longer drawn; do not count what is not shown
 DIAGRAM_START = re.compile(r"^\s*(%%\{.*?\}%%\s*)?(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram(-v2)?|erDiagram|journey|gantt|pie|mindmap|timeline|gitGraph|quadrantChart|requirementDiagram|C4\w+|sankey-beta|xychart-beta|block-beta|architecture-beta)\b", re.S)

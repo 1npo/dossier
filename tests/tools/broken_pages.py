@@ -165,9 +165,44 @@ def inject_diagrams(html: str, diagrams: list) -> str:
     return html[:first.end()] + blocks + html[first.end():]
 
 
+def blast_data_removed(html: str) -> str:
+    """The blast radius picker's data is gone."""
+    out = re.sub(r'<script type="application/json" id="blast-data">.*?</script>', "", html, count=1, flags=re.S)
+    if out == html:
+        raise ValueError("the page has no blast-data")
+    return out
+
+
+def _table_span(html: str, tid: str):
+    start = html.index(f'id="{tid}"')
+    return start, html.index("</tbody>", start)
+
+
+def hotspot_row_removed(html: str) -> str:
+    """The last row of the hotspot file table is not drawn."""
+    start, end = _table_span(html, "t-change-hotspots-files")
+    return html[:html.rindex("<tr>", start, end)] + html[end:]
+
+
+def chart_text_small(html: str) -> str:
+    """The text in the hotspot scatter is 6 px."""
+    start = html.index('<div class="chart-scroll">')
+    end = html.index("</div>", start)
+    return html[:start] + html[start:end].replace('font-size="12"', 'font-size="6"') + html[end:]
+
+
+def workflow_table_to_text(html: str) -> str:
+    """The team workflow table is replaced by a sentence."""
+    start = html.index('id="t-contributors-workflow"')
+    box = html.rindex('<div class="table-container', 0, start)
+    end = html.index("</table></div>", start) + len("</table></div>")
+    return html[:box] + "<p>The workflow is described here in words.</p>" + html[end:]
+
+
 MUTATIONS = {"km-row-taller": km_row_taller, "wide-element": wide_element, "icon-unsized": icon_unsized, "tiny-diagram": tiny_diagram, "flow-no-notes": flow_no_notes,
              "overlap": overlap, "table-hidden": table_hidden, "drop-row": drop_row, "drop-column": drop_column, "table-as-text": table_as_text, "entry-no-kv": entry_no_kv,
-             "drop-entry": drop_entry, "drop-er-field": drop_er_field, "conflict-css": conflict_css, "no-js-sentinel": no_js_sentinel, "big-diagrams": big_diagrams, "wide-tables": wide_tables}
+             "drop-entry": drop_entry, "drop-er-field": drop_er_field, "conflict-css": conflict_css, "no-js-sentinel": no_js_sentinel, "big-diagrams": big_diagrams, "wide-tables": wide_tables, "blast-data-removed": blast_data_removed, "hotspot-row-removed": hotspot_row_removed,
+             "chart-text-small": chart_text_small, "workflow-table-to-text": workflow_table_to_text}
 
 
 def mutate(html: str, name: str, **kw) -> str:

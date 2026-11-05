@@ -387,6 +387,33 @@ def check_report(page, scheme, rid, shots, counter):
     return problems
 
 
+def check_blast(page, scheme):
+    """V12 on the blast radius picker: picking a file lists as many dependents, tests and co-changing files as its table row says."""
+    page.evaluate("() => { location.hash = 'change'; }")
+    page.wait_for_timeout(200)
+    if not page.query_selector("#blast-pick"):
+        return []
+    if not page.query_selector("#blast-data"):
+        return [f"[{scheme}] change.blast-radius: the picker has no data to work from"]
+    rows = page.eval_on_selector_all("#t-change-blast-radius tbody tr[data-file]",
+                                     "trs => trs.map(t => [t.dataset.file].concat(Array.from(t.cells).slice(3, 6).map(c => c.textContent.trim())))")
+    problems = []
+    count = lambda sel: page.eval_on_selector_all(sel, "els => els.length")
+    picks = [r for r in rows if r[1].isdigit() and int(r[1]) > 0][:3]
+    for idx, dependents, tests, co in picks:
+        page.select_option("#blast-pick", idx)
+        for sel, want, what in (("#blast-dependents li", dependents, "dependents"), ("#blast-tests li", tests, "tests"), ("#blast-co li", co, "co-changing files")):
+            got = count(sel)
+            if str(got) != want:
+                problems.append(f"[{scheme}] change.blast-radius: picking file {idx} lists {got} {what}, its table row says {want}")
+    if page.query_selector("#blast-pick optgroup[label='Components'] option"):
+        page.select_option("#blast-pick", "c0")
+        shown, listed = page.inner_text("#blast-n-dependents"), count("#blast-dependents li")
+        if shown != str(listed):
+            problems.append(f"[{scheme}] change.blast-radius: picking a component lists {listed} dependents but says {shown}")
+    return problems
+
+
 def check_theme(browser, path, scheme, shots):
     problems = []
     ctx = browser.new_context(color_scheme=scheme, viewport={"width": 1500, "height": 1000})
@@ -412,6 +439,7 @@ def check_theme(browser, path, scheme, shots):
     problems += safe(scheme, "code viewer", check_viewer, page, scheme, shots)
     problems += safe(scheme, "knowledge map", check_knowledge, page, scheme)
     problems += safe(scheme, "search", check_search, page, scheme)
+    problems += safe(scheme, "blast radius", check_blast, page, scheme)
     problems += [f"[{scheme}] browser error: {e}" for e in errors]
     ctx.close()
     return problems, counter[0]

@@ -218,3 +218,75 @@ class TestLayoutChecks:
         got = self.probe(rendered_page, tmp_path, "table-hidden", cards=set(check_layout.table_cards()))
 
         assert any("the card shows no table" in g for g in got)
+
+
+import m3_page  # noqa: E402
+
+
+@pytest.fixture(scope="module")
+def m3(tmp_path_factory):
+    """A page holding every M3 card, built once: (page, env, facts, reports, extract)."""
+    base = tmp_path_factory.mktemp("m3")
+    page = m3_page.make(base)
+    env = {**os.environ, "DOSSIER_HOME": str(base / "home"), "DOSSIER_CONFIG": str(base / "cfg.json"), "DOSSIER_CACHE": str(base / "cache")}
+    return page, env
+
+
+def fails(done):
+    return [line for line in done.stdout.splitlines() if line.startswith("FAIL")]
+
+
+def new_card_fails(lines):
+    return [line for line in lines if "change." in line or "contributors." in line]
+
+
+class TestNewCardsOnTheM3Page:
+    def test_the_browser_check_names_no_new_card(self, m3):
+        page, env = m3
+
+        done = check(page, env)
+
+        assert new_card_fails(fails(done)) == [], done.stdout[-1500:]
+
+    def test_the_page_audit_accepts_every_new_card(self, m3):
+        import candidates
+        import page_audit
+        import render
+
+        page, _ = m3
+        out = page.parent
+        facts = json.loads((out / "facts.json").read_text())
+        facts["dependencies"] = json.loads((out / "dependencies.json").read_text())
+        reports = {p.stem: json.loads(p.read_text()) for p in (out / "reports").glob("*.json")}
+        extract = candidates.load(out)
+        measured = render.measured_ctx({"cites": render.Cites(facts), "extract": extract}, reports, facts)
+
+        errs = page_audit.audit(page.read_text(), reports, extract, facts, measured=measured)
+
+        assert [e for e in errs if "change." in e or "contributors." in e] == []
+
+    def test_a_missing_hotspot_row_is_reported_by_the_page_audit(self, m3):
+        import candidates
+        import page_audit
+        import render
+
+        page, _ = m3
+        out = page.parent
+        facts = json.loads((out / "facts.json").read_text())
+        facts["dependencies"] = json.loads((out / "dependencies.json").read_text())
+        extract = candidates.load(out)
+        measured = render.measured_ctx({"cites": render.Cites(facts), "extract": extract}, {}, facts)
+
+        errs = page_audit.audit(broken_pages.mutate(page.read_text(), "hotspot-row-removed"), {}, extract, facts, measured=measured)
+
+        assert any("t-change-hotspots-files" in e for e in errs)
+
+    @pytest.mark.parametrize("mutation, wanted", [("blast-data-removed", "blast"), ("chart-text-small", "chart text"), ("workflow-table-to-text", "contributors.workflow")])
+    def test_each_browser_mutation_makes_a_fail(self, m3, tmp_path, mutation, wanted):
+        page, env = m3
+        broken = tmp_path / "broken.html"
+        broken.write_text(broken_pages.mutate(page.read_text(), mutation))
+
+        done = check(broken, env)
+
+        assert done.returncode == 1 and any(wanted in line for line in fails(done)), done.stdout[-1500:]

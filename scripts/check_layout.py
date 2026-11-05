@@ -5,7 +5,7 @@ For each report, at each window size, in each theme, one script runs in the page
   - the page does not scroll sideways, and no element sticks out of the window except inside a scroll container (an element
     that a parent clips without letting it scroll counts as sticking out: the reader cannot reach it);
   - no icon is drawn larger than 48 px;
-  - every piece of text in every diagram is at least 11 px tall;
+  - every piece of text in every diagram, and in every chart (`.chart-scroll`), is at least 11 px tall;
   - diagram budgets: at most 12 nodes in a flowchart, 10 participants in a sequence diagram, 12 entities in an ER diagram
     (the diagrams code splits into areas are exempt: they are marked data-budget="area");
   - every flow diagram of Key flows and Startup has numbered notes under it;
@@ -24,7 +24,10 @@ NOTE_CARDS = ("interactions.flows", "entry.startup")
 # Report 02 keeps its pre-1.0 layout (plan 008, A6), and at 400 px its heat-map legend is cut off 15 px short of the end. The sideways check
 # skips these cards so that a dossier can pass; every other check still applies to them. Recorded for the author in plan 008, Results.
 FROZEN_CARDS = "overview."
-SCROLLERS = ".table-container, .mermaid-host, .year-scroll, .km-scroller, pre, .code-panel"
+SCROLLERS = ".table-container, .mermaid-host, .year-scroll, .km-scroller, pre, .code-panel, .chart-scroll, .blast-list"
+# Cards that code draws with a table of their own (M3). One that holds `.none-found` is exempt: it says there is nothing to list.
+SCRIPT_TABLE_CARDS = ("change.cochange", "change.dead-code", "change.in-flight", "contributors.workflow", "change.upgrade-burden",
+                      "change.hotspots", "change.blast-radius")
 
 LAYOUT_JS = r"""(arg) => {
   const out = [], rep = document.querySelector('.report:not([hidden])'), vw = window.innerWidth;
@@ -87,6 +90,14 @@ LAYOUT_JS = r"""(arg) => {
     if (kind.startsWith('er') && count('g.node') > arg.maxEntities) add(dia, cardOf(host) + ' / ' + title + ': ' + count('g.node') + ' entities (at most ' + arg.maxEntities + ')', 6);
   }
   out.push(...dia);
+  const chart = [];
+  for (const svg of rep.querySelectorAll('.chart-scroll svg')) {
+    for (const t of svg.querySelectorAll('text')) {
+      const h = t.getBoundingClientRect().height;
+      if (h > 0 && h < arg.minText) { add(chart, cardOf(svg) + ': chart text is ' + Math.round(h * 10) / 10 + ' px tall (at least ' + arg.minText + ' px)', 3); break; }
+    }
+  }
+  out.push(...chart);
   // 5. numbered notes under every flow
   for (const id of arg.noteCards) {
     const card = rep.querySelector('[data-card="' + id + '"]');
@@ -99,7 +110,7 @@ LAYOUT_JS = r"""(arg) => {
   // 6. cards with a table show one
   for (const id of arg.tableCards) {
     const card = rep.querySelector('[data-card="' + id + '"]');
-    if (!card || /Not yet generated|Not applicable/.test(card.textContent)) continue;
+    if (!card || /Not yet generated|Not applicable/.test(card.textContent) || card.querySelector('.none-found')) continue;
     const t = card.querySelector('table.table:not(.kv)');
     if (!t || !ok(t)) out.push(id + ': the card shows no table');
   }
@@ -125,8 +136,9 @@ LAYOUT_JS = r"""(arg) => {
 
 def table_cards() -> list:
     """The cards written by Claude whose layout has a table that must be there when the card has content."""
-    return [c["id"] for sch in schema.load_all().values() for c in sch["cards"]
-            if c["shape"] == "blocks" and c["writer"] == "claude" and any(s["type"] == "table" and s.get("min", 1) for s in c.get("slots") or [])]
+    authored = [c["id"] for sch in schema.load_all().values() for c in sch["cards"]
+                if c["shape"] == "blocks" and c["writer"] == "claude" and any(s["type"] == "table" and s.get("min", 1) for s in c.get("slots") or [])]
+    return authored + list(SCRIPT_TABLE_CARDS)
 
 
 def arguments() -> dict:

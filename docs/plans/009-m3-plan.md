@@ -544,7 +544,7 @@ Read section 2, section 3, D1 to D6, D9, D16, D17 and D18. Load the skills in se
   - Done-check: the test file passes, and `python3 -c "import json;d=json.load(open('scripts/eol.json'));print(d['as_of'],sorted(d['products']))"` prints a date and the five products.
   - Commit: `feat(dossier): draw upgrade burden from an end-of-life snapshot`
 
-- [ ] **M3-14. V11 and V12 on the new cards, and a test page.**
+- [x] **M3-14. V11 and V12 on the new cards, and a test page.**
   - Goal: D6.
   - Files: `scripts/page_audit.py`, `scripts/render.py` (`CUT_CARDS = ()`), `scripts/check_layout.py`, `scripts/check_page.py`, `tests/tools/m3_page.py`, `tests/tools/broken_pages.py`, `tests/fixtures/m3page/` (`history.json`, `graph.json`, `tests.json`, `dead.json`, `change.json`, `contributors.json`), `tests/unit/scripts/test_page_audit.py`, `tests/integration/scripts/test_check_page_slow.py`.
   - Interface: `m3_page.make(tmp) -> Path` copies `FIX` to a temporary home, adds those files, runs `render --allow-errors`, and returns the page. The fixture reports cite only `facts:` keys. Paths in the fixture data are real paths of `FIX`'s repository at its commit. Give it enough rows to make a table taller than 40 rows and an over-wide row, so the layout checks mean something.

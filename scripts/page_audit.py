@@ -8,10 +8,15 @@ It never imports `render` at module level (render calls it).
 from __future__ import annotations
 
 import json
+import re
 from html.parser import HTMLParser
 
 import buildlog
+import components
+import measured_blast
+import measured_change
 import measured_er
+import measured_upgrade
 import schema
 
 VOID = frozenset("area base br col embed hr img input link meta param source track wbr".split())
@@ -172,7 +177,76 @@ def _drawn_counts(extract, build) -> dict:
     return out
 
 
-def audit(page: str, reports: dict, extract=None, facts=None, whole_page=True, build=None) -> list:
+HOTSPOT_FILES = ["File", "Component", "Commits (12 months)", "Commits (all)", "Lines", "Complexity", "Last changed", "Source"]
+HOTSPOT_COMPONENTS = ["Component", "Files", "File changes (12 months)", "Lines", "Complexity"]
+BLAST_COLUMNS = ["File", "Component", "Direct dependents", "All dependents", "Importing tests", "Co-changing files"]
+
+
+def _measured_counts(m) -> dict:
+    """card id -> [(table id, rows the source has, the columns it must start with)] for the cards code draws from the history (M3)."""
+    extract = m.get("extract") or {}
+    out = {}
+    if not measured_change.has_history(m):
+        return out
+    files = components.source_files(m.get("tree"), extract)
+    if files:
+        out["change.hotspots"] = [("t-change-hotspots-files", len(files), HOTSPOT_FILES),
+                                  ("t-change-hotspots-components", len(m.get("catalog") or []), HOTSPOT_COMPONENTS)]
+    out["change.cochange"] = [("t-change-cochange", len(measured_change.pair_rows(m)), ["A", "B", "Co-commits", "Share", "Linked in code?", "Source"])]
+    if "dead" in extract or "graph" in extract:
+        out["change.dead-code"] = [("t-change-dead-code", len(measured_change.dead_rows(extract, (m.get("facts") or {}).get("dependencies"))),
+                                    ["Item", "Kind", "Evidence", "Source"])]
+    out["change.in-flight"] = [("t-change-in-flight", len(measured_change.history_items(m, "branch")), ["Branch", "Last commit", "Ahead/behind", "Author", "Source"])]
+    blast = measured_blast.data(m)
+    if blast:
+        out["change.blast-radius"] = [("t-change-blast-radius", len(blast["files"]), BLAST_COLUMNS)]
+    work = len(measured_change.history_items(m, "workflow"))
+    if work:
+        out["contributors.workflow"] = [("t-contributors-workflow", work, ["Convention", "Observed", "Evidence", "Source"])]
+    out["change.upgrade-burden"] = [("t-change-upgrade-burden", len(measured_upgrade.rows(m)), ["Runtime or package", "Pinned", "Latest or supported", "Gap", "Source"])]
+    return out
+
+
+def _check_measured(cards: dict, m, page: str) -> list:
+    errs = []
+    for cid, tables in _measured_counts(m).items():
+        if cid not in cards:
+            continue
+        card = cards[cid][0]
+        if "Not yet generated" in card.text():
+            continue    # reported once, by the rule on change and contributors cards
+        for tid, rows, cols in tables:
+            found = card.find("table", id=tid)
+            if rows == 0:
+                if found:
+                    errs.append(f"V11: {cid}: the table {tid} is drawn although the source has nothing to list.")
+                if not card.find(cls="none-found"):
+                    errs.append(f"V11: {cid}: the source has nothing to list for {tid}, and the card does not say so.")
+                continue
+            if not found:
+                errs.append(f"V11: {cid}: the table {tid} is not drawn.")
+                continue
+            errs += _check_table(cid, tid, found[0], cols, rows, False)
+    if "change.blast-radius" in cards and any(t[0] == "t-change-blast-radius" for t in _measured_counts(m).get("change.blast-radius", [])):
+        want = _measured_counts(m)["change.blast-radius"][0][1]
+        raw = re.search(r'<script type="application/json" id="blast-data">(.*?)</script>', page, re.S)
+        try:
+            got = len(json.loads(raw.group(1).replace("<\\/", "</"))["files"]) if raw else None
+        except (ValueError, KeyError, TypeError):
+            got = None
+        if got != want:
+            errs.append(f"V11: change.blast-radius: blast-data holds {got} files, expected {want}.")
+    return errs
+
+
+def _check_unfinished(cards: dict) -> list:
+    import render  # late: render calls this module
+
+    return [f"V11: {cid}: the card still says 'Not yet generated'." for cid, v in sorted(cards.items())
+            if cid.startswith(("change.", "contributors.")) and cid not in render.CUT_CARDS and "Not yet generated" in v[0].text()]
+
+
+def audit(page: str, reports: dict, extract=None, facts=None, whole_page=True, build=None, measured=None) -> list:
     """V11 errors for the page `page` (or any HTML holding the cards): [] when it draws everything its sources hold."""
     root = parse(page)
     cards: dict = {}
@@ -203,4 +277,7 @@ def audit(page: str, reports: dict, extract=None, facts=None, whole_page=True, b
                 errs.append(f"V11: {cid}: the table {tid} is not drawn.")
             elif len(_rows(table[0])) != rows:
                 errs.append(f"V11: {cid}: the table has {len(_rows(table[0]))} rows, expected {rows}.")
+    errs += _check_unfinished(cards)
+    if measured is not None:
+        errs += _check_measured(cards, measured, page)
     return errs

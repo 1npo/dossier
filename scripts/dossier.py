@@ -431,7 +431,8 @@ def cmd_render(a):
         return render.render_html(facts, reports, state, history, VERSION, cites, build=records, coverage=coverage, extract=extract, checks=res)[0]
 
     page = draw(shown)
-    v11 = page_audit.audit(page, reports, extract, facts, build=shown)
+    v11 = page_audit.audit(page, reports, extract, facts, build=shown,
+                           measured=render.measured_ctx({"cites": cites, "extract": extract}, reports, facts))
     for line in v11:
         print(f"error: {line}")
     if build:
@@ -490,7 +491,14 @@ def cmd_check(a):
         die(f"There is no page at {html}. Run render first.")
     reports = {rid: load(out / "reports" / f"{rid}.json") for rid, _, authored in render.REPORTS
                if authored and (out / "reports" / f"{rid}.json").exists()}
-    audit = page_audit.audit(html.read_text(encoding="utf-8"), reports, candidates.load(out), load(out / "facts.json"), build=buildlog.load(out))
+    facts = load(out / "facts.json")
+    extract = candidates.load(out)
+    try:
+        facts["dependencies"] = load(out / "dependencies.json")
+        measured = render.measured_ctx({"cites": render.Cites(facts), "extract": extract}, reports, facts)
+    except Exception:  # noqa: BLE001 - a repository that cannot be opened here: the new cards are then not counted
+        measured = None
+    audit = page_audit.audit(html.read_text(encoding="utf-8"), reports, extract, facts, build=buildlog.load(out), measured=measured)
     for line in audit:
         print(f"FAIL {line}")
     code, text = run_browser_check(html, out)
