@@ -1,6 +1,6 @@
 # dossier 1.0.0 specification
 
-Status: draft for review. Amended on 2026-11-01 after the review of the M2 plan (`plans/007-m2-plan.md`, section 8); the amendments are listed in section 12 under "Settled in the M2 plan review". Supersedes the middle-report design in `prompts/reports.md` (everything between "This repository" and "Risks"). The decisions in plans 001 to 003 (renames, colours, card clean-ups, Dependencies card, gatherer terminology) still apply unless this document says otherwise.
+Status: draft for review. Amended on 2026-11-01 after the review of the M2 plan (`plans/007-m2-plan.md`, section 8); the amendments are listed in section 12 under "Settled in the M2 plan review". Amended again on 2026-11-05 after the review of the M3 plan (`plans/009-m3-plan.md`), listed under "Settled in the M3 plan review". Supersedes the middle-report design in `prompts/reports.md` (everything between "This repository" and "Risks"). The decisions in plans 001 to 003 (renames, colours, card clean-ups, Dependencies card, gatherer terminology) still apply unless this document says otherwise.
 
 ## 1. Purpose and boundaries
 
@@ -15,6 +15,7 @@ A map is not a mental model. The map orients the reader, and the model forms whe
 - Full extractor support for **Python, TypeScript/JavaScript (including React) and C#**. All other languages get Tier B support (section 6.3).
 - Build, test, run and deploy documentation as read from the repository.
 - A machine-readable `summary.json` for the future `portfolio` feature (section 9).
+- Who approved a merged pull request, read from GitHub with `gh`, used only to work out who owns a commit (4, "Who owns a commit"). All other pull request and issue content stays out of reach.
 
 ### Permanent non-goals
 
@@ -32,7 +33,7 @@ A map is not a mental model. The map orients the reader, and the model forms whe
 ## 2. Design principles
 
 1. **Tools find, Claude explains.** Anything that can be enumerated (entry points, routes, imports, I/O sites, models, tests) is extracted by a tool. Claude never has to remember it.
-2. **Candidate, adjudicate, reconcile.** For every candidate list, each candidate gets a recorded disposition: included, merged, or dismissed with a reason. Claude may add items the tool missed, marked as such. A candidate with no disposition fails the build. The candidate lists are entry points, input/output and related sites (`io_candidates`: inputs, outputs, state, concurrency, failure handling, observability, data-store connections) and data entities. Measured outputs are not candidate lists and are never pruned by a model: the import graph, symbols, test counts, dead code (drawn by code) and blind-spot hits (which go to Gaps). Neither are the computed suggestions for components, reading order and glossary terms, since V4 already reconciles components file by file. Each kind of candidate has one home card where it is decided (6.1); a decision on any other card counts too, and a candidate kept on one card and dismissed on another is an error.
+2. **Candidate, adjudicate, reconcile.** For every candidate list, each candidate gets a recorded disposition: included, merged, or dismissed with a reason. Claude may add items the tool missed, marked as such. A candidate with no disposition fails the build. The candidate lists are entry points, input/output and related sites (`io_candidates`: inputs, outputs, state, concurrency, failure handling, observability, data-store connections) and data entities. Measured outputs are not candidate lists and are never pruned by a model: the import graph, symbols, test counts, dead code (drawn by code) and blind-spot hits (which go to Gaps). Neither are the computed suggestions for components, reading order and glossary terms, since V4 already reconciles components file by file. Decision markers (`HACK`, `XXX`, workaround and bug-id comments) are a fourth candidate list, with `change.decisions` as their home card. Each kind of candidate has one home card where it is decided (6.1); a decision on any other card counts too, and a candidate kept on one card and dismissed on another is an error.
 3. **Three provenance tiers**, shown on every card as a small badge:
    - **M, measured:** tool output only, no model involved.
    - **A, adjudicated:** tool candidates, with Claude classifying, pruning, adding and explaining.
@@ -112,8 +113,10 @@ Their existing cards are part of the schema and of 1.0.0, with their content unc
 | `dossier.reports` | Reports in this dossier | M | One row per report, with its one-sentence headline and counts of confirmed, inferred and unknown statements | P0 |
 | `dossier.changelog` | Dossier changelog | M | One row per build | P0 |
 | `overview.repository` | Overview | M | Repository and project facts, releases, languages | P0 |
-| `overview.contributors` | Contributors | M | Contributor tiles, commit calendar, share-of-code bar, knowledge map, contributor table | P0 |
+| `overview.contributors` | Contributors | M | Contributor tiles, commit calendar, share-of-code bar, knowledge map, contributor table, and Owner and Author buttons (below) | P0 |
 | `overview.dependencies` | Dependencies | M | The interactive dependencies card | P0 |
+
+**Owner and Author buttons.** The Contributors card has a button group, Owner and Author. Author is selected when the page opens and shows the card as it has always been. Owner shows the tiles, the share-of-code bar and the contributor table by who owns each commit ("Who owns a commit", under report 13). The commit calendar and the knowledge map always show authors, and the Owner view says so. The buttons appear only when the build holds ownership data.
 
 The order of report 01 is: `dossier.about`, `dossier.process`, `dossier.questions`, `dossier.reports`, `dossier.changelog`.
 
@@ -219,7 +222,7 @@ Question: *Where is it safe to change, and how did it get here?*
 | Card id | Title | Tier | Shape | Source | P |
 |---|---|---|---|---|---|
 | `change.hotspots` | Hotspots | M | Table plus scatter: churn (commits, 12 months) versus size/complexity, by file and by component | git log, tree-sitter complexity proxy | P0 |
-| `change.cochange` | Co-change coupling | M | Table: A, B, Co-commits, Share, Linked in code? (yes/no) | git log with bulk-commit filter (`KNOWLEDGE_*` cap reused). Flags pairs with no import link | P0 |
+| `change.cochange` | Co-change coupling | M | Table: A, B, Co-commits, Share, Linked in code? (yes/no) | git log with bulk-commit filter (`gather.BULK_FILES`). Lists pairs with at least 3 co-commits and states how many pairs that leaves out. Flags pairs with no import link | P0 |
 | `change.blast-radius` | Blast radius | M | Interactive picker: choose a file or component, see its transitive dependents, importing tests and co-changing files | Reverse closure precomputed from the graph | P0 |
 | `change.unfinished` | Unfinished migrations | R | Table: Pattern, Old way, New way, Progress, Evidence | Claude, helped by candidates: duplicate abstractions, `legacy`/`v1`/`v2`/`deprecated`/`old` names, TODO density, mixed-style counts | P0 |
 | `change.decisions` | Decisions and oddities | A | Table: Item, Why (as far as known), Evidence, Source | ADRs, design docs, `HACK`/`XXX`/`workaround`/bug-ID comments, long commit messages on the file. Unknown reasons stay `unknown` | P0 |
@@ -251,7 +254,7 @@ Question: *How do I get it running and into production?*
 | `ops.config-secrets` | Configuration and secrets | A | Two tables: settings (Setting, Default, Overridden by) and secrets by name only (Secret, Unlocks, Supplied how). Never values | `facts:env_vars`, `facts:secret_signals`, config loaders | P0 |
 
 ### 13 Contributors
-In the code today, the Contributors card, the contributor knowledge map and the commit calendar render inside report 02 (`panel_contributors`, attached to the overview in `render.py`). They stay in 02 unchanged, together with the Dependencies card. Report 13 holds only the written interpretation, which currently has free-form headings. It moves to a fixed card set:
+In the code today, the Contributors card, the contributor knowledge map and the commit calendar render inside report 02 (`panel_contributors`, attached to the overview in `render.py`). They stay in 02, together with the Dependencies card, unchanged apart from the Owner and Author buttons. Report 13 holds only the written interpretation, which currently has free-form headings. It moves to a fixed card set:
 
 | Card id | Title | Tier | Shape | Source | P |
 |---|---|---|---|---|---|
@@ -261,6 +264,15 @@ In the code today, the Contributors card, the contributor knowledge map and the 
 | `contributors.agents` | Agents and bots | A | Table: Identity, Kind, Areas touched, Share of commits | Identity classification from `facts:contributors` | P0 |
 | `contributors.doubts` | Classification doubts | R | Table: Identity, Doubt, What would settle it | Claude. Shared accounts, unmerged identities, ambiguous bots | P0 |
 | `contributors.workflow` | Team workflow | M | Table: Convention, Observed, Evidence. Rows: branch naming and strategy, merge style, commit message style, typical PR size, review rate, release cadence | git log, merge-commit patterns | P0 |
+
+**Who owns a commit.** Every commit has an author (from git) and an owner. The rules apply in this order:
+
+1. If the repository has exactly one human contributor, that human owns every commit, whoever authored it.
+2. A commit authored by a human is owned by that human.
+3. A commit authored by an AI agent or a bot and merged through a pull request is owned by the human who approved the pull request: the last approving reviewer, or, with no approval, the human who merged it.
+4. Any other commit is owned by its author, even when that is an agent or a bot.
+
+Pull request data comes from `gh` (6.2). When `gh` cannot supply it, rule 3 does not apply, rule 4 does, and Gaps says so. Rule 1 needs no `gh` call. Report 13's owners, shares and bus factor use owners, not authors. A surviving line belongs to the owner of the commit that last changed it. The bus factor counts humans only.
 
 The old "Reading the knowledge map" text is dropped from this report. It explains a card that lives in 02, so it belongs in that card's help text.
 
@@ -317,7 +329,7 @@ These rules reduce the damage a bad install or build script can do. They are not
    - Proxy and certificate variables (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`, `SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE`, `NODE_EXTRA_CA_CERTS`).
    - Telemetry opt-outs (`DOTNET_CLI_TELEMETRY_OPTOUT`, `DOTNET_NOLOGO`).
 
-   Everything else is absent, including `SSH_AUTH_SOCK`, `GIT_*`, cloud credentials and any token, secret or connection-string variable. `build.json` records the names (never the values) of the variables passed.
+   Everything else is absent, including `SSH_AUTH_SOCK`, `GIT_*`, cloud credentials and any token, secret or connection-string variable. `build.json` records the names (never the values) of the variables passed. One exception: `gh` alone runs with `GH_CONFIG_DIR` pointing at the user's `gh` configuration folder, so it can read its own login. No token is passed as a variable, and no repository code runs in that step.
 2. **Private registry credentials are opt-in.** Restores from private feeds (npm, NuGet, a Python index) need credentials, and the scrubbed `HOME` hides your normal config. A `registry_auth` list in the dossier home config names the variables or config files to pass, per ecosystem. The default is empty. A restore that fails for authentication reports that reason in Gaps, with the setting to change.
 3. **Private caches.** Package caches live under `~/.local/cache/dossier/<repo>/cache/` (`UV_CACHE_DIR`, `npm_config_cache`, `NUGET_PACKAGES`, `DOTNET_CLI_HOME`, `PIP_CACHE_DIR`) and are never shared with your global caches or with other repositories. `npm_config_userconfig` points at an empty file. `dossier clean` removes the whole working area for the repository.
 4. **Trusted refs only, by default.** Restores and the Node and .NET extractors run without a flag only when the pinned ref is: a tag; the tip of the default branch (the branch `origin/HEAD` points to, else `main` or `master`); or a commit reachable from that branch. Any other ref (a feature branch, a pull-request ref, a fork) needs `--allow-ref`. Without it, those stages are skipped, the Python static extractors still run, and Gaps records the skip and the reason.
@@ -367,6 +379,7 @@ All tools run at pinned versions, recorded in 01 This dossier. Python tools run 
 | All | tree-sitter (`tree-sitter-language-pack`) | Symbols, structure, complexity proxy, rule queries | `uv` |
 | All | semgrep, with rules bundled under `rules/` | Routes, I/O sites, DI registration (where the language has a common container: C# and TS; Python has none), retries, timeouts. Feature flags are a blind-spot pattern (6.4), not an I/O category | `uv` |
 | All | git | History, blame, co-change | preflight check |
+| All | `gh` (optional) | Who approved a merged pull request (4, "Who owns a commit"), for GitHub repositories with more than one human contributor. Reads only; never required | preflight lists it as optional |
 | Python | grimp | Import graph, cycles | `uv` |
 | Python | vulture | Dead code | `uv` |
 | Python | import-linter config (read only) | Declared layer rules. import-linter itself is never run: dossier evaluates `layers` and `forbidden` contracts with grimp and lists every other contract type as "not checked" | parsed from repo config |
@@ -379,7 +392,7 @@ All tools run at pinned versions, recorded in 01 This dossier. Python tools run 
 | C# | `dotnet list package --include-transitive` | Packages (`deps.py` already adapts this) | .NET SDK |
 | C# | tree-sitter plus semgrep | Controllers, minimal APIs, DI registrations, EF models and migrations | `uv` |
 
-Preflight therefore expects on the host: `git` and `uv` always; Node and npm for any Python, JS or TS repo (scip-python and the JS tools run on Node); the .NET SDK for any C# repo. Everything else installs itself.
+Preflight therefore expects on the host: `git` and `uv` always; Node and npm for any Python, JS or TS repo (scip-python and the JS tools run on Node); the .NET SDK for any C# repo. Everything else installs itself. `gh` is optional: without it, or without a login, the build carries on and Gaps says commits by agents count for their authors.
 
 ### 6.3 Language tiers
 
@@ -440,6 +453,7 @@ languages: [{ name, tier, share }]
 extractors: [{ name, version, status: ok|partial|missing }]
 components: [{ id, name, paths, depends_on: [id], used_by: [id], size, owners: [contributor ids] }]
 entry_points: [{ kind, name, location }]
+contributors: [{ id, kind: human|agent|bot, name, username }]
 contracts: [{ name, direction: offered|consumed, counterparty, schema_path }]
 external_dependencies: [{ name, ecosystem, scope: runtime|dev, files_importing }]
 data_stores: [{ name, technology }]
@@ -448,6 +462,8 @@ ownership: { top_owner_share, bus_factor, at_risk_paths: [path] }
 change: { hotspots: [{ path, churn }], cochange_pairs_unlinked: n }
 gaps: { unknown, inference, assumption, coverage }
 ```
+
+`contributors` lists everyone in the history, plus any human who only approved pull requests. `id` is an opaque stable value that is the same in every repository for the same person, and `owners` holds these ids. `username` is the GitHub login when it is known, else null. No email address appears in this file. `owners` are the identities that own at least 20% of the component's lines. `top_owner_share` and `bus_factor` count humans only: the share is the largest human share of human-owned lines, and the bus factor is the smallest number of humans holding more than half of those lines. `at_risk_paths` are the paths of components whose status is `departed`.
 
 It is assembled from structures the reports already hold. `contracts` is the field that lets `portfolio` link repositories: it joins `offered` in one repo to `consumed` in another by counterparty and schema path.
 
@@ -480,7 +496,7 @@ Cut line: if time runs short, drop P1 cards first, then Tier B polish. Do not dr
 4. `doctor`, `--allow-missing`, `--no-restore`, `--allow-ref`, `--submodules` and `clean` work as specified, and a build with a tool removed produces the correct Gaps entries.
    Restore hygiene is tested with a fixture repository whose install script writes out its environment and working locations: only allowlisted variable names appear, `HOME` is the scratch directory, caches land under `~/.local/cache/dossier/<repo>/cache/`, a feature-branch ref is refused without `--allow-ref`, and a timed-out stage is killed and recorded.
 5. The card skeleton of a small repository and of your largest one are identical. Only content volume differs.
-5. `summary.json` validates and contains no field the reports do not already hold.
+5. `summary.json` validates and contains no field the reports do not already hold (`contributors.id` and `contributors.username` are identifiers, and are the one exception).
 6. Unit and integration tests cover the schema validator, the path filter, the candidate reconciliation, and each adapter's fixtures. `check_page.py` reports `"problems": 0` on all three dossiers.
 7. README, SKILL.md and the prompts describe the new design. No reference remains to the retired reports. `VERSION` is `1.0.0`.
 
@@ -520,3 +536,13 @@ Settled in the M2 plan review (2026-11-01; the numbers are the spec issues in `p
 
 24. **Candidate lists** (principle 2): dispositions are required for entry points, input/output and related sites, and data entities only; measured outputs and computed suggestions are exempt (issue 4).
 25. **Home cards:** each kind of candidate has one home card (6.1); a disposition anywhere counts, and kept-and-dismissed is an error (issue 5).
+
+Settled in the M3 plan review (2026-11-05):
+
+26. **Who owns a commit** follows the four rules under report 13. A human answers for what an agent does when they approved it, or when they are the only human on the project.
+27. **Owner and Author buttons** are added to the Contributors card in report 02, the one approved change to that card's look. Author stays the opening view.
+28. **`contributors`** is added to `summary.json`, with no email addresses (section 9).
+29. **`gh`** is an optional host tool. It reads pull request approvals only, and is the one tool given access to a login (5.4 rule 1).
+30. **`at_risk_paths`** means components whose status is `departed`.
+31. **Decision markers** are a fourth candidate list (principle 2); group ids may decide them.
+32. **Co-change** lists pairs with at least 3 co-commits. Fewer is chance, not coupling, so this is a definition rather than a cap (principle 7), and the card prints both counts.
