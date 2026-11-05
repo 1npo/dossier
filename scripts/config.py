@@ -8,7 +8,7 @@ import json
 import os
 from pathlib import Path
 
-DEFAULT_TIMEOUTS = {"restore": 900, "extract": 1800, "tool": 600, "history": 600}
+DEFAULT_TIMEOUTS = {"restore": 900, "extract": 1800, "tool": 600, "history": 600, "github": 300}
 
 
 def path() -> Path:

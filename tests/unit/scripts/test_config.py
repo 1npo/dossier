@@ -48,7 +48,7 @@ class TestTimeouts:
     def test_defaults_and_override(self):
         config.update(timeouts={"restore": 5})
 
-        assert config.timeouts() == {"restore": 5, "extract": 1800, "tool": 600, "history": 600}
+        assert config.timeouts() == {"restore": 5, "extract": 1800, "tool": 600, "history": 600, "github": 300}
 
     def test_bad_value_exits_with_message(self):
         config.update(timeouts={"restore": -1})

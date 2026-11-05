@@ -16,6 +16,7 @@ from typing import Iterator, NamedTuple
 import candidates
 import gather
 import markers
+import ownership
 import workflow
 
 RECENT_DAYS = gather.KNOWLEDGE_RECENT_DAYS
@@ -144,7 +145,7 @@ def _assistants(commits_by_label):
             for label, v in sorted(commits_by_label.items())]
 
 
-def collect(top, sha, run, handed, timeout) -> dict:
+def collect(top, sha, run, handed, timeout, github_cache=None, github_timeout=300) -> dict:
     """The envelope of `extract/history.json` (D2). `handed` is what `gather.collect` hands over; `run` is a bound `sandbox.run`."""
     as_of = datetime.fromisoformat(handed["as_of"]).astimezone(timezone.utc)
     canon, display, ctype = handed["canon"], handed["display"], handed["ctype"]
@@ -171,6 +172,14 @@ def collect(top, sha, run, handed, timeout) -> dict:
                 break
 
     folded = fold(commits, set(lines), cid_of, as_of, hook=hook)
+    types = {cid: ctype.get(cid, "human") for cid in set(folded.author_of.values()) | set(folded.people)}
+    prs, new_people, usernames, owner_status, owner_reason, prs_found = ownership.pull_requests(
+        folded, types, display, handed.get("remote"), run, {} if github_cache is None else github_cache, github_timeout)
+    types.update({i: "human" for i in new_people})
+    owner_by_sha = ownership.apply(folded, types, prs)
+    sole = ownership.sole_human_of(types)
+    owner_rule = "one-human" if sole else ("pull-requests" if prs else "authors")
+    blamed_commits = handed.get("blamed_commits") or {}
     shallow = bool(handed.get("shallow"))
     blame_total = sum(1 for n in lines.values() if n)
     blame_done = sum(1 for p, n in lines.items() if n and p in blamed)
@@ -181,24 +190,34 @@ def collect(top, sha, run, handed, timeout) -> dict:
               "commits_seen": len(commits), "commits_total": total, "shallow": shallow, "stopped_early": stopped,
               "blame_done": blame_done, "blame_total": blame_total, "as_of": _day(as_of),
               "window_from": _day(as_of - timedelta(days=RECENT_DAYS)), "pairs_total": len(folded.pairs),
-              "bulk_commits": len(folded.bulk), "owner_rule": "authors", "owner_status": "ok", "owner_reason": None, "prs_found": 0}]
+              "bulk_commits": len(folded.bulk), "owner_rule": owner_rule, "owner_status": owner_status, "owner_reason": owner_reason, "prs_found": prs_found}]
+    owned_lines = Counter()
     for path in sorted(folded.files):
         f = folded.files[path]
-        authors = dict(f["authors"])
+        owners = Counter(owner_by_sha.get(s, "") for s in f["shas"])
+        owner_lines = None
+        if path in blamed_commits:
+            owner_lines = Counter()
+            for csha, (author, n) in blamed_commits[path].items():
+                owner_lines[sole or owner_by_sha.get(csha) or author] += n
+            owned_lines.update(owner_lines)
+            owner_lines = dict(owner_lines)
         items.append({"kind": "file", "path": path, "lines": lines.get(path, 0), "commits": f["commits"], "commits_12m": f["commits_12m"],
                       "lines_changed": f["lines_changed"], "lines_changed_12m": f["lines_changed_12m"], "last_changed": _day(f["last_changed"]),
-                      "authors": authors, "blame": blamed.get(path), "owners": authors, "owner_lines": blamed.get(path)})
+                      "authors": dict(f["authors"]), "blame": blamed.get(path), "owners": dict(owners), "owner_lines": owner_lines})
     for (a, b), n in sorted(folded.pairs.items()):
         ca, cb = folded.files[a]["commits"], folded.files[b]["commits"]
         items.append({"kind": "pair", "path": a, "a": a, "b": b, "co_commits": n, "commits_a": ca, "commits_b": cb,
                       "share": round(100 * n / min(ca, cb))})
-    for cid in sorted(folded.people):
-        p = folded.people[cid]
-        items.append({"kind": "person", "path": "", "person": cid, "name": display.get(cid, cid), "type": ctype.get(cid, "human"),
-                      "commits": p["commits"], "commits_12m": p["commits_12m"], "assisted": assisted[cid],
-                      "first": _day(p["first"]), "last": _day(p["last"]),
+    plain = [c.sha for c in folded.commits if len(c.parents) <= 1]
+    owned_commits = Counter(owner_by_sha[s] for s in plain if s in owner_by_sha)
+    for cid in sorted(set(folded.people) | set(new_people)):
+        p = folded.people.get(cid)
+        items.append({"kind": "person", "path": "", "person": cid, "name": display.get(cid, new_people.get(cid, cid)), "type": types.get(cid, "human"),
+                      "commits": p["commits"] if p else 0, "commits_12m": p["commits_12m"] if p else 0, "assisted": assisted[cid],
+                      "first": _day(p["first"]) if p else None, "last": _day(p["last"]) if p else None,
                       "aliases": sorted(i for i, best in canon.items() if best == cid and i != cid),
-                      "owned_commits": p["commits"], "owned_lines": sum(b.get(cid, 0) for b in blamed.values()), "username": None})
+                      "owned_commits": owned_commits[cid], "owned_lines": owned_lines[cid], "username": usernames.get(cid)})
     default = workflow.default_branch(top, sha, run)
     items += workflow.rows(folded.commits, workflow.merge_sizes(top, sha, run, timeout), workflow.tags(top, sha, run), default)
     items += workflow.branches(top, sha, run, default)

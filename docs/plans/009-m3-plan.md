@@ -490,7 +490,7 @@ Read section 2, section 3, D1 to D6, D9, D16, D17 and D18. Load the skills in se
   - Done-check: the three test files pass, and `uv run scripts/dossier.py doctor --all` lists `gh` without failing when `gh` is hidden from `PATH`.
   - Commit: `feat(dossier): read pull request approvals with gh`
 
-- [ ] **M3-7. Commit owners.**
+- [x] **M3-7. Commit owners.**
   - Goal: D4's rules, per commit, file and line.
   - Files: `scripts/ownership.py`, `scripts/history.py`, `scripts/gather.py`, `tests/unit/scripts/test_ownership.py`, `tests/integration/scripts/test_history_git.py`, `tests/unit/scripts/test_gather.py`.
   - Interface: `ownership.owner_of(author, author_type, pr_owner, sole_human) -> id`; `ownership.apply(folded, people, prs) -> {sha: owner}`.

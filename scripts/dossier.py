@@ -282,9 +282,12 @@ def cmd_prepare(a):
             if state.get("last_sha") and state["last_sha"] != sha:
                 facts["delta"] = gather.delta(top, state["last_sha"], sha, state.get("snapshot"), facts)
             handed = facts.pop("history_input")
+            owners_cache = load(out / "github-owners.json", {}) or {}
             past = historyscan.collect(top, sha, functools.partial(sandbox.run, area=area, cwd=Path(top)), handed,
-                                       config.timeouts()["history"])
+                                       config.timeouts()["history"], owners_cache, config.timeouts()["github"])
             historyscan.write(out, past)
+            if owners_cache:
+                save(out / "github-owners.json", owners_cache)
             meta = historyscan.meta_of(past)
             facts["history"] = {k: meta[k] for k in ("status", "reasons", "commits_seen", "commits_total", "shallow", "as_of")}
             plan = update_plan(top, out, state, facts, prev_version, a.full, candidates.digests(candidates.load(out)))

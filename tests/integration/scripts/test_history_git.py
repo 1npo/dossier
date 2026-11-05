@@ -191,3 +191,74 @@ class TestShape:
             stripped.append(it)
 
         assert "@" not in json.dumps(stripped)
+
+
+def person(data, name):
+    return next(p for p in items(data, "person") if p["name"] == name)
+
+
+class TestOwnership:
+    def test_two_humans_and_no_github_remote_fall_back_to_authors_with_a_reason(self, world):
+        data = world()
+
+        meta = history.meta_of(data)
+        assert (meta["owner_rule"], meta["owner_status"], meta["owner_reason"]) == ("authors", "partial", "the repository is not on GitHub")
+        assert person(data, "Claude")["owned_commits"] == 1
+
+    def test_one_human_owns_everything_and_gh_is_never_called(self, world):
+        handed = {**world.facts["history_input"], "ctype": {**world.facts["history_input"]["ctype"], "bob@x.io": "agent"}}
+        calls = []
+
+        def run(cmd, **kw):
+            calls.append(cmd[0])
+            return world.run(cmd, **kw)
+
+        data = history.collect(world.top, world.sha, run, handed, 60)
+
+        assert history.meta_of(data)["owner_rule"] == "one-human" and "gh" not in calls
+        assert person(data, "Claude")["owned_commits"] == 0 and person(data, "Bob Ray")["owned_commits"] == 0
+        assert person(data, "Ann Lee")["owned_commits"] == sum(p["commits"] for p in items(data, "person"))
+        files = {f["path"]: f for f in items(data, "file")}
+        assert set(files["src/a.py"]["owners"]) == {"ann@x.io"} and set(files["src/a.py"]["owner_lines"]) == {"ann@x.io"}
+
+    def fake_gh(self, world, approver="ann-login"):
+        import json, re
+
+        def author_login(sha):
+            _, out = history.workflow.git(world.run, ["log", "-1", "--format=%ae", sha], 30)
+            return out.decode().split("@")[0] + "-login"
+
+        def run(cmd, **kw):
+            if cmd[0] != "gh":
+                return world.run(cmd, **kw)
+            query = cmd[-1]
+            shas = re.findall(r'c(\d+):object\(expression:"([0-9a-f]{40})"', query)
+            repo = {}
+            for i, sha in shas:
+                node = {"author": {"user": {"login": author_login(sha)}}}
+                if "associatedPullRequests" in query:
+                    node["associatedPullRequests"] = {"nodes": [{"number": int(i) + 1, "merged": True, "mergedBy": None,
+                                                                 "reviews": {"nodes": [{"author": {"login": approver, "__typename": "User"}}]}}]}
+                repo[f"c{i}"] = node
+            out = world.run(["true"], stage="fake", timeout=5, profile="tool")
+            out.stdout.write_text(json.dumps({"data": {"repository": repo}}))
+            return out
+        return run
+
+    def test_agent_and_bot_commits_belong_to_the_approver(self, world):
+        handed = {**world.facts["history_input"], "remote": {"web_base": "https://github.com/o/r"}}
+
+        data = history.collect(world.top, world.sha, self.fake_gh(world), handed, 60, {}, 60)
+
+        meta = history.meta_of(data)
+        assert (meta["owner_rule"], meta["owner_status"], meta["prs_found"]) == ("pull-requests", "ok", 2)
+        assert person(data, "Claude")["owned_commits"] == 0 and person(data, "Ann Lee")["owned_commits"] == 7
+        assert person(data, "Ann Lee")["username"] == "ann-login"
+
+    def test_an_approver_nobody_knows_becomes_a_person_with_no_commits(self, world):
+        handed = {**world.facts["history_input"], "remote": {"web_base": "https://github.com/o/r"}}
+
+        data = history.collect(world.top, world.sha, self.fake_gh(world, approver="stranger"), handed, 60, {}, 60)
+
+        stranger = next(p for p in items(data, "person") if p["person"] == "github:stranger")
+        assert (stranger["name"], stranger["type"], stranger["commits"], stranger["owned_commits"]) == ("stranger", "human", 0, 2)
