@@ -648,7 +648,7 @@ Read section 2, section 3, D7, D8, D10 to D14, and D16. Load the skills in secti
   - Done-check: both test files pass and block E prints `OK`.
   - Commit: `feat(dossier): fill measured contributor cells and state the bus factor`
 
-- [ ] **M3-19. Completeness of report 13.**
+- [x] **M3-19. Completeness of report 13.**
   - Goal: D7's checks.
   - Files: `scripts/checks_people.py`, `scripts/checks.py`, `scripts/process.py`, `tests/unit/scripts/test_checks_people.py`.
   - Steps: (1) One test per error line of D7. (2) Call from `checks.validate` inside `try`, as `v5_env` is. Add `v5_people` to the counts. (3) The process card's check line adds ` People and components: {n} missing.` when the count is present.

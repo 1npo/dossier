@@ -507,3 +507,15 @@ class TestHistoryPartialCards:
 
         assert got["contributors.concentration"] == "Made without pull request approvals: the repository is not on GitHub."
         assert "contributors.people" not in got
+
+
+class TestPeopleCheckLine:
+    def line(self, counts):
+        build = build_with(*[r for r in FULL if r["step"] != "check"], rec("check", part="render", by="render", counts=counts))
+        return row_of(process.process_body(build), "check")[2]
+
+    def test_missing_names_are_counted_when_the_check_ran(self):
+        assert " People and components: 3 missing." in self.line({"citations": 4, "unresolved": 0, "errors": 0, "v5_people": 3})
+
+    def test_the_line_is_left_out_when_the_check_did_not_run(self):
+        assert "People and components" not in self.line({"citations": 4, "unresolved": 0, "errors": 0})

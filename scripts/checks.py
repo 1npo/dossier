@@ -376,7 +376,7 @@ def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None)
     result["errors"] += env_errors
     result["counts"]["v5_env"] = len(env_errors)
     try:
-        people_errors = checks_people.risk_source(reports)
+        people_errors = checks_people.risk_source(reports) + checks_people.people(reports, extract or {}, components.catalog_rows(reports.get("components") or {}))
     except (AttributeError, TypeError, KeyError):
         people_errors = []
     result["errors"] += people_errors

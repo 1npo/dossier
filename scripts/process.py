@@ -109,6 +109,8 @@ def _ok_line(step, build):
             found += f" Names: {rc['v2']} not found in the code they cite."
         if "v3_checked" in rc:
             found += f" Diagram arrows: {rc.get('v3', 0)} of {rc['v3_checked']} have no import or call behind them."
+        if "v5_people" in rc:
+            found += f" People and components: {rc['v5_people']} missing."
         audit = buildlog.latest(build, "check", "audit")
         page = f" Page: {_plural((audit.get('counts') or {}).get('v11', 0), 'problem')}." if audit else ""
         return (f"{rc.get('citations', 0)} citations checked, {rc.get('unresolved', 0)} unresolved; "
