@@ -519,3 +519,29 @@ class TestPeopleCheckLine:
 
     def test_the_line_is_left_out_when_the_check_did_not_run(self):
         assert "People and components" not in self.line({"citations": 4, "unresolved": 0, "errors": 0})
+
+
+class TestSummaryLines:
+    def rows(self, v8):
+        records = [r for r in FULL if r["step"] not in ("check", "render")]
+        records += [rec("check", part="render", by="render", counts={"citations": 4, "unresolved": 0, "errors": 0})]
+        if v8 is not None:
+            records.append(rec("check", part="summary", by="render", counts={"v8": v8}))
+        records.append(rec("render", part="render", by="render"))
+        body = process.process_body(build_with(*records))
+        return row_of(body, "check")[2], row_of(body, "render")[2]
+
+    def test_a_clean_summary_is_reported_in_both_steps(self):
+        check, render_ = self.rows(0)
+
+        assert " Summary: 0 problems." in check and render_ == "Page and machine-readable summary written."
+
+    def test_problems_are_counted_and_the_file_is_said_to_be_missing(self):
+        check, render_ = self.rows(2)
+
+        assert " Summary: 2 problems." in check and render_ == "Page written. summary.json was not written: 2 problems."
+
+    def test_no_summary_record_leaves_both_lines_alone(self):
+        check, render_ = self.rows(None)
+
+        assert "Summary:" not in check and render_ == "Page and machine-readable summary written."

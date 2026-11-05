@@ -113,13 +113,19 @@ def _ok_line(step, build):
             found += f" People and components: {rc['v5_people']} missing."
         audit = buildlog.latest(build, "check", "audit")
         page = f" Page: {_plural((audit.get('counts') or {}).get('v11', 0), 'problem')}." if audit else ""
+        summary = buildlog.latest(build, "check", "summary")
+        page += f" Summary: {_plural((summary.get('counts') or {}).get('v8', 0), 'problem')}." if summary else ""
         return (f"{rc.get('citations', 0)} citations checked, {rc.get('unresolved', 0)} unresolved; "
                 f"layout check: {rc.get('errors', 0)} errors.{found}{page} {browser}")
     if step == "gaps":
         return (f"{sum(c.values())} open items: {c.get('unknown', 0)} unknown, {c.get('inference', 0)} inferred, "
                 f"{c.get('assumption', 0)} assumed, {c.get('coverage', 0)} coverage.")
     if step == "render":
-        return "Page written. The machine-readable summary is not produced in this version."
+        summary = buildlog.latest(build, "check", "summary")
+        bad = (summary.get("counts") or {}).get("v8", 0) if summary else 0
+        if bad:
+            return f"Page written. summary.json was not written: {_plural(bad, 'problem')}."
+        return "Page and machine-readable summary written."
     return ""
 
 

@@ -49,6 +49,7 @@ import resolve  # noqa: E402
 import sandbox  # noqa: E402
 import schema  # noqa: E402
 import stages  # noqa: E402
+import summary  # noqa: E402
 import toolcheck  # noqa: E402
 import workarea  # noqa: E402
 
@@ -444,10 +445,25 @@ def cmd_render(a):
     if v11 and not a.allow_errors:
         print(f"\n{len(v11)} error(s) in the drawn page. The page was not written. Fix the cause and render again.")
         sys.exit(1)
+    summary_doc = summary.build(facts, reports, extract, build, counts, VERSION, facts.get("dependencies"), cites.tree()[0],
+                                tools=candidates.tool_list(out))
+    v8 = summary.validate(summary_doc)
+    for line in v8:
+        print(f"error: {line}")
+    if build:
+        record = {"step": "check", "part": "summary", "by": "render", "status": "failed" if v8 else "ok",
+                  "reason": f"{len(v8)} problems in summary.json." if v8 else None, "counts": {"v8": len(v8)}}
+        buildlog.append(build_path, record)
+        shown["records"].append(record)
+        page = draw(shown)  # the process card now says what summary.json came to
+    if v8 and not a.allow_errors:
+        print(f"\n{len(v8)} error(s) in summary.json. The page was not written. Fix the reports and render again.")
+        sys.exit(1)
     if build:
         buildlog.append(build_path, pending)
     name_out = f"dossier-{name}.html"
     (out / name_out).write_text(page, encoding="utf-8")
+    summary.remove(out) if v8 else summary.write(out, summary_doc)
     state.update(history=history, last_sha=sha, snapshot=gather.snapshot(facts))
     state["extract_digests"] = {rid: dg for rid, dg in candidates.digests(extract).items() if rid in reports}
     state.pop("pending_update", None)

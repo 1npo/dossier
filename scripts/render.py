@@ -1619,8 +1619,8 @@ def panel_history(entries, refs):
                 group=[("", 4), ("Open items at that build", 3), ("", 2)]), "history", "Open items are the unknowns, inferences and assumptions listed in the gaps report at the time of each build.", cid="dossier.changelog")
 
 
-def panel_risk_counts(rep):
-    """One tile for each severity, so the tiles add up to the rows of the register, and one for the rows that rest on inference."""
+def risk_counts(rep):
+    """(rows per severity, rows in all, rows that rest on inference) of the register in a risks report."""
     counts = {s: 0 for s in SEVERITIES}
     total = inferred = 0
     for b in all_blocks(rep):
@@ -1632,6 +1632,12 @@ def panel_risk_counts(rep):
                 v = str(r["cells"][i]).strip().lower()
                 if v in counts:
                     counts[v] += 1
+    return counts, total, inferred
+
+
+def panel_risk_counts(rep):
+    """One tile for each severity, so the tiles add up to the rows of the register, and one for the rows that rest on inference."""
+    counts, total, inferred = risk_counts(rep)
     tiles = [(Raw(sev_badge(s.capitalize())), counts[s], "", f"sev-{SEV_TONE[s]}" + ("" if counts[s] else " zero")) for s in SEVERITIES]
     return stats_html(tiles + [("Based on inference", inferred, f"of the {total} risks have no direct evidence")])
 

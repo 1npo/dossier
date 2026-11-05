@@ -68,6 +68,28 @@ def load(out) -> dict:
     return loaded
 
 
+def tool_list(out) -> list:
+    """[{"name", "version", "status", "reason"}], one per tool named in any `extract/*.json` section. Status is ok, failed or skipped.
+
+    A tool named by several sections keeps its worst status. The version is empty for a tool that did not run.
+    """
+    rank = {"ok": 0, "failed": 1, "skipped": 2}
+    found: dict = {}
+    for f in sorted((Path(out) / "extract").glob("*.json")):
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+        except ValueError:
+            continue
+        for section in (data.get("adapters") or {}).values():
+            versions, status = section.get("tools") or {}, section.get("tool_status") or {}
+            for name in sorted(set(versions) | set(status)):
+                s = status.get(name) or {}
+                new = {"name": name, "version": str(versions.get(name) or ""), "status": s.get("status") or "ok", "reason": s.get("reason")}
+                if name not in found or rank.get(new["status"], 2) > rank.get(found[name]["status"], 2):
+                    found[name] = new
+    return sorted(found.values(), key=lambda t: t["name"])
+
+
 def by_id(extract: dict) -> dict:
     """Item ids and group ids -> item (a group maps to its first item)."""
     found = {}

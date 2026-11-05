@@ -1,0 +1,453 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "dossier summary",
+ "description": "The machine-readable summary the dossier writes next to its page (spec section 9). `portfolio` reads it.",
+ "type": "object",
+ "required": [
+  "schema_version",
+  "dossier_version",
+  "generated_at",
+  "repo",
+  "languages",
+  "extractors",
+  "components",
+  "entry_points",
+  "contributors",
+  "contracts",
+  "external_dependencies",
+  "data_stores",
+  "risks",
+  "ownership",
+  "change",
+  "gaps"
+ ],
+ "additionalProperties": false,
+ "properties": {
+  "schema_version": {
+   "type": "integer",
+   "enum": [
+    1
+   ]
+  },
+  "dossier_version": {
+   "type": "string"
+  },
+  "generated_at": {
+   "type": "string"
+  },
+  "repo": {
+   "type": "object",
+   "required": [
+    "name",
+    "remote",
+    "branch",
+    "sha",
+    "commit_date"
+   ],
+   "additionalProperties": false,
+   "properties": {
+    "name": {
+     "type": "string"
+    },
+    "remote": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "branch": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "sha": {
+     "type": "string"
+    },
+    "commit_date": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   }
+  },
+  "languages": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "name",
+     "tier",
+     "share"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "tier": {
+      "type": "string",
+      "enum": [
+       "A",
+       "B"
+      ]
+     },
+     "share": {
+      "type": "number",
+      "minimum": 0
+     }
+    }
+   }
+  },
+  "extractors": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "name",
+     "version",
+     "status"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "version": {
+      "type": "string"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "ok",
+       "partial",
+       "missing"
+      ]
+     }
+    }
+   }
+  },
+  "components": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "id",
+     "name",
+     "paths",
+     "depends_on",
+     "used_by",
+     "size",
+     "owners"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "paths": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "depends_on": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "used_by": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "size": {
+      "type": "integer",
+      "minimum": 0
+     },
+     "owners": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  },
+  "entry_points": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "kind",
+     "name",
+     "location"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "kind": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "location": {
+      "type": "string"
+     }
+    }
+   }
+  },
+  "contributors": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "id",
+     "kind",
+     "name",
+     "username"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "human",
+       "agent",
+       "bot"
+      ]
+     },
+     "name": {
+      "type": "string"
+     },
+     "username": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    }
+   }
+  },
+  "contracts": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "name",
+     "direction",
+     "counterparty",
+     "schema_path"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "direction": {
+      "type": "string",
+      "enum": [
+       "offered",
+       "consumed"
+      ]
+     },
+     "counterparty": {
+      "type": "string"
+     },
+     "schema_path": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    }
+   }
+  },
+  "external_dependencies": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "name",
+     "ecosystem",
+     "scope",
+     "files_importing"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "ecosystem": {
+      "type": "string"
+     },
+     "scope": {
+      "type": "string",
+      "enum": [
+       "runtime",
+       "dev"
+      ]
+     },
+     "files_importing": {
+      "type": "integer",
+      "minimum": 0
+     }
+    }
+   }
+  },
+  "data_stores": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "name",
+     "technology"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "technology": {
+      "type": "string"
+     }
+    }
+   }
+  },
+  "risks": {
+   "type": "object",
+   "required": [
+    "critical",
+    "high",
+    "medium",
+    "low",
+    "info"
+   ],
+   "additionalProperties": false,
+   "properties": {
+    "critical": {
+     "type": "integer",
+     "minimum": 0
+    },
+    "high": {
+     "type": "integer",
+     "minimum": 0
+    },
+    "medium": {
+     "type": "integer",
+     "minimum": 0
+    },
+    "low": {
+     "type": "integer",
+     "minimum": 0
+    },
+    "info": {
+     "type": "integer",
+     "minimum": 0
+    }
+   }
+  },
+  "ownership": {
+   "type": "object",
+   "required": [
+    "top_owner_share",
+    "bus_factor",
+    "at_risk_paths"
+   ],
+   "additionalProperties": false,
+   "properties": {
+    "top_owner_share": {
+     "type": [
+      "integer",
+      "null"
+     ],
+     "minimum": 0
+    },
+    "bus_factor": {
+     "type": [
+      "integer",
+      "null"
+     ],
+     "minimum": 0
+    },
+    "at_risk_paths": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    }
+   }
+  },
+  "change": {
+   "type": "object",
+   "required": [
+    "hotspots",
+    "cochange_pairs_unlinked"
+   ],
+   "additionalProperties": false,
+   "properties": {
+    "hotspots": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "required": [
+       "path",
+       "churn"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "path": {
+        "type": "string"
+       },
+       "churn": {
+        "type": "integer",
+        "minimum": 0
+       }
+      }
+     }
+    },
+    "cochange_pairs_unlinked": {
+     "type": "integer",
+     "minimum": 0
+    }
+   }
+  },
+  "gaps": {
+   "type": "object",
+   "required": [
+    "unknown",
+    "inference",
+    "assumption",
+    "coverage"
+   ],
+   "additionalProperties": false,
+   "properties": {
+    "unknown": {
+     "type": "integer",
+     "minimum": 0
+    },
+    "inference": {
+     "type": "integer",
+     "minimum": 0
+    },
+    "assumption": {
+     "type": "integer",
+     "minimum": 0
+    },
+    "coverage": {
+     "type": "integer",
+     "minimum": 0
+    }
+   }
+  }
+ }
+}

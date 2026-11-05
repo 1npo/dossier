@@ -662,7 +662,7 @@ Read section 2, section 3, D7, D8, D10 to D14, and D16. Load the skills in secti
   - Done-check: both test files pass.
   - Commit: `feat(dossier): mark reports 10 and 13 stale when their findings change`
 
-- [ ] **M3-21. `summary.json` and V8 in `render`.**
+- [x] **M3-21. `summary.json` and V8 in `render`.**
   - Goal: D10 and D11.
   - Files: `scripts/summary.py`, `prompts/summary.schema.json`, `scripts/dossier.py`, `scripts/render.py`, `scripts/process.py`, `tests/unit/scripts/test_summary.py`, `tests/integration/scripts/test_summary_schema_slow.py`.
   - Steps: (1) Tests: each field from hand-built reports; `na` cards give empty lists; a bad Direction gives one V8 line; a missing required key gives one V8 line; an unknown schema keyword raises; `plain` strips citations; `contributors` has one object per `person` with the right `kind` and `username`; every `owners` value is a contributor `id`; no `@` appears in the file; `at_risk_paths` holds only `departed` components. (2) Write the schema from spec section 9, field for field, plus `contributors` (D10). (3) Move risk counting into `render.risk_counts`. (4) Wire `cmd_render` as D11 says. (5) Slow test: `uv run --with jsonschema==4.26.0 python -c ...` validates a built summary with `Draft202012Validator`, and it agrees with `summary.validate` on one good and three bad documents.
