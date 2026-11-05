@@ -443,7 +443,7 @@ Read section 2, section 3, D1 to D6, D9, D16, D17 and D18. Load the skills in se
 
 ### Tasks (Phase 1)
 
-- [ ] **M3-1. History parser.**
+- [x] **M3-1. History parser.**
   - Goal: turn the log output into commits, following renames.
   - Files: `scripts/history.py`, `tests/unit/scripts/test_history.py`.
   - Interface: `parse_log(data: bytes) -> Iterator[Commit]` with `Commit(sha, name, email, date, parents, message, entries)`, entries as `(added, deleted, old, new)`. `fold(commits, wanted, cid_of, as_of, bulk_files) -> Folded` with per-file figures, pair counter, people and bulk list.
