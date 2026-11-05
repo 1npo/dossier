@@ -459,7 +459,7 @@ Read section 2, section 3, D1 to D6, D9, D16, D17 and D18. Load the skills in se
   - Done-check: `uv run --with pytest --with pygments python -m pytest tests/integration/scripts/test_history_git.py tests/unit/scripts/test_gather.py -q` passes, and `grep -c history_input scripts/dossier.py` prints at least 1.
   - Commit: `feat(dossier): write uncapped git history to extract/history.json`
 
-- [ ] **M3-3. Workflow rows and branches.**
+- [x] **M3-3. Workflow rows and branches.**
   - Goal: the six rows and the branch list, from git only.
   - Files: `scripts/workflow.py`, `scripts/history.py`, `tests/unit/scripts/test_workflow.py`, `tests/integration/scripts/test_history_git.py`.
   - Interface: `workflow.rows(commits, merge_sizes, tags, default_branch) -> list[dict]`; `workflow.branches(top, sha, run) -> list[dict]`; `workflow.merge_sizes(top, sha, run) -> dict`.

@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Iterator, NamedTuple
 
 import gather
+import workflow
 
 RECENT_DAYS = gather.KNOWLEDGE_RECENT_DAYS
 
@@ -129,9 +130,7 @@ def _read(res):
         res.stdout.unlink(missing_ok=True)
 
 
-def _git(run, args, timeout, stage="history"):
-    res = run(["git", *args], stage=stage, timeout=timeout, profile="tool")
-    return res, _read(res)
+_git = workflow.git
 
 
 def _day(dt):
@@ -198,6 +197,9 @@ def collect(top, sha, run, handed, timeout) -> dict:
                       "first": _day(p["first"]), "last": _day(p["last"]),
                       "aliases": sorted(i for i, best in canon.items() if best == cid and i != cid),
                       "owned_commits": p["commits"], "owned_lines": sum(b.get(cid, 0) for b in blamed.values()), "username": None})
+    default = workflow.default_branch(top, sha, run)
+    items += workflow.rows(folded.commits, workflow.merge_sizes(top, sha, run, timeout), workflow.tags(top, sha, run), default)
+    items += workflow.branches(top, sha, run, default)
     for b in folded.bulk:
         items.append({"kind": "bulk", "path": "", **{**b, "author": display.get(b["author"], b["author"])}})
     items += _assistants(labelled)

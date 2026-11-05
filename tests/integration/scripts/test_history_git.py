@@ -79,3 +79,39 @@ class TestCollect:
         history.write(tmp_path / "out", data)
 
         assert len(candidates.load(tmp_path / "out")["history"]) == len(history.items_of(data))
+
+
+class TestWorkflowAndBranches:
+    def test_six_workflow_rows_in_spec_order(self, world):
+        rows = items(world(), "workflow")
+
+        assert [r["convention"] for r in rows] == ["branch naming and strategy", "merge style", "commit message style",
+                                                  "typical PR size", "review rate", "release cadence"]
+        assert rows[0]["observed"] == "Default branch main. Most common prefixes: feat (1)."
+        assert rows[5]["observed"] == "One tag." and rows[5]["evidence"] == "Newest tag v1.0 on 2025-07-01."
+
+    def test_merge_size_is_measured_against_the_first_parent(self, world):
+        row = items(world(), "workflow")[3]
+
+        assert row["observed"] == "About 1 files and 1 changed lines per merge (median)."
+
+    def test_remote_branch_has_ahead_and_behind_against_the_pinned_commit(self, world):
+        branches = items(world(), "branch")
+
+        assert [(b["ref"], b["ahead"], b["behind"], b["remote"]) for b in branches] == [("origin/feat-y", 0, 1, True)]
+        assert branches[0]["author"] == "Bob Ray"
+
+    def test_head_and_default_branch_refs_are_left_out(self, world):
+        world.run(["git", "update-ref", "refs/remotes/origin/main", world.sha], stage="t", timeout=30, profile="tool")
+        world.run(["git", "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"], stage="t", timeout=30, profile="tool")
+
+        branches = items(world(), "branch")
+
+        assert [b["ref"] for b in branches] == ["origin/feat-y"]
+
+    def test_local_branches_are_used_only_when_there_are_no_remote_ones(self, world):
+        world.run(["git", "update-ref", "-d", "refs/remotes/origin/feat-y"], stage="t", timeout=30, profile="tool")
+
+        branches = items(world(), "branch")
+
+        assert [(b["ref"], b["remote"]) for b in branches] == [("feat/x", False)]

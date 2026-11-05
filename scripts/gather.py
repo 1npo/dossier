@@ -629,6 +629,11 @@ def parse_commit(rec):
     meta = head.decode("utf-8", "replace").strip().split("\x1f")
     if len(meta) < 4:
         return None
+    return (*meta[:4], parse_numstat(rest))
+
+
+def parse_numstat(rest):
+    """The `-z --numstat` part of a log record: [(added, deleted, old path or None, path)]."""
     toks, entries, i = rest.decode("utf-8", "replace").lstrip("\n").split("\0"), [], 0
     while i < len(toks):
         f = toks[i].split("\t", 2)
@@ -644,7 +649,7 @@ def parse_commit(rec):
             i += 3
         else:
             break
-    return (*meta[:4], entries)
+    return entries
 
 
 def history_commits(repo_path, sha):
