@@ -165,3 +165,18 @@ class TestToolCards:
 
     def test_every_tool_declares_its_cards(self):
         assert all(isinstance(t.get("cards"), list) for t in TOOLS["tools"])
+
+
+class TestDoctorTextForLockedTools:
+    def report(self, **kw):
+        return {"languages": [], "host": [], "self_installing": [{"id": "scip-python", "version": "0.6.6", "via": "npx", "locked": True, "status": "first-use", "needs": []},
+                                                                   {"id": "other", "version": "1", "via": "uv", "locked": False, "status": "first-use", "needs": []}],
+                "missing": [], **kw}
+
+    def test_a_tool_installed_from_a_lockfile_does_not_say_npx(self):
+        text = toolcheck.format_text(self.report())
+
+        assert "scip-python 0.6.6 from a lockfile with npm" in text and "via npx" not in text
+
+    def test_other_tools_keep_their_install_route(self):
+        assert "other 1 via uv" in toolcheck.format_text(self.report())

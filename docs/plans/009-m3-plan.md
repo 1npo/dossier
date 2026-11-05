@@ -691,7 +691,7 @@ Read section 2, section 3, D7, D8, D10 to D14, and D16. Load the skills in secti
   - Done-check: `uv run --with pytest --with pygments python -m pytest tests/unit/scripts/test_prompts.py -q` passes.
   - Commit: `docs(dossier): tell Claude how to write reports 10, 13 and 14`
 
-- [ ] **M3-25. SKILL.md, README, doctor text.**
+- [x] **M3-25. SKILL.md, README, doctor text.**
   - Goal: the instructions match the code.
   - Files: `SKILL.md`, `README.md`, `scripts/tools.json` or `scripts/toolcheck.py` (wherever `grep -rn "via npx" scripts` finds the text), `docs/post-v1.md` if a cut needs it.
   - Steps: (1) SKILL.md description and step 5: D12's order, and remove "Reports 10 ... are not written". Step 6: `V8:` errors. Step 7: `dossier check` covers V8. Step 8: mention `summary.json`. (2) README: reports 10 and 13, `summary.json`, the `history` timeout. Plain language, following `docs-readme`. The full rewrite stays in M6. (3) Correct the npx text to say scip-python installs from a lockfile.

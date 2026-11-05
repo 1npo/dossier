@@ -71,6 +71,18 @@ How the figures are made (all in `gather.py`, under "knowledge map"):
 
 Very large trees show only the rows near the viewport, so the page stays responsive. The per-file figures are kept in `knowledge.json` next to `facts.json`, at most 1.5 MB (`KNOWLEDGE_CAP`); beyond that the smallest, least changed files are left out and the card says how many.
 
+## History, contributors and the summary file
+
+Version 0.8.0 adds two reports that are built from the git history, and a summary file.
+
+- **Change and history** (report 10) shows where the code changes most, which files change together, what a change to one file can reach (pick a file or a component), unfinished migrations, odd decisions, dead code, how old the runtime and packages are, and branches still open.
+- **Contributors** (report 13) shows who the people are, who to ask about each component, how concentrated the knowledge is (with the bus factor), which commits came from agents and bots, and how the team works. A commit belongs to the person who wrote it. When an agent or a bot wrote it, it belongs to the person who approved its pull request, and on a project with one person, to that person. The Contributors card on the Overview page has Owner and Author buttons to switch between the two views.
+- The history is read once and kept in full: nothing is cut to a top few. A shallow clone or a very long history gives a partial result, marked on the cards and listed in Gaps. Raise `timeouts.history` (seconds, default 600) in `~/.config/dossier/config.json` when reading takes too long.
+- The `gh` command-line tool is optional. When a project has several people and agents or bots have written commits, `gh` reads pull request approvals (`timeouts.github`, default 300 seconds). Without it, those commits count for their authors.
+- `summary.json` is written next to the page. It holds the facts other tools may want: components and how they depend on each other, entry points, contracts, dependencies, risk counts, ownership and hotspots. It lists people by an opaque id and never holds an email address. `render` checks it against `prompts/summary.schema.json` and `/dossier check` checks it again.
+
+Reports 10 and 13 are now required, so a dossier made by an older version is rebuilt in full the next time you run `/dossier build`.
+
 ## Calendars
 
 The commit calendars (on Overview and Contributors) open on days and zoom out to months. Each week is boxed. Hover a cell to see who committed that day or month, how many commits, and the lines added (green) and deleted (red), lined up in columns. Calendar data older than this version has no line counts until you run `prepare` again.
