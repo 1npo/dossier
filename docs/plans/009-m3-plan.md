@@ -640,7 +640,7 @@ Read section 2, section 3, D7, D8, D10 to D14, and D16. Load the skills in secti
   - Done-check: the three test files pass.
   - Commit: `feat(dossier): list history findings for the change, contributors and risks reports`
 
-- [ ] **M3-18. Ownership and measured cells.**
+- [x] **M3-18. Ownership and measured cells.**
   - Goal: D4 and D7's fill.
   - Files: `scripts/measured_people.py`, `scripts/measured.py`, `scripts/render.py`, `tests/unit/scripts/test_measured_people.py`, `tests/unit/scripts/test_render_cards.py`.
   - Interface: `component_stats(ctx)` (D4), `bus_factor(ctx) -> {"bus_factor", "top_owner_share"}`, `measured.fill_people(entry, cid, ctx)`.

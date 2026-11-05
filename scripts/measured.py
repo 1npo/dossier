@@ -205,6 +205,11 @@ DRAWN = {"reading.map": _reading_map, "conventions.tooling": _tooling, "interact
 CATALOG_MEASURED = ("Depends on", "Used by", "Size")
 
 
+def fill_people(entry: dict, cid: str, ctx: dict) -> dict:
+    """A copy of a report 13 entry whose measured cells (Share, Areas touched, Share of commits) come from the history."""
+    return measured_people.fill(entry, cid, ctx)
+
+
 def fill_catalog(entry: dict, ctx: dict) -> dict:
     """A copy of the `components.catalog` entry whose Depends on, Used by and Size cells are the measured ones (plan 008, A4).
 

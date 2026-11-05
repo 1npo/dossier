@@ -24,6 +24,7 @@ import gather
 import candidates
 import components
 import measured
+import measured_people
 import process
 import schema
 import viewer
@@ -1032,7 +1033,11 @@ def render_card(card, entry, refs, rid, ctx=None):
         elif "blocks" in entry:
             if card["id"] == "components.catalog":
                 entry = measured.fill_catalog(entry, ctx or {})
+            elif card["id"] in ("contributors.concentration", "contributors.agents"):
+                entry = measured.fill_people(entry, card["id"], ctx or {})
             body = blocks_body(card, entry["blocks"], refs, tid, ((ctx or {}).get("checks") or {}).get("unbacked"))
+            if card["id"] == "contributors.concentration":
+                body = measured_people.bus_line(ctx or {}) + body
         elif "entries" in entry:
             body = entries_body(card, entry["entries"], refs, tid)
         else:
