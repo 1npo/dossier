@@ -103,7 +103,8 @@ def history_repo(tmp_path):
     claude, bot = ("Claude", "noreply@anthropic.com"), ("dependabot[bot]", "bot@x.io")
     git("init", "-b", "main")
     for i, day in enumerate(("2025-01-10", "2025-02-10", "2025-03-10"), 1):
-        commit(ann, day, f"feat: step {i}", {"src/a.py": "a\n" * i, "src/b.py": "b\n" * i, "src/c.py": "c\n" * i})
+        body = "\n\n" + "\n".join(f"detail {n}" for n in range(8)) if i == 1 else ""
+        commit(ann, day, f"feat: step {i}{body}", {"src/a.py": "a\n" * i, "src/b.py": "b\n" * i, "src/c.py": "c\n" * i})
     commit(bob, "2025-04-01", "fix: lone change", {"src/d.py": "d = 1\n"})
     commit(claude, "2025-05-01", "feat: agent work", {"src/e.py": "e = 1\n"})
     commit(bot, "2025-06-01", "chore: bump", {"deps.txt": "a\nb\n"})

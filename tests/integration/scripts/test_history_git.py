@@ -140,3 +140,54 @@ class TestMarkers:
 
         assert [d["path"] for d in items(data, "decision-doc")] == ["docs/adr/1.md"]
         assert items(data, "todo") == [{"kind": "todo", "path": "a.py", "count": 2}]
+
+
+FIELDS = {
+    "meta": {"status", "reasons", "commits_seen", "commits_total", "shallow", "stopped_early", "blame_done", "blame_total", "as_of",
+             "window_from", "pairs_total", "bulk_commits", "owner_rule", "owner_status", "owner_reason", "prs_found"},
+    "file": {"lines", "commits", "commits_12m", "lines_changed", "lines_changed_12m", "last_changed", "authors", "blame", "owners", "owner_lines"},
+    "pair": {"a", "b", "co_commits", "commits_a", "commits_b", "share"},
+    "person": {"person", "name", "type", "commits", "commits_12m", "assisted", "first", "last", "aliases", "owned_commits", "owned_lines", "username"},
+    "bulk": {"sha", "files", "author", "date", "subject"},
+    "branch": {"ref", "sha", "date", "ahead", "behind", "author", "remote"},
+    "workflow": {"convention", "observed", "evidence", "commits"},
+    "marker": {"id", "group", "line", "end_line", "rule", "snippet"},
+    "assistant": {"name", "commits", "files"},
+    "todo": {"count"},
+    "decision-doc": set(),
+    "long-commit": {"sha", "subject", "lines", "files"},
+}
+ID_KEYED = {"authors", "blame", "owners", "owner_lines"}
+
+
+class TestShape:
+    @pytest.fixture
+    def data(self, world, monkeypatch):
+        handed = {**world.facts["history_input"], "tree": ["docs/adr/1.md"], "todos": [{"kind": "todo", "path": "a.py", "count": 2}]}
+        data = world(handed)
+        monkeypatch.setattr(gather, "BULK_FILES", 2)
+        bulk = [i for i in history.items_of(world(handed)) if i["kind"] == "bulk"]
+        data["adapters"]["git"]["items"] += bulk
+        return data
+
+    def test_every_kind_appears_with_exactly_its_fields(self, data):
+        seen = {}
+        for it in history.items_of(data):
+            seen.setdefault(it["kind"], set(it) - {"kind", "path"})
+
+        assert seen == FIELDS
+
+    def test_candidates_load_returns_the_items(self, data, tmp_path):
+        import candidates
+        history.write(tmp_path / "o", data)
+
+        assert candidates.load(tmp_path / "o")["history"] == history.items_of(data)
+
+    def test_no_email_outside_the_identity_fields(self, data):
+        import json
+        stripped = []
+        for it in history.items_of(data):
+            it = {k: v for k, v in it.items() if k not in ID_KEYED | {"person", "aliases"}}
+            stripped.append(it)
+
+        assert "@" not in json.dumps(stripped)

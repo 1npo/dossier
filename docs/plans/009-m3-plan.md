@@ -475,7 +475,7 @@ Read section 2, section 3, D1 to D6, D9, D16, D17 and D18. Load the skills in se
   - Done-check: `uv run --with pytest --with pygments python -m pytest tests/unit/scripts/test_markers.py tests/unit/scripts/test_candidates.py -q` passes.
   - Commit: `feat(dossier): find decision markers, TODO counts and long commit messages`
 
-- [ ] **M3-5. Fixture check of the whole output.**
+- [x] **M3-5. Fixture check of the whole output.**
   - Goal: lock the output shape.
   - Files: `tests/integration/scripts/test_history_git.py`.
   - Steps: assert every item kind in D2 appears for `history_repo`, each with exactly the fields listed, and that `candidates.load(out)["history"]` returns them. Assert that no item holds an email except `person.person`, `person.aliases` and the keys of `authors` and `blame`.
