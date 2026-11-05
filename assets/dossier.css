@@ -540,4 +540,5 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 .badge.tier-m { --tier: var(--tier-m); } .badge.tier-a { --tier: var(--tier-a); } .badge.tier-r { --tier: var(--tier-r); } .badge.tier-mplusa { --tier: var(--tier-ma); }
 .tier-key b { display: inline-block; min-width: 1.4rem; text-align: center; padding: 0 .3rem; border-radius: 99px; border: 1px solid; font-weight: 600; font-size: .75rem; }
 .tier-key .tier-m { color: var(--tier-m); } .tier-key .tier-a { color: var(--tier-a); } .tier-key .tier-r { color: var(--tier-r); } .tier-key .tier-mplusa { color: var(--tier-ma); }
+.card[data-card^="change."] .chart-scroll { overflow-x: auto; margin: .75rem 0; } .card[data-card^="change."] .chart-scroll svg { display: block; max-width: none; }
 :root { --dossier-css-end: 1; }

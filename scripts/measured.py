@@ -11,6 +11,7 @@ from collections import defaultdict
 
 import components
 import gather
+import measured_change
 import measured_er
 import measured_graph
 
@@ -195,7 +196,7 @@ def _violations(cid, ctx, refs):
     return f'<p class="muted">No import cycles were found{tail}.</p>'
 
 
-DRAWN = {"reading.map": _reading_map, "conventions.tooling": _tooling, "interactions.violations": _violations, "data.relationships": measured_er.draw, **measured_graph.DRAWN}
+DRAWN = {"reading.map": _reading_map, "conventions.tooling": _tooling, "interactions.violations": _violations, "data.relationships": measured_er.draw, **measured_graph.DRAWN, **measured_change.DRAWN}
 
 
 CATALOG_MEASURED = ("Depends on", "Used by", "Size")

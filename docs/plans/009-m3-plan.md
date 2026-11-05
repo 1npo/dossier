@@ -513,7 +513,7 @@ Read section 2, section 3, D1 to D6, D9, D16, D17 and D18. Load the skills in se
   - Done-check: `uv run --with pytest --with pygments python -m pytest tests/unit/scripts/test_process.py tests/integration/scripts/test_history_git.py -q` passes.
   - Commit: `feat(dossier): report incomplete history and failed tools in Gaps`
 
-- [ ] **M3-10. Hotspots card.** Load `dataviz` first.
+- [x] **M3-10. Hotspots card.** Load `dataviz` first.
   - Goal: D3's table, component table and scatter.
   - Files: `scripts/measured_change.py`, `scripts/measured.py`, `scripts/render.py`, `assets/dossier.css`, `tests/unit/scripts/test_measured_change.py`.
   - Interface: `measured_change.DRAWN` merged into `measured.DRAWN`. `ctx["facts"]` must reach it: check `render.measured_ctx`, and add `dependencies` if absent.
