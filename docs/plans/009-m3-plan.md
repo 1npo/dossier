@@ -655,7 +655,7 @@ Read section 2, section 3, D7, D8, D10 to D14, and D16. Load the skills in secti
   - Done-check: the test file and `tests/unit/scripts/test_process.py` pass.
   - Commit: `feat(dossier): require every person and component in report 13`
 
-- [ ] **M3-20. Staleness.**
+- [x] **M3-20. Staleness.**
   - Goal: D13.
   - Files: `scripts/candidates.py`, `tests/unit/scripts/test_candidates.py`, `tests/unit/scripts/test_incremental.py`.
   - Steps: (1) Tests: a new marker changes the `change` digest; a new commit that adds no person leaves the `contributors` digest alone; a line move changes nothing. (2) Implement.

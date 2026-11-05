@@ -174,3 +174,20 @@ class TestDigestChanged:
                                digest_changed=frozenset({"io"}))
 
         assert set(res["stale"]) == {"io", "gaps"}
+
+
+class TestHistoryReports:
+    def test_contributors_is_stale_when_commits_were_added(self):
+        res = plan({"contributors": report("src/a.py:1-3")}, {}, commits=2)
+
+        assert "contributors" in res["stale"]
+
+    def test_change_stays_fresh_when_only_commits_were_added(self):
+        res = plan({"change": report("src/a.py:1-3")}, {}, commits=2)
+
+        assert res["stale"] == {}
+
+    def test_change_is_stale_when_its_findings_changed(self):
+        res = incremental.plan({"change": report("src/a.py:1-3")}, ["change"], {}, hunks_of({}), False, {}, 0, digest_changed=frozenset({"change"}))
+
+        assert "change" in res["stale"]

@@ -182,6 +182,8 @@ FEEDS = {
     "behavior": ("test_files", "cand:behavior"),
     "conventions": ("cand:all", "modules"),
     "ops": ("entry_points", "test_configs"),
+    "change": ("markers", "decision_docs"),
+    "contributors": ("people",),
 }
 
 
@@ -208,6 +210,12 @@ def _feed(name, extract):
     if name == "test_configs":
         return ([["config", t["path"], t.get("tool"), t.get("settings")] for t in extract.get("tests", []) if t.get("kind") == "config"]
                 + [["ci", t["path"], t.get("command")] for t in extract.get("tests", []) if t.get("kind") == "ci-command"])
+    if name == "markers":
+        return [["marker", i["id"]] for i in extract.get("history", []) if i.get("kind") == "marker" and "id" in i]
+    if name == "decision_docs":
+        return [["doc", i["path"]] for i in extract.get("history", []) if i.get("kind") == "decision-doc"]
+    if name == "people":
+        return [["person", i["person"], i["type"]] for i in extract.get("history", []) if i.get("kind") == "person"]
     if name in ("entry_points", "models"):
         return [[name, i["id"]] for i in extract.get(name, []) if "id" in i]
     if name.startswith("cand:"):

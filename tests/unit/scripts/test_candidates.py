@@ -198,3 +198,34 @@ class TestReadingModules:
         assert "(top 30)" not in out
         assert "== Modules by import rank ==" in out
         assert out.count("(rank ") == 40
+
+
+def marker(i, line=3, path="a.py"):
+    return {"kind": "marker", "id": i, "group": "mkg-" + i, "path": path, "line": line, "end_line": line, "rule": "marker.hack", "snippet": "# HACK"}
+
+
+def human(ident="a@x", commits=3):
+    return {"kind": "person", "path": "", "person": ident, "name": ident, "type": "human", "commits": commits, "commits_12m": commits}
+
+
+class TestHistoryDigests:
+    def test_a_new_marker_changes_only_the_change_digest(self):
+        before = {"history": [marker("mk-1")]}
+        after = {"history": [marker("mk-1"), marker("mk-2", line=9)]}
+
+        assert changed(before, after) == {"change"}
+
+    def test_moving_a_marker_to_another_line_changes_nothing(self):
+        assert changed({"history": [marker("mk-1", line=3)]}, {"history": [marker("mk-1", line=40)]}) == set()
+
+    def test_a_new_decision_document_changes_the_change_digest(self):
+        assert changed({"history": []}, {"history": [{"kind": "decision-doc", "path": "docs/adr/1.md"}]}) == {"change"}
+
+    def test_a_new_commit_by_a_known_person_leaves_the_contributors_digest_alone(self):
+        assert changed({"history": [human(commits=3)]}, {"history": [human(commits=4)]}) == set()
+
+    def test_a_new_person_changes_the_contributors_digest(self):
+        assert changed({"history": [human()]}, {"history": [human(), human("b@x")]}) == {"contributors"}
+
+    def test_a_person_who_changes_type_changes_the_contributors_digest(self):
+        assert changed({"history": [human()]}, {"history": [{**human(), "type": "bot"}]}) == {"contributors"}
