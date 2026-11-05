@@ -541,6 +541,6 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 .tier-key b { display: inline-block; min-width: 1.4rem; text-align: center; padding: 0 .3rem; border-radius: 99px; border: 1px solid; font-weight: 600; font-size: .75rem; }
 .tier-key .tier-m { color: var(--tier-m); } .tier-key .tier-a { color: var(--tier-a); } .tier-key .tier-r { color: var(--tier-r); } .tier-key .tier-mplusa { color: var(--tier-ma); }
 .card[data-card^="change."] .chart-scroll { overflow-x: auto; margin: .75rem 0; } .card[data-card^="change."] .chart-scroll svg { display: block; max-width: none; }
-.card[data-card="change.blast-radius"] .blast-picker { margin: .5rem 0; display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; } .card[data-card="change.blast-radius"] #blast-pick { max-width: 100%; }
-.card[data-card="change.blast-radius"] .blast-lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; margin: .75rem 0; } .card[data-card="change.blast-radius"] .blast-list { max-height: 20rem; overflow: auto; margin: 0; padding-left: 1.1rem; }
+.card[data-card^="change.blast-radius"] .blast-picker { margin: .5rem 0; display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; } .card[data-card^="change.blast-radius"] #blast-pick { max-width: 100%; }
+.card[data-card^="change.blast-radius"] .blast-lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; margin: .75rem 0; } .card[data-card^="change.blast-radius"] .blast-list { max-height: 20rem; overflow: auto; margin: 0; padding-left: 1.1rem; }
 :root { --dossier-css-end: 1; }
