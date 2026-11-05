@@ -14,6 +14,7 @@ from pathlib import Path
 
 import adapters
 import buildlog
+import candidates
 import config
 import restore
 import sandbox
@@ -149,5 +150,6 @@ def stage_extract(build, top, sha, area, out, langs, trust, opts: Options, resto
         adapters=adapters.detect(langs), checkout=checkout, sha=sha, tree=tree, area=area, out=out, trusted=trust,
         allow_ref=opts.allow_ref, restored=restored, treesitter=shared_tools.TreeSitter(tool_run),
         semgrep=shared_tools.Semgrep(tool_run), tool_versions=versions, timeout=timeouts["extract"])
+    rec.setdefault("details", {})["tool_status"] = candidates.tool_status(out)
     record(build, t0, "extract", **rec)
     return rec

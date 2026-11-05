@@ -517,10 +517,13 @@ def cmd_check(a):
     audit = page_audit.audit(html.read_text(encoding="utf-8"), reports, extract, facts, build=buildlog.load(out), measured=measured)
     for line in audit:
         print(f"FAIL {line}")
+    v8 = summary.check_file(out, facts, VERSION)
+    for line in v8:
+        print(f"FAIL {line}")
     code, text = run_browser_check(html, out)
     print(text.rstrip())
     browser = sum(1 for line in text.splitlines() if line.startswith("FAIL"))
-    problems = len(audit) + (browser or (1 if code else 0))
+    problems = len(audit) + len(v8) + (browser or (1 if code else 0))
     print(f"problems: {problems}")
     sys.exit(1 if problems else 0)
 

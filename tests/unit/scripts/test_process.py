@@ -545,3 +545,24 @@ class TestSummaryLines:
         check, render_ = self.rows(None)
 
         assert "Summary:" not in check and render_ == "Page and machine-readable summary written."
+
+
+class TestExtractorsOnReuse:
+    def line(self, details, tools=()):
+        extract = rec("extract", tools=list(tools), details=details)
+        build = build_with(*[r for r in FULL if r["step"] not in ("tools", "extract")],
+                           rec("tools", tools=[], details={"languages": [{"name": "Python", "tier": "A"}], "missing": []}), extract)
+        return row_of(process.process_body(build), "tools")[2]
+
+    def test_a_reused_adapter_with_no_tools_key_still_lists_its_extractors(self):
+        status = {"grimp": {"status": "ok", "reason": None, "version": "3.17"}, "vulture": {"status": "failed", "reason": "x", "version": "2.14"},
+                  "scip-python": {"status": "ok", "reason": None, "version": "0.6.6"}}
+
+        got = self.line({"adapters": [{"name": "python", "status": "reused"}], "tool_status": status})
+
+        assert "Extractors: grimp 3.17, scip-python 0.6.6." in got and "none recorded" not in got
+
+    def test_a_build_without_tool_status_uses_the_adapters_that_ran(self):
+        details = {"adapters": [{"name": "python", "status": "ok", "tools": {"grimp": {"status": "ok"}}}]}
+
+        assert "Extractors: grimp 3.1." in self.line(details, tools=[{"name": "grimp", "version": "3.1"}])

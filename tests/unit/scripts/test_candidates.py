@@ -229,3 +229,26 @@ class TestHistoryDigests:
 
     def test_a_person_who_changes_type_changes_the_contributors_digest(self):
         assert changed({"history": [human()]}, {"history": [{**human(), "type": "bot"}]}) == {"contributors"}
+
+
+class TestToolStatus:
+    def write(self, tmp_path, name, adapters):
+        (tmp_path / "extract").mkdir(exist_ok=True)
+        (tmp_path / "extract" / f"{name}.json").write_text(json.dumps({"schema": 1, "sha": "s", "adapters": adapters}))
+
+    def test_status_is_read_from_every_section_including_reused_ones(self, tmp_path):
+        self.write(tmp_path, "graph", {"python": {"tools": {"grimp": "3.17"}, "tool_status": {"grimp": {"status": "ok", "reason": None}}, "items": []}})
+        self.write(tmp_path, "dead", {"python": {"tools": {}, "tool_status": {"vulture": {"status": "failed", "reason": "timed out"}}, "items": []}})
+
+        got = candidates.tool_status(tmp_path)
+
+        assert got == {"grimp": {"status": "ok", "reason": None, "version": "3.17"}, "vulture": {"status": "failed", "reason": "timed out", "version": ""}}
+
+    def test_a_tool_named_twice_keeps_its_worst_status(self, tmp_path):
+        self.write(tmp_path, "a", {"x": {"tools": {"semgrep": "1"}, "tool_status": {"semgrep": {"status": "ok", "reason": None}}, "items": []}})
+        self.write(tmp_path, "b", {"x": {"tools": {}, "tool_status": {"semgrep": {"status": "skipped", "reason": "no"}}, "items": []}})
+
+        assert candidates.tool_status(tmp_path)["semgrep"]["status"] == "skipped"
+
+    def test_no_extract_folder_gives_nothing(self, tmp_path):
+        assert candidates.tool_status(tmp_path) == {}

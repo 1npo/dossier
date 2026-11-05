@@ -39,10 +39,19 @@ def _clock(stamp):
 
 
 def _extractors(build) -> str:
-    """The extractors that ran (status ok in any adapter) with their versions, in the order of tools.json."""
+    """The extractors that ran (status ok) with their versions, in the order of tools.json.
+
+    The status comes from `details.tool_status`, which is read from the extract files and so covers a reused adapter. A build
+    that has none (made before 0.8.0) falls back to the adapters that ran this time.
+    """
     rec = buildlog.latest(build, "extract") or {}
-    ran = {name for a in (rec.get("details") or {}).get("adapters", []) for name, t in (a.get("tools") or {}).items() if (t or {}).get("status") == "ok"}
-    versions = {t["name"]: t.get("version") for t in rec.get("tools") or []}
+    status = (rec.get("details") or {}).get("tool_status")
+    if status:
+        ran = {n for n, t in status.items() if (t or {}).get("status") == "ok"}
+        versions = {n: (t or {}).get("version") for n, t in status.items()}
+    else:
+        ran = {name for a in (rec.get("details") or {}).get("adapters", []) for name, t in (a.get("tools") or {}).items() if (t or {}).get("status") == "ok"}
+        versions = {t["name"]: t.get("version") for t in rec.get("tools") or []}
     order = {t["id"]: i for i, t in enumerate(toolcheck.load_tools()["tools"])}
     return ", ".join(f"{n} {versions[n]}" if versions.get(n) else n for n in sorted(ran, key=lambda n: (order.get(n, len(order)), n)))
 

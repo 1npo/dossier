@@ -90,6 +90,11 @@ def tool_list(out) -> list:
     return sorted(found.values(), key=lambda t: t["name"])
 
 
+def tool_status(out) -> dict:
+    """{tool: {"status", "reason", "version"}} read from every `extract/*.json` section, so a reused adapter is covered too."""
+    return {t["name"]: {"status": t["status"], "reason": t["reason"], "version": t["version"]} for t in tool_list(out)}
+
+
 def by_id(extract: dict) -> dict:
     """Item ids and group ids -> item (a group maps to its first item)."""
     found = {}

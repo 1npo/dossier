@@ -184,5 +184,24 @@ def write(out, doc) -> Path:
     return path
 
 
+def check_file(out, facts, version) -> list:
+    """The problems of the written `summary.json` (V8): missing, unreadable, off its schema, or made at another commit or skill version."""
+    path = Path(out) / FILE
+    if not path.exists():
+        return ["V8: summary.json: the file is missing. Run render."]
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except ValueError:
+        return ["V8: summary.json: the file is not valid JSON. Run render."]
+    problems = validate(doc)
+    if problems:
+        return problems
+    if doc["repo"]["sha"] != ((facts or {}).get("repo") or {}).get("sha"):
+        problems.append(f"V8: summary.json: $.repo.sha: made at {doc['repo']['sha'][:10]}, not the commit of this dossier. Run render.")
+    if doc["dossier_version"] != version:
+        problems.append(f"V8: summary.json: $.dossier_version: made by {doc['dossier_version']}, not {version}. Run render.")
+    return problems
+
+
 def remove(out) -> None:
     (Path(out) / FILE).unlink(missing_ok=True)

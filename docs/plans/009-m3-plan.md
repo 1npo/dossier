@@ -669,7 +669,7 @@ Read section 2, section 3, D7, D8, D10 to D14, and D16. Load the skills in secti
   - Done-check: `DOSSIER_SLOW=1 uv run --with pytest --with pygments python -m pytest tests/unit/scripts/test_summary.py tests/integration/scripts/test_summary_schema_slow.py -q` passes.
   - Commit: `feat(dossier): write summary.json and check it against its schema (V8)`
 
-- [ ] **M3-22. V8 in `dossier check`, and tool status on reuse.**
+- [x] **M3-22. V8 in `dossier check`, and tool status on reuse.**
   - Goal: D11's check side, and section 3 row 22.
   - Files: `scripts/dossier.py`, `scripts/candidates.py`, `scripts/process.py`, `tests/unit/scripts/test_dossier_check.py`, `tests/unit/scripts/test_process.py`.
   - Interface: `candidates.tool_status(out) -> {tool: {"status", "reason"}}`, read from every `extract/*.json` section.
