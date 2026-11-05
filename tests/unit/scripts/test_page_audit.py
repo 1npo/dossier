@@ -1,3 +1,4 @@
+import re
 import sys
 from pathlib import Path
 
@@ -353,3 +354,26 @@ class TestOwnerTable:
         broken = page[:page.rindex("<tr>", start, end)] + page[end:]
 
         assert self.errors(broken, history) == ["V11: overview.contributors: table t-people-owner has 1 rows, expected 2."]
+
+
+class TestAddedColumnNames:
+    def entry(self, cid, rows=2):
+        cols = card_of(cid)["slots"][0]["columns"]
+        return {"card": cid, "blocks": [{"type": "table", "columns": cols, "rows": [row(*[f"v{i}"] * len(cols)) for i in range(rows)]}]}
+
+    def test_decisions_table_with_a_source_column_passes(self, make_cites):
+        e = self.entry("change.decisions")
+
+        assert audit(page(make_cites, e), e) == []
+
+    def test_ask_table_with_a_basis_column_passes(self, make_cites):
+        e = self.entry("contributors.ask")
+
+        assert audit(page(make_cites, e), e) == []
+
+    def test_decisions_table_draws_source_then_basis_then_citations(self, make_cites):
+        e = self.entry("change.decisions")
+
+        html = page(make_cites, e)
+
+        assert re.findall(r"<th[^>]*>([^<]*)</th>", html)[-3:] == ["Source", "Basis", "Citations"]

@@ -626,7 +626,7 @@ Read section 2, section 3, D7, D8, D10 to D14, and D16. Load the skills in secti
 
 ### Tasks (Phase 2)
 
-- [ ] **M3-16. Added columns and the Risks `Source` column.**
+- [x] **M3-16. Added columns and the Risks `Source` column.**
   - Goal: D8.
   - Files: `scripts/render.py`, `scripts/page_audit.py`, `prompts/schema/risks.json`, `scripts/checks_people.py`, `tests/unit/scripts/test_render.py`, `tests/unit/scripts/test_page_audit.py`, `tests/unit/scripts/test_schema_files.py`.
   - Steps: (1) Tests: `auto_columns` in all four cases; `change.decisions` draws `Source` then `Basis` then `Citations`; `contributors.ask` draws `Basis`, `Confidence`, `Source`; V11 accepts both. (2) Implement. (3) Add the column. (4) Add the Risks source check from D7.

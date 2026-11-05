@@ -567,3 +567,39 @@ class TestContributorsOwnerButtons:
         assert "Ann is the only person on this project, so they own every commit." in one
         assert "belong to the person who approved their pull request" in prs
         assert "The calendar and the knowledge map always show who authored each commit." in one
+
+
+class TestAutoColumns:
+    def test_plain_columns_get_basis_and_source(self):
+        assert render.auto_columns(["A", "B"]) == ("Basis", "Source")
+
+    def test_a_schema_column_named_source_makes_the_citation_column_citations(self):
+        assert render.auto_columns(["Item", "Source"]) == ("Basis", "Citations")
+
+    def test_a_schema_column_named_basis_makes_the_basis_column_confidence(self):
+        assert render.auto_columns(["Subsystem", "Basis"]) == ("Confidence", "Source")
+
+    def test_both_names_taken_changes_both_headings(self):
+        assert render.auto_columns(["Basis", "source"]) == ("Confidence", "Citations")
+
+
+class TestRenderTableAddedHeadings:
+    def refs(self, make_cites):
+        cites = make_cites({"a.py": b"x\n"})
+        cites.tree = lambda: (set(), set())
+        return render.Refs("x", cites)
+
+    def head(self, columns, refs):
+        row = {"cells": ["x"] * len(columns), "conf": "confirmed", "cite": []}
+        html = render.render_table(columns, [row], refs, "t-x")
+        return re.findall(r"<th[^>]*>([^<]*)</th>", html)
+
+    def test_source_schema_column_comes_before_basis_and_citations(self, make_cites):
+        refs = self.refs(make_cites)
+
+        assert self.head(["Item", "Source"], refs) == ["Item", "Source", "Basis", "Citations"]
+
+    def test_basis_schema_column_comes_before_confidence_and_source(self, make_cites):
+        refs = self.refs(make_cites)
+
+        assert self.head(["Subsystem", "Basis"], refs) == ["Subsystem", "Basis", "Confidence", "Source"]

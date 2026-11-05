@@ -9,6 +9,7 @@ import keyword
 import re
 
 import candidates
+import checks_people
 import checks_v3
 import checks_v7
 import components
@@ -374,6 +375,12 @@ def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None)
         env_errors = []
     result["errors"] += env_errors
     result["counts"]["v5_env"] = len(env_errors)
+    try:
+        people_errors = checks_people.risk_source(reports)
+    except (AttributeError, TypeError, KeyError):
+        people_errors = []
+    result["errors"] += people_errors
+    result["counts"]["v5_people"] = len(people_errors)
     try:
         w, g, n = v2_recipes(reports)
         result["warnings"] += w

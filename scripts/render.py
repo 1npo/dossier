@@ -746,11 +746,18 @@ def lift_cites(cell, refs):
 TALL_ROWS = 40  # a longer table scrolls inside its card; every row stays in the page
 
 
+def auto_columns(columns):
+    """The two headings render adds to an authored table: (basis, citations). A schema column of the same name gets the other word."""
+    have = {c.strip().lower() for c in columns}
+    return ("Confidence" if "basis" in have else "Basis", "Citations" if "source" in have else "Source")
+
+
 def render_table(columns, rows, refs, tid, filterable=True, plain=False, group=None, foot=None, sort=True, cls=""):
     """rows are dicts with cells/conf/cite/note (authored) or plain lists of ready HTML (measured)."""
     head = "".join(f"<th>{E(c)}</th>" for c in columns)
     if not plain:
-        head += '<th class="basis-cell">Basis</th><th class="src-cell">Source</th>'
+        basis_h, cite_h = auto_columns(columns)
+        head += f'<th class="basis-cell">{basis_h}</th><th class="src-cell">{cite_h}</th>'
     body = []
     for r in rows:
         if plain:

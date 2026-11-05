@@ -37,7 +37,7 @@
     {"from": "delivery", "type": "table", "heading": "^Secrets$", "to": "ops.config-secrets",
      "columns": {"Secret": "Secret", "Unlocks": "What it unlocks", "Supplied how": "How it is supplied"}},
     {"from": "risks", "type": "table", "heading": "^(Risk register|Tracker)$", "to": "risks.tracker",
-     "columns": {"ID": "ID", "Risk": "Risk", "Category": "Category", "Severity": "Severity", "Impact": "Impact", "Recommendation": "Recommendation"}},
+     "columns": {"ID": "ID", "Risk": "Risk", "Category": "Category", "Severity": "Severity", "Impact": "Impact", "Recommendation": "Recommendation", "Source": null}},
     {"from": "contributors", "type": "table", "heading": "^Who to ask, by subsystem$", "to": "contributors.ask",
      "columns": {"Subsystem": "Subsystem", "Ask first": "Who", "Then": null, "Basis": "Why this is the answer"}}
   ]
