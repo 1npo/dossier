@@ -86,3 +86,100 @@ class TestHotspots:
 
     def test_no_source_files_leaves_the_placeholder(self):
         assert draw("change.hotspots", ctx(hist(*FILES), ["README.md"])) is None
+
+
+def pair(a, b, co, share=50):
+    return {"kind": "pair", "path": a, "a": a, "b": b, "co_commits": co, "commits_a": 5, "commits_b": 5, "share": share}
+
+
+def imp(a, b):
+    return {"kind": "import", "path": a, "paths": [b], "from": a, "to": b}
+
+
+def mod(path):
+    return {"kind": "module", "path": path, "module": path[:-3].replace("/", ".")}
+
+
+class TestLinked:
+    def test_direct_import_in_either_direction_is_yes(self):
+        extract = {"graph": [mod("a.py"), mod("b.py"), imp("a.py", "b.py")]}
+
+        assert measured_change.linked("b.py", "a.py", extract) == "yes"
+
+    def test_both_covered_and_nothing_joins_them_is_no(self):
+        assert measured_change.linked("a.py", "b.py", {"graph": [mod("a.py"), mod("b.py")]}) == "no"
+
+    def test_an_uncovered_file_is_not_in_the_graph(self):
+        assert measured_change.linked("a.py", "x.js", {"graph": [mod("a.py")]}) == "not in the graph"
+
+    def test_a_pair_joined_only_by_a_tests_imports_is_yes(self):
+        extract = {"graph": [mod("a.py")], "tests": [{"kind": "test-file", "path": "tests/test_a.py", "paths": ["a.py"]}]}
+
+        assert measured_change.linked("a.py", "tests/test_a.py", extract) == "yes"
+
+    def test_a_reference_edge_counts(self):
+        extract = {"graph": [mod("a.py"), mod("b.py")], "symbols": [{"kind": "ref-edge", "path": "a.py", "paths": ["b.py"]}]}
+
+        assert measured_change.linked("a.py", "b.py", extract) == "yes"
+
+
+class TestCochange:
+    def test_lists_pairs_with_three_or_more_commits_sorted(self):
+        history = hist(pairs_total=4) + [pair("a.py", "b.py", 3, 60), pair("a.py", "c.py", 7, 40), pair("b.py", "c.py", 2)]
+        c = ctx(history, ["a.py"], graph=[mod("a.py"), mod("b.py")])
+
+        html = draw("change.cochange", c)
+
+        rows = cells(html, "t-change-cochange")
+        assert [(r[0], r[1], r[2], r[3], r[4]) for r in rows] == [("a.py", "c.py", "7", "40%", "not in the graph"), ("a.py", "b.py", "3", "60%", "no")]
+        assert "(2 of 4 pairs)" in html and "more than 400 files are left out" in html
+
+    def test_no_pair_says_none_found(self):
+        html = draw("change.cochange", ctx(hist(pairs_total=1) + [pair("a.py", "b.py", 2)], ["a.py"]))
+
+        assert "none-found" in html and "<table" not in html
+
+
+class TestDeadRows:
+    def test_includes_tool_items_unused_dependencies_and_modules_nothing_imports(self):
+        extract = {"dead": [{"name": "f", "type": "function", "message": "unused function 'f'", "confidence": 60, "path": "a.py", "line": 3}],
+                   "graph": [mod("a.py"), mod("b.py"), mod("pkg/__init__.py"), mod("c.py"), imp("a.py", "b.py")],
+                   "entry_points": [{"path": "c.py"}]}
+
+        got = measured_change.dead_rows(extract, {"unused": [{"n": "left-pad", "note": "No file imports it."}]})
+
+        assert [(g[0], g[1]) for g in got] == [("f", "function"), ("left-pad", "unused dependency"), ("a", "module nothing imports")]
+        assert got[0][2] == "unused function 'f' (60% confidence)"
+
+    def test_card_has_the_caveat_and_a_row_per_finding(self):
+        c = ctx(hist(), TREE, graph=[mod("a.py")])
+        c["extract"]["dead"] = []
+
+        html = draw("change.dead-code", c)
+
+        assert "Tool output, not checked by a person" in html
+        assert [r[:2] for r in cells(html, "t-change-dead-code")] == [["a", "module nothing imports"]]
+
+    def test_nothing_found_says_so(self):
+        c = ctx(hist(), TREE, graph=[mod("a.py"), mod("b.py"), imp("b.py", "a.py"), imp("a.py", "b.py")])
+        c["extract"]["dead"] = []
+
+        assert "none-found" in draw("change.dead-code", c)
+
+
+class TestInFlight:
+    BRANCH = {"kind": "branch", "path": "", "ref": "origin/feat-y", "sha": "a" * 40, "date": "2026-05-01", "ahead": 2, "behind": 1, "author": "Bob", "remote": True}
+
+    def test_branch_row(self):
+        html = draw("change.in-flight", ctx(hist() + [self.BRANCH], TREE))
+
+        assert cells(html, "t-change-in-flight")[0][:4] == ["origin/feat-y", "2026-05-01 aaaaaaa", "2 ahead, 1 behind", "Bob"]
+        assert "no remote branches" not in html
+
+    def test_local_branches_are_labelled(self):
+        html = draw("change.in-flight", ctx(hist() + [{**self.BRANCH, "remote": False}], TREE))
+
+        assert "This repository has no remote branches, so these are local branches." in html
+
+    def test_none_found(self):
+        assert "none-found" in draw("change.in-flight", ctx(hist(), TREE))

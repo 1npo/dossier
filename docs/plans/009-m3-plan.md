@@ -521,7 +521,7 @@ Read section 2, section 3, D1 to D6, D9, D16, D17 and D18. Load the skills in se
   - Done-check: the test file passes and block E prints `OK`.
   - Commit: `feat(dossier): draw the hotspots card with a churn scatter`
 
-- [ ] **M3-11. Co-change, dead code, in flight, workflow.**
+- [x] **M3-11. Co-change, dead code, in flight, workflow.**
   - Goal: four measured cards.
   - Files: `scripts/measured_change.py`, `scripts/measured_people.py`, `scripts/measured.py`, `scripts/checks.py`, `tests/unit/scripts/test_measured_change.py`, `tests/unit/scripts/test_measured_people.py`.
   - Interface: `measured_change.linked(a, b, extract) -> "yes"|"no"|"not in the graph"`; `measured_change.dead_rows(extract, dependencies) -> list`.
