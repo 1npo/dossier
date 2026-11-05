@@ -214,3 +214,23 @@ class TestDrivers:
 
         assert (py_queries.models(ts, []), py_queries.module_state(ts, []), py_queries.imports(ts, [], {}), py_queries.tests(ts, [], {})) == ([], [], [], [])
         assert ts.calls == []
+
+
+class TestComplexity:
+    def test_counts_branch_captures_per_file_and_gives_every_file_a_number(self):
+        ts = FakeTS({py_queries.COMPLEXITY_Q: [cap("branch", "if x:", 1, path="a.py"), cap("branch", "for i in y:", 3, path="a.py"),
+                                              cap("branch", "x or y", 5, path="b.py")]})
+
+        got = py_queries.complexity(ts, ["a.py", "b.py", "c.py"])
+
+        assert got == {"a.py": 2, "b.py": 1, "c.py": 0}
+
+    def test_no_files_runs_no_query(self):
+        ts = FakeTS({})
+
+        assert py_queries.complexity(ts, []) == {} and ts.calls == []
+
+    def test_query_names_every_branch_node_kind(self):
+        for node in ("if_statement", "elif_clause", "for_statement", "while_statement", "except_clause",
+                     "conditional_expression", "boolean_operator", "case_clause"):
+            assert f"({node})" in py_queries.COMPLEXITY_Q

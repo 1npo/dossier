@@ -498,7 +498,7 @@ Read section 2, section 3, D1 to D6, D9, D16, D17 and D18. Load the skills in se
   - Done-check: `uv run --with pytest --with pygments python -m pytest tests/unit/scripts/test_ownership.py tests/integration/scripts/test_history_git.py tests/unit/scripts/test_gather.py -q` passes, and block E prints `OK`.
   - Commit: `feat(dossier): work out who owns each commit and line`
 
-- [ ] **M3-8. Complexity proxy.**
+- [x] **M3-8. Complexity proxy.**
   - Goal: a complexity number per Python file.
   - Files: `scripts/py_queries.py`, `scripts/py_adapter.py`, `tests/unit/scripts/test_py_queries.py`, `tests/integration/scripts/test_py_queries_slow.py`, `tests/fixtures/pyrepo/` only if a file needs a branch.
   - Interface: `py_queries.complexity(ts, files) -> {path: count}`; `graph` module items gain `complexity`.

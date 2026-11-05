@@ -49,7 +49,7 @@ def module_name(path: str, roots=()) -> str:
 
 class PythonAdapter(Adapter):
     name = "python"
-    version = "2"
+    version = "3"
     languages = ("Python",)
     tools = ("grimp", "vulture", "scip-python", "semgrep", "tree-sitter-language-pack")
     expected_untracked = (".venv/**",)
@@ -117,13 +117,17 @@ class PythonAdapter(Adapter):
 
         def go():
             return (py_queries.imports(ctx.treesitter, loose, st["module_paths"]), py_queries.models(ctx.treesitter, st["src"]),
-                    py_queries.tests(ctx.treesitter, st["tests"], st["module_paths"]), py_queries.module_state(ctx.treesitter, st["src"]))
+                    py_queries.tests(ctx.treesitter, st["tests"], st["module_paths"]), py_queries.module_state(ctx.treesitter, st["src"]),
+                    py_queries.complexity(ctx.treesitter, st["src"]))
         got = self._step(ctx, "tree-sitter-language-pack", go)
         if got:
             out["graph"] += got[0]
             out["models"] += got[1]
             out["tests"] += got[2]
             out["io_candidates"] += got[3]
+            for item in out["graph"]:
+                if item.get("kind") == "module" and item["path"] in got[4]:
+                    item["complexity"] = got[4][item["path"]]
 
     def _function_after(self, ctx, st, path, line):
         if path not in st["source"]:

@@ -68,3 +68,22 @@ class TestImportsOnTheFixture:
         got = py_queries.imports(ts, ["src/shopcart/cli.py"], MODULE_PATHS)
 
         assert {(i["from"], i["to"]) for i in got} == {("shopcart.cli", "shopcart.core"), ("shopcart.cli", "shopcart.store")}
+
+
+class TestComplexityOnTheFixture:
+    def test_every_branch_node_name_exists_in_the_pinned_grammar(self, ts, tmp_path):
+        (tmp_path / "w").mkdir()
+        sample = ("def f(x, y):\n    if x:\n        pass\n    elif y:\n        pass\n    for i in x:\n        pass\n    while y:\n        break\n"
+                  "    try:\n        pass\n    except ValueError:\n        pass\n    z = 1 if x else 2\n    w = x and y\n"
+                  "    match x:\n        case 1:\n            pass\n")
+        (tmp_path / "w" / "branches.py").write_text(sample)
+        ts_here = shared_tools.TreeSitter(functools.partial(sandbox.run, area=tmp_path / "cache" / "repo", cwd=tmp_path / "w", timeout=600))
+
+        got = py_queries.complexity(ts_here, ["branches.py"])
+
+        assert got == {"branches.py": 8}
+
+    def test_fixture_files_each_get_a_number(self, ts):
+        got = py_queries.complexity(ts, SRC)
+
+        assert set(got) == set(SRC) and got["src/shopcart/core.py"] > 0

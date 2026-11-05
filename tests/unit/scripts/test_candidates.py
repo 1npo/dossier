@@ -145,6 +145,11 @@ class TestDigest:
 
         assert changed(BASE, shifted) == set()
 
+    def test_a_complexity_number_on_a_module_changes_no_digest(self):
+        with_complexity = {**BASE, "graph": [{**mod("a"), "complexity": 12}, mod("b"), edge("a", "b")]}
+
+        assert changed(BASE, with_complexity) == set()
+
     def test_new_candidate_changes_only_its_home_report(self):
         after = {**BASE, "io_candidates": BASE["io_candidates"] + [cand("io-3", "log")]}
 

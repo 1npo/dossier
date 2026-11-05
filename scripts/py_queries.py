@@ -21,6 +21,9 @@ TEST_Q = ("(function_definition name: (identifier) @func.name)\n"
           "(class_definition name: (identifier) @class.name superclasses: (argument_list)? @class.bases)\n"
           "(decorator) @decorator\n(call function: (_) @call.fn)\n" + IMPORT_Q)
 
+COMPLEXITY_Q = ("[(if_statement) (elif_clause) (for_statement) (while_statement) (except_clause) (conditional_expression) "
+                "(boolean_operator) (case_clause)] @branch")
+
 ENUM_BASES = {"Enum", "IntEnum", "StrEnum", "Flag", "IntFlag"}
 ATTRS_DECOS = {"attrs.define", "attr.s", "define", "attr.define", "attrs.frozen", "attr.attrs", "attrs.mutable"}
 PLAIN_FIELD_KINDS = {"enum", "sqlalchemy", "django"}
@@ -155,6 +158,15 @@ def models(ts, files: list) -> list:
         return []
     return assemble_models(ts.query("python", files, CLASS_Q), ts.query("python", files, FIELD_Q),
                            ts.query("python", files, DECORATOR_Q)) + migrations(files)
+
+
+def complexity(ts, files: list) -> dict:
+    """{path: number of branch nodes}: a rough measure of how many paths run through a file. Every file asked for gets a number."""
+    counts = {p: 0 for p in files}
+    for m in (ts.query("python", files, COMPLEXITY_Q) if files else []):
+        if m["path"] in counts:
+            counts[m["path"]] += 1
+    return counts
 
 
 def assemble_state(matches: list) -> list:
