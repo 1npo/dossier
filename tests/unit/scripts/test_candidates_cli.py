@@ -217,3 +217,90 @@ class TestComponentOf:
 
     def test_parse_paths_strips_backticks_and_splits_on_commas(self):
         assert parse_paths("`src/a/`, scripts/*.sh,`x.py`") == ["src/a/", "scripts/*.sh", "x.py"]
+
+
+def marker(path="src/a.py", line=3, rule="marker.hack", snippet="# HACK: skip"):
+    return {"kind": "marker", "path": path, "line": line, "end_line": line, "rule": rule, "snippet": snippet}
+
+
+def person(name, ident, kind="human", commits=5, commits_12m=2, **extra):
+    return {"kind": "person", "path": "", "person": ident, "name": name, "type": kind, "commits": commits, "commits_12m": commits_12m,
+            "assisted": 0, "first": "2024-01-01", "last": "2025-01-01", "aliases": [], "owned_commits": commits, "owned_lines": 0,
+            "username": None, **extra}
+
+
+def file_item(path, commits_12m=0, owners=None, blame=None, owner_lines=None, authors=None):
+    return {"kind": "file", "path": path, "lines": 10, "commits": commits_12m, "commits_12m": commits_12m, "lines_changed": 0, "lines_changed_12m": 0,
+            "last_changed": "2025-01-01", "authors": authors or {}, "blame": blame, "owners": owners or {}, "owner_lines": owner_lines}
+
+
+META = {"kind": "meta", "path": "", "status": "ok", "reasons": []}
+
+
+class TestHomeCardOfMarkers:
+    def test_a_marker_belongs_to_the_decisions_card(self):
+        assert candidates.home_card("history", marker()) == "change.decisions"
+
+    def test_other_history_items_have_no_home(self):
+        assert candidates.home_card("history", {"kind": "file", "path": "a.py"}) is None
+
+    def test_the_change_report_lists_markers_as_findings(self):
+        extract = {"history": candidates.assign_ids("history", [marker()])}
+
+        assert list(candidates.for_report("change", extract)) == ["change.decisions"]
+
+    def test_markers_are_open_until_a_row_keeps_or_a_group_dismisses_them(self):
+        items = candidates.assign_ids("history", [marker(line=3), marker(line=9)])
+        extract = {"history": items}
+        kept = {"change": {"cards": [{"card": "change.decisions", "blocks": [{"type": "table", "rows": [{"cells": ["x"], "cand": [items[0]["group"]]}]}]}]}}
+
+        assert len(candidates.open_items("change", extract, {})) == 2
+        assert candidates.open_items("change", extract, kept) == []
+
+
+class TestHistorySections:
+    def extract(self):
+        return {"history": [META, {"kind": "decision-doc", "path": "docs/adr/0001.md"},
+                            {"kind": "long-commit", "path": "", "sha": "a" * 40, "subject": "Big change", "lines": 12, "files": 4},
+                            {"kind": "todo", "path": "src/a.py", "count": 3}, {"kind": "todo", "path": "src/b.py", "count": 7},
+                            {"kind": "bulk", "path": "", "sha": "b" * 40, "files": 900, "author": "Ann", "date": "2024-02-01", "subject": "Import"},
+                            person("Ann Lee", "ann@x.org"), person("Ann", "a@y.org", commits=1), person("Bob Ray", "bob@x.org"),
+                            {"kind": "assistant", "path": "", "name": "Claude", "commits": 4, "files": {"src/a.py": 2, "src/b.py": 3}},
+                            file_item("src/a.py", 6, owners={"ann@x.org": 9, "bob@x.org": 1}, blame={"ann@x.org": 8}, owner_lines={"ann@x.org": 8}, authors={"ann@x.org": 10}),
+                            file_item("src/b.py", 1, owners={"ann@x.org": 1, "bob@x.org": 1})],
+                "symbols": [{"kind": "def", "path": "src/a.py", "line": 1, "name": "legacy_load"}, {"kind": "def", "path": "src/a.py", "line": 5, "name": "run"},
+                            {"kind": "def", "path": "src/b.py", "line": 2, "name": "run"}, {"kind": "def", "path": "src/b.py", "line": 9, "name": "__init__"}],
+                "graph": [{"kind": "cycle", "modules": ["a", "b"]}], "dead": [{"id": "dd-1"}]}
+
+    def text(self, rid, **kw):
+        catalog = {"cards": [{"card": "components.catalog", "blocks": [{"type": "table", "rows": [{"cells": ["Core", "src/"]}]}]}]}
+        return candidates.text(rid, self.extract(), {"components": catalog}, {}, tree={"src/a.py", "src/b.py", "docs/adr/0001.md"}, **kw)
+
+    def test_change_lists_documents_long_commits_todos_old_names_and_repeats(self):
+        out = self.text("change")
+
+        for title in ("== Decision documents ==", "== Long commit messages ==", "== TODO and FIXME counts ==", "== Old-looking names ==",
+                      "== Same name defined more than once ==", "== Bulk commits =="):
+            assert title in out
+        assert "docs/adr/0001.md" in out and "src/b.py  7" in out and "legacy_load" in out and "run  in 2 files" in out
+        assert "__init__" not in out
+
+    def test_contributors_lists_people_duplicates_components_bulk_and_agents(self):
+        out = self.text("contributors")
+
+        assert "Ann Lee  (human)" in out and "Ann Lee  /  Ann" in out and "Bob Ray" in out
+        assert "Core  (2 files, some without line data)" in out and "Ann Lee: 8 lines owned" in out
+        assert "Claude: 4 human commits carry its marker, in 2 files" in out and "Import" in out
+        assert "@" not in out
+
+    def test_risks_lists_cycles_dead_code_and_single_owner_hotspots(self):
+        out = self.text("risks")
+
+        assert "1 import cycles" in out and "1 dead code findings" in out
+        assert "src/a.py  6 commits in 12 months; Ann Lee owns 90% of its commits" in out
+
+    def test_nothing_is_printed_with_open(self):
+        assert self.text("contributors", only_open=True) == ""
+
+    def test_no_history_prints_nothing(self):
+        assert candidates.text("change", {"graph": []}, {}, {}, tree=set()) == ""

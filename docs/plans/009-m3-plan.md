@@ -633,7 +633,7 @@ Read section 2, section 3, D7, D8, D10 to D14, and D16. Load the skills in secti
   - Done-check: the three test files pass and block E prints `OK`. Its error lines now also include a V6 column line for `risks`.
   - Commit: `feat(dossier): add the Source column to Risks and name added columns apart`
 
-- [ ] **M3-17. Candidates for reports 10, 13 and 14.**
+- [x] **M3-17. Candidates for reports 10, 13 and 14.**
   - Goal: D7's `dossier candidates` output, and markers under V5 (needs S9).
   - Files: `scripts/candidates.py`, `scripts/measured_people.py`, `tests/unit/scripts/test_candidates.py`, `tests/unit/scripts/test_candidates_cli.py`, `tests/unit/scripts/test_checks_v5.py`.
   - Steps: (1) Tests: `home_card("history", marker) == "change.decisions"` and `None` for other kinds; an undecided marker fails V5 and a group id decides it; each new section prints; `--open` prints nothing once decided. (2) Add `"history"` to `DECIDED_OUTPUTS`. (3) Add the `change`, `contributors` and `risks` branches to `report_data` and `text`. `candidates.py` is about 300 lines, so put the new text in a new `candidates_history.py` that `candidates` calls late.

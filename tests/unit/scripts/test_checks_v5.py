@@ -203,3 +203,27 @@ class TestV5Env:
         res = checks.validate(self.inputs("env", "APP_HOME"), {}, None, FACTS)
 
         assert any("APP_SKIP" in e for e in res["errors"])
+
+
+class TestMarkerDecisions:
+    def markers(self):
+        import candidates
+
+        items = candidates.assign_ids("history", [{"kind": "marker", "path": "src/a.py", "line": n, "end_line": n, "rule": "marker.hack", "snippet": "# HACK"}
+                                                 for n in (3, 9)])
+        return items, {"history": items}
+
+    def test_an_undecided_marker_is_an_error(self):
+        _, extract = self.markers()
+
+        errors, *_ = checks.v5({}, extract)
+
+        assert any("tool findings for Decisions" in e and "have no decision" in e for e in errors)
+
+    def test_a_group_id_decides_every_marker_in_it(self):
+        items, extract = self.markers()
+        decisions = {"card": "change.decisions", "blocks": [{"type": "table", "columns": ["A"], "rows": [row("x", cand=[items[0]["group"]])]}]}
+
+        errors, *_ = checks.v5(reports(decisions), extract)
+
+        assert not any("have no decision" in e for e in errors)

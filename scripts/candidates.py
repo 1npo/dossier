@@ -102,7 +102,7 @@ CATEGORY_CARD = {
     "metric": "behavior.observability", "trace": "behavior.observability", "retry": "behavior.failures",
     "timeout": "behavior.failures", "catch-all": "behavior.failures", "transaction": "behavior.failures",
 }
-DECIDED_OUTPUTS = ("entry_points", "io_candidates", "models")
+DECIDED_OUTPUTS = ("entry_points", "io_candidates", "models", "history")
 
 
 def card_titles() -> dict:
@@ -125,6 +125,8 @@ def home_card(output: str, item: dict):
         return CATEGORY_CARD.get(item.get("category"))
     if output == "models" and item.get("kind") != "migration":
         return "data.entities"
+    if output == "history" and item.get("kind") == "marker":
+        return "change.decisions"
     return None
 
 
@@ -266,6 +268,11 @@ def report_data(rid: str, extract: dict, reports: dict, facts: dict, *, only_ope
                            for m in sorted(mods, key=lambda m: (-rank.get(m["module"], 0), m["module"]))]
         data["entry_points"] = sorted({e["path"] for e in extract.get("entry_points", [])})
         data["tests"] = sorted({t["path"] for t in extract.get("tests", []) if t.get("kind") == "test-file"})
+    import candidates_history  # late: it imports this module
+
+    extra = candidates_history.data(rid, extract, reports, catalog, tree)
+    if extra:
+        data["history"] = extra
     return data
 
 
@@ -301,4 +308,7 @@ def text(rid: str, extract: dict, reports: dict, facts: dict, *, only_open: bool
         out += d["entry_points"]
         out.append("== Test files ==")
         out += d["tests"]
+    import candidates_history  # late: it imports this module
+
+    out += candidates_history.lines(rid, extract, reports, catalog, tree, only_open)
     return "\n".join(out) + ("\n" if out else "")
