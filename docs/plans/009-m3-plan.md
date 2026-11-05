@@ -451,7 +451,7 @@ Read section 2, section 3, D1 to D6, D9, D16, D17 and D18. Load the skills in se
   - Done-check: `uv run --with pytest --with pygments python -m pytest tests/unit/scripts/test_history.py -q` passes.
   - Commit: `feat(dossier): parse the git history once, following renames`
 
-- [ ] **M3-2. The history output and the hand-over from `gather`.**
+- [x] **M3-2. The history output and the hand-over from `gather`.**
   - Goal: `prepare` writes `extract/history.json`.
   - Files: `scripts/history.py`, `scripts/gather.py`, `scripts/dossier.py`, `scripts/config.py`, `scripts/candidates.py`, `tests/conftest.py`, `tests/integration/scripts/test_history_git.py`, `tests/unit/scripts/test_gather.py`.
   - Interface: `history.collect(top, sha, run, handed, timeout) -> dict` returning the envelope of D2; `history.write(out, data)`. `facts["history_input"]` and `facts["history"]` as in D1.

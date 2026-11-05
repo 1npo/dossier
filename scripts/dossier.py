@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import os
 import posixpath
@@ -38,12 +39,14 @@ import checks  # noqa: E402
 import components  # noqa: E402
 import config  # noqa: E402
 import gather  # noqa: E402
+import history as historyscan  # noqa: E402
 import incremental  # noqa: E402
 import migrate  # noqa: E402
 import page_audit  # noqa: E402
 import process  # noqa: E402
 import render  # noqa: E402
 import resolve  # noqa: E402
+import sandbox  # noqa: E402
 import schema  # noqa: E402
 import stages  # noqa: E402
 import toolcheck  # noqa: E402
@@ -278,6 +281,12 @@ def cmd_prepare(a):
                 raise stages.PrepareError("The ref moved while prepare was running. Run it again.")
             if state.get("last_sha") and state["last_sha"] != sha:
                 facts["delta"] = gather.delta(top, state["last_sha"], sha, state.get("snapshot"), facts)
+            handed = facts.pop("history_input")
+            past = historyscan.collect(top, sha, functools.partial(sandbox.run, area=area, cwd=Path(top)), handed,
+                                       config.timeouts()["history"])
+            historyscan.write(out, past)
+            meta = historyscan.meta_of(past)
+            facts["history"] = {k: meta[k] for k in ("status", "reasons", "commits_seen", "commits_total", "shallow", "as_of")}
             plan = update_plan(top, out, state, facts, prev_version, a.full, candidates.digests(candidates.load(out)))
             cached = 0
             for c in chunks["chunks"]:
@@ -288,7 +297,7 @@ def cmd_prepare(a):
                              "commits": facts["git"]["commits"], "contributors": facts["git"]["contributors"]["total"]}
             rec["details"] = {"reading_mode": facts["chunks"]["mode"], "chunks": len(chunks["chunks"]),
                               "chunks_with_current_notes": cached, "plan_mode": plan["mode"],
-                              "stale": sorted(plan["stale"]), "fresh": plan["fresh"]}
+                              "stale": sorted(plan["stale"]), "fresh": plan["fresh"], "history": meta}
     except stages.PrepareError as e:
         die(str(e))
     (out / "reports").mkdir(parents=True, exist_ok=True)

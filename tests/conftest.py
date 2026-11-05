@@ -76,6 +76,52 @@ def git_repo(tmp_path):
     return repo
 
 
+@pytest.fixture
+def history_repo(tmp_path):
+    """Two humans, an agent, a bot, a rename, three files that change together, a merge, a tag, a remote ref, a HACK marker
+    and a human commit that credits Claude as co-author. HEAD is dated 2026-06-01."""
+    repo = tmp_path / "hrepo"
+    repo.mkdir()
+
+    def git(*args, who=None, day=None):
+        env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull}
+        if who:
+            name, email = who
+            env.update(GIT_AUTHOR_NAME=name, GIT_AUTHOR_EMAIL=email, GIT_COMMITTER_NAME=name, GIT_COMMITTER_EMAIL=email,
+                       GIT_AUTHOR_DATE=f"{day}T12:00:00+00:00", GIT_COMMITTER_DATE=f"{day}T12:00:00+00:00")
+        return subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, env=env, text=True).stdout
+
+    def commit(who, day, message, files=None):
+        for path, text in (files or {}).items():
+            target = repo / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(text)
+        git("add", "-A")
+        git("commit", "-m", message, who=who, day=day)
+
+    ann, bob = ("Ann Lee", "ann@x.io"), ("Bob Ray", "bob@x.io")
+    claude, bot = ("Claude", "noreply@anthropic.com"), ("dependabot[bot]", "bot@x.io")
+    git("init", "-b", "main")
+    for i, day in enumerate(("2025-01-10", "2025-02-10", "2025-03-10"), 1):
+        commit(ann, day, f"feat: step {i}", {"src/a.py": "a\n" * i, "src/b.py": "b\n" * i, "src/c.py": "c\n" * i})
+    commit(bob, "2025-04-01", "fix: lone change", {"src/d.py": "d = 1\n"})
+    commit(claude, "2025-05-01", "feat: agent work", {"src/e.py": "e = 1\n"})
+    commit(bot, "2025-06-01", "chore: bump", {"deps.txt": "a\nb\n"})
+    (repo / "src" / "d.py").rename(repo / "src" / "d2.py")
+    commit(bob, "2025-07-01", "refactor: rename")
+    git("tag", "v1.0", who=bob, day="2025-07-02")
+    git("switch", "-c", "feat/x")
+    commit(ann, "2025-08-01", "feat: on a branch", {"src/x.py": "x = 1  # HACK: temporary\n"})
+    git("switch", "main")
+    commit(bob, "2025-09-01", "docs: on main", {"README.md": "hello\n"})
+    git("merge", "--no-ff", "feat/x", "-m", "Merge branch 'feat/x'", who=bob, day="2026-01-01")
+    commit(bob, "2026-05-01", "feat: with an assistant\n\nCo-authored-by: Claude <noreply@anthropic.com>", {"src/a.py": "a\n" * 5})
+    sha = git("rev-parse", "HEAD").strip()
+    git("update-ref", "refs/remotes/origin/feat-y", sha)
+    commit(ann, "2026-06-01", "fix: latest", {"src/b.py": "b\n" * 6})
+    return repo
+
+
 INSTALL_SH = """#!/bin/sh
 # install.sh: writes out what a restore can see
 mkdir -p "$HOME/report"

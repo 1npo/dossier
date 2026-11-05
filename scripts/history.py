@@ -6,8 +6,11 @@ reformat) credits no file and no pair; it is listed instead.
 from __future__ import annotations
 
 import itertools
+import json
+import re
 from collections import Counter
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Iterator, NamedTuple
 
 import gather
@@ -63,8 +66,9 @@ def parse_log(data: bytes, drop_last: bool = False) -> Iterator[Commit]:
             yield c
 
 
-def fold(commits, wanted, cid_of, as_of, bulk_files=None) -> Folded:
-    """Credit `commits` (newest first) to files, pairs and people. A rename seen now says where older history belongs."""
+def fold(commits, wanted, cid_of, as_of, bulk_files=None, hook=None) -> Folded:
+    """Credit `commits` (newest first) to files, pairs and people. A rename seen now says where older history belongs.
+    `hook(commit, id, paths)` is called for every non-merge commit with the current paths it touched (none for a bulk commit)."""
     bulk_files = gather.BULK_FILES if bulk_files is None else bulk_files
     recent_from = as_of - timedelta(days=RECENT_DAYS)
     alias, files, pairs, people, bulk, author_of, seen = {}, {}, Counter(), {}, [], {}, []
@@ -104,4 +108,114 @@ def fold(commits, wanted, cid_of, as_of, bulk_files=None) -> Folded:
                 f["last_changed"] = dt
             touched.add(cur)
         pairs.update(itertools.combinations(sorted(touched), 2))
+        if hook:
+            hook(c, cid, touched)
     return Folded(files, pairs, people, bulk, author_of, seen)
+
+
+# --------------------------------------------------------------------------- the output file
+
+LOG_FORMAT = "%x1e%H%x1f%aN%x1f%aE%x1f%aI%x1f%P%x1f%B"
+REASON_SHALLOW = "this is a shallow clone"
+REASON_STOPPED = "reading the history took too long"
+REASON_BLAME = "git blame ran out of time for some files"
+
+
+def _read(res):
+    """The text of a finished child process, then remove its stdout file."""
+    try:
+        return res.stdout.read_bytes()
+    finally:
+        res.stdout.unlink(missing_ok=True)
+
+
+def _git(run, args, timeout, stage="history"):
+    res = run(["git", *args], stage=stage, timeout=timeout, profile="tool")
+    return res, _read(res)
+
+
+def _day(dt):
+    return dt.date().isoformat() if dt else None
+
+
+def _assistants(commits_by_label):
+    return [{"kind": "assistant", "path": "", "name": label, "commits": v["commits"], "files": dict(sorted(v["files"].items()))}
+            for label, v in sorted(commits_by_label.items())]
+
+
+def collect(top, sha, run, handed, timeout) -> dict:
+    """The envelope of `extract/history.json` (D2). `handed` is what `gather.collect` hands over; `run` is a bound `sandbox.run`."""
+    as_of = datetime.fromisoformat(handed["as_of"]).astimezone(timezone.utc)
+    canon, display, ctype = handed["canon"], handed["display"], handed["ctype"]
+    lines, blamed = handed["lines"], handed.get("blamed") or {}
+    cid_of = lambda n, e: canon.get(gather.ident_id(n, e)) or gather.ident_id(n, e)
+    res, data = _git(run, ["log", sha, "-M", "--numstat", "-z", f"--format={LOG_FORMAT}"], timeout)
+    stopped = bool(res.timed_out)
+    failed = not stopped and res.returncode not in (0, None)
+    commits = [] if failed else list(parse_log(data, drop_last=stopped))
+    _, total_raw = _git(run, ["rev-list", "--count", sha], 60)
+    total = int(total_raw.strip() or 0) if total_raw.strip().isdigit() else len(commits)
+    assisted, labelled = Counter(), {}
+
+    def hook(c, cid, touched):
+        marker = gather.AGENT_MSG.search(c.message)
+        if not marker or ctype.get(cid, "human") != "human":
+            return
+        assisted[cid] += 1
+        for label, pat in gather.AGENT_LABELS:
+            if re.search(pat, marker.group(0), re.I):
+                slot = labelled.setdefault(label, {"commits": 0, "files": Counter()})
+                slot["commits"] += 1
+                slot["files"].update(touched)
+                break
+
+    folded = fold(commits, set(lines), cid_of, as_of, hook=hook)
+    shallow = bool(handed.get("shallow"))
+    blame_total = sum(1 for n in lines.values() if n)
+    blame_done = sum(1 for p, n in lines.items() if n and p in blamed)
+    reasons = ([REASON_SHALLOW] if shallow else []) + ([REASON_STOPPED] if stopped else []) \
+        + ([REASON_BLAME] if blame_done < blame_total else []) \
+        + (["git could not read the history"] if failed else [])
+    items = [{"kind": "meta", "path": "", "status": "partial" if reasons else "ok", "reasons": reasons,
+              "commits_seen": len(commits), "commits_total": total, "shallow": shallow, "stopped_early": stopped,
+              "blame_done": blame_done, "blame_total": blame_total, "as_of": _day(as_of),
+              "window_from": _day(as_of - timedelta(days=RECENT_DAYS)), "pairs_total": len(folded.pairs),
+              "bulk_commits": len(folded.bulk), "owner_rule": "authors", "owner_status": "ok", "owner_reason": None, "prs_found": 0}]
+    for path in sorted(folded.files):
+        f = folded.files[path]
+        authors = dict(f["authors"])
+        items.append({"kind": "file", "path": path, "lines": lines.get(path, 0), "commits": f["commits"], "commits_12m": f["commits_12m"],
+                      "lines_changed": f["lines_changed"], "lines_changed_12m": f["lines_changed_12m"], "last_changed": _day(f["last_changed"]),
+                      "authors": authors, "blame": blamed.get(path), "owners": authors, "owner_lines": blamed.get(path)})
+    for (a, b), n in sorted(folded.pairs.items()):
+        ca, cb = folded.files[a]["commits"], folded.files[b]["commits"]
+        items.append({"kind": "pair", "path": a, "a": a, "b": b, "co_commits": n, "commits_a": ca, "commits_b": cb,
+                      "share": round(100 * n / min(ca, cb))})
+    for cid in sorted(folded.people):
+        p = folded.people[cid]
+        items.append({"kind": "person", "path": "", "person": cid, "name": display.get(cid, cid), "type": ctype.get(cid, "human"),
+                      "commits": p["commits"], "commits_12m": p["commits_12m"], "assisted": assisted[cid],
+                      "first": _day(p["first"]), "last": _day(p["last"]),
+                      "aliases": sorted(i for i, best in canon.items() if best == cid and i != cid),
+                      "owned_commits": p["commits"], "owned_lines": sum(b.get(cid, 0) for b in blamed.values()), "username": None})
+    for b in folded.bulk:
+        items.append({"kind": "bulk", "path": "", **{**b, "author": display.get(b["author"], b["author"])}})
+    items += _assistants(labelled)
+    return {"schema": 1, "sha": sha, "adapters": {"git": {"sha": sha, "version": "1", "tools": {},
+            "tool_status": {"git": {"status": "ok" if not failed else "failed", "reason": None if not failed else "git log failed"}}, "items": items}}}
+
+
+def items_of(data):
+    return data["adapters"]["git"]["items"]
+
+
+def meta_of(data):
+    return next(i for i in items_of(data) if i["kind"] == "meta")
+
+
+def write(out, data) -> None:
+    path = Path(out) / "extract" / "history.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")
+    tmp.replace(path)

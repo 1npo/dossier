@@ -71,6 +71,16 @@ class TestPrepareRuns:
         extract = next(r for r in build_of(world)["records"] if r["step"] == "extract")
         assert [a["name"] for a in extract["details"]["adapters"]] == ["python", "repo"]
 
+    def test_prepare_writes_the_history_and_keeps_the_hand_over_out_of_facts(self, world):
+        code, _, err = world.prepare("--ref", "main", "--allow-missing", "--restore", "no")
+
+        facts = json.loads((world.out / "facts.json").read_text())
+        measure = next(r for r in build_of(world)["records"] if r["step"] == "measure")
+        assert code == 0, err
+        assert (world.out / "extract" / "history.json").exists()
+        assert "history_input" not in facts and facts["history"]["status"] == "ok"
+        assert measure["details"]["history"]["kind"] == "meta" and measure["details"]["plan_mode"]
+
     def test_stored_no_is_used_next_time(self, world):
         world.prepare("--ref", "main", "--allow-missing", "--restore", "no")
 

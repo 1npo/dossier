@@ -19,6 +19,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 import deps as depscan
+import history as historyscan
 import gather
 import candidates
 import components
@@ -63,12 +64,15 @@ FACT_KEYS["hot_files"] = FACT_KEYS["manifests"] = "facts-git"   # their cards we
 FACT_KEYS["env_vars"] = FACT_KEYS["secret_signals"] = "facts-git"   # their panels were removed in 0.5.0; the figures still back statements about the repository
 FACT_KEYS["chunks"] = "dossier-build"
 FACT_KEYS["inventory"] = "facts-git"  # retired file-name inventory; old reports may still cite it
+FACT_KEYS["history"] = "c-change-hotspots"   # the uncapped git history behind the change and contributors reports
 OPTIONAL_REPORTS = ("change", "contributors")  # M3 writes these; until then a missing file is a warning
 UNRENDERED_BLOCKS = ("overview",)  # overview.json's written blocks are no longer drawn; do not count what is not shown
 DIAGRAM_START = re.compile(r"^\s*(%%\{.*?\}%%\s*)?(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram(-v2)?|erDiagram|journey|gantt|pie|mindmap|timeline|gitGraph|quadrantChart|requirementDiagram|C4\w+|sankey-beta|xychart-beta|block-beta|architecture-beta)\b", re.S)
 INLINE_CITE = re.compile(r"\[\[(.+?)\]\]")
 GATHERER_PATH = "dossier-gatherer/gather.py"   # the gatherer's source, embedded in the code viewer under this name
 DEPS_PATH = "dossier-gatherer/deps.py"         # likewise the dependency analysis, which the Dependencies card cites
+HISTORY_PATH = "dossier-gatherer/history.py"   # likewise the history pass behind the change and contributors reports
+GATHERER_FILES = {"gather": GATHERER_PATH, "deps": DEPS_PATH, "history": HISTORY_PATH}
 # What each "measured facts: <key>" citation means: (what it is, how the gatherer measured it, first line of its code, line that ends it)
 FACT_INFO = {
     "git": ("Commit history", "Totals and timelines from the repository's commit history: commits, merges, first and last commit, commits per day and month, release tags, and who made them. Everything is counted by the gatherer, not written by Claude.",
@@ -97,6 +101,8 @@ FACT_INFO = {
                      r"^def analyze\(", r'^            "deps": deps, "unused": unused', "deps"),
     "chunks": ("Reading coverage", "How the repository was divided up for reading: file sizes are estimated in tokens (bytes divided by 3.5) and packed into chunks that fit one context window.",
                r"# -+ chunk planning", r"# -+ main collection"),
+    "history": ("Git history", "Every commit read once from git: how often each file changed, which files change together, who made the changes and who owns them, the branches in flight, and the team's workflow. Nothing is capped. A commit that touches a very large number of files (an import or a reformat) is listed on its own and counts for no file.",
+                r"^def collect\(", r"^def items_of\(", "history"),
 }
 FACT_INFO["inventory"] = FACT_INFO["git"]
 E = lambda s: html.escape(str(s if s is not None else ""), quote=True)
@@ -121,12 +127,19 @@ def parse_cite(raw):
 
 @lru_cache(maxsize=None)
 def gatherer_source(which="gather"):
-    return viewer.split_lines(Path((depscan if which == "deps" else gather).__file__).read_bytes())
+    module = {"deps": depscan, "history": historyscan}.get(which, gather)
+    return viewer.split_lines(Path(module.__file__).read_bytes())
+
+
+def gatherer_which(key):
+    """Which source file measures a fact: the fifth entry of its FACT_INFO, else the gatherer."""
+    info = FACT_INFO.get(key, ())
+    return info[4] if len(info) > 4 else "gather"
 
 
 def gatherer_path(key):
     """The name the code viewer knows the gatherer code behind a fact by."""
-    return DEPS_PATH if len(FACT_INFO.get(key, ())) > 4 else GATHERER_PATH
+    return GATHERER_FILES[gatherer_which(key)]
 
 
 @lru_cache(maxsize=None)
@@ -135,7 +148,7 @@ def gatherer_range(key):
     info = FACT_INFO.get(key)
     if not info:
         return None
-    lines = gatherer_source("deps" if len(info) > 4 else "gather")
+    lines = gatherer_source(gatherer_which(key))
     first = next((i for i, l in enumerate(lines) if re.search(info[2], l)), None)
     last = next((i for i in range((first or 0) + 1, len(lines)) if re.search(info[3], lines[i])), None)
     if first is None or last is None:
@@ -1815,7 +1828,7 @@ def render_html(facts, reports, state, history, version, cites, build=None, cove
         print(f"warning: {len(dropped)} cited file(s) are not embedded in the code viewer, to keep the page small: {', '.join(dropped[:5])}{' ...' if len(dropped) > 5 else ''}")
     files = {p: {"lines": cites.source(p)[0]} for p in cites.windows}
     windows = dict(cites.windows)
-    for which, path in (("gather", GATHERER_PATH), ("deps", DEPS_PATH)):      # the gatherer's own code, so a "measured facts" citation can show how its numbers were measured
+    for which, path in GATHERER_FILES.items():      # the gatherer's own code, so a "measured facts" citation can show how its numbers were measured
         src = gatherer_source(which)
         files[path], windows[path] = {"lines": src}, viewer.pick_window(src, [gatherer_range(k) for k in FACT_INFO if gatherer_path(k) == path])
     jsn = lambda d: json.dumps(d, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/").replace("<!--", "<\\u0021--")

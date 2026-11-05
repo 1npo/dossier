@@ -1198,6 +1198,9 @@ def collect(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
         "file_activity": file_activity,    # kept out of facts.json: dossier.py writes it to activity.json
         "knowledge": knowledge,            # likewise written to knowledge.json
         "dependencies": dependencies,      # likewise written to dependencies.json
+        "history_input": {"canon": canon, "display": display, "ctype": ctype, "blamed": blamed, "as_of": as_of.isoformat(),
+                          "lines": {f["path"]: f["lines"] for f in files},
+                          "shallow": repo.git("rev-parse", "--is-shallow-repository", check=False).strip() == "true"},   # popped by dossier.py
     }
     repo.close()
     return facts, {"budget": chunk_tokens, "total_tokens": total_tokens, "chunks": chunks}
