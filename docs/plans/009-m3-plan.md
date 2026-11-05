@@ -698,7 +698,7 @@ Read section 2, section 3, D7, D8, D10 to D14, and D16. Load the skills in secti
   - Done-check: `grep -n "not written in this version\|via npx" SKILL.md README.md prompts/*.md scripts/*.json scripts/*.py` prints nothing, and the suite passes.
   - Commit: `docs(dossier): document reports 10 and 13, summary.json and V8`
 
-- [ ] **M3-26. Version 0.8.0.**
+- [x] **M3-26. Version 0.8.0.**
   - Goal: D14.
   - Files: `VERSION`.
   - Steps: edit the file directly (D14). Run the default and slow suites.
@@ -734,7 +734,24 @@ Commit on `feat/dossier-m3`. Do not merge.
 
 ### Results (Phase 2)
 
-(Written by the session: test counts, cuts, deviations, any change to block E's expected lines.)
+Written 2026-11-05 by Sonnet on branch `feat/dossier-m3`. All 11 tasks (M3-16 to M3-26) are done and ticked. Nothing was cut.
+
+**Tests.** Phase 1 ended at 1289 passed, 65 skipped. End of Phase 2: 1426 passed, 66 skipped (default, about 55 s). Slow suite: 1491 passed, 1 failed, 14 min. The one failure is `test_golden02_slow.py`, the same Phase 1 failure that also fails on `main` (baseline PNGs need remaking by the author), so block G2 still cannot pass. `summary.schema.json` agrees with `jsonschema` 4.26.0 on one good and three bad documents.
+
+**Block E.** Passes (`OK`) after every task that edited `render.py`. I used the Phase 1 check (report 02 overview at `main` in a scratch worktree against the working tree, `data-a`/`data-b` dropped). Its allowed error lines changed: the migrated fixture now gives `V5: Risks: Source must be extractor or read, found 'Not yet recorded'` lines, because the migration fills the new Risks `Source` column with its missing-cell placeholder. Section 6 block E is updated.
+
+**Deviations.**
+
+1. M3-16: `migrate_map.json` gives the risks rule `"Source": null`, because `test_migrate.py::test_shipped_map_is_consistent` needs the rule's columns to match the schema. `reports.md` got the Source sentence in this task, not M3-24. `checks_people.py` was created here (Risks check) and extended in M3-19.
+2. M3-17: `component_stats` and `names_of` were written here, not in M3-18, since the candidates output needs them. `file` items keep only all-time commits per person, so there is no per-person "commits in 12 months" per component. The contributors candidates list all-time commits instead, and `component_stats` has no `commits_12m` key. `candidates.py` is now 349 lines.
+3. M3-18: Share of commits is the identity's commits over all `person` commits. An owner name that matches nobody gets `-`.
+4. M3-19: one line is new: `V5: Knowledge concentration, {name}: an Owner of unknown needs conf unknown.` The checks stay quiet until all four cards are written (V6 reports the rest). `v5_people` counts the Risks Source errors too.
+5. M3-21: `candidates.tool_list` (read from the extract files) was added here; M3-22's `tool_status` builds on it and also returns `version`. `deps.py` unused entries gained `ecosystem`. The validator is in `summary_check.py` (under 300 lines) and `summary.validate` re-exports it. It also accepts `$schema`, `title` and `description` as annotations, and `type` as a list. Tier is `A` or `B`. `repo.remote` is the web address, or the remote with any `user@` removed. `ownership.bus_factor` and `top_owner_share` are `null` without human lines.
+6. M3-23: block E's expected lines (see above).
+7. M3-25: the "via npx" text is now "from a lockfile with npm" for tools with a `node_lock`. No user guide or developer guide exists yet; the full README rewrite stays in M6.
+
+**Not verified.** No real repository has been built. Report 13 completeness and `summary.json` content are tested on hand-built data and the frozen fixture only.
+
 
 ---
 
