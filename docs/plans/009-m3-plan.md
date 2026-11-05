@@ -552,7 +552,7 @@ Read section 2, section 3, D1 to D6, D9, D16, D17 and D18. Load the skills in se
   - Done-check: `DOSSIER_SLOW=1 uv run --with pytest --with pygments python -m pytest tests/unit/scripts/test_page_audit.py tests/integration/scripts/test_check_page_slow.py -q` passes.
   - Commit: `feat(dossier): hold the new cards to the page audit and the browser check`
 
-- [ ] **M3-15. Owner and Author buttons.** The author approved this change to report 02 on 2026-11-05.
+- [x] **M3-15. Owner and Author buttons.** The author approved this change to report 02 on 2026-11-05.
   - Goal: D18.
   - Files: `scripts/render.py`, `assets/dossier.js`, `assets/dossier.css`, `scripts/page_audit.py`, `scripts/check_page.py`, `tests/tools/broken_pages.py`, `tests/unit/scripts/test_render.py`, `tests/unit/scripts/test_page_audit.py`, `tests/integration/scripts/test_check_page_slow.py`.
   - Steps: (1) Tests: without `history` items the card is byte-identical to today's; with them, removing every `data-who="owner"` element, the buttons and the wrappers gives back today's card; Owner table rows equal the identities that own something; Owner view figures come from `history`, not from `facts`. (2) Implement D18. (3) Add `check_owner_buttons` and the mutation `owner-buttons-dead`.

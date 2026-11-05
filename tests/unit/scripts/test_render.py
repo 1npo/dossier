@@ -488,3 +488,82 @@ class TestAssetSentinels:
         lines = [ln for ln in (render.ASSETS / "dossier.js").read_text().splitlines() if ln.strip()]
 
         assert 'dataset.dossierJs = "ok"' in lines[-1]
+
+
+class TestContributorsOwnerButtons:
+    def facts(self):
+        person = lambda i, n, t, c: {"id": i, "name": n, "type": t, "commits": c, "share_pct": 50.0, "first": "2025-01-01", "last": "2026-01-01",
+                                     "recent_commits_12m": c, "assisted_commits": 0, "added": 10, "deleted": 2}
+        return {"git": {"contributors": {"human": 1, "agent": 1, "bot": 0, "total": 2}, "commits_by_type": {"human": 5, "agent": 5, "bot": 0},
+                        "agent_assisted_commits": 0, "agent_assisted_by": {}},
+                "contributors": {"people": [person("ann@x.io", "Ann", "human", 5), person("claude@x.io", "Claude", "agent", 5)], "not_listed": 0},
+                "ownership": None, "knowledge": None}
+
+    def history(self, rule="one-human"):
+        person = lambda i, n, t, c, oc, ol: {"kind": "person", "path": "", "person": i, "name": n, "type": t, "commits": c, "owned_commits": oc, "owned_lines": ol}
+        return [{"kind": "meta", "owner_rule": rule}, person("ann@x.io", "Ann", "human", 5, 10, 100), person("claude@x.io", "Claude", "agent", 5, 0, 0),
+                person("github:zed", "zed", "human", 0, 0, 0)]
+
+    class Refs:
+        def mark(self, cites):
+            return ""
+
+    def card(self, history=None, facts=None):
+        return render.panel_contributors(facts or self.facts(), render.Refs("x", None) if False else self.Refs(), history)
+
+    def strip(self, html):
+        """The card as it was before the buttons: owner elements, buttons and author wrappers removed."""
+        out, stack = [], []   # stack of (drop this tag, it starts an owner part)
+        for t in re.split(r"(<div[^>]*>|</div>|<p[^>]*data-who=\"owner\"[^>]*>.*?</p>)", html, flags=re.S):
+            inside = any(owner for _, owner in stack)
+            if t.startswith("<p") and 'data-who="owner"' in t:
+                continue
+            if t.startswith("<div"):
+                owner = 'data-who="owner"' in t or 'id="who-ctl"' in t
+                drop = owner or 'data-who="author"' in t
+                stack.append((drop, owner))
+                if not drop and not inside:
+                    out.append(t)
+            elif t == "</div>":
+                drop, _ = stack.pop()
+                if not drop and not any(owner for _, owner in stack):
+                    out.append(t)
+            elif not inside:
+                out.append(t)
+        return "".join(out)
+
+    def test_without_history_items_the_card_is_exactly_what_it_was(self):
+        assert self.card(None) == self.card([{"kind": "meta"}])
+        assert "data-who" not in self.card(None) and "who-mode" not in self.card(None)
+
+    def test_removing_owner_parts_buttons_and_wrappers_gives_back_the_old_card(self):
+        old = self.card(None)
+        new = self.card(self.history())
+
+        assert re.sub(r"\s+", " ", self.strip(new)) == re.sub(r"\s+", " ", old)
+
+    def test_author_is_pressed_when_the_page_opens_and_owner_parts_are_hidden(self):
+        html = self.card(self.history())
+
+        assert re.findall(r'data-who-set="(\w+)" aria-pressed="(\w+)"', html) == [("owner", "false"), ("author", "true")]
+        assert html.count('data-who="owner" hidden') >= 4 and 'data-who="author" hidden' not in html
+
+    def test_owner_table_lists_every_identity_that_owns_something_and_only_those(self):
+        html = self.card(self.history())
+
+        owner = html.split('id="t-people-owner"')[1].split("</table>")[0]
+        assert "Ann" in owner and "Claude" not in owner and "zed" not in owner
+
+    def test_owner_figures_come_from_the_history_not_the_facts(self):
+        html = self.card(self.history())
+
+        owner = html.split('id="t-people-owner"')[1].split("</table>")[0]
+        assert re.findall(r"<td[^>]*>([^<]*)</td>", owner) == ["10", "5", "100"]
+
+    def test_the_rule_in_force_is_stated(self):
+        one = self.card(self.history("one-human"))
+        prs = self.card(self.history("pull-requests"))
+
+        assert "Ann is the only person on this project, so they own every commit." in one
+        assert "belong to the person who approved their pull request" in prs
+        assert "The calendar and the knowledge map always show who authored each commit." in one

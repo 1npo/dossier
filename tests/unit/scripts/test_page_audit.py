@@ -318,3 +318,38 @@ class TestNotYetGenerated:
         monkeypatch.setattr(render, "CUT_CARDS", ("change.hotspots",))
 
         assert page_audit.audit(self.page("change.hotspots"), {}, whole_page=False) == []
+
+
+class TestOwnerTable:
+    def build(self, history):
+        import test_render
+
+        t = test_render.TestContributorsOwnerButtons()
+        return f'<div data-card="overview.contributors">{render.panel_contributors(t.facts(), t.Refs(), history)}</div>'
+
+    def history(self, extra=()):
+        import test_render
+
+        return test_render.TestContributorsOwnerButtons().history() + list(extra)
+
+    def errors(self, page, history):
+        cards = {}
+        for n in page_audit.parse(page).walk():
+            if "data-card" in n.attrs:
+                cards.setdefault(n.attrs["data-card"], []).append(n)
+        return page_audit._check_measured(cards, {"extract": {"history": history}, "tree": {"a.py"}}, page)
+
+    def test_the_owner_table_has_one_row_per_identity_that_owns_something(self):
+        history = self.history()
+
+        assert self.errors(self.build(history), history) == []
+
+    def test_a_row_removed_from_the_owner_table_is_an_error(self):
+        history = self.history([{"kind": "person", "path": "", "person": "bob@x.io", "name": "Bob", "type": "human", "commits": 2,
+                                 "owned_commits": 2, "owned_lines": 5}])
+        page = self.build(history)
+        start = page.index('id="t-people-owner"')
+        end = page.index("</tbody>", start)
+        broken = page[:page.rindex("<tr>", start, end)] + page[end:]
+
+        assert self.errors(broken, history) == ["V11: overview.contributors: table t-people-owner has 1 rows, expected 2."]

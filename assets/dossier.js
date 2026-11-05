@@ -1404,6 +1404,20 @@
     pick.addEventListener("change", function () { show1(pick.value); });
   }
 
+  // ---- Contributors card: credit commits to their owner or to their author
+  (function initWho() {
+    var group = doc.getElementById("who-mode");
+    if (!group) return;
+    function set(mode) {
+      $$("[data-who]").forEach(function (e) { e.hidden = e.dataset.who !== mode; });
+      $$("#who-mode [data-who-set]").forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.whoSet === mode ? "true" : "false"); });
+    }
+    group.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-who-set]");
+      if (b) set(b.dataset.whoSet);
+    });
+  })();
+
   applyTheme(); show();
 })();
 document.documentElement.dataset.dossierJs = "ok";

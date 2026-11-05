@@ -240,6 +240,10 @@ def new_card_fails(lines):
     return [line for line in lines if "change." in line or "contributors." in line]
 
 
+def owner_page_has_buttons(page):
+    return 'id="who-mode"' in page.read_text()
+
+
 class TestNewCardsOnTheM3Page:
     def test_the_browser_check_names_no_new_card(self, m3):
         page, env = m3
@@ -247,6 +251,9 @@ class TestNewCardsOnTheM3Page:
         done = check(page, env)
 
         assert new_card_fails(fails(done)) == [], done.stdout[-1500:]
+
+    def test_the_m3_page_has_the_owner_and_author_buttons(self, m3):
+        assert owner_page_has_buttons(m3[0])
 
     def test_the_page_audit_accepts_every_new_card(self, m3):
         import candidates
@@ -263,7 +270,7 @@ class TestNewCardsOnTheM3Page:
 
         errs = page_audit.audit(page.read_text(), reports, extract, facts, measured=measured)
 
-        assert [e for e in errs if "change." in e or "contributors." in e] == []
+        assert [e for e in errs if "change." in e or "contributors." in e or "t-people-owner" in e] == []
 
     def test_a_missing_hotspot_row_is_reported_by_the_page_audit(self, m3):
         import candidates
@@ -281,7 +288,8 @@ class TestNewCardsOnTheM3Page:
 
         assert any("t-change-hotspots-files" in e for e in errs)
 
-    @pytest.mark.parametrize("mutation, wanted", [("blast-data-removed", "blast"), ("chart-text-small", "chart text"), ("workflow-table-to-text", "contributors.workflow")])
+    @pytest.mark.parametrize("mutation, wanted", [("blast-data-removed", "blast"), ("chart-text-small", "chart text"), ("workflow-table-to-text", "contributors.workflow"),
+                                                        ("owner-buttons-dead", "overview.contributors")])
     def test_each_browser_mutation_makes_a_fail(self, m3, tmp_path, mutation, wanted):
         page, env = m3
         broken = tmp_path / "broken.html"

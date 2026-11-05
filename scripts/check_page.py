@@ -387,6 +387,25 @@ def check_report(page, scheme, rid, shots, counter):
     return problems
 
 
+def check_owner_buttons(page, scheme):
+    """V12 on the Owner and Author buttons of the Contributors card: each shows its table and hides the other."""
+    page.evaluate("() => { location.hash = 'overview'; }")
+    page.wait_for_timeout(200)
+    if not page.query_selector("#who-mode"):
+        return []
+    problems = []
+    for mode, shown, hidden in (("owner", "#t-people-owner", "#t-people"), ("author", "#t-people", "#t-people-owner")):
+        button = f"#who-mode button:text-is('{mode.capitalize()}')"
+        page.click(button)
+        if page.query_selector(shown) is None or not page.is_visible(shown):
+            problems.append(f"[{scheme}] overview.contributors: the {mode} button does not show {shown}")
+        if page.query_selector(hidden) is not None and page.is_visible(hidden):
+            problems.append(f"[{scheme}] overview.contributors: the {mode} button leaves {hidden} showing")
+        if page.get_attribute(button, "aria-pressed") != "true":
+            problems.append(f"[{scheme}] overview.contributors: the {mode} button is not marked pressed")
+    return problems
+
+
 def check_blast(page, scheme):
     """V12 on the blast radius picker: picking a file lists as many dependents, tests and co-changing files as its table row says."""
     page.evaluate("() => { location.hash = 'change'; }")
@@ -440,6 +459,7 @@ def check_theme(browser, path, scheme, shots):
     problems += safe(scheme, "knowledge map", check_knowledge, page, scheme)
     problems += safe(scheme, "search", check_search, page, scheme)
     problems += safe(scheme, "blast radius", check_blast, page, scheme)
+    problems += safe(scheme, "owner buttons", check_owner_buttons, page, scheme)
     problems += [f"[{scheme}] browser error: {e}" for e in errors]
     ctx.close()
     return problems, counter[0]

@@ -199,10 +199,18 @@ def workflow_table_to_text(html: str) -> str:
     return html[:box] + "<p>The workflow is described here in words.</p>" + html[end:]
 
 
+def owner_buttons_dead(html: str) -> str:
+    """The Owner and Author buttons no longer answer a click."""
+    out = html.replace("data-who-set=", "data-xx-set=")
+    if out == html:
+        raise ValueError("the page has no Owner and Author buttons")
+    return out
+
+
 MUTATIONS = {"km-row-taller": km_row_taller, "wide-element": wide_element, "icon-unsized": icon_unsized, "tiny-diagram": tiny_diagram, "flow-no-notes": flow_no_notes,
              "overlap": overlap, "table-hidden": table_hidden, "drop-row": drop_row, "drop-column": drop_column, "table-as-text": table_as_text, "entry-no-kv": entry_no_kv,
              "drop-entry": drop_entry, "drop-er-field": drop_er_field, "conflict-css": conflict_css, "no-js-sentinel": no_js_sentinel, "big-diagrams": big_diagrams, "wide-tables": wide_tables, "blast-data-removed": blast_data_removed, "hotspot-row-removed": hotspot_row_removed,
-             "chart-text-small": chart_text_small, "workflow-table-to-text": workflow_table_to_text}
+             "chart-text-small": chart_text_small, "workflow-table-to-text": workflow_table_to_text, "owner-buttons-dead": owner_buttons_dead}
 
 
 def mutate(html: str, name: str, **kw) -> str:

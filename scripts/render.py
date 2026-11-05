@@ -1421,7 +1421,43 @@ def knowledge_card(f, people_html=""):
             f'<script type="application/json" id="km-data">{jsn}</script>')
 
 
-def panel_contributors(f, refs):
+def owner_view(f, pal, history):
+    """(note, tiles, bar, table) of the Owner view of the Contributors card, read from the history alone. Every identity that owns something is listed."""
+    people = [i for i in history if i.get("kind") == "person"]
+    meta = next((i for i in history if i.get("kind") == "meta"), {})
+    owners = sorted((p for p in people if p["owned_commits"] or p["owned_lines"]), key=lambda p: (-p["owned_lines"], -p["owned_commits"], p["name"]))
+    by_type = {t: [p for p in owners if p["type"] == t] for t in ("human", "agent", "bot")}
+    total_commits = sum(p["owned_commits"] for p in owners) or 1
+    tiles = stats_html([(t.capitalize(), str(len(by_type[t])), f"{fmt(sum(p['owned_commits'] for p in by_type[t]))} commits owned · "
+                         f"{100 * sum(p['owned_commits'] for p in by_type[t]) / total_commits:.0f}%") for t in ("human", "agent", "bot")])
+    lines_total = sum(p["owned_lines"] for p in owners)
+    if lines_total:
+        top = owners[:PALETTE]
+        items = [(pal.get(p["person"]) or pal.get(p["name"]) or "own-other", p["name"], p["owned_lines"], "") for p in top]
+        items.append(("lang-8", "Everyone else", lines_total - sum(p["owned_lines"] for p in top), ""))
+        bar = share_bar(items, lines_total)
+    else:
+        bar = '<p class="muted">No line ownership was measured, so there is no bar of owned lines.</p>'
+    rows = [[f'<b class="own-dot {pal.get(p["person"]) or pal.get(p["name"]) or "own-other"}"></b>{E(p["name"])}', type_badge(p["type"]),
+             (fmt(p["owned_commits"]), p["owned_commits"]), (fmt(p["commits"]), p["commits"]), (fmt(p["owned_lines"]), p["owned_lines"])] for p in owners]
+    table = (render_table(["Name", "Type", "Commits owned", "Commits authored", "Lines owned"], rows, None, "t-people-owner", True, True) if rows
+             else '<p class="muted none-found">Nobody owns a commit or a line.</p>')
+    if meta.get("owner_rule") == "one-human":
+        sole = next((p["name"] for p in people if p["type"] == "human"), "The only human")
+        rule = f"{sole} is the only person on this project, so they own every commit."
+    else:
+        rule = "Commits by agents and bots belong to the person who approved their pull request, or to their author when there was none."
+    return f"{rule} The calendar and the knowledge map always show who authored each commit.", tiles, bar, table
+
+
+def who_buttons():
+    btns = "".join(f'<button type="button" class="btn" data-variant="outline" data-size="sm" data-who-set="{v}" aria-pressed="{"true" if v == "author" else "false"}">{t}</button>'
+                   for v, t in (("owner", "Owner"), ("author", "Author")))
+    return ('<div class="km-ctl" id="who-ctl"><span class="muted" id="who-l">Credit commits to</span>'
+            f'<div class="button-group" id="who-mode" role="group" aria-labelledby="who-l">{btns}</div></div>')
+
+
+def panel_contributors(f, refs, history=None):
     g, c = f["git"], f["git"]["contributors"]
     cb = g["commits_by_type"]
     commits_total = sum(cb.values()) or 1
@@ -1463,8 +1499,18 @@ def panel_contributors(f, refs):
     when = calendar_html(g, names, pal, g.get("tags") or [])
     know = ('<p class="muted">Which parts of the repository each person knows best, based on surviving lines, commit history and recent activity.</p>'
             + knowledge_card(f, table + more))
+    cites = ["facts:contributors", "facts:git", "facts:knowledge"] + (["facts:ownership"] if o else [])
+    if history and any(i.get("kind") == "person" for i in history):
+        note, o_tiles, o_bar, o_table = owner_view(f, pal, history)
+        by_author = lambda html: f'<div data-who="author">{html}</div>'
+        by_owner = lambda html: f'<div data-who="owner" hidden>{html}</div>'
+        know = ('<p class="muted">Which parts of the repository each person knows best, based on surviving lines, commit history and recent activity.</p>'
+                + knowledge_card(f, by_author(table + more) + by_owner(o_table)))
+        body = (who_buttons() + f'<p class="muted" data-who="owner" hidden>{E(note)}</p>' + by_author(tiles) + by_owner(o_tiles) + assisted + when
+                + by_author(f'<div class="who-bar">{who_bar}</div>') + by_owner(f'<div class="who-bar">{o_bar}</div>') + know)
+        return card("Contributors", body, "facts-contributors", None, refs, cites + (["facts:history"] if f.get("history") else []), cid="overview.contributors")
     return card("Contributors", tiles + assisted + when + f'<div class="who-bar">{who_bar}</div>' + know,
-                "facts-contributors", None, refs, ["facts:contributors", "facts:git", "facts:knowledge"] + (["facts:ownership"] if o else []), cid="overview.contributors")
+                "facts-contributors", None, refs, cites, cid="overview.contributors")
 
 
 # --------------------------------------------------------------------------- tracker pages
@@ -1748,7 +1794,7 @@ def build_page(rid, reports, facts, state, ctx):
         summary_html = md(summary_text(rep), refs) or '<p class="muted">Not generated.</p>'
         if rid == "overview":
             parts.append(panel_git(facts, refs, ctx))
-            parts.append(panel_contributors(facts, refs))
+            parts.append(panel_contributors(facts, refs, ctx["extract"].get("history")))
             parts.append(panel_dependencies(facts, refs))
         if rid == "risks" and rep:
             parts.append(panel_risk_counts(rep))

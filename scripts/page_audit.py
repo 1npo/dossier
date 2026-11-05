@@ -203,6 +203,10 @@ def _measured_counts(m) -> dict:
     work = len(measured_change.history_items(m, "workflow"))
     if work:
         out["contributors.workflow"] = [("t-contributors-workflow", work, ["Convention", "Observed", "Evidence", "Source"])]
+    people = [i for i in measured_change.history_items(m, "person")]
+    if people:
+        out["overview.contributors"] = [("t-people-owner", sum(1 for p in people if p["owned_commits"] or p["owned_lines"]),
+                                         ["Name", "Type", "Commits owned", "Commits authored", "Lines owned"])]
     out["change.upgrade-burden"] = [("t-change-upgrade-burden", len(measured_upgrade.rows(m)), ["Runtime or package", "Pinned", "Latest or supported", "Gap", "Source"])]
     return out
 
