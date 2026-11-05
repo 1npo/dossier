@@ -1,0 +1,53 @@
+{
+ "data": {
+  "repository": {
+   "c0": {
+    "author": {
+     "user": {
+      "login": "bot-author"
+     }
+    },
+    "associatedPullRequests": {
+     "nodes": [
+      {
+       "number": 20,
+       "merged": true,
+       "mergedBy": {
+        "login": "amy",
+        "__typename": "User"
+       },
+       "reviews": {
+        "nodes": [
+         {
+          "author": {
+           "login": "late",
+           "__typename": "User"
+          }
+         }
+        ]
+       }
+      },
+      {
+       "number": 12,
+       "merged": true,
+       "mergedBy": {
+        "login": "amy",
+        "__typename": "User"
+       },
+       "reviews": {
+        "nodes": [
+         {
+          "author": {
+           "login": "early",
+           "__typename": "User"
+          }
+         }
+        ]
+       }
+      }
+     ]
+    }
+   }
+  }
+ }
+}

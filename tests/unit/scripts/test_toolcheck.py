@@ -71,7 +71,27 @@ class TestPreflight:
     def test_all_scopes_checks_every_host_tool(self, tmp_path):
         report = toolcheck.preflight([], path=fake_bin(tmp_path, **ALL), all_scopes=True)
 
-        assert {h["id"] for h in report["host"]} == {"git", "uv", "node", "npm", "dotnet"}
+        assert {h["id"] for h in report["host"]} == {"git", "gh", "uv", "node", "npm", "dotnet"}
+
+
+class TestOptionalTools:
+    def test_missing_gh_is_not_in_missing(self, tmp_path):
+        report = toolcheck.preflight(["Python"], path=fake_bin(tmp_path, **ALL))
+
+        gh = next(h for h in report["host"] if h["id"] == "gh")
+        assert gh["status"] == "missing" and gh["optional"] is True
+        assert "gh" not in report["missing"] and report["missing"] == []
+
+    def test_installed_gh_is_listed_with_its_version(self, tmp_path):
+        report = toolcheck.preflight(["Python"], path=fake_bin(tmp_path, gh="gh version 2.63.0 (2025-01-01)", **ALL))
+
+        assert next(h for h in report["host"] if h["id"] == "gh")["version"] == "2.63.0"
+
+    def test_format_text_lists_gh_under_optional_and_still_says_nothing_is_missing(self, tmp_path):
+        text = toolcheck.format_text(toolcheck.preflight(["Python"], path=fake_bin(tmp_path, **ALL)))
+
+        assert "Optional (a build works without them):" in text and "not found gh" in text
+        assert "MISSING  gh" not in text and text.endswith("Nothing is missing.")
 
 
 class TestTier:
@@ -115,7 +135,7 @@ class TestToolsFile:
             assert {"ecosystem", "lockfile", "command", "enabled"} <= set(r)
 
     def test_counts(self):
-        assert (len(TOOLS["host"]), len(TOOLS["tools"]), len(TOOLS["restore"])) == (5, 12, 3)
+        assert (len(TOOLS["host"]), len(TOOLS["tools"]), len(TOOLS["restore"])) == (6, 12, 3)
 
 
 class TestFormatText:

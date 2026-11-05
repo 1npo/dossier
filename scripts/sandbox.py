@@ -21,6 +21,7 @@ ALLOWED_NAMES = frozenset({
     "PATH", *PASS_THROUGH, "HOME", "TMPDIR", "XDG_CACHE_HOME", "XDG_CONFIG_HOME", *NETWORK,
     "DOTNET_CLI_TELEMETRY_OPTOUT", "DOTNET_NOLOGO", "UV_CACHE_DIR", "npm_config_cache", "NUGET_PACKAGES",
     "DOTNET_CLI_HOME", "PIP_CACHE_DIR", "npm_config_userconfig", "UV_PYTHON_INSTALL_DIR",
+    "GH_CONFIG_DIR", "GH_PROMPT_DISABLED", "GH_NO_UPDATE_NOTIFIER",
 })
 SAFE_PATH = ("/usr/local/bin", "/usr/bin", "/bin")
 
@@ -94,6 +95,9 @@ def build_env(area: Path, *, profile: str = "restricted", ecosystem: str | None 
                    npm_config_cache=str(shared / "npm"))
     else:
         env["UV_CACHE_DIR"] = str(cache / "uv")
+    if profile == "github":     # `gh` finds its login in its own config folder; no token variable is ever passed
+        env.update(GH_CONFIG_DIR=parent.get("GH_CONFIG_DIR") or str(Path(parent.get("XDG_CONFIG_HOME") or Path(parent.get("HOME") or Path.home()) / ".config") / "gh"),
+                   GH_PROMPT_DISABLED="1", GH_NO_UPDATE_NOTIFIER="1")
     for d in (home / "tmp", home / ".cache", home / ".config"):
         d.mkdir(parents=True, exist_ok=True)
     (home / ".npmrc-empty").touch()

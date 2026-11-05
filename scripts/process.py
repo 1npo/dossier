@@ -233,6 +233,8 @@ def coverage_items(build) -> list[dict]:
     if tools:
         d = tools.get("details") or {}
         for h in d.get("host", []):
+            if h.get("optional"):
+                continue
             if h["status"] == "missing":
                 items.append(_item(f"The tool {h['id']} was not installed, so this build ran without it. Install it with: {h['install']}",
                                    "Install the tool and build again."))

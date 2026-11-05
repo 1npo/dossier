@@ -75,7 +75,7 @@ def stage_tools(build, top, sha, opts: Options) -> dict:
     langs = toolcheck.languages_at(top, sha)
     report = toolcheck.preflight(langs)
     found = [{"name": h["id"], "version": h["version"]} for h in report["host"] if h["version"]]
-    bad = [h for h in report["host"] if h["status"] != "ok"]
+    bad = [h for h in report["host"] if h["status"] != "ok" and not h.get("optional")]
     if report["missing"] and not opts.allow_missing:
         names = ", ".join(report["missing"])
         record(build, t0, "tools", status="failed", reason=f"Missing: {names}.", tools=found, details=report)

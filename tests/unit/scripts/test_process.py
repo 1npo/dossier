@@ -220,6 +220,11 @@ class TestCoverageItems:
 
         assert got == ["The tool node was not installed, so this build ran without it. Install it with: brew install node"]
 
+    def test_missing_optional_tool_is_not_a_gap(self):
+        host = [{"id": "gh", "status": "missing", "optional": True, "install": "brew install gh"}]
+
+        assert self.statements(rec("tools", details={"host": host, "languages": []})) == []
+
     def test_old_tool(self):
         host = [{"id": "node", "status": "old", "version": "20", "needs": "22", "install": "x"}]
 

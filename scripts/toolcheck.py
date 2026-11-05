@@ -67,7 +67,7 @@ def _install_text(tool: dict) -> str:
 def check_host(tool: dict, scopes: set[str], path: str | None = None) -> dict:
     need = _needed_min(tool, scopes)
     res = {"id": tool["id"], "status": "missing", "version": None, "path": None, "needs": need, "for": [],
-           "install": _install_text(tool)}
+           "install": _install_text(tool), "optional": bool(tool.get("optional"))}
     exe = shutil.which(tool["command"][0], path=path)
     if not exe:
         return res
@@ -113,7 +113,7 @@ def preflight(langs: list[str], tools: dict | None = None, path: str | None = No
         needs = [h for h in HOST_FOR_VIA[t["via"]] if status.get(h, "missing") != "ok"]
         selfi.append({"id": t["id"], "version": t["version"], "via": t["via"], "status": "missing" if needs else "first-use",
                       "needs": needs})
-    missing = [h["id"] for h in host if h["status"] != "ok"] + [s["id"] for s in selfi if s["status"] == "missing"]
+    missing = [h["id"] for h in host if h["status"] != "ok" and not h["optional"]] + [s["id"] for s in selfi if s["status"] == "missing"]
     return {"languages": [{"name": l, "tier": tier_of(l, tools)} for l in langs], "host": host,
             "self_installing": selfi, "missing": missing}
 
@@ -127,7 +127,7 @@ def format_text(report: dict) -> str:
     else:
         out.append("Languages: none found")
     out.append("Needed on this machine:")
-    for h in report["host"]:
+    for h in (h for h in report["host"] if not h.get("optional")):
         why = f", for {', '.join(h['for'])}" if h["for"] and h["status"] != "ok" else ""
         need = f"needs {h['needs']} or later" if h["needs"] else "needs no particular version"
         if h["status"] == "ok":
@@ -138,6 +138,16 @@ def format_text(report: dict) -> str:
         else:
             out.append(f"  MISSING  {h['id']:<16} {need}{why}")
             out.append(f"           Install: {h['install']}")
+    optional = [h for h in report["host"] if h.get("optional")]
+    if optional:
+        out.append("Optional (a build works without them):")
+        purpose = {t["id"]: t.get("purpose", "") for t in load_tools()["host"]}
+        for h in optional:
+            if h["status"] == "ok":
+                out.append(f"  ok       {h['id'] + ' ' + h['version']:<16} {purpose.get(h['id'], '')}")
+            else:
+                out.append(f"  not found {h['id']:<15} {purpose.get(h['id'], '')}")
+                out.append(f"           Install: {h['install']}")
     selfi = report["self_installing"]
     if selfi:
         out.append("Installed by dossier on first use (pinned):")
@@ -145,7 +155,7 @@ def format_text(report: dict) -> str:
             ver = s["version"] or "(version open)"
             tail = f" (cannot install: needs {', '.join(s['needs'])})" if s["needs"] else ""
             out.append(f"  {s['id']} {ver} via {s['via']}{tail}")
-    n = len([m for m in report["missing"] if m in {h["id"] for h in report["host"] if h["status"] != "ok"}])
+    n = len([m for m in report["missing"] if m in {h["id"] for h in report["host"] if h["status"] != "ok" and not h.get("optional")}])
     if n:
         out.append(f"{n} tool{' is' if n == 1 else 's are'} missing. Install {'it' if n == 1 else 'them'}, "
                    "or build with --allow-missing to carry on without them.")

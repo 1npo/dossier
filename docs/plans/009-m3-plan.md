@@ -482,7 +482,7 @@ Read section 2, section 3, D1 to D6, D9, D16, D17 and D18. Load the skills in se
   - Done-check: `uv run --with pytest --with pygments python -m pytest tests/integration/scripts/test_history_git.py -q` passes.
   - Commit: `test(dossier): pin the shape of extract/history.json`
 
-- [ ] **M3-6. Reading approvals with `gh`.**
+- [x] **M3-6. Reading approvals with `gh`.**
   - Goal: D17.
   - Files: `scripts/github_owners.py`, `scripts/sandbox.py`, `scripts/tools.json`, `scripts/toolcheck.py`, `scripts/process.py`, `tests/unit/scripts/test_github_owners.py`, `tests/unit/scripts/test_sandbox.py`, `tests/unit/scripts/test_toolcheck.py`, `tests/fixtures/github/` (saved responses).
   - Interface: `github_owners.slug(remote) -> "owner/name" | None`; `lookup(slug, shas, run, cache, timeout) -> {sha: {"number", "approver", "merged_by"}}`; `logins(slug, samples, run, timeout) -> {sha: login}`.

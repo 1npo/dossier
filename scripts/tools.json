@@ -28,6 +28,24 @@
    "source": "https://git-scm.com/docs/git-clone"
   },
   {
+   "id": "gh",
+   "optional": true,
+   "scope": [
+    "all"
+   ],
+   "command": [
+    "gh",
+    "--version"
+   ],
+   "pattern": "gh version (\\d+\\.\\d+\\.\\d+)",
+   "install": {
+    "linux": "sudo apt install gh",
+    "darwin": "brew install gh"
+   },
+   "purpose": "reads pull request approvals, so commits by agents and bots belong to the person who approved them",
+   "source": "https://cli.github.com/manual/gh_api"
+  },
+  {
    "id": "uv",
    "scope": [
     "all"

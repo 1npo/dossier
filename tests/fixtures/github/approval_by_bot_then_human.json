@@ -1,0 +1,41 @@
+{
+ "data": {
+  "repository": {
+   "c0": {
+    "author": {
+     "user": {
+      "login": "bot-author"
+     }
+    },
+    "associatedPullRequests": {
+     "nodes": [
+      {
+       "number": 9,
+       "merged": true,
+       "mergedBy": {
+        "login": "amy",
+        "__typename": "User"
+       },
+       "reviews": {
+        "nodes": [
+         {
+          "author": {
+           "login": "sol",
+           "__typename": "User"
+          }
+         },
+         {
+          "author": {
+           "login": "copilot-pull-request-reviewer",
+           "__typename": "Bot"
+          }
+         }
+        ]
+       }
+      }
+     ]
+    }
+   }
+  }
+ }
+}
