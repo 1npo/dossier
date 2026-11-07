@@ -544,7 +544,7 @@ Read section 2, section 3, D1 to D3, D6 and D16. Load the skills in section 2. T
   - Done-check: `uv run --with pytest --with pygments python -m pytest tests/unit/scripts/test_js_tools.py tests/unit/scripts/test_toolcheck.py -q` passes; `DOSSIER_SLOW=1 ... tests/integration/scripts/test_js_tools_slow.py` passes (real install, then `node <dir>/node_modules/knip/bin/knip.js --version` prints 6.42.1); `uv run scripts/dossier.py doctor --all` lists the tools "from a lockfile with npm".
   - Commit: `feat(dossier): pin the JavaScript tools in a shipped lockfile`
 
-- [ ] **M4-3. Find projects and workspaces.**
+- [x] **M4-3. Find projects and workspaces.**
   - Goal: D3, rules 1 to 6, and D4's `source_roots`.
   - Files: new `scripts/js_project.py`, `tests/unit/scripts/test_js_project.py`.
   - Interface: `read_json(read, path) -> dict | None`, tolerant of bad JSON; `projects(tree, read) -> list[dict]`; `source_roots(projects, tree) -> list[dict]`; `manifest_frameworks(projects, read) -> list[str]` (D6's Gaps names, sorted).
