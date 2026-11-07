@@ -503,11 +503,11 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 
 /* contributors: space between the calendar and the ownership bar */
 .who-bar { margin-top: 1.5rem; }
-/* the contributor table and the dependency tables share the look of the Files tree: a bordered box, small capital headings, compact rows */
-.table-container:has(> #t-people), .table-container:has(> .dp-rank), .hot-box, .hot-table .table-container, .dp-finds .table-container { border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); }
-:is(#t-people, .dp-rank, .hot-rank, .hot-table .table, .dp-finds .table) thead th { height: 30px; padding-top: 0; padding-bottom: 0; font-size: .6875rem; font-weight: 400; text-transform: uppercase; letter-spacing: .06em; vertical-align: middle; }
-:is(#t-people, .dp-rank, .hot-rank, .hot-table .table, .dp-finds .table) tbody td { padding-top: .3rem; padding-bottom: .3rem; font-size: .75rem; vertical-align: middle; }
-:is(#t-people, .dp-rank, .hot-rank, .hot-table .table, .dp-finds .table) tbody tr:hover { background: var(--accent); }
+/* every table in the dossier shares the look of the Files tree: a bordered box, small capital headings, compact rows */
+.table-container, .hot-box { border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); }
+.table:not(.kv) > thead > tr > th { height: 30px; padding-top: 0; padding-bottom: 0; font-size: .6875rem; font-weight: 400; text-transform: uppercase; letter-spacing: .06em; vertical-align: middle; }
+.table:not(.kv) > tbody > tr > td { padding-top: .3rem; padding-bottom: .3rem; font-size: .75rem; vertical-align: middle; }
+.table:not(.kv) > tbody > tr:hover { background: var(--accent); }
 
 /* schema cards: tier badges, flows, entries */
 .tier { font-weight: 600; min-width: 1.6rem; justify-content: center; }
