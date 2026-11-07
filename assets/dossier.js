@@ -1430,6 +1430,22 @@
   initModes("who");
   initModes("hot");
   initModes("hotperiod");
+  // Hotspots card: the two button groups sit in the filter bar of the table on show, beside the filter box and the Columns menu.
+  (function () {
+    var card = $('.card[data-card="change.hotspots"]'), ctls = card ? $$(".mode-ctl", card) : [];
+    if (!ctls.length) return;
+    function dock() {
+      var vis = $$(".hot-table", card).filter(function (e) { return !e.hidden; })[0];
+      var per = vis && $$("[data-hotperiod]", vis).filter(function (e) { return !e.hidden; })[0];
+      var bar = per && $(".tbl-bar", per);
+      if (bar) ctls.forEach(function (c) { bar.appendChild(c); });
+    }
+    ["hot", "hotperiod"].forEach(function (k) {
+      var g = doc.getElementById(k + "-mode");
+      if (g) g.addEventListener("click", function () { setTimeout(dock, 0); });
+    });
+    dock();
+  })();
 
   applyTheme(); show();
 })();
