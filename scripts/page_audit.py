@@ -179,8 +179,8 @@ def _drawn_counts(extract, build) -> dict:
     return out
 
 
-HOTSPOT_FILES = ["File", "Component", "Commits (12 months)", "Commits (all)", "Lines", "Complexity", "Last changed", "Source"]
-HOTSPOT_COMPONENTS = ["Component", "Files", "File changes (12 months)", "Lines", "Complexity"]
+HOTSPOT_FILES = measured_change.HOTSPOT_FILES
+HOTSPOT_COMPONENTS = measured_change.HOTSPOT_COMPONENTS
 BLAST_COLUMNS = ["File", "Component", "Direct dependents", "All dependents", "Importing tests", "Co-changing files"]
 
 
@@ -195,6 +195,9 @@ def _measured_counts(m) -> dict:
         out["change.hotspots"] = [("t-change-hotspots-files", len(files), HOTSPOT_FILES),
                                   ("t-change-hotspots-components", len(m.get("catalog") or []), HOTSPOT_COMPONENTS)]
     out["change.cochange"] = [("t-change-cochange", len(measured_change.pair_rows(m)), ["A", "B", "Co-commits", "Share", "Linked in code?", "Source"])]
+    found = measured_change.clusters(m)
+    if found:
+        out["change.cochange"].append(("t-change-cochange-clusters", len(found), measured_change.CLUSTER_COLUMNS))
     if "dead" in extract or "graph" in extract:
         out["change.dead-code"] = [("t-change-dead-code", len(measured_change.dead_rows(extract, (m.get("facts") or {}).get("dependencies"))),
                                     ["Item", "Kind", "Evidence", "Source"])]

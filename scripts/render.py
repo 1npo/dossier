@@ -1039,6 +1039,8 @@ def render_card(card, entry, refs, rid, ctx=None):
             body = blocks_body(card, entry["blocks"], refs, tid, ((ctx or {}).get("checks") or {}).get("unbacked"))
             if card["id"] == "contributors.concentration":
                 body = measured_people.bus_line(ctx or {}) + body
+            if card["id"] == "risks.tracker":
+                body = source_key() + body
         elif "entries" in entry:
             body = entries_body(card, entry["entries"], refs, tid)
         else:
@@ -1050,6 +1052,16 @@ def render_card(card, entry, refs, rid, ctx=None):
     except (KeyError, TypeError, AttributeError):
         pass  # V6 and V5 report the real error
     return schema_card(card, body, partial=partial)
+
+
+RISK_SOURCE_KEY = (("extractor", "A tool found it: static analysis, the dependency scan or the git history. Tool output is not checked by a person."),
+                   ("read", "Claude found it by reading the code. Nothing a tool reported points at it."))
+
+
+def source_key():
+    """The key above the Risks tracker for its Source column, which holds exactly one of these two words."""
+    items = "".join(f"<div><dt><code>{E(k)}</code></dt> <dd>{E(v)}</dd></div>" for k, v in RISK_SOURCE_KEY)
+    return f'<p class="muted">The Source column says how each risk was found. Citations for the evidence are in the last column.</p><dl class="source-key">{items}</dl>'
 
 
 def schema_cards_html(sch, rep, refs, rid, ctx=None):
@@ -1519,7 +1531,12 @@ def panel_contributors(f, refs, history=None):
         by_owner = lambda html: f'<div data-who="owner" hidden>{html}</div>'
         know = ('<p class="muted">Which parts of the repository each person knows best, based on surviving lines, commit history and recent activity.</p>'
                 + knowledge_card(f, by_author(table + more) + by_owner(o_table)))
-        body = (who_buttons() + f'<p class="muted" data-who="owner" hidden>{E(note)}</p>' + by_author(tiles) + by_owner(o_tiles) + assisted + when
+        # One notes block under the buttons. The author and owner notes sit in the same grid cell, so the block is as tall as the longer one
+        # and nothing below it moves when the button changes; the note for the mode that is not showing is only made invisible.
+        notes = ('<div class="who-notes"><div class="who-swap">'
+                 '<p class="muted" data-who-note="author">Each commit is credited to the person who wrote it. Choose Owner to credit agent and bot commits to whoever approved them.</p>'
+                 f'<p class="muted is-off" data-who-note="owner" aria-hidden="true">{E(note)}</p></div>{assisted}</div>')
+        body = (who_buttons() + notes + by_author(tiles) + by_owner(o_tiles) + when
                 + by_author(f'<div class="who-bar">{who_bar}</div>') + by_owner(f'<div class="who-bar">{o_bar}</div>') + know)
         return card("Contributors", body, "facts-contributors", None, refs, cites + (["facts:history"] if f.get("history") else []), cid="overview.contributors")
     return card("Contributors", tiles + assisted + when + f'<div class="who-bar">{who_bar}</div>' + know,
@@ -1832,8 +1849,8 @@ def build_page(rid, reports, facts, state, ctx):
 
 
 NAV_GROUPS = [("Orientation", ["dossier", "overview", "reading", "entry"]), ("Design", ["components", "interactions", "io", "data"]),
-              ("Behaviour and change", ["behavior", "change", "conventions"]), ("Operations and people", ["ops", "contributors", "risks"]),
-              ("Tracking", ["gaps", "corrections"])]
+              ("Behaviour and change", ["behavior", "change", "conventions"]), ("Operations and people", ["ops", "contributors"]),
+              ("Tracking", ["risks", "gaps", "corrections"])]
 
 
 PLACEHOLDER = re.compile(r"\{\{|\}\}|\$\{|<%|%>|\[\[|<[A-Za-z_ -]+>$|^(your|my)[ _-]")

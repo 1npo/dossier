@@ -1381,6 +1381,8 @@
     }
     function show1(value) {
       var own = {}, dep = {}, tests = {}, co = {};
+      var out = doc.getElementById("blast-out");
+      if (out) { if (value === "") out.removeAttribute("data-picked"); else out.setAttribute("data-picked", ""); }
       if (value !== "") {
         var idx = [];
         if (value.charAt(0) === "c") { var c = +value.slice(1); for (var i = 0; i < n; i++) if (d.component[i] === c) idx.push(i); }
@@ -1404,19 +1406,30 @@
     pick.addEventListener("change", function () { show1(pick.value); });
   }
 
-  // ---- Contributors card: credit commits to their owner or to their author
-  (function initWho() {
-    var group = doc.getElementById("who-mode");
+  // ---- button groups that switch a card between views. `key` names the views (data-<key>="mode"), the buttons carry data-<key>-set="mode",
+  // and a note carrying data-<key>-note="mode" stays in the layout but is made invisible when its mode is not the pressed one
+  function initModes(key) {
+    var group = doc.getElementById(key + "-mode");
     if (!group) return;
-    function set(mode) {
-      $$("[data-who]").forEach(function (e) { e.hidden = e.dataset.who !== mode; });
-      $$("#who-mode [data-who-set]").forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.whoSet === mode ? "true" : "false"); });
+    function apply(mode) {
+      $$("[data-" + key + "]").forEach(function (e) { e.hidden = e.getAttribute("data-" + key) !== mode; });
+      $$("[data-" + key + "-note]").forEach(function (e) {
+        var off = e.getAttribute("data-" + key + "-note") !== mode;
+        e.classList.toggle("is-off", off);
+        e.setAttribute("aria-hidden", off ? "true" : "false");
+      });
+      $$("#" + key + "-mode [data-" + key + "-set]").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-" + key + "-set") === mode ? "true" : "false"); });
     }
     group.addEventListener("click", function (e) {
-      var b = e.target.closest("[data-who-set]");
-      if (b) set(b.dataset.whoSet);
+      var b = e.target.closest("[data-" + key + "-set]");
+      if (b) apply(b.getAttribute("data-" + key + "-set"));
     });
-  })();
+  }
+  // Contributors card: credit commits to their owner or to their author. Hotspots card: show files or components, and bars or a scatter plot. Co-change card: pairs or change clusters.
+  initModes("who");
+  initModes("hot");
+  initModes("hotchart");
+  initModes("cc");
 
   applyTheme(); show();
 })();

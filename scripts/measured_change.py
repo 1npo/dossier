@@ -11,6 +11,9 @@ import components
 import gather
 
 SCATTER_W, SCATTER_H = 640, 320
+HOTSPOT_FILES = ["File", "Component", "Commits (12 months)", "Commits (all)", "Lines", "Lines added (12 months)", "Lines removed (12 months)",
+                 "Complexity", "Last changed", "Source"]
+HOTSPOT_COMPONENTS = ["Component", "Files", "File changes (12 months)", "Lines", "Lines added (12 months)", "Lines removed (12 months)", "Complexity"]
 PAD_L, PAD_R, PAD_T, PAD_B = 56, 16, 12, 44
 
 
@@ -26,6 +29,11 @@ def history_items(ctx, kind):
 
 def has_history(ctx):
     return bool(history_items(ctx, "meta"))
+
+
+def intro(text):
+    """The sentence under a card's title: the same muted style on every measured card."""
+    return f'<p class="muted">{_render().E(text)}</p>'
 
 
 def none_found(text):
@@ -58,7 +66,8 @@ def file_rows(ctx):
         h = hist.get(path) or {}
         rows.append({"path": path, "component": components.component_of(path, catalog)[0] if catalog else None,
                      "commits_12m": h.get("commits_12m", 0), "commits": h.get("commits", 0),
-                     "lines": h.get("lines") or lines.get(path, 0), "complexity": cx.get(path), "last": h.get("last_changed")})
+                     "lines": h.get("lines") or lines.get(path, 0), "complexity": cx.get(path), "last": h.get("last_changed"),
+                     "added_12m": h.get("lines_added_12m"), "deleted_12m": h.get("lines_deleted_12m")})
     rows.sort(key=lambda r: (-r["commits_12m"], -(r["complexity"] if r["complexity"] is not None else -1), r["path"]))
     return rows
 
@@ -98,15 +107,53 @@ def scatter(rows):
 
 
 def component_rows(rows, catalog):
-    acc = {c["name"]: {"files": 0, "changes": 0, "lines": 0, "complexity": 0} for c in catalog}
+    acc = {c["name"]: {"files": 0, "changes": 0, "lines": 0, "added": None, "deleted": None, "complexity": 0} for c in catalog}
     for r in rows:
         if r["component"] in acc:
             a = acc[r["component"]]
             a["files"] += 1
             a["changes"] += r["commits_12m"]
             a["lines"] += r["lines"]
+            if r["added_12m"] is not None:   # a history read before added and removed lines were counted leaves these unknown
+                a["added"] = (a["added"] or 0) + r["added_12m"]
+                a["deleted"] = (a["deleted"] or 0) + (r["deleted_12m"] or 0)
             a["complexity"] += r["complexity"] or 0
     return acc
+
+
+def _churn(n):
+    """A count of lines added or removed in the last 12 months; a dash for a history read before these were counted."""
+    return _num(n) if n is not None else ("-", -1)
+
+
+def mode_buttons(group, label, choices):
+    """A labelled button group, the first choice pressed. The page script shows the block marked `data-<group>` equal to the pressed button's value."""
+    btns = "".join(f'<button type="button" class="btn" data-variant="outline" data-size="sm" data-{group}-set="{v}" aria-pressed="{"true" if i == 0 else "false"}">{t}</button>'
+                   for i, (v, t) in enumerate(choices))
+    return (f'<div class="km-ctl mode-ctl"><span class="muted" id="{group}-l">{_render().E(label)}</span>'
+            f'<div class="button-group" id="{group}-mode" role="group" aria-labelledby="{group}-l">{btns}</div></div>')
+
+
+BARS_SHOWN = 15
+
+
+def bars(rows):
+    """The files changed most in the last 12 months as a ranked list of bars, longest first, each with its path and its lines added and removed."""
+    E = _render().E
+    top = [x for x in rows if x["commits_12m"]][:BARS_SHOWN]
+    if not top:
+        return none_found("No file changed in the 12 months before this commit.")
+    widest = max(x["commits_12m"] for x in top)
+    items = []
+    for x in top:
+        churn = (f'<span class="hb-churn"><span class="hb-add">+{x["added_12m"]:,}</span> <span class="hb-del">&minus;{x["deleted_12m"]:,}</span> lines</span>'
+                 if x["added_12m"] is not None else "")
+        items.append(f'<li><code class="hb-path" title="{E(x["path"])}">{E(x["path"])}</code>'
+                     f'<span class="hb-track"><span class="hb-bar" style="width:{100 * x["commits_12m"] / widest:.1f}%"></span></span>'
+                     f'<span class="hb-n">{x["commits_12m"]:,} commits</span>{churn}</li>')
+    more = len([x for x in rows if x["commits_12m"]]) - len(top)
+    tail = f'<p class="muted">The {len(top)} most changed files{f", of {len(top) + more} that changed" if more else ""}. The table below lists every file.</p>'
+    return f'<ol class="hot-bars" aria-label="Files by commits in the last 12 months">{"".join(items)}</ol>{tail}'
 
 
 def hotspots(cid, ctx, refs):
@@ -117,18 +164,22 @@ def hotspots(cid, ctx, refs):
         return None
     r = _render()
     idle = sum(1 for x in rows if not x["commits_12m"])
-    out = [f'<p>Every source file, most changed in the 12 months before this commit first. {idle} of {len(rows)} files did not change in that time.</p>',
-           scatter(rows)]
+    out = [intro(f'Every source file, most changed in the 12 months before this commit first. {idle} of {len(rows)} files did not change in that time.'),
+           mode_buttons("hotchart", "Chart", (("bars", "Ranked bars"), ("scatter", "Scatter"))),
+           f'<div data-hotchart="bars">{bars(rows)}</div><div data-hotchart="scatter" hidden>{scatter(rows)}</div>']
     cells = [[r.path_code(x["path"]), r.E(x["component"] or "-"), _num(x["commits_12m"]), _num(x["commits"]), _num(x["lines"]),
+              _churn(x["added_12m"]), _churn(x["deleted_12m"]),
               _num(x["complexity"]) if x["complexity"] is not None else "-", r.E(x["last"] or "-"), r.source_cell(refs, (x["path"], None))] for x in rows]
-    out.append(_table(cid, "-files", ["File", "Component", "Commits (12 months)", "Commits (all)", "Lines", "Complexity", "Last changed", "Source"], cells, refs))
+    files = _table(cid, "-files", HOTSPOT_FILES, cells, refs)
     catalog = ctx.get("catalog") or []
-    if catalog:
-        acc = component_rows(rows, catalog)
-        comp = [[r.E(name), _num(a["files"]), _num(a["changes"]), _num(a["lines"]), _num(a["complexity"])] for name, a in sorted(acc.items())]
-        out.append(_table(cid, "-components", ["Component", "Files", "File changes (12 months)", "Lines", "Complexity"], comp, refs))
-    else:
-        out.append(none_found("There is no components catalog yet, so files are not grouped by component."))
+    if not catalog:
+        return "".join(out) + f'<div class="hot-table">{files}</div>' + none_found("There is no components catalog yet, so files are not grouped by component.")
+    acc = component_rows(rows, catalog)
+    comp = [[r.E(name), _num(a["files"]), _num(a["changes"]), _num(a["lines"]), _churn(a["added"]), _churn(a["deleted"]), _num(a["complexity"])]
+            for name, a in sorted(acc.items())]
+    components_ = _table(cid, "-components", HOTSPOT_COMPONENTS, comp, refs)
+    out.append(mode_buttons("hot", "Show hotspots by", (("files", "File"), ("components", "Component"))))
+    out.append(f'<div class="hot-table" data-hot="files">{files}</div><div class="hot-table" data-hot="components" hidden>{components_}</div>')
     return "".join(out)
 
 
@@ -161,20 +212,81 @@ def pair_rows(ctx):
     return [(p, linked(p["a"], p["b"], extract)) for p in pairs]
 
 
+CLUSTER_SHARE, CLUSTER_MIN_FILES, CLUSTER_LINKED = 50, 3, 60
+CLUSTER_COLUMNS = ["Files", "Size", "Typical share", "Pairs that co-changed", "Linked in code?", "Source"]
+
+
+def clusters(ctx):
+    """Groups of at least CLUSTER_MIN_FILES files that change together, largest first. Each is {"files", "edges": [(pair, link)]}.
+
+    A pair counts when its share is CLUSTER_SHARE percent or more. A group grows from the strongest pair left: a file joins when it changes with at
+    least CLUSTER_LINKED percent of the files already in it. Following pairs one after another instead would chain unrelated files into one big
+    group. A file belongs to one group."""
+    edge = {}
+    for p, link in pair_rows(ctx):
+        if p["share"] >= CLUSTER_SHARE:
+            edge[(p["a"], p["b"])] = edge[(p["b"], p["a"])] = (p, link)
+    order = sorted({v[0]["a"] + "\0" + v[0]["b"]: v for v in edge.values()}.values(), key=lambda v: (-v[0]["share"], -v[0]["co_commits"], v[0]["a"], v[0]["b"]))
+    free, out = {f for pair in edge for f in pair}, []
+    for seed, _ in order:
+        if seed["a"] not in free or seed["b"] not in free:
+            continue
+        group = [seed["a"], seed["b"]]
+        while True:
+            fit = []
+            for f in free - set(group):
+                links = [edge[(f, g)][0]["share"] for g in group if (f, g) in edge]
+                if links and 100 * len(links) >= CLUSTER_LINKED * len(group):
+                    fit.append((-len(links), -sum(links), f))
+            if not fit:
+                break
+            group.append(min(fit)[2])
+        if len(group) >= CLUSTER_MIN_FILES:
+            free -= set(group)
+            found = [edge[(g, h)] for i, g in enumerate(group) for h in group[i + 1:] if (g, h) in edge]
+            out.append({"files": sorted(group), "edges": found})
+    out.sort(key=lambda c: (-len(c["files"]), -sum(p["share"] for p, _ in c["edges"]) / len(c["edges"]), c["files"][0]))
+    return out
+
+
+def cluster_rows(found, refs):
+    r = _render()
+    rows = []
+    for c in found:
+        n, e = len(c["files"]), len(c["edges"])
+        possible = n * (n - 1) // 2
+        typical = round(sum(p["share"] for p, _ in c["edges"]) / e)
+        yes = sum(1 for _, k in c["edges"] if k == "yes")
+        link = f"none of the {e} pairs" if not yes else f"all {e} pairs" if yes == e else f"{yes} of the {e} pairs"
+        listing = "<br>".join(r.path_code(f) for f in c["files"])
+        rows.append([listing, _num(n), (f"{typical}%", typical), (f"{e} of {possible}", e / possible), r.E(link),
+                     r.source_cell(refs, *[(f, None) for f in c["files"]])])
+    return rows
+
+
 def cochange(cid, ctx, refs):
     if not has_history(ctx):
         return None
     r = _render()
     meta = history_items(ctx, "meta")[0]
     shown = pair_rows(ctx)
-    intro = (f'<p>Pairs of files that changed together in at least {COCHANGE_MIN} commits ({len(shown)} of {meta.get("pairs_total", len(shown))} pairs). '
-             f'Share is the co-commits as a percentage of the commits of the less-changed file. '
-             f'Commits touching more than {gather.BULK_FILES} files are left out.</p>')
+    lead = (f'<p class="muted">Pairs of files that changed together in at least {COCHANGE_MIN} commits ({len(shown)} of {meta.get("pairs_total", len(shown))} pairs). '
+            f'Commits touching more than {gather.BULK_FILES} files are left out.</p>')
+    foot = ('<p class="muted cochange-note">Share is the co-commits as a percentage of the commits of the less-changed file. At 100%, every time '
+            'the less-changed file changed, the other file changed in the same commit.</p>')
     if not shown:
-        return intro + none_found(f"No pair of files changed together in {COCHANGE_MIN} or more commits.")
+        return lead + none_found(f"No pair of files changed together in {COCHANGE_MIN} or more commits.") + foot
     rows = [[r.path_code(p["a"]), r.path_code(p["b"]), _num(p["co_commits"]), (f'{p["share"]}%', p["share"]), r.E(link),
              r.source_cell(refs, (p["a"], None), (p["b"], None))] for p, link in shown]
-    return intro + _table(cid, "", ["A", "B", "Co-commits", "Share", "Linked in code?", "Source"], rows, refs)
+    pairs_view = _table(cid, "", ["A", "B", "Co-commits", "Share", "Linked in code?", "Source"], rows, refs)
+    found = clusters(ctx)
+    note = (f'<p class="muted">A change cluster is a group of {CLUSTER_MIN_FILES} or more files in which every file changes with at least {CLUSTER_LINKED}% of the others, '
+            f'counting only pairs with a share of {CLUSTER_SHARE}% or more. "Pairs that co-changed" is how many of the possible pairs in the group qualify. '
+            'Linked in code counts those pairs that an import, a call or a test also joins: pairs with no link are the hidden coupling.</p>')
+    cluster_view = (note + (_table(cid, "-clusters", CLUSTER_COLUMNS, cluster_rows(found, refs), refs) if found else
+                    none_found(f"No group of {CLUSTER_MIN_FILES} or more files changes together closely enough to form a cluster.")))
+    return (lead + mode_buttons("cc", "Show co-changes as", (("pairs", "Pairs"), ("clusters", "Change clusters")))
+            + f'<div data-cc="pairs">{pairs_view}</div><div data-cc="clusters" hidden>{cluster_view}</div>' + foot)
 
 
 # ------------------------------------------------------------------ change.dead-code
@@ -204,11 +316,11 @@ def dead_code(cid, ctx, refs):
     r = _render()
     deps = (ctx.get("facts") or {}).get("dependencies")
     found = dead_rows(extract, deps)
-    intro = '<p>Tool output, not checked by a person: some of these may be used in ways the tools cannot see.</p>'
+    lead = intro("Tool output, not checked by a person: some of these may be used in ways the tools cannot see.")
     if not found:
-        return intro + none_found("The tools found nothing unused.")
+        return lead + none_found("The tools found nothing unused.")
     rows = [[r.E(item), r.E(kind), r.E(ev), r.source_cell(refs, (path, line)) if path else ""] for item, kind, ev, path, line in found]
-    return intro + _table(cid, "", ["Item", "Kind", "Evidence", "Source"], rows, refs)
+    return lead + _table(cid, "", ["Item", "Kind", "Evidence", "Source"], rows, refs)
 
 
 # ------------------------------------------------------------------ change.in-flight
@@ -219,14 +331,14 @@ def in_flight(cid, ctx, refs):
         return None
     r = _render()
     branches = history_items(ctx, "branch")
-    intro = "<p>Compared with the pinned commit. Issue and pull request content is not in the repository and is unknown.</p>"
+    lead = intro("Compared with the pinned commit. Issue and pull request content is not in the repository and is unknown.")
     if not branches:
-        return intro + none_found("There are no branches other than the default branch.")
+        return lead + none_found("There are no branches other than the default branch.")
     if not any(b["remote"] for b in branches):
-        intro += "<p>This repository has no remote branches, so these are local branches.</p>"
+        lead += intro("This repository has no remote branches, so these are local branches.")
     rows = [[r.E(b["ref"]), r.E(f'{b["date"]} {b["sha"][:7]}'), r.E(f'{b["ahead"]} ahead, {b["behind"]} behind'), r.E(b["author"]),
              refs.mark(["commit:" + b["sha"]])] for b in branches]
-    return intro + _table(cid, "", ["Branch", "Last commit", "Ahead/behind", "Author", "Source"], rows, refs)
+    return lead + _table(cid, "", ["Branch", "Last commit", "Ahead/behind", "Author", "Source"], rows, refs)
 
 
 DRAWN = {"change.hotspots": hotspots, "change.cochange": cochange, "change.dead-code": dead_code, "change.in-flight": in_flight}
