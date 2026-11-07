@@ -118,3 +118,27 @@ class DepCruiser:
         data = self._json([".", "--config", config_file, "--output-type", "json", "--no-progress", "--ts-pre-compilation-deps"], project_dir,
                           "Checking the repository's dependency rules", "js-depcruise-rules", tolerate_exit=True)
         return (data.get("summary") or {}).get("violations") or []
+
+
+class Knip:
+    """Client for knip (unused files, dependencies, exports and types). knip loads the repository's own config, so it runs restricted."""
+
+    def __init__(self, run, install: Path, timeout: float):
+        self.run, self.timeout = run, timeout
+        self.bin = str(Path(install) / "node_modules" / "knip" / "bin" / "knip.js")
+
+    def run_knip(self, project_dir) -> dict:
+        cmd = ["node", self.bin, "--reporter", "json", "--no-exit-code", "--no-progress", "--no-config-hints", "--include", "files,dependencies,exports,types"]
+        result = self.run(cmd, cwd=Path(project_dir), stage="js-knip", profile="restricted", timeout=self.timeout)
+        if result.timed_out:
+            raise ToolError("knip took too long and was stopped.")
+        if result.returncode != 0:
+            first = next((l.strip() for l in result.stderr.read_text(errors="replace").splitlines() if l.strip()), "no message")
+            raise ToolError(f"knip failed (exit {result.returncode}): {first}")
+        try:
+            data = json.loads(result.stdout.read_text(errors="replace"))
+        except ValueError as e:
+            raise ToolError(f"knip printed something that is not JSON ({e}).") from e
+        if not isinstance(data, dict):
+            raise ToolError("knip printed something that is not an object.")
+        return data

@@ -104,6 +104,12 @@ class JsAdapter(Adapter):
             edges += test_edges
         return edges
 
+    def _dead(self, ctx, out, install, projects, timeout) -> None:
+        knip = js_tools.Knip(ctx.run, install, timeout)
+        got = self._each(ctx, "knip", projects, lambda p: js_reduce.dead_items(knip.run_knip(ctx.checkout / p["dir"]), p))
+        for items in got.values():
+            out["dead"] += items
+
     @staticmethod
     def _contracts(ctx, cruiser, project, names, items) -> list:
         folder = project["dir"]
@@ -129,20 +135,22 @@ class JsAdapter(Adapter):
         self._entries(ctx, out, projects, read)
         st = {"test_edges": []}
         gate = self._node_gate(ctx)
-        for tool in ("knip", "scip-typescript", "semgrep", "tree-sitter-language-pack"):
+        for tool in ("scip-typescript", "semgrep", "tree-sitter-language-pack"):
             self._skip(ctx, tool, gate if tool in NODE_TOOLS and gate else LATER)
         if gate:
             self._skip(ctx, "typescript", gate)
             self._skip(ctx, "dependency-cruiser", gate)
+            self._skip(ctx, "knip", gate)
         else:
             timeout = config.timeouts()["tool"]
             try:
                 install = js_tools.ensure_installed(ctx.run, ctx.area.parent, timeout)
             except Exception as e:
                 reason = (str(e).splitlines() or [type(e).__name__])[0]
-                for tool in ("typescript", "dependency-cruiser", "knip", "scip-typescript"):
+                for tool in NODE_TOOLS:
                     ctx.tool_status[tool] = {"status": "failed", "reason": reason}
             else:
                 facts = self._facts(ctx, install, projects, timeout)
                 st["test_edges"] = self._graph(ctx, out, install, projects, facts, timeout)
+                self._dead(ctx, out, install, projects, timeout)
         return {o: candidates.sort_items(items) for o, items in out.items()}

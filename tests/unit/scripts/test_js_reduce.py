@@ -98,3 +98,26 @@ class TestContractItems:
         items = js_reduce.contract_items([], ["no-up"], ".dependency-cruiser.json")
 
         assert (items[0]["status"], items[0]["violations"], items[0]["reason"]) == ("kept", [], None)
+
+
+KNIP = json.loads((Path(__file__).parents[2] / "fixtures" / "js_tools" / "knip.json").read_text())
+
+
+class TestDeadItems:
+    def test_unused_file_export_type_and_dependency_are_reported_with_prefixed_paths(self):
+        items = js_reduce.dead_items(KNIP, {"dir": "apps/w"})
+
+        by_type = {i["type"]: i for i in items}
+        assert by_type["unused file"]["path"] == "apps/w/src/unused.ts"
+        assert (by_type["unused export"]["path"], by_type["unused export"]["name"], by_type["unused export"]["line"]) == ("apps/w/src/a.ts", "extra", 4)
+        assert by_type["unused type"]["name"] == "Local"
+        assert by_type["unused dependency"]["path"] == "apps/w/package.json" and by_type["unused dependency"]["name"] == "left-pad"
+
+    def test_items_carry_the_fields_the_dead_card_reads(self):
+        items = js_reduce.dead_items(KNIP, {"dir": ""})
+
+        for i in items:
+            assert i["confidence"] is None and i["rule"].startswith("knip.") and i["snippet"] == i["name"] and i["message"]
+
+    def test_an_empty_report_gives_no_items(self):
+        assert js_reduce.dead_items({"issues": []}, {"dir": ""}) == []

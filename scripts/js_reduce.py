@@ -115,3 +115,29 @@ def prefix_facts(facts: dict, folder: str) -> dict:
     for row in out["routes"]:
         row["file"] = fix(row.get("file"))
     return out
+
+
+_DEAD = (("exports", "knip.exports", "unused export", "Exported, but nothing imports it."),
+         ("types", "knip.types", "unused type", "Exported type that nothing imports."))
+
+
+def dead_items(knip: dict, project: dict) -> list:
+    """`dead` items from knip's JSON (one issue per file). Dependencies point at the project's package.json."""
+    folder = project.get("dir") or ""
+    manifest = _join(folder, "package.json")
+    items = []
+
+    def add(path, rule, kind, name, message, line=None):
+        items.append({"path": path, "line": line, "end_line": line, "type": kind, "name": name, "message": message, "confidence": None,
+                      "rule": rule, "snippet": name})
+    for issue in knip.get("issues", []):
+        path = _join(folder, issue["file"])
+        for f in issue.get("files") or []:
+            add(_join(folder, f["name"]), "knip.files", "unused file", f["name"], "No entry point or other file uses this file.")
+        for key in ("dependencies", "devDependencies"):
+            for d in issue.get(key) or []:
+                add(manifest, "knip.dependencies", "unused dependency", d["name"], "Listed in package.json, but no file imports it.", d.get("line"))
+        for key, rule, kind, message in _DEAD:
+            for e in issue.get(key) or []:
+                add(path, rule, kind, e["name"], message, e.get("line"))
+    return items

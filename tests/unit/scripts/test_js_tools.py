@@ -153,3 +153,29 @@ class TestNodeProblem:
 
     def test_unreadable_version_counts_as_not_installed(self, tmp_path):
         assert js_tools.node_problem(fake_run(tmp_path, out="what\n")) == "Node is not installed."
+
+
+class TestKnipClient:
+    def _run(self, tmp_path, code, out="", err=""):
+        def run(cmd, *, cwd, stage, profile, timeout):
+            (tmp_path / "o").write_text(out)
+            (tmp_path / "e").write_text(err)
+            return SimpleNamespace(returncode=code, timed_out=False, stdout=tmp_path / "o", stderr=tmp_path / "e")
+        return run
+
+    def test_exit_two_raises_with_the_first_stderr_line(self, tmp_path):
+        knip = js_tools.Knip(self._run(tmp_path, 2, err="\nCould not load config\nmore\n"), Path("/x"), 60)
+
+        with pytest.raises(shared_tools.ToolError, match=r"knip failed \(exit 2\): Could not load config"):
+            knip.run_knip(Path("/r"))
+
+    def test_json_on_stdout_is_returned(self, tmp_path):
+        knip = js_tools.Knip(self._run(tmp_path, 0, out='{"issues": []}'), Path("/x"), 60)
+
+        assert knip.run_knip(Path("/r")) == {"issues": []}
+
+    def test_output_that_is_not_json_raises(self, tmp_path):
+        knip = js_tools.Knip(self._run(tmp_path, 0, out="oops"), Path("/x"), 60)
+
+        with pytest.raises(shared_tools.ToolError, match="not JSON"):
+            knip.run_knip(Path("/r"))

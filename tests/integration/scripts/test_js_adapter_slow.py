@@ -64,3 +64,12 @@ class TestJsAdapterFrame:
         contract = next(i for i in graph if i["kind"] == "contract")
         assert contract["status"] == "broken" and contract["violations"][0]["path"] == "src/users/service.ts"
         assert any(i["kind"] == "import" and i["to"] == "src/a" and i["from"] == "src/barrel/index" for i in graph)
+
+    def test_knip_lists_the_unused_file(self, ex):
+        _, out, record = ex
+
+        dead = json.loads((out / "extract" / "dead.json").read_text())["adapters"]["js"]["items"]
+        js = next(a for a in record["details"]["adapters"] if a["name"] == "js")
+
+        assert js["tools"]["knip"]["status"] == "ok"
+        assert any(d["type"] == "unused file" and d["path"] == "src/unused.ts" for d in dead)

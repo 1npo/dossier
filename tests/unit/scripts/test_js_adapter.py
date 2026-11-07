@@ -54,6 +54,7 @@ def offline_tools_fixture(monkeypatch):
                                                                              "components": [], "routes": [], "errors": []})
     monkeypatch.setattr(js_tools.DepCruiser, "cruise", lambda self, d, ts=None: {"modules": []})
     monkeypatch.setattr(js_tools.DepCruiser, "violations", lambda self, d, c: [])
+    monkeypatch.setattr(js_tools.Knip, "run_knip", lambda self, d: {"issues": []})
 
 
 class TestDetect:
@@ -145,7 +146,7 @@ class TestGates:
 
         js_adapter.JsAdapter().extract(ctx)
 
-        for tool in ("semgrep", "tree-sitter-language-pack", "knip", "scip-typescript"):
+        for tool in ("semgrep", "tree-sitter-language-pack", "scip-typescript"):
             assert ctx.tool_status[tool] == {"status": "skipped", "reason": "Arrives in a later task."}
 
     def test_every_tool_of_the_adapter_has_a_status(self, js_repo, tmp_path, offline_tools):
@@ -180,3 +181,26 @@ class TestGraphStep:
 
         for tool in NODE_TOOLS:
             assert ctx.tool_status[tool]["status"] == "failed" and "Installing" in ctx.tool_status[tool]["reason"]
+
+
+class TestDeadStep:
+    def test_knip_findings_become_dead_items(self, js_repo, tmp_path, monkeypatch, offline_tools):
+        issue = {"issues": [{"file": "src/unused.ts", "files": [{"name": "src/unused.ts"}], "dependencies": [], "devDependencies": [], "exports": [], "types": []}]}
+        monkeypatch.setattr(js_tools.Knip, "run_knip", lambda self, d: issue)
+        ctx = context(js_repo, tmp_path)
+
+        out = js_adapter.JsAdapter().extract(ctx)
+
+        assert [(d["type"], d["path"]) for d in out["dead"]] == [("unused file", "src/unused.ts")]
+        assert ctx.tool_status["knip"] == {"status": "ok", "reason": None}
+
+    def test_a_knip_crash_marks_only_knip_failed(self, js_repo, tmp_path, monkeypatch, offline_tools):
+        def crash(self, d):
+            raise js_tools.ToolError("knip failed (exit 2): Could not load config")
+        monkeypatch.setattr(js_tools.Knip, "run_knip", crash)
+        ctx = context(js_repo, tmp_path)
+
+        out = js_adapter.JsAdapter().extract(ctx)
+
+        assert ctx.tool_status["knip"]["status"] == "failed" and "Could not load config" in ctx.tool_status["knip"]["reason"]
+        assert ctx.tool_status["typescript"]["status"] == "ok" and out["dead"] == []

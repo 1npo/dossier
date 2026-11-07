@@ -663,7 +663,7 @@ Read section 2, D1, D4 to D12, and "Results (Phase 1)", especially M4-1's values
   - Done-check: `... pytest tests/unit/scripts/test_js_reduce.py -q` passes.
   - Commit: `feat(dossier): build the JavaScript import graph with dependency-cruiser`
 
-- [ ] **M4-9. knip.**
+- [x] **M4-9. knip.**
   - Goal: `dead` items (D12).
   - Files: edit `scripts/js_tools.py`, `scripts/js_reduce.py`, `scripts/js_adapter.py`, `tests/unit/scripts/test_js_reduce.py`; new `tests/fixtures/js_tools/knip.json`.
   - Interface: `Knip.run(project_dir) -> dict`; `js_reduce.dead_items(knip, project) -> list`.
@@ -778,6 +778,8 @@ Commit each task on `feat/dossier-m4`. Do not merge or bump. Write "Results (Pha
 **M4-7.** Done as written. `exports` holds names declared in that file (an `export { x as y }` row also carries `local`); re-exports through `export ... from` are imports, not exports. `types` rows carry an extra `object` flag (true for interfaces and `type X = {...}`), which M4-12 uses for the entity filter. Slow test: 8 passed.
 
 **M4-8.** Done as written, with one change to D5: line 5b (the repository's own rules) also needs `--ts-pre-compilation-deps`. Without it dependency-cruiser drops `import type` edges, so the fixture's `import-up` rule showed `kept` instead of `broken`. `graph_items` also returns cycles (project-scoped) with the module and import items; the adapter holds test-file edges in `st["test_edges"]` for M4-11 and does not emit them.
+
+**M4-9.** Done as written. `Knip.run_knip(project_dir)` is the client method name (`run` is the sandbox runner). Dependency findings (`dependencies` and `devDependencies`) both give kind `unused dependency` on the project's `package.json`. Without a `knip.json`, the fixture reports its non-entry files as unused too, so M4-17's expected `dead` list must be built from a real run and checked by hand, not guessed.
 
 ---
 
