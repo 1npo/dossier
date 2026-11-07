@@ -49,6 +49,25 @@ class TestGithubProfile:
         assert not [n for n in sandbox.ALLOWED_NAMES if "TOKEN" in n.upper()]
 
 
+class TestHostPath:
+    def test_a_version_manager_folder_comes_before_the_system_folders(self, tmp_path):
+        """git sits in /usr/bin, and the tools are looked up in order, so /usr/bin must not hide a newer node."""
+        fnm = tmp_path / "fnm" / "bin"
+        fnm.mkdir(parents=True)
+        node = fnm / "node"
+        node.write_text("#!/bin/sh\n")
+        node.chmod(0o755)
+
+        dirs = sandbox._host_path({"PATH": f"{fnm}:/usr/bin"}).split(":")
+
+        assert dirs.index(str(fnm)) < dirs.index("/usr/bin")
+
+    def test_system_folders_are_always_present(self):
+        dirs = sandbox._host_path({"PATH": "/nowhere"}).split(":")
+
+        assert dirs == list(sandbox.SAFE_PATH)
+
+
 class TestBuildEnv:
     def test_forbidden_names_are_absent(self, area):
         assert not FORBIDDEN.keys() & env_for(area).keys()

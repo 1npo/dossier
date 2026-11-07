@@ -20,7 +20,7 @@ def fake_bin(tmp_path, **versions):
     return str(d)
 
 
-ALL = dict(git="git version 2.47.3", uv="uv 0.11.19 (abc)", node="v22.1.0", npm="9.2.0", dotnet="8.0.100 [/x]\n9.0.200 [/x]")
+ALL = dict(git="git version 2.47.3", uv="uv 0.11.19 (abc)", node="v22.14.0", npm="9.2.0", dotnet="8.0.100 [/x]\n9.0.200 [/x]")
 
 
 def git_in(cwd, *args):
@@ -52,7 +52,7 @@ class TestPreflight:
         report = toolcheck.preflight(["TypeScript"], path=path)
 
         node = next(h for h in report["host"] if h["id"] == "node")
-        assert (node["status"], node["needs"], node["for"]) == ("old", "22.0.0", ["TypeScript"])
+        assert (node["status"], node["needs"], node["for"]) == ("old", "22.13.0", ["TypeScript"])
 
     def test_old_node_is_fine_for_python(self, tmp_path):
         path = fake_bin(tmp_path, **{**ALL, "node": "v20.19.2"})
@@ -135,7 +135,7 @@ class TestToolsFile:
             assert {"ecosystem", "lockfile", "command", "enabled"} <= set(r)
 
     def test_counts(self):
-        assert (len(TOOLS["host"]), len(TOOLS["tools"]), len(TOOLS["restore"])) == (6, 12, 3)
+        assert (len(TOOLS["host"]), len(TOOLS["tools"]), len(TOOLS["restore"])) == (6, 15, 3)
 
 
 class TestFormatText:

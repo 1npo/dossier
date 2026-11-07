@@ -1,0 +1,14 @@
+{
+  "name": "dossier-js-tools",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "dependency-cruiser": "18.7.0",
+    "knip": "6.42.1",
+    "@sourcegraph/scip-typescript": "0.5.2",
+    "typescript": "6.0.3",
+    "yarn": "1.22.22",
+    "@yarnpkg/cli-dist": "4.18.1",
+    "pnpm": "12.15.0"
+  }
+}

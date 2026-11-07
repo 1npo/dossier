@@ -75,7 +75,7 @@
    "pattern": "v(\\d+\\.\\d+\\.\\d+)",
    "min": {
     "python": "16.0.0",
-    "js": "22.0.0"
+    "js": "22.13.0"
    },
    "install": {
     "linux": "Install Node.js (version shown above or later) from https://nodejs.org/en/download, or with your version manager",
@@ -243,12 +243,22 @@
    ],
    "via": "npx",
    "package": "dependency-cruiser",
-   "version": "18.6.0",
-   "published": "2026-10-11",
+   "version": "18.7.0",
+   "published": "2026-10-19",
    "gives": "JavaScript and TypeScript import graph",
    "source": "https://github.com/sverweij/dependency-cruiser/blob/main/doc/cli.md",
    "first_used": "M4",
-   "cards": []
+   "cards": [
+    "reading.order",
+    "components.map",
+    "components.catalog",
+    "interactions.graph",
+    "interactions.violations",
+    "interactions.flows",
+    "change.blast-radius"
+   ],
+   "node_lock": "node/js-tools",
+   "verified": "2026-11-05"
   },
   {
    "id": "knip",
@@ -257,12 +267,16 @@
    ],
    "via": "npx",
    "package": "knip",
-   "version": "6.42.0",
-   "published": "2026-10-18",
+   "version": "6.42.1",
+   "published": "2026-10-19",
    "gives": "unused JavaScript and TypeScript code",
    "source": "https://knip.dev/reference/cli",
    "first_used": "M4",
-   "cards": []
+   "cards": [
+    "change.dead-code"
+   ],
+   "node_lock": "node/js-tools",
+   "verified": "2026-11-05"
   },
   {
    "id": "scip-typescript",
@@ -271,12 +285,18 @@
    ],
    "via": "npx",
    "package": "@sourcegraph/scip-typescript",
-   "version": "0.4.0",
-   "published": "2025-10-02",
+   "version": "0.5.2",
+   "published": "2026-10-22",
    "gives": "JavaScript and TypeScript symbols and references",
    "source": "https://github.com/sourcegraph/scip-typescript",
    "first_used": "M4",
-   "cards": []
+   "cards": [
+    "components.catalog",
+    "interactions.flows",
+    "interactions.graph"
+   ],
+   "node_lock": "node/js-tools",
+   "verified": "2026-11-05"
   },
   {
    "id": "typescript",
@@ -285,12 +305,66 @@
    ],
    "via": "npx",
    "package": "typescript",
-   "version": null,
-   "published": null,
+   "version": "6.0.3",
+   "published": "2026-04-16",
    "gives": "the TypeScript compiler API",
    "source": "https://www.npmjs.com/package/typescript",
    "first_used": "M4",
-   "open": "TypeScript 7 is the native port; choose 5.9.x, 6.0.x or the new API in M4.",
+   "cards": [
+    "data.entities",
+    "data.relationships",
+    "entry.catalog",
+    "interactions.graph"
+   ],
+   "node_lock": "node/js-tools",
+   "verified": "2026-11-05"
+  },
+  {
+   "id": "yarn",
+   "scope": [
+    "js"
+   ],
+   "via": "npx",
+   "package": "yarn",
+   "node_lock": "node/js-tools",
+   "version": "1.22.22",
+   "published": "2024-03-09",
+   "gives": "installs a repository's locked packages",
+   "source": "https://www.npmjs.com/package/yarn",
+   "first_used": "M4",
+   "verified": "2026-11-05",
+   "cards": []
+  },
+  {
+   "id": "yarn-berry",
+   "scope": [
+    "js"
+   ],
+   "via": "npx",
+   "package": "@yarnpkg/cli-dist",
+   "node_lock": "node/js-tools",
+   "version": "4.18.1",
+   "published": "2026-09-24",
+   "gives": "installs a repository's locked packages",
+   "source": "https://yarnpkg.com/cli/install",
+   "first_used": "M4",
+   "verified": "2026-11-05",
+   "cards": []
+  },
+  {
+   "id": "pnpm",
+   "scope": [
+    "js"
+   ],
+   "via": "npx",
+   "package": "pnpm",
+   "node_lock": "node/js-tools",
+   "version": "12.15.0",
+   "published": "2026-10-21",
+   "gives": "installs a repository's locked packages",
+   "source": "https://pnpm.io/cli/install",
+   "first_used": "M4",
+   "verified": "2026-11-05",
    "cards": []
   },
   {

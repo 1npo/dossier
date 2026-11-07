@@ -48,6 +48,8 @@ def _host_path(parent: Mapping[str, str]) -> str:
         d = str(Path(exe).parent) if exe else None
         if d and d not in dirs:
             dirs.append(d)
+    # git lives in /usr/bin and comes first, so a newer node from a version manager must be moved ahead of the system folders
+    dirs = [d for d in dirs if d not in SAFE_PATH] + [d for d in dirs if d in SAFE_PATH]
     for d in SAFE_PATH:
         if d not in dirs:
             dirs.append(d)

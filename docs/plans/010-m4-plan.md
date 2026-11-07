@@ -536,7 +536,7 @@ Read section 2, section 3, D1 to D3, D6 and D16. Load the skills in section 2. T
   - Done-check: "Results (Phase 1)" has one line per step with the values seen.
   - Commit: `docs(dossier): record the M4 tool re-check in plan 010`
 
-- [ ] **M4-2. Pin and install the Node tools.**
+- [x] **M4-2. Pin and install the Node tools.**
   - Goal: D2.
   - Files: new `scripts/node/js-tools/package.json`, `package-lock.json`, `ts_facts.mjs` (a stub printing `{}`), `scripts/js_tools.py`, `tests/unit/scripts/test_js_tools.py`, `tests/integration/scripts/test_js_tools_slow.py`; edit `scripts/tools.json`, `tests/unit/scripts/test_toolcheck.py`.
   - Interface: `install_dir(cache_root, lock_sha) -> Path`; `ensure_installed(run, cache_root, timeout) -> Path`; `node_problem(run) -> str | None`.
@@ -626,6 +626,8 @@ Host: Node 26.13.0 (fnm), npm 11.20.0. This session's shell still resolved `/usr
 6. Tree-sitter (`ts_worker.py`): `typescript`, `tsx` and `javascript` are accepted (O3). D8's complexity query, with all nine node types and the `operator: ["&&" "||" "??"]` form, gives 6, 3 and 6 matches on small samples, as counted by hand.
 7. Semgrep: `// ruleid:` works for `.ts` and `.tsx` (O4). A `.ts` and a `.tsx` target can sit beside one rule file, and `semgrep --test` passes. **`.mts` and `.cts` are NOT scanned (O5):** no result, no error. **`.d.ts` IS scanned**, so it must be excluded by the adapter. So D10's fixed Gaps item for `.mts` and `.cts` is needed, and M4-15 adds it.
 8. Restores through `sandbox.run`, with a scratch area: yarn classic (`--frozen-lockfile`), berry (`--immutable --mode=skip-build`) and pnpm (`--frozen-lockfile`) all exit 0 and write `node_modules`. Their caches landed in `<area>/home/.cache/yarn`, `.yarn/berry` and `.cache/pnpm` (HOME is already redirected), and nothing outside the scratch folders was written. A `yarn.lock` from berry contains `__metadata`, classic does not. **O1: `npm_config_store_dir` did not move pnpm's store** (the folder was never created), so M4-4 passes `--store-dir <area>/cache/pnpm` on the command line. **O2:** with `packageManager: pnpm@9.0.0` in `package.json`, pnpm 12.15.0 still ran as 12.15.0 (not re-run on a fresh install).
+
+**M4-2 (pins and install).** Done as written. One deviation: `sandbox._host_path` did not do what risk 12 assumed. It adds each host tool's folder in `tools.json` order, and `git` (first) lives in `/usr/bin`, so `/usr/bin` came first and `node` inside every sandboxed command resolved to the system Node 20.19.2 even with fnm's Node 26 first on the caller's `PATH`. The slow install test caught it (`node_problem` said "Node 20.19.2 is too old"). Fixed in `sandbox._host_path`: folders outside `SAFE_PATH` now come before the system folders; the order among system folders is unchanged, so Python-only machines get the same `PATH`. Tests: `TestHostPath` in `test_sandbox.py`.
 
 ---
 
