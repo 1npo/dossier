@@ -100,7 +100,8 @@ def restore_fields(results: list) -> dict:
     names = sorted({n for r in results for n in r["env_names"]})
     fields = {"status": status, "reason": reason, "counts": {"ecosystems": len(results)},
               "details": {"ecosystems": [{k: r[k] for k in ("ecosystem", "status", "reason", "seconds", "log")}
-                                         | {"command": " ".join(r["command"])} for r in results]}}
+                                         | {"command": " ".join(r["command"])}
+                                         | ({"dir": r["dir"]} if r.get("dir") else {}) for r in results]}}
     if names:
         fields.update(env_names=names, command=next(r["command"] for r in results if r["env_names"]))
     return fields
@@ -116,10 +117,10 @@ def stage_copy(build, top, sha, area, state, opts: Options, tree, trust) -> dict
     record(build, t0, "copy", "checkout", details={k: info[k] for k in ("path", "created", "verified", "submodules", "submodules_on")})
 
     t0 = time.monotonic()
-    plans = restore.plans(tree, toolcheck.load_tools())
+    plans = restore.plans(tree, toolcheck.load_tools(), info["path"])
     d = restore.decide(plans, state=state, answer=opts.restore, no_restore=opts.no_restore, trust=trust, allow_ref=opts.allow_ref)
     if d["store"]:
-        state["restore"] = {"answer": d["store"], "date": date.today().isoformat(), "ecosystems": [p["ecosystem"] for p in plans]}
+        state["restore"] = {"answer": d["store"], "date": date.today().isoformat(), "ecosystems": list(dict.fromkeys(p["ecosystem"] for p in plans))}
     restored: dict = {}
     if d["action"] == "skip":
         record(build, t0, "copy", "restore", status="skipped", reason=d["reason"],
@@ -129,14 +130,14 @@ def stage_copy(build, top, sha, area, state, opts: Options, tree, trust) -> dict
         record(build, t0, "copy", "restore", status="skipped", reason="Waiting for your answer about installing dependencies.",
                details={"planned": [p["ecosystem"] for p in plans]})
         raise Stop(3, {"stopped": "restore_question",
-                       "will_run": [{"ecosystem": p["ecosystem"], "command": " ".join(p["command"]), "where": info["path"],
+                       "will_run": [{"ecosystem": p["ecosystem"], "command": " ".join(p["command"]), "where": f'{info["path"]}/{p["dir"]}' if p["dir"] else info["path"],
                                      "note": "Installing can run the project's own build code on this machine, with your user rights."}
                                     for p in plans if p["enabled"]],
                        "how_to_answer": "Run prepare again with --restore yes or --restore no."})
     else:
         results = restore.run(plans, area=area, checkout=info["path"], timeout=config.timeouts()["restore"])
         record(build, t0, "copy", "restore", **restore_fields(results))
-        restored = {r["ecosystem"]: r["status"] == "ok" for r in results if r["status"] != "skipped"}
+        restored = restore.restored(results)
     return {"checkout": info, "restore": results, "restore_decision": d, "restored": restored}
 
 

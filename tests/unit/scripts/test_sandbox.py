@@ -49,6 +49,21 @@ class TestGithubProfile:
         assert not [n for n in sandbox.ALLOWED_NAMES if "TOKEN" in n.upper()]
 
 
+class TestNodePackageManagerCaches:
+    def test_yarn_names_are_allowed_and_point_inside_the_area(self, area):
+        env = env_for(area)
+
+        assert {"YARN_CACHE_FOLDER", "YARN_GLOBAL_FOLDER", "YARN_ENABLE_TELEMETRY"} <= sandbox.ALLOWED_NAMES
+        assert env["YARN_CACHE_FOLDER"] == str(area / "cache/yarn")
+        assert env["YARN_GLOBAL_FOLDER"] == str(area / "cache/yarn-berry")
+        assert env["YARN_ENABLE_TELEMETRY"] == "0"
+
+    def test_parent_values_for_them_are_ignored(self, area):
+        env = env_for(area, parent={"YARN_CACHE_FOLDER": "/elsewhere"})
+
+        assert env["YARN_CACHE_FOLDER"] == str(area / "cache/yarn")
+
+
 class TestHostPath:
     def test_a_version_manager_folder_comes_before_the_system_folders(self, tmp_path):
         """git sits in /usr/bin, and the tools are looked up in order, so /usr/bin must not hide a newer node."""

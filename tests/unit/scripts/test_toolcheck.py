@@ -135,7 +135,7 @@ class TestToolsFile:
             assert {"ecosystem", "lockfile", "command", "enabled"} <= set(r)
 
     def test_counts(self):
-        assert (len(TOOLS["host"]), len(TOOLS["tools"]), len(TOOLS["restore"])) == (6, 15, 3)
+        assert (len(TOOLS["host"]), len(TOOLS["tools"]), len(TOOLS["restore"])) == (6, 15, 5)
 
 
 class TestFormatText:

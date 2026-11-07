@@ -552,7 +552,7 @@ Read section 2, section 3, D1 to D3, D6 and D16. Load the skills in section 2. T
   - Done-check: `... pytest tests/unit/scripts/test_js_project.py -q` passes.
   - Commit: `feat(dossier): find JavaScript projects and workspaces`
 
-- [ ] **M4-4. Restore npm, yarn and pnpm, in any project folder.**
+- [x] **M4-4. Restore npm, yarn and pnpm, in any project folder.**
   - Goal: D3's restore and hygiene.
   - Files: edit `scripts/tools.json`, `scripts/restore.py`, `scripts/stages.py`, `scripts/sandbox.py`, `tests/unit/scripts/test_restore.py`, `tests/unit/scripts/test_sandbox.py`, `tests/integration/scripts/test_hygiene.py`.
   - Interface: `restore.plans(tree, tools, checkout=None)`; plans gain `dir` and `auth`.
@@ -628,6 +628,8 @@ Host: Node 26.13.0 (fnm), npm 11.20.0. This session's shell still resolved `/usr
 8. Restores through `sandbox.run`, with a scratch area: yarn classic (`--frozen-lockfile`), berry (`--immutable --mode=skip-build`) and pnpm (`--frozen-lockfile`) all exit 0 and write `node_modules`. Their caches landed in `<area>/home/.cache/yarn`, `.yarn/berry` and `.cache/pnpm` (HOME is already redirected), and nothing outside the scratch folders was written. A `yarn.lock` from berry contains `__metadata`, classic does not. **O1: `npm_config_store_dir` did not move pnpm's store** (the folder was never created), so M4-4 passes `--store-dir <area>/cache/pnpm` on the command line. **O2:** with `packageManager: pnpm@9.0.0` in `package.json`, pnpm 12.15.0 still ran as 12.15.0 (not re-run on a fresh install).
 
 **M4-2 (pins and install).** Done as written. One deviation: `sandbox._host_path` did not do what risk 12 assumed. It adds each host tool's folder in `tools.json` order, and `git` (first) lives in `/usr/bin`, so `/usr/bin` came first and `node` inside every sandboxed command resolved to the system Node 20.19.2 even with fnm's Node 26 first on the caller's `PATH`. The slow install test caught it (`node_problem` said "Node 20.19.2 is too old"). Fixed in `sandbox._host_path`: folders outside `SAFE_PATH` now come before the system folders; the order among system folders is unchanged, so Python-only machines get the same `PATH`. Tests: `TestHostPath` in `test_sandbox.py`.
+
+**M4-4 (restore).** Done as written, with one change that M4-1 forced (O1): `npm_config_store_dir` is **not** added to `ALLOWED_NAMES` because pnpm ignores it. The pnpm command carries `--store-dir {pnpm_store}` instead, and `restore.run` expands the token to `<area>/cache/pnpm`. The three yarn names are added as planned. A real run through `restore.plans` and `restore.run` on tiny yarn classic, yarn berry and pnpm projects succeeded, with the berry lockfile picking `berry_command` (checked by hand, not committed as a test because it needs the network). Added `restore.restored(results)` (used by `stages.stage_copy`) so the "every plan of the ecosystem succeeded" rule has a unit test. `test_hygiene.py` gained a test with a control: the same `file:` dependency's `postinstall` does run under plain `npm ci` and does not under the restore command.
 
 ---
 

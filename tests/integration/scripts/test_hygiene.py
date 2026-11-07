@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 import time
 
 import pytest
@@ -146,6 +147,36 @@ class TestFailures:
     def test_disabled_ecosystem_is_skipped_with_a_reason(self, stage):
         area, co = stage
 
-        res = restore.run([{"ecosystem": "npm", "lockfile": "x", "command": ["false"], "enabled": False}], area=area, checkout=co, timeout=5)
+        res = restore.run([{"ecosystem": "nuget", "lockfile": "x", "command": ["false"], "enabled": False}], area=area, checkout=co, timeout=5)
 
         assert res[0]["status"] == "skipped" and "later version" in res[0]["reason"]
+
+
+class TestNpmInstallScripts:
+    """npm runs a dependency's postinstall script unless told not to; the restore command must tell it not to."""
+
+    def project(self, root):
+        (root / "dep").mkdir(parents=True)
+        (root / "dep/package.json").write_text(json.dumps({"name": "dep", "version": "1.0.0", "scripts": {"postinstall": "touch ../ran"}}))
+        (root / "package.json").write_text(json.dumps({"name": "app", "version": "1.0.0", "dependencies": {"dep": "file:./dep"}}))
+        subprocess.run(["npm", "install", "--package-lock-only", "--ignore-scripts", "--no-audit", "--no-fund"], cwd=root, check=True,
+                       capture_output=True)
+
+    def test_the_restore_command_does_not_run_install_scripts(self, tmp_path):
+        import toolcheck
+        project = tmp_path / "app"
+        self.project(project)
+        entry = next(r for r in toolcheck.load_tools()["restore"] if r["ecosystem"] == "npm")
+
+        res = restore.run([{**entry, "dir": ""}], area=tmp_path / "cache" / "repo", checkout=project, timeout=120)
+
+        assert res[0]["status"] == "ok" and (project / "node_modules").exists()
+        assert not (project / "ran").exists()
+
+    def test_control_the_same_install_without_the_flag_does_run_the_script(self, tmp_path):
+        project = tmp_path / "app"
+        self.project(project)
+
+        subprocess.run(["npm", "ci", "--no-audit", "--no-fund"], cwd=project, check=True, capture_output=True)
+
+        assert (project / "ran").exists()
