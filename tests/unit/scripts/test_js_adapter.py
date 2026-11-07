@@ -230,3 +230,23 @@ class TestSymbolsStep:
         js_adapter.JsAdapter().extract(context(js_repo, tmp_path))
 
         assert seen == [True]
+
+
+class TestModelsStep:
+    def test_prisma_models_and_findings_come_even_without_node(self, js_repo, tmp_path):
+        ctx = context(js_repo, tmp_path, trusted=False)
+
+        out = js_adapter.JsAdapter().extract(ctx)
+
+        assert {m["name"] for m in out["models"] if m["kind"].startswith("prisma")} == {"User", "Post", "Role"}
+        assert [i["name"] for i in out["io_candidates"] if i["category"] == "env-var"] == ["DATABASE_URL"]
+
+    def test_typescript_entities_come_from_the_script_output(self, js_repo, tmp_path, monkeypatch, offline_tools):
+        types = [{"path": "src/types.ts", "name": "Order", "kind": "interface", "line": 8, "end_line": 12, "exported": True, "object": True,
+                  "bases": [], "decorators": [], "fields": []}]
+        monkeypatch.setattr(js_tools.TsFacts, "facts", lambda self, d, files: {"config": {"used": None}, "imports": [], "exports": [], "types": types,
+                                                                                 "components": [], "routes": [], "errors": []})
+
+        out = js_adapter.JsAdapter().extract(context(js_repo, tmp_path))
+
+        assert [(m["name"], m["kind"]) for m in out["models"] if not m["kind"].startswith("prisma")] == [("Order", "ts-interface")]

@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import posixpath
+import re
 
+import gather
 import graphs
 import scip_read
 
@@ -185,3 +187,35 @@ def finish_symbols(items: list, exports: list | None) -> list:
         row["symbol"] = _anonymous(i["symbol"])
         out.append(row)
     return out
+
+
+_ENTITY_KINDS = {"interface": "ts-interface", "type": "ts-type", "enum": "ts-enum"}
+
+
+def _is_entity(t: dict, test_re) -> bool:
+    path = t["path"]
+    if not t.get("exported") or t["name"].endswith("Props"):
+        return False
+    if path.endswith(".d.ts") or test_re.search(path) or ".stories." in path:
+        return False
+    if t["kind"] == "class":
+        return "Entity" in t.get("decorators", [])
+    return t["kind"] != "type" or bool(t.get("object"))
+
+
+def model_items(types: list, test_re=None) -> list:
+    """Entities from the TypeScript script's `types`: exported interfaces, object types, enums and `@Entity` classes (D7, S10)."""
+    test_re = test_re or gather.TEST_RE
+    kept = [t for t in types if _is_entity(t, test_re)]
+    names = {t["name"] for t in kept}
+    items = []
+    for t in kept:
+        kind = "typeorm" if t["kind"] == "class" else _ENTITY_KINDS[t["kind"]]
+        fields = []
+        for f in t.get("fields", []):
+            words = re.findall(r"[A-Za-z_]\w*", f.get("type") or "")
+            fields.append({"name": f["name"], "type": f.get("type") or None, "line": f["line"],
+                           "ref": next((w for w in words if w in names and w != t["name"]), None)})
+        items.append({"path": t["path"], "line": t["line"], "end_line": t["end_line"], "name": t["name"], "kind": kind, "rule": kind,
+                      "snippet": f"{t['kind']} {t['name']}", "bases": t.get("bases", []), "fields": fields})
+    return sorted(items, key=lambda i: (i["path"], i["line"]))

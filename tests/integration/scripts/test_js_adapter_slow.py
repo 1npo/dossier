@@ -73,3 +73,13 @@ class TestJsAdapterFrame:
 
         assert js["tools"]["knip"]["status"] == "ok"
         assert any(d["type"] == "unused file" and d["path"] == "src/unused.ts" for d in dead)
+
+    def test_models_hold_prisma_and_typescript_entities_but_not_props_or_local(self, ex):
+        _, out, _ = ex
+
+        models = json.loads((out / "extract" / "models.json").read_text())["adapters"]["js"]["items"]
+        kinds = {(m["name"], m["kind"]) for m in models}
+
+        assert {("User", "prisma"), ("Post", "prisma"), ("Role", "prisma-enum"), ("Order", "ts-interface"), ("Item", "ts-type"),
+                ("Status", "ts-enum"), ("Product", "typeorm")} <= kinds
+        assert not {"ButtonProps", "Local"} & {m["name"] for m in models}

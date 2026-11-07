@@ -177,3 +177,26 @@ class TestSafeNames:
     def test_bars_and_brackets_in_a_type_are_made_safe(self):
         assert [measured_er.safe_type(t) for t in ("str | None", "Mapping[str, float]", "Callable[[int], str]", "", "3d")] == [
             "str_or_None", "Mapping_str_float", "Callable_int_str", "any", "t_3d"]
+
+
+class TestFamily:
+    def test_sql_prisma_and_other_kinds_have_their_own_family(self):
+        assert [measured_er.family({"kind": k}) for k in ("sql-table", "prisma", "prisma-enum", "pydantic", "ts-interface")] == \
+            ["sql", "prisma", "prisma", "other", "other"]
+
+
+class TestRelationsAcrossFamilies:
+    def test_a_prisma_field_joins_the_prisma_model_not_an_interface_of_the_same_name(self):
+        iface = {"kind": "ts-interface", "name": "User", "path": "a.ts", "line": 1, "fields": []}
+        user = {"kind": "prisma", "name": "User", "path": "s.prisma", "line": 1, "fields": []}
+        post = {"kind": "prisma", "name": "Post", "path": "s.prisma", "line": 5, "fields": [{"name": "author", "ref": "User", "type": "User"}]}
+
+        rels = measured_er._relations([post], [iface, user, post], {})
+
+        assert [(o["name"], t["path"], f) for o, t, f in rels] == [("Post", "s.prisma", "author")]
+
+    def test_a_python_field_still_joins_by_name_in_its_own_family(self):
+        a = {"kind": "pydantic", "name": "A", "path": "a.py", "line": 1, "fields": [{"name": "b", "ref": "B", "type": "B"}]}
+        b = {"kind": "pydantic", "name": "B", "path": "b.py", "line": 1, "fields": []}
+
+        assert [(o["name"], t["name"]) for o, t, _ in measured_er._relations([a], [a, b], {})] == [("A", "B")]

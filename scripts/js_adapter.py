@@ -11,6 +11,7 @@ from pathlib import Path
 import candidates
 import config
 import js_entries
+import js_prisma
 import js_project
 import js_queries
 import js_reduce
@@ -136,6 +137,16 @@ class JsAdapter(Adapter):
         out["tests"] += tests + configs
         out["io_candidates"] += state
 
+    @staticmethod
+    def _prisma(ctx, out, read) -> None:
+        """Prisma schemas need no tool, so they are read even when Node is missing."""
+        for path in sorted(p for p in ctx.tree if p.endswith(".prisma")):
+            text = read(path)
+            if text is not None:
+                parsed = js_prisma.parse(path, text)
+                out["models"] += parsed["models"]
+                out["io_candidates"] += parsed["io"]
+
     def _dead(self, ctx, out, install, projects, timeout) -> None:
         knip = js_tools.Knip(ctx.run, install, timeout)
         got = self._each(ctx, "knip", projects, lambda p: js_reduce.dead_items(knip.run_knip(ctx.checkout / p["dir"]), p))
@@ -181,6 +192,7 @@ class JsAdapter(Adapter):
         read = self._reader(ctx)
         projects = js_project.projects(sorted(ctx.tree), read)
         self._entries(ctx, out, projects, read)
+        self._prisma(ctx, out, read)
         st = {"test_edges": [], "read": read}
         gate = self._node_gate(ctx)
         self._skip(ctx, "semgrep", LATER)
@@ -201,6 +213,7 @@ class JsAdapter(Adapter):
                 facts = self._facts(ctx, install, projects, timeout)
                 st["test_edges"] = self._graph(ctx, out, install, projects, facts, timeout)
                 self._dead(ctx, out, install, projects, timeout)
+                out["models"] += js_reduce.model_items([t for f in facts.values() for t in f.get("types", [])])
                 self._symbols(ctx, out, install, projects, facts, timeout)
         self._syntax(ctx, out, st, projects)
         return {o: candidates.sort_items(items) for o, items in out.items()}

@@ -34,6 +34,12 @@ def entities(extract: dict) -> list:
     return out
 
 
+def family(entity: dict) -> str:
+    """Which kind of source an entity comes from, so a relation joins an entity only to one of its own family."""
+    kind = entity["kind"]
+    return "sql" if kind == SQL else "prisma" if kind in ("prisma", "prisma-enum") else "other"
+
+
 def safe_type(text) -> str:
     """A type Mermaid accepts as an attribute type: letters, digits and underscores. `str | None` becomes `str_or_None`."""
     t = re.sub(r"[^A-Za-z0-9_]+", "_", re.sub(r"\s*\|\s*", "_or_", str(text or ""))).strip("_")
@@ -54,11 +60,11 @@ def _relations(group: list, everything: list, idents: dict) -> list:
     """(parent ident, child ident, label, cardinality) for every relation of an entity in `group` to a known entity."""
     by_name: dict = {}
     for e in everything:
-        by_name.setdefault((e["kind"] == SQL, e["name"]), e)
+        by_name.setdefault((family(e), e["name"]), e)
     out = []
     for e in group:
         for f in e.get("fields") or []:
-            target = by_name.get((e["kind"] == SQL, f.get("ref"))) if f.get("ref") else None
+            target = by_name.get((family(e), f.get("ref"))) if f.get("ref") else None
             if target is None:
                 continue
             out.append((e, target, f["name"]))

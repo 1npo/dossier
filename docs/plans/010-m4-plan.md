@@ -687,7 +687,7 @@ Read section 2, D1, D4 to D12, and "Results (Phase 1)", especially M4-1's values
   - Done-check: both test files pass, the second with `DOSSIER_SLOW=1`.
   - Commit: `feat(dossier): extract JavaScript tests, complexity and module state with tree-sitter`
 
-- [ ] **M4-12. Prisma and the other models.**
+- [x] **M4-12. Prisma and the other models.**
   - Goal: D7.
   - Files: new `scripts/js_prisma.py`, `tests/unit/scripts/test_js_prisma.py`; edit `scripts/js_reduce.py`, `scripts/js_adapter.py`, `scripts/measured_er.py`, `tests/unit/scripts/test_js_reduce.py`, `tests/unit/scripts/test_measured_er.py`.
   - Interface: `js_prisma.parse(path, text) -> {"models": [...], "io": [...]}`; `js_reduce.model_items(types, tree) -> list`; `measured_er.family(entity) -> str`.
@@ -784,6 +784,8 @@ Commit each task on `feat/dossier-m4`. Do not merge or bump. Write "Results (Pha
 **M4-10.** Done as written, with one fact that differs from M4-1's sample: for a file below a folder the symbol is ``scip-typescript npm shopjs 1.0.0 src/`types.ts`/Order#`` (directory descriptors first, then the file), so `finish_symbols` takes the first name after the last `/` descriptor, not the second descriptor. `ScipTs(run, install, timeout).index(project_dir, area, n, has_tsconfig)` writes `<area>/scip/js-<n>.scip`. Risk kept: two projects with the same package name and version would share symbol strings for the same relative path; the plan's D11 accepts this. The slow test does not assert that no `.scip` is left in the checkout; the output path is under the area, and `workarea.verify` already fails the build on tracked changes.
 
 **M4-11.** Done as written; all three grammar names and D8's queries ran as recorded in M4-1. Choices the plan left open: a test file with no framework import and no runner config gets framework `unknown`; the `export let` form is found by the second query (`export_statement declaration: (lexical_declaration)`, start column 7), and the captured text excludes the word `export`; curried calls such as `it.each([..])('x', fn)` are counted once, by the inner call whose function text is a plain dotted name; `coverage_threshold` is the smallest number among statements/branches/functions/lines near `coverageThreshold` (jest) or `thresholds` (vitest), or anywhere in a `.c8rc`/`.nycrc`. The adapter writes `complexity` onto module items and the `tests` list gets `paths` and `imports` from dependency-cruiser's test-file edges (empty when that tool did not run). `tree-sitter-language-pack` now has a real status; `semgrep` still says `Arrives in a later task.`
+
+**M4-12.** Prisma, `@Entity` classes, interfaces, object types and enums are done. **Cut (allowed by the Phase 2 cut line):** `mongoose`, `sequelize`, `drizzle` and `zod` entities; `ts_facts.mjs` does not yet report const-based schemas, so they are listed as a gap for the next plan. Prisma is read even when Node is missing or the ref is untrusted (it needs no tool). A Prisma `type` or `view` block is treated like a model. `measured_er.family` is new and `_relations` keys on it.
 
 ---
 

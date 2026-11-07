@@ -186,3 +186,30 @@ class TestFinishSymbolsNestedFiles:
         out = js_reduce.finish_symbols(defs, [{"path": "src/types.ts", "name": "Order"}])
 
         assert [(d["name"], d["public"]) for d in out] == [("Order", True), ("note", True), ("Local", False)]
+
+
+def _type(name, kind="interface", **kw):
+    return {"path": "src/types.ts", "name": name, "kind": kind, "line": 1, "end_line": 3, "exported": True, "object": kind == "interface",
+            "bases": [], "decorators": [], "fields": kw.pop("fields", []), **kw}
+
+
+class TestModelItems:
+    def test_exported_interfaces_object_types_enums_and_entity_classes_are_kept(self):
+        types = [_type("Order"), _type("Item", "type", object=True), _type("Status", "enum"), _type("Product", "class", decorators=["Entity"])]
+
+        items = js_reduce.model_items(types)
+
+        assert {(i["name"], i["kind"]) for i in items} == {("Order", "ts-interface"), ("Item", "ts-type"), ("Status", "ts-enum"), ("Product", "typeorm")}
+
+    def test_props_local_tests_declarations_and_stories_are_dropped(self):
+        types = [_type("ButtonProps"), _type("Local", exported=False), {**_type("T"), "path": "src/a.test.ts"}, {**_type("D"), "path": "src/x.d.ts"},
+                 {**_type("S"), "path": "src/B.stories.tsx"}, _type("Svc", "class"), _type("Alias", "type", object=False)]
+
+        assert js_reduce.model_items(types) == []
+
+    def test_a_field_whose_type_names_another_entity_has_a_ref(self):
+        types = [_type("Order", fields=[{"name": "buyer", "type": "User[]", "line": 2, "optional": False}]), _type("User")]
+
+        items = {i["name"]: i for i in js_reduce.model_items(types)}
+
+        assert items["Order"]["fields"][0]["ref"] == "User"
