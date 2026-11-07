@@ -98,16 +98,16 @@ def blast(cid, ctx, refs):
     picker = ('<div class="blast-picker"><label for="blast-pick">Pick a component or a file</label> '
               f'<select id="blast-pick" class="input"><option value="">Choose...</option>'
               + (f'<optgroup label="Components">{opts_c}</optgroup>' if opts_c else "") + f'<optgroup label="Files">{opts_f}</optgroup></select></div>')
-    out = ('<div id="blast-out" class="blast-lists" aria-live="polite">'
-           '<div><h4>Depend on it (<span id="blast-n-dependents">0</span>)</h4><ul id="blast-dependents" class="blast-list"></ul></div>'
-           '<div><h4>Tests that reach it (<span id="blast-n-tests">0</span>)</h4><ul id="blast-tests" class="blast-list"></ul></div>'
-           '<div><h4>Change with it (<span id="blast-n-co">0</span>)</h4><ul id="blast-co" class="blast-list"></ul></div></div>')
+    col = lambda title, key: (f'<section class="blast-col"><h4>{title} (<span id="blast-n-{key}">0</span>)</h4>'
+                              f'<ul id="blast-{"dependents" if key == "dependents" else key}" class="blast-list"></ul></section>')
+    out = ('<div id="blast-out" class="blast-lists" aria-live="polite">' + col("Depend on it", "dependents")
+           + col("Tests that reach it", "tests") + col("Change with it", "co") + '</div>')
     if extract.get("graph"):
         note = f"Built from static imports. {blind} places that load code at run time are not in this graph (see Gaps)."
     else:
         note = "No import graph was extracted, so only co-changing files are shown."
     blob = json.dumps(d, separators=(",", ":")).replace("</", "<\\/")
-    return picker + out + table + f'<p class="muted">{r.E(note)}</p><script type="application/json" id="blast-data">{blob}</script>'
+    return picker + out + f'<div class="blast-table">{table}</div>' + f'<p class="muted blast-note">{r.E(note)}</p><script type="application/json" id="blast-data">{blob}</script>'
 
 
 DRAWN = {"change.blast-radius": blast}

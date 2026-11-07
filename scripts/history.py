@@ -37,7 +37,7 @@ class Commit(NamedTuple):
 
 
 class Folded(NamedTuple):
-    files: dict         # path -> {"commits", "commits_12m", "lines_changed", "lines_changed_12m", "last_changed", "authors", "shas"}
+    files: dict         # path -> {"commits", "commits_12m", "lines_changed", "lines_changed_12m", "lines_added", "lines_deleted", "lines_added_12m", "lines_deleted_12m", "last_changed", "authors", "shas"}
     pairs: Counter      # (a, b) sorted -> commits that touched both
     people: dict        # id -> {"commits", "commits_12m", "first", "last"}
     bulk: list          # [{"sha", "files", "author", "date", "subject"}]
@@ -100,6 +100,7 @@ def fold(commits, wanted, cid_of, as_of, bulk_files=None, hook=None) -> Folded:
             if is_bulk or cur not in wanted:
                 continue
             f = files.setdefault(cur, {"commits": 0, "commits_12m": 0, "lines_changed": 0, "lines_changed_12m": 0,
+                                       "lines_added": 0, "lines_deleted": 0, "lines_added_12m": 0, "lines_deleted_12m": 0,
                                        "last_changed": None, "authors": Counter(), "shas": []})
             if cur not in touched:
                 f["commits"] += 1
@@ -108,6 +109,10 @@ def fold(commits, wanted, cid_of, as_of, bulk_files=None, hook=None) -> Folded:
                 f["shas"].append(c.sha)
             f["lines_changed"] += a + d
             f["lines_changed_12m"] += (a + d) * (dt >= recent_from)
+            f["lines_added"] += a
+            f["lines_deleted"] += d
+            f["lines_added_12m"] += a * (dt >= recent_from)
+            f["lines_deleted_12m"] += d * (dt >= recent_from)
             if f["last_changed"] is None or dt > f["last_changed"]:
                 f["last_changed"] = dt
             touched.add(cur)
@@ -203,7 +208,9 @@ def collect(top, sha, run, handed, timeout, github_cache=None, github_timeout=30
             owned_lines.update(owner_lines)
             owner_lines = dict(owner_lines)
         items.append({"kind": "file", "path": path, "lines": lines.get(path, 0), "commits": f["commits"], "commits_12m": f["commits_12m"],
-                      "lines_changed": f["lines_changed"], "lines_changed_12m": f["lines_changed_12m"], "last_changed": _day(f["last_changed"]),
+                      "lines_changed": f["lines_changed"], "lines_changed_12m": f["lines_changed_12m"],
+                      "lines_added": f["lines_added"], "lines_deleted": f["lines_deleted"],
+                      "lines_added_12m": f["lines_added_12m"], "lines_deleted_12m": f["lines_deleted_12m"], "last_changed": _day(f["last_changed"]),
                       "authors": dict(f["authors"]), "blame": blamed.get(path), "owners": dict(owners), "owner_lines": owner_lines})
     for (a, b), n in sorted(folded.pairs.items()):
         ca, cb = folded.files[a]["commits"], folded.files[b]["commits"]

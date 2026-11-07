@@ -10,7 +10,7 @@ For each report, at each window size, in each theme, one script runs in the page
     (the diagrams code splits into areas are exempt: they are marked data-budget="area");
   - every flow diagram of Key flows and Startup has numbered notes under it;
   - every card whose layout has a table, and that has content, shows a table;
-  - no two pieces of text in a card overlap (what a scroll box or a clipped card hides is not counted, nor is the inside of a diagram).
+  - no two pieces of text in a card overlap (what a scroll box or a clipped card hides is not counted, nor is text made invisible, nor is the inside of a diagram).
 
 Nothing here imports playwright: it is given an open page.
 """
@@ -118,7 +118,7 @@ LAYOUT_JS = r"""(arg) => {
   const seen = [];
   for (const card of rep.querySelectorAll('[data-card]')) {
     if (seen.length >= 3) break;
-    const items = Array.from(card.querySelectorAll('td, th, dt, dd, li, p, .badge, summary, h3, h4')).filter(e => !e.closest('.mermaid-host')).map(e => ({ e, r: shown(e) })).filter(x => x.r);
+    const items = Array.from(card.querySelectorAll('td, th, dt, dd, li, p, .badge, summary, h3, h4')).filter(e => !e.closest('.mermaid-host') && getComputedStyle(e).visibility !== 'hidden').map(e => ({ e, r: shown(e) })).filter(x => x.r);
     items.sort((a, b) => a.r.top - b.r.top);
     for (let i = 0; i < items.length && seen.length < 3; i++) {
       for (let j = i + 1; j < items.length && items[j].r.top < items[i].r.bottom; j++) {

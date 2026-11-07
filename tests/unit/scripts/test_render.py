@@ -3,6 +3,7 @@ import re
 
 import pytest
 
+import checks_people
 import gather
 import render
 import viewer
@@ -427,8 +428,8 @@ class TestReportLayout:
 
     def test_renamed_reports_and_tracking_group(self):
         assert render.TITLES["overview"] == "This repository" and render.TITLES["risks"] == "Risks" and render.TITLES["gaps"] == "Gaps"
-        assert dict(render.NAV_GROUPS)["Tracking"] == ["gaps", "corrections"]
-        assert "risks" in dict(render.NAV_GROUPS)["Operations and people"]
+        assert dict(render.NAV_GROUPS)["Tracking"] == ["risks", "gaps", "corrections"]
+        assert "risks" not in dict(render.NAV_GROUPS)["Operations and people"]
 
     def test_knowledge_map_offers_lines_and_commits_only(self):
         assert [v for v, _ in render.KM_MEASURES] == ["lines", "commits"] and render.KM_START["metric"] == "lines"
@@ -519,7 +520,7 @@ class TestContributorsOwnerButtons:
             if t.startswith("<p") and 'data-who="owner"' in t:
                 continue
             if t.startswith("<div"):
-                owner = 'data-who="owner"' in t or 'id="who-ctl"' in t
+                owner = 'data-who="owner"' in t or 'id="who-ctl"' in t or 'class="who-notes"' in t
                 drop = owner or 'data-who="author"' in t
                 stack.append((drop, owner))
                 if not drop and not inside:
@@ -546,7 +547,8 @@ class TestContributorsOwnerButtons:
         html = self.card(self.history())
 
         assert re.findall(r'data-who-set="(\w+)" aria-pressed="(\w+)"', html) == [("owner", "false"), ("author", "true")]
-        assert html.count('data-who="owner" hidden') >= 4 and 'data-who="author" hidden' not in html
+        assert html.count('data-who="owner" hidden') >= 3 and 'data-who="author" hidden' not in html
+        assert 'class="muted is-off" data-who-note="owner"' in html and 'data-who-note="author">' in html
 
     def test_owner_table_lists_every_identity_that_owns_something_and_only_those(self):
         html = self.card(self.history())
@@ -603,3 +605,11 @@ class TestRenderTableAddedHeadings:
         refs = self.refs(make_cites)
 
         assert self.head(["Subsystem", "Basis"], refs) == ["Subsystem", "Basis", "Confidence", "Source"]
+
+
+class TestRiskSourceKey:
+    def test_the_key_names_every_value_the_source_column_may_hold(self):
+        html = render.source_key()
+
+        assert [k for k, _ in render.RISK_SOURCE_KEY] == list(checks_people.RISK_SOURCES)
+        assert all(f"<code>{k}</code>" in html for k in checks_people.RISK_SOURCES)

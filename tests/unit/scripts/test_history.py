@@ -85,6 +85,13 @@ class TestFold:
         assert (f["commits"], f["commits_12m"], f["lines_changed"], f["lines_changed_12m"]) == (2, 1, 14, 4)
         assert f["last_changed"].date().isoformat() == "2026-06-01"
 
+    def test_added_and_deleted_lines_are_kept_apart_and_windowed(self):
+        commits = [commit("c2", "ann", "2026-06-01", (3, 1, None, "a.py")), commit("c1", "ann", "2025-01-01", (10, 2, None, "a.py"))]
+
+        f = run_fold(commits, {"a.py"}).files["a.py"]
+
+        assert (f["lines_added"], f["lines_deleted"], f["lines_added_12m"], f["lines_deleted_12m"]) == (13, 3, 3, 1)
+
     def test_bulk_commit_is_listed_and_credits_no_file_or_pair(self):
         entries = [(1, 0, None, f"f{i}.py") for i in range(4)]
         commits = [commit("b1", "ann", "2026-02-01", *entries)]

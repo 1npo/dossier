@@ -35,8 +35,15 @@ FULL = [
 ]
 
 
+def flat(match):
+    """A What happened table as the sentence it adds up to: 'Label: value.' for each row."""
+    pairs = re.findall(r"<th[^>]*>(.*?)</th><td>(.*?)</td>", match.group(0))
+    return " ".join(f"{k}: {v}" if v.endswith(".") else f"{k}: {v}." for k, v in pairs)
+
+
 def body_rows(body):
-    table = body.split("<tbody>")[1].split("</tbody>")[0]
+    table = body.split("<tbody>", 1)[1].rsplit("</tbody>", 1)[0]
+    table = re.sub(r'<table class="happened">.*?</table>', flat, table, flags=re.S)
     return [re.findall(r"<td[^>]*>(.*?)</td>", row, re.S) for row in re.findall(r"<tr>(.*?)</tr>", table, re.S)]
 
 
@@ -121,6 +128,18 @@ class TestProcessBody:
         assert 'data-variant="destructive">browser: 3 problems' in status
 
 
+class TestWhatHappenedTable:
+    def test_a_step_that_ran_is_a_small_table_of_labelled_values(self):
+        cell = process.run_cell("measure", build_with(*FULL))
+
+        assert cell.startswith('<table class="happened">')
+        assert re.findall(r'<th scope="row">(.*?)</th><td>(.*?)</td>', cell) == [("Files", "10"), ("Languages", "2"), ("Commits", "5"), ("Contributors", "1")]
+
+    def test_a_skipped_step_stays_a_sentence_and_a_missing_one_says_so(self):
+        assert process.run_cell("extract", build_with(*FULL)).startswith("Skipped: ")
+        assert process.run_cell("pin", build_with()) == "No record."
+
+
 class TestRunLine:
     def test_skipped(self):
         assert process.run_line("extract", build_with(*FULL)).startswith("Skipped: No extractors")
@@ -135,7 +154,7 @@ class TestRunLine:
         assert process.run_line("pin", build_with()) is None
 
     def test_pin_ok(self):
-        assert process.run_line("pin", build_with(*FULL)) == "Commit 5923c09 (main). Trusted ref: tag v1."
+        assert process.run_line("pin", build_with(*FULL)) == "Commit: 5923c09 (main). Trusted ref: tag v1."
 
     def test_copy_ok_lists_dependencies(self):
         line = process.run_line("copy", build_with(*FULL))
@@ -143,7 +162,7 @@ class TestRunLine:
         assert "python installed (12 s)" in line and "Submodules: none." in line
 
     def test_read_without_readers_says_not_recorded(self):
-        assert "number of parallel readers not recorded" in process.run_line("read", build_with(*FULL))
+        assert "Parallel readers: not recorded." in process.run_line("read", build_with(*FULL))
 
     def test_check_without_browser_record(self):
         assert process.run_line("check", build_with(*FULL)).endswith("Browser check: not run yet.")
@@ -151,15 +170,15 @@ class TestRunLine:
     def test_check_with_browser_record(self):
         b = rec("check", part="browser", by="check_page", counts={"problems": 0}, started="2026-11-01T12:04:05Z")
 
-        assert "Browser check at 12:04 UTC: 0 problems." in process.run_line("check", build_with(*FULL, b))
+        assert "Browser check: 0 problems (12:04 UTC)." in process.run_line("check", build_with(*FULL, b))
 
     def test_gaps_counts(self):
-        assert process.run_line("gaps", build_with(*FULL)) == "6 open items: 1 unknown, 2 inferred, 0 assumed, 3 coverage."
+        assert process.run_line("gaps", build_with(*FULL)) == "Open items: 6. Unknown: 1. Inferred: 2. Assumed: 0. Coverage: 3."
 
     def test_write_incremental(self):
         r = rec("write", by="render", counts={"written": 2, "reused": 5})
 
-        assert process.run_line("write", build_with(r)) == "2 reports rewritten, 5 reused."
+        assert process.run_line("write", build_with(r)) == "Reports written: 2. Reports reused: 5."
 
 
 class TestRenderRecords:
@@ -534,17 +553,17 @@ class TestSummaryLines:
     def test_a_clean_summary_is_reported_in_both_steps(self):
         check, render_ = self.rows(0)
 
-        assert " Summary: 0 problems." in check and render_ == "Page and machine-readable summary written."
+        assert " Summary: 0 problems." in check and render_ == "Page: written. Summary file: written."
 
     def test_problems_are_counted_and_the_file_is_said_to_be_missing(self):
         check, render_ = self.rows(2)
 
-        assert " Summary: 2 problems." in check and render_ == "Page written. summary.json was not written: 2 problems."
+        assert " Summary: 2 problems." in check and render_ == "Page: written. Summary file: not written (2 problems)."
 
     def test_no_summary_record_leaves_both_lines_alone(self):
         check, render_ = self.rows(None)
 
-        assert "Summary:" not in check and render_ == "Page and machine-readable summary written."
+        assert "Summary:" not in check and render_ == "Page: written. Summary file: written."
 
 
 class TestExtractorsOnReuse:

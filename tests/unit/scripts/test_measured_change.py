@@ -52,7 +52,7 @@ class TestHotspots:
         rows = cells(draw("change.hotspots", ctx(hist(*FILES), TREE, graph=graph)), "t-change-hotspots-files")
 
         assert [r[0] for r in rows][:2] == ["src/b.py", "src/a.py"]
-        assert rows[0][5] == "7" and rows[2][5] == "-"
+        assert rows[0][7] == "7" and rows[2][7] == "-"
 
     def test_sentence_counts_files_that_did_not_change(self):
         html = draw("change.hotspots", ctx(hist(*FILES), TREE))
@@ -76,13 +76,40 @@ class TestHotspots:
 
         rows = cells(draw("change.hotspots", ctx(hist(*FILES), TREE, catalog)), "t-change-hotspots-components")
 
-        assert rows == [["core", "4", "10", "160", "0"], ["empty", "0", "0", "0", "0"]]
+        assert rows == [["core", "4", "10", "160", "-", "-", "0"], ["empty", "0", "0", "0", "-", "-", "0"]]
 
     def test_without_a_catalog_the_component_cell_is_a_dash_and_the_table_says_why(self):
         html = draw("change.hotspots", ctx(hist(*FILES), TREE))
 
         assert cells(html, "t-change-hotspots-files")[0][1] == "-"
         assert 'none-found' in html and "t-change-hotspots-components" not in html
+
+    def test_one_table_per_view_behind_a_file_or_component_toggle(self):
+        catalog = [{"name": "core", "paths": ["src/"]}]
+
+        html = draw("change.hotspots", ctx(hist(*FILES), TREE, catalog))
+
+        assert re.findall(r'data-hot-set="(\w+)" aria-pressed="(\w+)"', html) == [("files", "true"), ("components", "false")]
+        assert 'data-hot="files">' in html and 'data-hot="components" hidden>' in html
+
+    def test_added_and_removed_lines_have_their_own_columns_and_a_dash_when_unknown(self):
+        items = hist(*FILES)
+        items[1].update(lines_added_12m=30, lines_deleted_12m=4)
+
+        rows = cells(draw("change.hotspots", ctx(items, TREE)), "t-change-hotspots-files")
+
+        assert measured_change.HOTSPOT_FILES[5:7] == ["Lines added (12 months)", "Lines removed (12 months)"]
+        assert [r[5:7] for r in rows if r[0] == items[1]["path"]] == [["30", "4"]] and rows[-1][5:7] == ["-", "-"]
+
+    def test_bars_rank_the_most_changed_files_and_the_scatter_stays_behind_a_toggle(self):
+        items = hist(*FILES)
+        items[1].update(lines_added_12m=30, lines_deleted_12m=4)
+
+        html = draw("change.hotspots", ctx(items, TREE))
+
+        assert re.findall(r'data-hotchart-set="(\w+)" aria-pressed="(\w+)"', html) == [("bars", "true"), ("scatter", "false")]
+        assert 'data-hotchart="scatter" hidden>' in html and html.count('class="hb-bar"') == 2
+        assert "+30" in html and "&minus;4" in html
 
     def test_no_source_files_leaves_the_placeholder(self):
         assert draw("change.hotspots", ctx(hist(*FILES), ["README.md"])) is None
@@ -183,3 +210,28 @@ class TestInFlight:
 
     def test_none_found(self):
         assert "none-found" in draw("change.in-flight", ctx(hist(), TREE))
+
+
+class TestClusters:
+    def c(self, *pairs, tree=("a.py", "b.py", "c.py", "d.py", "e.py")):
+        return ctx(hist(pairs_total=len(pairs)) + [pair(a, b, n, share) for a, b, n, share in pairs], tree)
+
+    def test_files_that_all_change_together_form_a_group_and_a_lone_pair_does_not(self):
+        got = measured_change.clusters(self.c(("a.py", "b.py", 5, 80), ("b.py", "c.py", 4, 60), ("a.py", "c.py", 4, 70), ("d.py", "e.py", 9, 90)))
+
+        assert [c["files"] for c in got] == [["a.py", "b.py", "c.py"]]
+
+    def test_a_long_chain_is_not_one_group(self):
+        chain = [(f"{x}.py", f"{y}.py", 5, 80) for x, y in zip("abcde", "bcdef")]
+
+        assert measured_change.clusters(self.c(*chain, tree=tuple(f"{x}.py" for x in "abcdef"))) == []
+
+    def test_weak_pairs_do_not_join_a_group(self):
+        assert measured_change.clusters(self.c(("a.py", "b.py", 5, 80), ("b.py", "c.py", 4, 20), ("a.py", "c.py", 4, 20))) == []
+
+    def test_the_card_has_a_pairs_clusters_switch_and_the_share_note_at_the_end(self):
+        html = draw("change.cochange", self.c(("a.py", "b.py", 5, 80), ("b.py", "c.py", 4, 60), ("a.py", "c.py", 4, 70)))
+
+        assert re.findall(r'data-cc-set="(\w+)" aria-pressed="(\w+)"', html) == [("pairs", "true"), ("clusters", "false")]
+        assert 't-change-cochange-clusters' in html and html.rstrip().endswith("changed in the same commit.</p>")
+        assert "Share is" not in html.split('<div data-cc="pairs">')[0]

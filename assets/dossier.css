@@ -543,4 +543,60 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 .card[data-card^="change."] .chart-scroll { overflow-x: auto; margin: .75rem 0; } .card[data-card^="change."] .chart-scroll svg { display: block; max-width: none; }
 .card[data-card^="change.blast-radius"] .blast-picker { margin: .5rem 0; display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; } .card[data-card^="change.blast-radius"] #blast-pick { max-width: 100%; }
 .card[data-card^="change.blast-radius"] .blast-lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; margin: .75rem 0; } .card[data-card^="change.blast-radius"] .blast-list { max-height: 20rem; overflow: auto; margin: 0; padding-left: 1.1rem; }
+/* every button group marks the pressed button the same way */
+.button-group .btn[aria-pressed="true"] { background: var(--primary); color: var(--primary-foreground); }
+.button-group .btn[aria-pressed="false"]:hover { background: var(--accent); }
+
+/* contributors: the notes under the Owner and Author buttons. The two notes share one grid cell, so the block never changes height. */
+#who-ctl { margin-bottom: .6rem; }
+.who-notes { margin-bottom: 1.25rem; } .who-notes p { margin: 0; }
+.who-swap { display: grid; } .who-swap > p { grid-area: 1 / 1; } .who-swap > p.is-off { visibility: hidden; }
+.who-notes .who-swap + p { margin-top: .4rem; }
+
+/* hotspots: room around the chart, the toggle and the table */
+.card[data-card="change.hotspots"] .chart-scroll { margin: 1rem 0 1.5rem; }
+.card[data-card="change.hotspots"] .mode-ctl { margin: 0 0 .75rem; }
+.card[data-card="change.hotspots"] .hot-table[hidden] { display: none; }
+
+/* blast radius: the picker, three labelled boxes the lists fill, then the table set apart from them */
+.card[data-card="change.blast-radius"] .blast-picker { margin: .5rem 0 1rem; }
+.card[data-card="change.blast-radius"] .blast-lists { margin: 0 0 1.75rem; }
+.blast-col { border: 1px solid var(--border); border-radius: var(--radius); background: var(--muted); padding: .75rem .9rem; min-width: 0; display: flex; flex-direction: column; }
+.blast-col h4 { margin: 0 0 .6rem; padding-bottom: .5rem; border-bottom: 1px solid var(--border); font-size: .9375rem; font-weight: 600; }
+.blast-col .blast-list { list-style: none; padding-left: 0; min-height: 5rem; flex: 1; }
+.blast-col .blast-list li { margin: .25rem 0; }
+.blast-col .blast-list:empty::before { content: "None"; color: var(--muted-foreground); font-style: italic; }
+#blast-out:not([data-picked]) .blast-list:empty::before { content: "Pick a file or component above and its files are listed here."; }
+.card[data-card="change.blast-radius"] .blast-table { margin-top: .5rem; }
+.card[data-card="change.blast-radius"] .blast-note { margin-top: .75rem; }
+
+/* knowledge concentration: the Basis column takes the room its explanation needs, short columns stay narrow */
+.card[data-card="contributors.concentration"] .table td.basis-cell, .card[data-card="contributors.concentration"] .table th.basis-cell { min-width: 16rem; max-width: 32rem; width: 40%; }
+.card[data-card="contributors.concentration"] .table td:not(.basis-cell) { width: 1%; white-space: nowrap; }
+
+/* report 01: what a step did, as a small table inside its row */
+table.happened { width: 100%; border-collapse: collapse; font-size: .8125rem; }
+.table table.happened tr { border: 0; }
+.table table.happened th, .table table.happened td { padding: .2rem .75rem .2rem 0; text-align: left; vertical-align: top; border: 0; background: none; min-width: 0; height: auto; }
+.table table.happened th { width: 10.5rem; white-space: nowrap; font-weight: 500; color: var(--muted-foreground); }
+.table table.happened tr:first-child :is(th, td) { padding-top: 0; }
+#t-questions td { vertical-align: middle; }
+
+/* report 14: the key to the Source column */
+.source-key { margin: .5rem 0 1rem; }
+.source-key div { display: flex; gap: .6rem; align-items: baseline; margin: .2rem 0; } .source-key dt { flex: none; font-weight: 600; } .source-key dd { margin: 0; min-width: 0; }
+/* hotspots: ranked bars (path, bar, commits, lines added and removed) and the chart switch */
+.card[data-card="change.hotspots"] [data-hotchart][hidden], .card[data-card="change.cochange"] [data-cc][hidden] { display: none; }
+.card[data-card="change.hotspots"] .mode-ctl + div { margin-top: 0; }
+.hot-bars { list-style: none; padding: 0; margin: .5rem 0 .75rem; display: grid; gap: .35rem; }
+.hot-bars li { display: grid; grid-template-columns: minmax(8rem, 22rem) minmax(6rem, 1fr) 6.5rem 10rem; gap: .75rem; align-items: center; margin: 0; }
+.hot-bars .hb-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: none; padding: 0; }
+.hb-track { height: .7rem; background: var(--muted); border-radius: 99px; overflow: hidden; } .hb-bar { display: block; height: 100%; background: var(--primary); border-radius: 99px; }
+.hb-n, .hb-churn { font-size: .8125rem; white-space: nowrap; } .hb-n { text-align: right; } .hb-churn { color: var(--muted-foreground); }
+.hb-add { color: var(--ok); } .hb-del { color: var(--bad); }
+@media (max-width: 767px) { .hot-bars li { grid-template-columns: 1fr 1fr; } .hot-bars .hb-path { grid-column: 1 / -1; } .hb-track { grid-column: 1 / -1; } }
+/* co-change: the clusters table lists a group's files one under another; the note about Share closes the card */
+#t-change-cochange-clusters td:first-child { min-width: 20rem; } #t-change-cochange-clusters td:first-child code { white-space: normal; }
+#t-change-cochange-clusters td:last-child { min-width: 12rem; white-space: normal; }
+.card[data-card="change.cochange"] .mode-ctl { margin: .5rem 0 .75rem; } .card[data-card="change.cochange"] .cochange-note { margin-top: 1rem; }
 :root { --dossier-css-end: 1; }

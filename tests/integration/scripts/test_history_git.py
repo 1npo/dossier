@@ -145,7 +145,7 @@ class TestMarkers:
 FIELDS = {
     "meta": {"status", "reasons", "commits_seen", "commits_total", "shallow", "stopped_early", "blame_done", "blame_total", "as_of",
              "window_from", "pairs_total", "bulk_commits", "owner_rule", "owner_status", "owner_reason", "prs_found"},
-    "file": {"lines", "commits", "commits_12m", "lines_changed", "lines_changed_12m", "last_changed", "authors", "blame", "owners", "owner_lines"},
+    "file": {"lines", "commits", "commits_12m", "lines_changed", "lines_changed_12m", "lines_added", "lines_deleted", "lines_added_12m", "lines_deleted_12m", "last_changed", "authors", "blame", "owners", "owner_lines"},
     "pair": {"a", "b", "co_commits", "commits_a", "commits_b", "share"},
     "person": {"person", "name", "type", "commits", "commits_12m", "assisted", "first", "last", "aliases", "owned_commits", "owned_lines", "username"},
     "bulk": {"sha", "files", "author", "date", "subject"},
