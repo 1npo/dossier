@@ -10,6 +10,7 @@ from pathlib import Path
 
 import candidates
 import config
+import js_api
 import js_entries
 import js_prisma
 import js_project
@@ -78,13 +79,28 @@ class JsAdapter(Adapter):
         ctx.tool_status[tool] = {"status": "failed", "reason": failed} if failed else {"status": "ok", "reason": None}
         return results
 
-    def _facts(self, ctx, install, projects, timeout) -> dict:
+    @staticmethod
+    def _api_entries(ctx, project, read) -> list:
+        """The entry rows (D17) of every member package of a project."""
+        rows = []
+        for folder in project["members"]:
+            manifest = js_project.read_json(read, f"{folder}/package.json" if folder else "package.json")
+            if manifest is None:
+                continue
+            options = js_api.read_tsconfig(read, f"{folder}/tsconfig.json" if folder else "tsconfig.json")
+            rows += js_api.entries({"dir": folder, "manifest": manifest}, ctx.tree, options)
+        return rows
+
+    def _facts(self, ctx, install, projects, timeout, st) -> dict:
         client = js_tools.TsFacts(ctx.run, install, timeout)
 
         def one(p):
             folder = p["dir"]
             names = [f[len(folder) + 1:] if folder else f for f in p["files"]]
-            return js_reduce.prefix_facts(client.facts(ctx.checkout / folder, names), folder)
+            entries = self._api_entries(ctx, p, st["read"])
+            st["entries"] += entries
+            wanted = [{"entry": e["file"][len(folder) + 1:] if folder else e["file"], "subpath": e["subpath"]} for e in entries if e["file"]]
+            return js_reduce.prefix_facts(client.facts(ctx.checkout / folder, names, wanted), folder)
         return self._each(ctx, "typescript", projects, one)
 
     def _graph(self, ctx, out, install, projects, facts, timeout) -> list:
@@ -203,7 +219,7 @@ class JsAdapter(Adapter):
         projects = js_project.projects(sorted(ctx.tree), read)
         self._entries(ctx, out, projects, read)
         self._prisma(ctx, out, read)
-        st = {"test_edges": [], "read": read}
+        st = {"test_edges": [], "read": read, "entries": []}
         gate = self._node_gate(ctx)
         self._skip(ctx, "semgrep", LATER)
         if gate:
@@ -220,11 +236,15 @@ class JsAdapter(Adapter):
                 for tool in NODE_TOOLS:
                     ctx.tool_status[tool] = {"status": "failed", "reason": reason}
             else:
-                facts = self._facts(ctx, install, projects, timeout)
+                facts = self._facts(ctx, install, projects, timeout, st)
                 st["test_edges"] = self._graph(ctx, out, install, projects, facts, timeout)
                 self._dead(ctx, out, install, projects, timeout)
                 out["models"] += js_reduce.model_items([t for f in facts.values() for t in f.get("types", [])])
                 self._symbols(ctx, out, install, projects, facts, timeout)
                 self._react(ctx, out, facts, ctx.tree)
+                symbols, notes = js_api.items(st["entries"], [a for f in facts.values() for a in f.get("api", [])],
+                                              [u for f in facts.values() for u in f.get("api_unresolved", [])])
+                out["symbols"] += symbols
+                out["graph"] += notes
         self._syntax(ctx, out, st, projects)
         return {o: candidates.sort_items(items) for o, items in out.items()}

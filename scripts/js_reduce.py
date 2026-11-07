@@ -117,6 +117,8 @@ def prefix_facts(facts: dict, folder: str) -> dict:
         row["renders"] = [{**r, "path": fix(r["path"])} for r in row["renders"]]
     for row in out["routes"]:
         row["file"] = fix(row.get("file"))
+    out["api"] = [{**row, "entry": fix(row["entry"]), "path": fix(row["path"])} for row in facts.get("api", [])]
+    out["api_unresolved"] = [{**row, "entry": fix(row["entry"])} for row in facts.get("api_unresolved", [])]
     return out
 
 

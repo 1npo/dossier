@@ -703,7 +703,7 @@ Read section 2, D1, D4 to D12, and "Results (Phase 1)", especially M4-1's values
   - Done-check: `... pytest tests/unit/scripts/test_js_reduce.py -q` passes.
   - Commit: `feat(dossier): record React components and browser routes`
 
-- [ ] **M4-13a. Find the real public API.**
+- [x] **M4-13a. Find the real public API.**
   - Goal: D17's entries, names and items.
   - Files: new `scripts/js_api.py`, `tests/unit/scripts/test_js_api.py`; edit `scripts/node/js-tools/ts_facts.mjs`, `scripts/js_tools.py`, `tests/integration/scripts/test_ts_facts_slow.py`, and the adapter's `symbols` step.
   - Interface: `js_api.entries(project, tracked, tsconfig) -> list`; `js_api.items(entries, api, unresolved) -> list`.
@@ -788,6 +788,8 @@ Commit each task on `feat/dossier-m4`. Do not merge or bump. Write "Results (Pha
 **M4-12.** Prisma, `@Entity` classes, interfaces, object types and enums are done. **Cut (allowed by the Phase 2 cut line):** `mongoose`, `sequelize`, `drizzle` and `zod` entities; `ts_facts.mjs` does not yet report const-based schemas, so they are listed as a gap for the next plan. Prisma is read even when Node is missing or the ref is untrusted (it needs no tool). A Prisma `type` or `view` block is treated like a model. `measured_er.family` is new and `_relations` keys on it.
 
 **M4-13.** Done as written, plus one function the interface did not list: `js_reduce.render_edges(items)` builds the `ref-edge` symbols from `renders` items, and the adapter adds them only when scip-typescript did not succeed (so there is never a double count). A `renders` item between two components in the same file is kept in the graph but gets no edge. An unresolved route has `target` set to its own file, since the card needs some target.
+
+**M4-13a.** Done as written. **O8 (answered): `checker.getExportsOfModule` follows `export *` chains.** `deep` was found through two hops (`index.ts`, `barrel.ts`, `deep.ts`) with its `path` at `src/deep.ts`, and `getImmediateAliasedSymbol` was not needed. Two details: (1) `export * from 'missing'` is not in `getExportsOfModule`, so the script scans star re-exports (recursively through repository files) and reports unresolved specifiers in `api_unresolved`; (2) `entries` takes `{"dir", "manifest"}` for one package plus a tolerant `read_tsconfig` (comments, trailing commas; `extends` is not followed). Entries whose target cannot be mapped, and `api_unresolved` rows, become `js-note` graph items with `note: "api"` and `name: "<package>|<subpath>"`; **M4-15 turns those into the Gaps item** (`The public API of {package} could not be fully worked out from {subpath}.`). The fixture's root package (`shopjs`, `main: dist/main.js`) also has a public API (from `src/main.ts`), as D17's rule says. The `FEEDS["io"]` entry and the `io.contracts` table are Phase 3.
 
 ---
 

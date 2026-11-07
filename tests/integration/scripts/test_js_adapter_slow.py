@@ -92,3 +92,13 @@ class TestJsAdapterFrame:
 
         assert any(g["kind"] == "renders" and g["from"] == "App" and g["to"] == "Button" for g in graph)
         assert {e["name"] for e in entries if e["kind"] == "ui-route"} == {"/", "/cart", "/home", "prefix + '/x'"}
+
+    def test_the_library_public_api_is_reported_with_its_audience(self, ex):
+        _, out, _ = ex
+
+        symbols = json.loads((out / "extract" / "symbols.json").read_text())["adapters"]["js"]["items"]
+        api = {(s["package"], s["subpath"], s["name"]) for s in symbols if s["kind"] == "public-api"}
+
+        assert {("@shopjs/lib", ".", "sum"), ("@shopjs/lib", ".", "double"), ("@shopjs/lib", ".", "deep"), ("@shopjs/lib", "./utils/fmt", "fmt")} <= api
+        assert not [a for a in api if a[2] in ("hidden", "twice")]
+        assert not [a for a in api if a[0] == "@shopjs/web"]

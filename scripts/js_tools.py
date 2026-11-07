@@ -72,8 +72,9 @@ class TsFacts:
     def __init__(self, run, install: Path, timeout: float):
         self.run, self.install, self.timeout = run, Path(install), timeout
 
-    def facts(self, project_dir, files: list[str]) -> dict:
-        request = json.dumps({"root": ".", "files": list(files)}).encode()
+    def facts(self, project_dir, files: list[str], entries: list | None = None) -> dict:
+        """`entries` are [{"entry": file, "subpath": ...}] relative to the project folder; the response then holds `api` and `api_unresolved`."""
+        request = json.dumps({"root": ".", "files": list(files), "entries": list(entries or [])}).encode()
         result = self.run(["node", "--max-old-space-size=4096", str(self.install / "ts_facts.mjs")], cwd=Path(project_dir), stage="js-ts-facts",
                           profile="restricted", timeout=self.timeout, input=request)
         _check(result, "Reading the TypeScript facts")

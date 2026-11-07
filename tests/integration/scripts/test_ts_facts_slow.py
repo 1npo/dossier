@@ -2,9 +2,11 @@ import functools
 import json
 import os
 import subprocess
+from pathlib import Path
 
 import pytest
 
+import js_api
 import js_tools
 import sandbox
 from conftest import build_js_repo, line_of
@@ -116,3 +118,49 @@ class TestTsFactsConfig:
         facts = self._run(tools, tmp_path, {"src/a.ts": "export const a = 1;\n"}, {"extends": "@missing/base/tsconfig.json"})
 
         assert facts["errors"] and facts["exports"][0]["name"] == "a"
+
+
+class TestTsFactsPublicApi:
+    @pytest.fixture(name="api")
+    def api_fixture(self, tools, shop):
+        repo, _ = shop
+        _, client = tools
+        files = subprocess.run(["git", "ls-files"], cwd=repo.path, capture_output=True, text=True).stdout.split()
+        code = [f for f in files if f.endswith(CODE)]
+        read = lambda p: (Path(repo.path) / p).read_text()
+        project = {"dir": "packages/lib", "manifest": json.loads(read("packages/lib/package.json"))}
+        found = js_api.entries(project, files, js_api.read_tsconfig(read, "packages/lib/tsconfig.json"))
+        facts = client.facts(repo.path, code, [{"entry": e["file"], "subpath": e["subpath"]} for e in found if e["file"]])
+        return found, facts
+
+    def test_the_library_lists_what_its_manifest_lets_a_sibling_import(self, api):
+        _, facts = api
+
+        names = {(a["subpath"], a["name"]) for a in facts["api"]}
+
+        assert {(".", "sum"), (".", "double"), (".", "version"), (".", "deep"), ("./utils/fmt", "fmt")} <= names
+        assert (".", "twice") not in names and (".", "hidden") not in names
+        assert not [a for a in facts["api"] if (a["path"] or "").startswith("packages/lib/src/internal/")]
+
+    def test_a_name_reached_through_two_star_hops_points_at_its_definition(self, api):
+        _, facts = api
+
+        deep = next(a for a in facts["api"] if a["name"] == "deep")
+
+        assert (deep["path"], deep["kind"]) == ("packages/lib/src/deep.ts", "function")
+
+    def test_a_renamed_export_keeps_the_public_name_and_the_definition_site(self, api):
+        _, facts = api
+
+        double = next(a for a in facts["api"] if a["name"] == "double")
+
+        assert double["path"] == "packages/lib/src/math.ts"
+
+    def test_a_star_export_of_a_missing_package_is_reported_not_lost(self, tools, tmp_path):
+        _, client = tools
+        (tmp_path / "index.ts").write_text("export * from 'not-installed';\nexport const ok = 1;\n")
+
+        facts = client.facts(tmp_path, ["index.ts"], [{"entry": "index.ts", "subpath": "."}])
+
+        assert [a["name"] for a in facts["api"]] == ["ok"]
+        assert facts["api_unresolved"] == [{"entry": "index.ts", "subpath": ".", "specifier": "not-installed"}]

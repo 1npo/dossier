@@ -358,10 +358,60 @@ function collectRoutes(sf, out) {
   });
 }
 
+// ---- public API (D17) ------------------------------------------------------------------------------------------------
+
+const KINDS = [[ts.SymbolFlags.Function, "function"], [ts.SymbolFlags.Class, "class"], [ts.SymbolFlags.Interface, "interface"],
+  [ts.SymbolFlags.TypeAlias, "type"], [ts.SymbolFlags.Enum, "enum"], [ts.SymbolFlags.Variable, "variable"], [ts.SymbolFlags.Module, "namespace"]];
+
+function symbolKind(symbol) {
+  const hit = KINDS.find(([flag]) => symbol.flags & flag);
+  return hit ? hit[1] : "variable";
+}
+
+function externalPackage(file) {
+  const m = /node_modules\/((?:@[^/]+\/)?[^/]+)/.exec(posix(file));
+  return m ? m[1] : null;
+}
+
+function unresolvedStars(sf, seen, found) {
+  if (seen.has(sf.fileName)) return;
+  seen.add(sf.fileName);
+  for (const st of sf.statements) {
+    if (!ts.isExportDeclaration(st) || !st.moduleSpecifier || !isStr(st.moduleSpecifier) || st.exportClause) continue;
+    const target = checker.getSymbolAtLocation(st.moduleSpecifier);
+    const decl = target && target.declarations && target.declarations[0];
+    if (!decl) found.push(st.moduleSpecifier.text);
+    else if (ts.isSourceFile(decl) && repoPath(decl.fileName)) unresolvedStars(decl, seen, found);
+  }
+}
+
+function collectApi(entries, api, unresolved) {
+  for (const e of entries) {
+    const sf = program.getSourceFile(path.resolve(root, e.entry));
+    const mod = sf && checker.getSymbolAtLocation(sf);
+    if (!mod) { unresolved.push({ entry: e.entry, subpath: e.subpath, specifier: e.entry }); continue; }
+    const missing = [];
+    unresolvedStars(sf, new Set(), missing);
+    for (const specifier of missing) unresolved.push({ entry: e.entry, subpath: e.subpath, specifier });
+    for (const symbol of checker.getExportsOfModule(mod)) {
+      let target = symbol;
+      if (symbol.flags & ts.SymbolFlags.Alias) {
+        try { target = checker.getAliasedSymbol(symbol); } catch { target = null; }
+      }
+      const decl = target && target.declarations && target.declarations[0];
+      if (!decl) { unresolved.push({ entry: e.entry, subpath: e.subpath, specifier: symbol.name }); continue; }
+      const file = decl.getSourceFile().fileName;
+      const inRepo = repoPath(file);
+      api.push({ entry: e.entry, subpath: e.subpath, name: symbol.name, kind: symbolKind(target), path: inRepo, line: startLine(decl),
+        ...(inRepo ? {} : { external: externalPackage(file) }) });
+    }
+  }
+}
+
 // ---- main ------------------------------------------------------------------------------------------------------------
 
 const result = { config: { file: chosen ? chosen.file : null, used: chosen ? chosen.used : null, paths: options.paths || {} },
-  imports: [], exports: [], types: [], components: [], routes: [], errors };
+  imports: [], exports: [], types: [], components: [], routes: [], api: [], api_unresolved: [], errors };
 for (const sf of sources) {
   collectImports(sf, result.imports);
   collectExports(sf, result.exports);
@@ -369,4 +419,5 @@ for (const sf of sources) {
   collectComponents(sf, result.components);
   collectRoutes(sf, result.routes);
 }
+collectApi(input.entries || [], result.api, result.api_unresolved);
 console.log(JSON.stringify(result));

@@ -51,7 +51,7 @@ def context(js_repo, tmp_path, trusted=True, run=None):
 def offline_tools_fixture(monkeypatch, tmp_path):
     """Stand in for the install and the two Node clients, so a unit test never starts Node."""
     monkeypatch.setattr(js_tools, "ensure_installed", lambda run, cache, timeout: Path("/nonexistent"))
-    monkeypatch.setattr(js_tools.TsFacts, "facts", lambda self, d, files: {"config": {"used": None}, "imports": [], "exports": [], "types": [],
+    monkeypatch.setattr(js_tools.TsFacts, "facts", lambda self, d, files, entries=None: {"config": {"used": None}, "imports": [], "exports": [], "types": [],
                                                                              "components": [], "routes": [], "errors": []})
     monkeypatch.setattr(js_tools.DepCruiser, "cruise", lambda self, d, ts=None: {"modules": []})
     monkeypatch.setattr(js_tools.DepCruiser, "violations", lambda self, d, c: [])
@@ -244,7 +244,7 @@ class TestModelsStep:
     def test_typescript_entities_come_from_the_script_output(self, js_repo, tmp_path, monkeypatch, offline_tools):
         types = [{"path": "src/types.ts", "name": "Order", "kind": "interface", "line": 8, "end_line": 12, "exported": True, "object": True,
                   "bases": [], "decorators": [], "fields": []}]
-        monkeypatch.setattr(js_tools.TsFacts, "facts", lambda self, d, files: {"config": {"used": None}, "imports": [], "exports": [], "types": types,
+        monkeypatch.setattr(js_tools.TsFacts, "facts", lambda self, d, files, entries=None: {"config": {"used": None}, "imports": [], "exports": [], "types": types,
                                                                                  "components": [], "routes": [], "errors": []})
 
         out = js_adapter.JsAdapter().extract(context(js_repo, tmp_path))
@@ -259,7 +259,7 @@ class TestReactStep:
              "routes": [{"path": "src/router.tsx", "line": 2, "end_line": 2, "route": "/", "resolved": True, "file": None, "framework": "react-router"}]}
 
     def test_components_routes_and_fallback_edges_appear_when_scip_did_not_run(self, js_repo, tmp_path, monkeypatch, offline_tools):
-        monkeypatch.setattr(js_tools.TsFacts, "facts", lambda self, d, files: TestReactStep.FACTS)
+        monkeypatch.setattr(js_tools.TsFacts, "facts", lambda self, d, files, entries=None: TestReactStep.FACTS)
         monkeypatch.setattr(js_tools.ScipTs, "index", lambda *a: (_ for _ in ()).throw(js_tools.ToolError("scip-typescript failed")))
         ctx = context(js_repo, tmp_path)
 
@@ -270,8 +270,35 @@ class TestReactStep:
         assert out["symbols"] == [{"kind": "ref-edge", "path": "src/App.tsx", "paths": ["src/main.ts"], "count": 1}]
 
     def test_no_fallback_edge_when_scip_succeeded(self, js_repo, tmp_path, monkeypatch, offline_tools):
-        monkeypatch.setattr(js_tools.TsFacts, "facts", lambda self, d, files: TestReactStep.FACTS)
+        monkeypatch.setattr(js_tools.TsFacts, "facts", lambda self, d, files, entries=None: TestReactStep.FACTS)
 
         out = js_adapter.JsAdapter().extract(context(js_repo, tmp_path))
 
         assert out["symbols"] == []
+
+
+class TestPublicApiStep:
+    def test_entries_are_sent_to_the_script_and_its_names_become_public_api_symbols(self, js_repo, tmp_path, monkeypatch, offline_tools):
+        sent = []
+
+        def facts(self, d, files, entries=None):
+            sent.extend(entries or [])
+            api = [{"entry": "packages/lib/src/index.ts", "subpath": ".", "name": "sum", "kind": "function", "path": "packages/lib/src/math.ts", "line": 1}]
+            return {"config": {"used": None}, "imports": [], "exports": [], "types": [], "components": [], "routes": [], "errors": [],
+                    "api": api, "api_unresolved": []}
+        monkeypatch.setattr(js_tools.TsFacts, "facts", facts)
+
+        out = js_adapter.JsAdapter().extract(context(js_repo, tmp_path))
+
+        assert {"entry": "packages/lib/src/index.ts", "subpath": "."} in sent
+        sums = [s for s in out["symbols"] if s["kind"] == "public-api"]
+        assert [(s["package"], s["subpath"], s["name"], s["audience"]) for s in sums] == [("@shopjs/lib", ".", "sum", "not marked private")]
+
+    def test_a_package_without_api_fields_sends_no_entries(self, js_repo, tmp_path, monkeypatch, offline_tools):
+        sent = []
+        monkeypatch.setattr(js_tools.TsFacts, "facts", lambda self, d, files, entries=None: sent.extend(entries or []) or
+                            {"config": {"used": None}, "imports": [], "exports": [], "types": [], "components": [], "routes": [], "errors": []})
+
+        js_adapter.JsAdapter().extract(context(js_repo, tmp_path))
+
+        assert not [e for e in sent if e["entry"].startswith("packages/web/")]
