@@ -63,19 +63,23 @@ def _skill_sentence(skill) -> str:
     return f" Skill: {skill['commit'][:7]}{extra}."
 
 
-def _ok_line(step, build):
+def _ok_rows(step, build) -> list:
+    """What a finished step did, as (label, value) pairs of plain text. The card shows them as a small table; `run_line` joins them into a sentence."""
     rec = buildlog.latest(build, step)
     c, d = rec.get("counts") or {}, rec.get("details") or {}
     if step == "pin":
         t = d.get("trust") or {}
-        trust = f"Trusted ref: {t.get('why')}." if t.get("trusted") else f"Not a trusted ref: {t.get('why')}."
-        return f"Commit {build['sha'][:7]} ({build['ref']}). {trust}"
+        return [("Commit", f"{build['sha'][:7]} ({build['ref']})"), ("Trusted ref" if t.get("trusted") else "Not a trusted ref", t.get("why") or "")]
     if step == "tools":
         langs = ", ".join(l["name"] for l in d.get("languages", [])) or "none found"
         host = ", ".join(f"{t['name']} {t['version']}" for t in rec.get("tools") or [])
         miss = d.get("missing") or []
-        tail = f"Missing: {', '.join(miss)} (carried on with --allow-missing)." if miss else "Nothing missing."
-        return f"Languages: {langs}. Host: {host or 'none'}. Extractors: {_extractors(build) or 'none recorded'}. {tail}{_skill_sentence(d.get('skill'))}"
+        out = [("Languages", langs), ("Host", host or "none"), ("Extractors", _extractors(build) or "none recorded"),
+               ("Missing", f"{', '.join(miss)} (carried on with --allow-missing)" if miss else "nothing")]
+        skill = d.get("skill")
+        if skill and skill.get("commit"):
+            out.append(("Skill", skill["commit"][:7] + (", uncommitted changes" if skill.get("dirty") else "") + (", UNMERGED" if skill.get("unmerged") else "")))
+        return out
     if step == "copy":
         co = buildlog.latest(build, "copy", "checkout") or {}
         rs = buildlog.latest(build, "copy", "restore") or {}
@@ -90,52 +94,66 @@ def _ok_line(step, build):
                              else f"{e['ecosystem']} {e['status']}" for e in eco)
         else:
             deps = "not recorded"
-        return f"Clean copy checked at {build['sha'][:7]}. Dependencies: {deps.rstrip(".")}. Submodules: {sub}."
+        return [("Clean copy", f"checked at {build['sha'][:7]}"), ("Dependencies", deps.rstrip(".")), ("Submodules", sub)]
     if step == "measure":
-        return f"{c.get('files')} files, {c.get('languages')} languages, {c.get('commits')} commits, {c.get('contributors')} contributors."
+        return [("Files", c.get("files")), ("Languages", c.get("languages")), ("Commits", c.get("commits")), ("Contributors", c.get("contributors"))]
     if step == "extract":
         names = ", ".join(a["name"] for a in d.get("adapters", []) if a["status"] == "ok") or "none"
-        return (f"{c.get('ran', 0)} extractors ran ({names}); {c.get('reused', 0)} reused. The path filter removed "
-                f"{c.get('paths_dropped', 0)} of {c.get('paths_seen', 0)} paths ({c.get('dropped_unexpected', 0)} unexpected).")
+        return [("Extractors run", f"{c.get('ran', 0)} ({names})"), ("Reused", c.get("reused", 0)),
+                ("Paths filtered out", f"{c.get('paths_dropped', 0)} of {c.get('paths_seen', 0)} ({c.get('dropped_unexpected', 0)} unexpected)")]
     if step == "read":
         mode = "Single read" if c.get("mode") == "single" else _plural(c.get("chunks") or 0, "chunk")
-        readers = (f"{c['readers']} parallel readers, as reported by Claude" if c.get("readers")
-                   else "number of parallel readers not recorded")
-        return f"{mode}; notes reused for {c.get('notes_reused', 0)} of {c.get('chunks', 0)} chunks; {readers}."
+        readers = f"{c['readers']}, as reported by Claude" if c.get("readers") else "not recorded"
+        return [("Mode", mode), ("Notes reused", f"{c.get('notes_reused', 0)} of {_plural(c.get('chunks', 0), 'chunk')}"), ("Parallel readers", readers)]
     if step == "write":
-        if c.get("reused"):
-            return f"{_plural(c.get('written', 0), 'report')} rewritten, {c['reused']} reused."
-        return f"{_plural(c.get('written', 0), 'report')} written."
+        out = [("Reports written", c.get("written", 0))]
+        return out + ([("Reports reused", c["reused"])] if c.get("reused") else [])
     if step == "check":
         r = buildlog.latest(build, "check", "render") or {}
         rc = r.get("counts") or {}
         b = buildlog.latest(build, "check", "browser")
-        browser = (f"Browser check at {_clock(b.get('started'))} UTC: {(b.get('counts') or {}).get('problems', 0)} problems."
-                   if b else "Browser check: not run yet.")
-        found = (f" Tool findings: {rc.get('v5_candidates', 0)} found, {rc.get('v5_open', 0)} without a decision. "
-                 f"Components: {rc.get('v4', 0)} problems.") if "v5_candidates" in rc else ""
+        out = [("Citations", f"{rc.get('citations', 0)} checked, {rc.get('unresolved', 0)} unresolved"), ("Layout check", _plural(rc.get("errors", 0), "error"))]
+        if "v5_candidates" in rc:
+            out += [("Tool findings", f"{rc.get('v5_candidates', 0)} found, {rc.get('v5_open', 0)} without a decision"),
+                    ("Components", _plural(rc.get("v4", 0), "problem"))]
         if "v2" in rc:
-            found += f" Names: {rc['v2']} not found in the code they cite."
+            out.append(("Names", f"{rc['v2']} not found in the code they cite"))
         if "v3_checked" in rc:
-            found += f" Diagram arrows: {rc.get('v3', 0)} of {rc['v3_checked']} have no import or call behind them."
+            out.append(("Diagram arrows", f"{rc.get('v3', 0)} of {rc['v3_checked']} have no import or call behind them"))
         if "v5_people" in rc:
-            found += f" People and components: {rc['v5_people']} missing."
+            out.append(("People and components", f"{rc['v5_people']} missing"))
         audit = buildlog.latest(build, "check", "audit")
-        page = f" Page: {_plural((audit.get('counts') or {}).get('v11', 0), 'problem')}." if audit else ""
+        if audit:
+            out.append(("Page", _plural((audit.get("counts") or {}).get("v11", 0), "problem")))
         summary = buildlog.latest(build, "check", "summary")
-        page += f" Summary: {_plural((summary.get('counts') or {}).get('v8', 0), 'problem')}." if summary else ""
-        return (f"{rc.get('citations', 0)} citations checked, {rc.get('unresolved', 0)} unresolved; "
-                f"layout check: {rc.get('errors', 0)} errors.{found}{page} {browser}")
+        if summary:
+            out.append(("Summary", _plural((summary.get("counts") or {}).get("v8", 0), "problem")))
+        out.append(("Browser check", f"{_plural((b.get('counts') or {}).get('problems', 0), 'problem')} ({_clock(b.get('started'))} UTC)" if b else "not run yet"))
+        return out
     if step == "gaps":
-        return (f"{sum(c.values())} open items: {c.get('unknown', 0)} unknown, {c.get('inference', 0)} inferred, "
-                f"{c.get('assumption', 0)} assumed, {c.get('coverage', 0)} coverage.")
+        return [("Open items", sum(c.values())), ("Unknown", c.get("unknown", 0)), ("Inferred", c.get("inference", 0)),
+                ("Assumed", c.get("assumption", 0)), ("Coverage", c.get("coverage", 0))]
     if step == "render":
         summary = buildlog.latest(build, "check", "summary")
         bad = (summary.get("counts") or {}).get("v8", 0) if summary else 0
-        if bad:
-            return f"Page written. summary.json was not written: {_plural(bad, 'problem')}."
-        return "Page and machine-readable summary written."
-    return ""
+        return [("Page", "written"), ("Summary file", f"not written ({_plural(bad, 'problem')})" if bad else "written")]
+    return []
+
+
+def _sentence(rows) -> str:
+    return " ".join(f"{k}: {v}" if str(v).endswith(".") else f"{k}: {v}." for k, v in rows)
+
+
+def _status_line(step, build):
+    """The sentence for a step that was skipped, failed or reused, or None for one that ran."""
+    rec = _record(step, build)
+    if rec and rec["status"] == "skipped":
+        return f"Skipped: {rec['reason']}"
+    if rec and rec["status"] == "failed":
+        return f"Failed: {rec['reason']}"
+    if rec and rec["status"] == "reused":
+        return "Reused from the previous build."
+    return None
 
 
 def _record(step, build):
@@ -149,17 +167,21 @@ def _record(step, build):
 def run_line(step, build):
     """One plain sentence about what the latest record of a step says, or None when there is no record."""
     rec = _record(step, build)
-    if step == "copy" and rec and rec["status"] == "ok":
-        return _ok_line("copy", build)
     if not rec:
         return None
-    if rec["status"] == "skipped":
-        return f"Skipped: {rec['reason']}"
-    if rec["status"] == "failed":
-        return f"Failed: {rec['reason']}"
-    if rec["status"] == "reused":
-        return "Reused from the previous build."
-    return _ok_line(step, build)
+    return _status_line(step, build) or _sentence(_ok_rows(step, build))
+
+
+def run_cell(step, build) -> str:
+    """The What happened cell: a small two-column table for a step that ran, a sentence for one that did not, 'No record.' for none."""
+    rec = _record(step, build)
+    if not rec:
+        return "No record."
+    line = _status_line(step, build)
+    if line is not None:
+        return E(line)
+    body = "".join(f'<tr><th scope="row">{E(k)}</th><td>{E(v)}</td></tr>' for k, v in _ok_rows(step, build))
+    return f'<table class="happened"><tbody>{body}</tbody></table>'
 
 
 def tier_line():
@@ -192,8 +214,7 @@ def process_body(build) -> str:
 
     rows = []
     for n, step in enumerate(buildlog.STEPS, 1):
-        line = run_line(step, build)
-        rows.append([(str(n), n), E(STEP_TEXT[step]), E(line) if line is not None else "No record.", _status_badges(step, build, render.badge)])
+        rows.append([(str(n), n), E(STEP_TEXT[step]), run_cell(step, build), _status_badges(step, build, render.badge)])
     table = render.render_table(["No.", "Step", "What happened", "Status"], rows, None, "t-dossier-process", filterable=False, plain=True, sort=False)
     return f'{table}<p class="muted">{E(tier_line())}</p>'
 
