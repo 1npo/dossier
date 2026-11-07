@@ -46,6 +46,16 @@ def context(js_repo, tmp_path, trusted=True, run=None):
                            treesitter=FakeTS(), semgrep=FakeSemgrep(), tool_versions={}, trusted=trusted, repo_name="jsrepo", tool_status={})
 
 
+@pytest.fixture(name="offline_tools")
+def offline_tools_fixture(monkeypatch):
+    """Stand in for the install and the two Node clients, so a unit test never starts Node."""
+    monkeypatch.setattr(js_tools, "ensure_installed", lambda run, cache, timeout: Path("/nonexistent"))
+    monkeypatch.setattr(js_tools.TsFacts, "facts", lambda self, d, files: {"config": {"used": None}, "imports": [], "exports": [], "types": [],
+                                                                             "components": [], "routes": [], "errors": []})
+    monkeypatch.setattr(js_tools.DepCruiser, "cruise", lambda self, d, ts=None: {"modules": []})
+    monkeypatch.setattr(js_tools.DepCruiser, "violations", lambda self, d, c: [])
+
+
 class TestDetect:
     def test_typescript_and_javascript_include_js(self):
         assert "js" in [a.name for a in adapters.detect(["TypeScript"])]
@@ -130,17 +140,43 @@ class TestGates:
 
         assert ctx.tool_status["knip"] == {"status": "skipped", "reason": "Node is not installed."}
 
-    def test_not_yet_built_steps_say_so(self, js_repo, tmp_path):
+    def test_not_yet_built_steps_say_so(self, js_repo, tmp_path, offline_tools):
         ctx = context(js_repo, tmp_path)
 
         js_adapter.JsAdapter().extract(ctx)
 
-        for tool in ("semgrep", "tree-sitter-language-pack", *NODE_TOOLS):
+        for tool in ("semgrep", "tree-sitter-language-pack", "knip", "scip-typescript"):
             assert ctx.tool_status[tool] == {"status": "skipped", "reason": "Arrives in a later task."}
 
-    def test_every_tool_of_the_adapter_has_a_status(self, js_repo, tmp_path):
+    def test_every_tool_of_the_adapter_has_a_status(self, js_repo, tmp_path, offline_tools):
         ctx = context(js_repo, tmp_path)
 
         js_adapter.JsAdapter().extract(ctx)
 
         assert set(ctx.tool_status) == set(js_adapter.JsAdapter.tools)
+
+
+class TestGraphStep:
+    def test_modules_come_from_the_tracked_files_and_a_failing_tool_is_reported_by_project(self, js_repo, tmp_path, monkeypatch, offline_tools):
+        def boom(self, d, ts=None):
+            raise js_tools.ToolError("Building the import graph failed (exit 1):\nbad")
+        monkeypatch.setattr(js_tools.DepCruiser, "cruise", boom)
+        ctx = context(js_repo, tmp_path)
+
+        out = js_adapter.JsAdapter().extract(ctx)
+
+        assert ctx.tool_status["dependency-cruiser"]["status"] == "failed"
+        assert ctx.tool_status["dependency-cruiser"]["reason"].startswith("the repository root: Building the import graph failed")
+        assert ctx.tool_status["typescript"] == {"status": "ok", "reason": None}
+        assert not [g for g in out["graph"] if g["kind"] == "module"]
+
+    def test_install_failure_marks_the_four_node_tools_failed(self, js_repo, tmp_path, monkeypatch, offline_tools):
+        def fail(run, cache, timeout):
+            raise js_tools.ToolError("Installing the JavaScript tools failed (exit 1):\nno network")
+        monkeypatch.setattr(js_tools, "ensure_installed", fail)
+        ctx = context(js_repo, tmp_path)
+
+        js_adapter.JsAdapter().extract(ctx)
+
+        for tool in NODE_TOOLS:
+            assert ctx.tool_status[tool]["status"] == "failed" and "Installing" in ctx.tool_status[tool]["reason"]

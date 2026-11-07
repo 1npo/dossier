@@ -1,0 +1,16 @@
+{"modules": [
+  {"source": "src/a.ts", "dependencies": [{"module": "./b", "resolved": "src/b.ts", "dependencyTypes": ["local"], "dynamic": false}]},
+  {"source": "src/b.ts", "dependencies": [
+    {"module": "./a", "resolved": "src/a.ts", "dependencyTypes": ["local"], "dynamic": false},
+    {"module": "express", "resolved": "node_modules/express/index.js", "dependencyTypes": ["npm"], "dynamic": false},
+    {"module": "fs", "resolved": "fs", "dependencyTypes": ["core"], "dynamic": false},
+    {"module": "./types", "resolved": "src/types.d.ts", "dependencyTypes": ["local"], "dynamic": false}]},
+  {"source": "src/c.ts", "dependencies": [{"module": "./d", "resolved": "src/d.ts", "dependencyTypes": ["local", "type-only"], "dynamic": false}]},
+  {"source": "src/d.ts", "dependencies": [{"module": "./c", "resolved": "src/c.ts", "dependencyTypes": ["local", "type-only"], "dynamic": false}]},
+  {"source": "src/lazy.ts", "dependencies": [{"module": "./a", "resolved": "src/a.ts", "dependencyTypes": ["local", "dynamic-import"], "dynamic": true}]},
+  {"source": "src/barrel/index.ts", "dependencies": []},
+  {"source": "src/auth.ts", "dependencies": []},
+  {"source": "src/auth.tsx", "dependencies": []},
+  {"source": "src/a.test.ts", "dependencies": [{"module": "./a", "resolved": "src/a.ts", "dependencyTypes": ["local"], "dynamic": false}]},
+  {"source": "src/types.d.ts", "dependencies": []}
+]}

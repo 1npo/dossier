@@ -655,7 +655,7 @@ Read section 2, D1, D4 to D12, and "Results (Phase 1)", especially M4-1's values
   - Done-check: `DOSSIER_SLOW=1 uv run --with pytest --with pygments python -m pytest tests/integration/scripts/test_ts_facts_slow.py -q` passes.
   - Commit: `feat(dossier): read types, exports, components and routes with the TypeScript compiler API`
 
-- [ ] **M4-8. dependency-cruiser and the graph.**
+- [x] **M4-8. dependency-cruiser and the graph.**
   - Goal: D4 and D5 lines 5 and 5b.
   - Files: edit `scripts/js_tools.py`, `scripts/js_adapter.py`; new `scripts/js_reduce.py`, `tests/unit/scripts/test_js_reduce.py`, `tests/fixtures/js_tools/depcruise.json` (a small output hand-written in the shape M4-1 recorded).
   - Interface: `DepCruiser.cruise(project_dir, tsconfig) -> dict`; `DepCruiser.violations(project_dir, config_file) -> list`; `js_reduce.graph_items(cruise, project, tree, imports, test_re) -> (items, test_edges)`; `js_reduce.contract_items(violations, rule_names, config_path) -> list`; `js_reduce.module_name(path, siblings) -> str`, `short_name(path) -> str`.
@@ -774,6 +774,10 @@ In this order, recording each: the ORM forms other than Prisma and `@Entity`, an
 Commit each task on `feat/dossier-m4`. Do not merge or bump. Write "Results (Phase 2)" and commit: `docs(dossier): record phase 2 of M4 in plan 010`.
 
 ### Results (Phase 2)
+
+**M4-7.** Done as written. `exports` holds names declared in that file (an `export { x as y }` row also carries `local`); re-exports through `export ... from` are imports, not exports. `types` rows carry an extra `object` flag (true for interfaces and `type X = {...}`), which M4-12 uses for the entity filter. Slow test: 8 passed.
+
+**M4-8.** Done as written, with one change to D5: line 5b (the repository's own rules) also needs `--ts-pre-compilation-deps`. Without it dependency-cruiser drops `import type` edges, so the fixture's `import-up` rule showed `kept` instead of `broken`. `graph_items` also returns cycles (project-scoped) with the module and import items; the adapter holds test-file edges in `st["test_edges"]` for M4-11 and does not emit them.
 
 ---
 

@@ -45,10 +45,22 @@ class TestJsAdapterFrame:
         assert (bin_item["name"], bin_item["path"], bin_item["id"].startswith("ep-")) == ("shopjs", "package.json", True)
         assert {"nx-target", "package-script", "http-route"} <= {i["kind"] for i in items}
 
-    def test_the_adapter_records_each_tool_as_skipped_not_missing(self, ex):
+    def test_the_adapter_records_a_status_for_every_tool(self, ex):
         _, _, record = ex
 
         js = next(a for a in record["details"]["adapters"] if a["name"] == "js")
 
         assert set(js["tools"]) == {"dependency-cruiser", "knip", "scip-typescript", "typescript", "semgrep", "tree-sitter-language-pack"}
-        assert {t["status"] for t in js["tools"].values()} == {"skipped"}
+        assert js["tools"]["typescript"]["status"] == "ok" and js["tools"]["dependency-cruiser"]["status"] == "ok"
+
+    def test_the_graph_has_the_cycle_the_broken_rule_and_no_test_modules(self, ex):
+        _, out, _ = ex
+
+        graph = json.loads((out / "extract" / "graph.json").read_text())["adapters"]["js"]["items"]
+
+        cycles = [i["modules"] for i in graph if i["kind"] == "cycle"]
+        assert cycles == [["src/a", "src/b"]]
+        assert not [i for i in graph if i["kind"] == "module" and "test" in i["path"]]
+        contract = next(i for i in graph if i["kind"] == "contract")
+        assert contract["status"] == "broken" and contract["violations"][0]["path"] == "src/users/service.ts"
+        assert any(i["kind"] == "import" and i["to"] == "src/a" and i["from"] == "src/barrel/index" for i in graph)

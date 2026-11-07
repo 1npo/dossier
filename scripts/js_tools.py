@@ -84,3 +84,37 @@ class TsFacts:
         if not isinstance(data, dict):
             raise ToolError("Reading the TypeScript facts gave output that is not an object.")
         return data
+
+
+CRUISE_EXCLUDE = r"(^|/)(node_modules|dist|build|coverage|\.next|\.nx)/"
+
+
+class DepCruiser:
+    """Client for dependency-cruiser: the import graph (no repository config) and, separately, the repository's own rules."""
+
+    def __init__(self, run, install: Path, timeout: float):
+        self.run, self.timeout = run, timeout
+        self.bin = str(Path(install) / "node_modules" / "dependency-cruiser" / "bin" / "dependency-cruiser.mjs")
+
+    def _json(self, cmd, project_dir, what, stage, tolerate_exit=False) -> dict:
+        result = self.run(["node", self.bin, *cmd], cwd=Path(project_dir), stage=stage, profile="restricted", timeout=self.timeout)
+        if result.timed_out or (result.returncode != 0 and not tolerate_exit):
+            _check(result, what)
+        try:
+            return json.loads(result.stdout.read_text(errors="replace"))
+        except ValueError as e:
+            _check(result, what)  # a failed run explains itself better than a JSON error
+            raise ToolError(f"{what} gave output that is not JSON: {e}") from e
+
+    def cruise(self, project_dir, tsconfig: str | None = None) -> dict:
+        cmd = [".", "--no-config", "--output-type", "json", "--ts-pre-compilation-deps", "--no-progress", "--do-not-follow", "node_modules",
+               "--exclude", CRUISE_EXCLUDE]
+        if tsconfig:
+            cmd += ["--ts-config", tsconfig]
+        return self._json(cmd, project_dir, "Building the import graph", "js-depcruise")
+
+    def violations(self, project_dir, config_file: str) -> list:
+        """The repository's own rules. dependency-cruiser exits with the number of errors, so a non-zero exit with JSON is normal."""
+        data = self._json([".", "--config", config_file, "--output-type", "json", "--no-progress", "--ts-pre-compilation-deps"], project_dir,
+                          "Checking the repository's dependency rules", "js-depcruise-rules", tolerate_exit=True)
+        return (data.get("summary") or {}).get("violations") or []
