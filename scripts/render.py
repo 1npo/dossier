@@ -991,7 +991,7 @@ def entries_body(card, entries, refs, tid):
         fl = e["fields"]
         rows = "".join(f'<tr><th scope="row">{E(f["label"])}</th><td>{md(split_steps(fl[f["id"]]), refs)}</td></tr>' for f in labels)
         out.append(f'<details class="entry" id="{card_dom_id(card["id"])}-e{n}" open><summary>{E(e[card["key"]])}</summary>'
-                   f'<table class="table kv" data-nosort><tbody>{rows}</tbody></table>'
+                   f'<div class="table-container"><table class="table kv" data-nosort><tbody>{rows}</tbody></table></div>'
                    f'{added_tag(e)}{provenance(e, refs, " ".join(fl.values()))}</details>')
     return "".join(out)
 
@@ -1145,7 +1145,7 @@ def panel_git(f, refs, ctx):
     rel = ""
     if tags:
         rows = "".join(f'<tr><td><code>{E(t["name"])}</code></td><td>{E(t["date"])}</td><td class="muted">{gap(i)}</td></tr>' for i, t in enumerate(tags[:10]))
-        rel = f'<div class="activity solo"><div class="activity-side"><h3>Recent releases</h3><table class="table"><thead><tr><th>Tag</th><th>Date</th><th>Gap</th></tr></thead><tbody>{rows}</tbody></table></div></div>'
+        rel = f'<div class="activity solo"><div class="activity-side"><h3>Recent releases</h3><div class="table-container"><table class="table"><thead><tr><th>Tag</th><th>Date</th><th>Gap</th></tr></thead><tbody>{rows}</tbody></table></div></div></div>'
     notes = "".join(alert(E(w)) for w in f["repo"]["warnings"])
     return card("Overview", notes + stats + boxes + rel + languages_block(f, refs), "facts-git", refs=refs, cite="facts:git", cid="overview.repository")
 
