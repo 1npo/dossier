@@ -20,7 +20,7 @@ rules:
     languages: [js, ts]
     severity: INFO
     metadata: {category: blindspot, pattern: barrel-reexport}
-    pattern-regex: (?m)^\s*export\s+(\*|\{[^}]*\})\s+from\s
+    pattern-regex: (?m)^[ \t]*export\s+(\*|\{[^}]*\})\s+from\s
 
   - id: dossier.js.blindspot.react-context
     message: Passes values through React context
@@ -38,7 +38,7 @@ rules:
     languages: [js, ts]
     severity: INFO
     metadata: {category: blindspot, pattern: hook-wiring}
-    pattern-regex: (?m)^\s*export\s+(const|function)\s+use[A-Z]
+    pattern-regex: (?m)^[ \t]*export\s+(const|function)\s+use[A-Z]
 
   - id: dossier.js.blindspot.string-route
     message: A route whose path is built at run time

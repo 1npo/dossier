@@ -7,6 +7,7 @@ import test_js_adapter_slow as base
 
 pytestmark = pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs the network: set DOSSIER_SLOW=1")
 
+extraction = base.extraction
 ex = base.ex
 
 

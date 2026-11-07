@@ -69,3 +69,8 @@ program.command('fixed');
 const boundPath = '/bound';
 // ruleid: dossier.js.blindspot.string-route
 router.get(boundPath, handler);
+
+// ruleid: dossier.js.blindspot.hook-wiring
+export function useIndented() {
+  return 3;
+}

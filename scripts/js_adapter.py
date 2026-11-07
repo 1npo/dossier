@@ -175,8 +175,9 @@ class JsAdapter(Adapter):
             out["symbols"] += js_reduce.render_edges(ui)
 
     @staticmethod
-    def _notes(out, projects, read, st) -> None:
+    def _notes(out, projects, read, st, tree) -> None:
         """Things the adapter cannot see, recorded as `js-note` items that Gaps turns into fixed statements."""
+        out["graph"] += js_project.source_roots(projects, tree)
         for name in js_project.manifest_frameworks(projects, read):
             out["graph"].append({"kind": "js-note", "path": "package.json", "note": "framework", "name": name})
         for p in projects:
@@ -272,5 +273,5 @@ class JsAdapter(Adapter):
                 out["symbols"] += symbols
                 out["graph"] += notes
         self._syntax(ctx, out, st, projects)
-        self._notes(out, projects, read, st)
+        self._notes(out, projects, read, st, ctx.tree)
         return {o: candidates.sort_items(items) for o, items in out.items()}

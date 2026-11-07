@@ -735,7 +735,7 @@ Read section 2, D1, D4 to D12, and "Results (Phase 1)", especially M4-1's values
   - Done-check: `... pytest tests/unit/scripts/test_repo_adapter.py -q` passes.
   - Commit: `feat(dossier): recognise JavaScript test commands in CI files`
 
-- [ ] **M4-17. The fixture test of record.**
+- [x] **M4-17. The fixture test of record.**
   - Goal: prove all eight outputs on `JSFIX`, end to end.
   - Files: new `tests/integration/scripts/test_js_adapter_slow.py`.
   - Interface: runs `stages.stage_extract` on `js_repo` after `workarea.ensure_checkout`, with `DOSSIER_*` under `tmp_path`, then asserts on `extract/*.json`, including D17's `public-api` items.
@@ -775,6 +775,8 @@ Commit each task on `feat/dossier-m4`. Do not merge or bump. Write "Results (Pha
 
 ### Results (Phase 2)
 
+**Summary.** All of M4-7 to M4-17 and M4-13a are done; nothing was moved to Phase 3. Cuts taken (allowed by the Phase 2 cut line): `mongoose`, `sequelize`, `drizzle` and `zod` entities (M4-12). `ts_facts.mjs` is 423 lines (plan: about 400) and stays one file so the install stays simple; every Python module is under 300 lines (`js_adapter.py` is the largest at 277).
+
 **M4-7.** Done as written. `exports` holds names declared in that file (an `export { x as y }` row also carries `local`); re-exports through `export ... from` are imports, not exports. `types` rows carry an extra `object` flag (true for interfaces and `type X = {...}`), which M4-12 uses for the entity filter. Slow test: 8 passed.
 
 **M4-8.** Done as written, with one change to D5: line 5b (the repository's own rules) also needs `--ts-pre-compilation-deps`. Without it dependency-cruiser drops `import type` edges, so the fixture's `import-up` rule showed `kept` instead of `broken`. `graph_items` also returns cycles (project-scoped) with the module and import items; the adapter holds test-file edges in `st["test_edges"]` for M4-11 and does not emit them.
@@ -796,6 +798,10 @@ Commit each task on `feat/dossier-m4`. Do not merge or bump. Write "Results (Pha
 **M4-15.** Done as written. `js_coverage` lives in `checks_v7.py` (that module is short) and `checks.js_coverage` is an alias, so `checks.validate` calls it. It replaces the inline Python stale-flags item: the Python statement is unchanged and appears only for a `module` item with no `language` key, so `REPO`'s Gaps ids do not change. The adapter writes `js-note` graph items with `note` of `framework` (name `Koa`), `bun` (name = the project folder, `.` for the root), `unscanned` (name = the count, path = the first file) and, from M4-13a, `api`. The `blindspot.yml` rules and the `BLIND_SPOTS` wording were done in M4-14 and this task; no existing wording changed.
 
 **M4-16.** Done as written. `RepoAdapter.version` is `3`.
+
+**M4-17.** Done as written, in the existing `test_js_adapter_slow.py` (now with `TestFixtureOfRecord` and `TestUntrustedRef`; the module fixtures were reorganised into `extraction`, `ex` and `untrusted`, and `test_scip_ts_slow.py` and `test_js_queries_slow.py` reuse them). Findings while writing it: (1) the plan's "`@/` aliases resolved" had no fixture file to check, so `src/unused.ts` now imports `@/a` (marker `alias-import`) and the test finds the edge; (2) `source-root` items were not emitted yet and are now written by the adapter (`js_project.source_roots`); (3) **a regex rule with `^\s*` can start its match on the blank line above** (`\s` spans newlines), which put the `hook-wiring` hit one line early; both multi-line regex blind-spot rules now use `^[ \t]*`, with a semgrep case for an indented hook; (4) `contract` violations name modules (`src/main`), not files, because a module name is the file path without its extension; (5) the `dead` list for the fixture is long, because the fixture has no knip entry configuration, so knip reports every file nothing imports; the test only asserts `src/unused.ts` (unused file) and `hidden` (unused export); (6) `reused` is read from the adapters' statuses in the second run's record.
+
+**Phase 2 checks.** Full suite with `DOSSIER_SLOW=1`: 1926 passed (3 min 49 s), run with the two known failures deselected (`test_golden02_slow.py`, which is G2, and `test_check_page_slow.py`, which fails on `main` too). That run includes `test_py_adapter_slow.py`, unedited. Fast suite: 1844 passed, 96 skipped. A first slow run filled the 7.5 GB `/tmp` tmpfs with pytest folders; the final run used `--basetemp` under `~/.cache`, so **Phase 3 and later should do the same**.
 
 ---
 
