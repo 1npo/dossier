@@ -278,7 +278,7 @@ Most cards of this report are drawn from the git history and the tool findings. 
 
 ### Hotspots (`change.hotspots`)
 
-**Do not write this card.** The page draws it from the history: every source file with its changes in the 12 months before the pinned commit, a scatter chart and a table by component.
+**Do not write this card.** The page draws it from the history: every source file with its changes in the 12 months before the pinned commit, ranked bars and a table by file or component, over the past 12 months or all time.
 
 ### Co-change coupling (`change.cochange`)
 
