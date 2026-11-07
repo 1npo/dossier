@@ -13,7 +13,8 @@ NODE_TOOLS = ("dependency-cruiser", "knip", "scip-typescript", "typescript")
 
 
 class FakeTS:
-    pass
+    def query(self, language, paths, query):
+        return []
 
 
 class FakeSemgrep:
@@ -149,7 +150,7 @@ class TestGates:
 
         js_adapter.JsAdapter().extract(ctx)
 
-        for tool in ("semgrep", "tree-sitter-language-pack"):
+        for tool in ("semgrep",):
             assert ctx.tool_status[tool] == {"status": "skipped", "reason": "Arrives in a later task."}
 
     def test_every_tool_of_the_adapter_has_a_status(self, js_repo, tmp_path, offline_tools):

@@ -12,6 +12,7 @@ import candidates
 import config
 import js_entries
 import js_project
+import js_queries
 import js_reduce
 import js_tools
 import scip_read
@@ -105,6 +106,36 @@ class JsAdapter(Adapter):
             edges += test_edges
         return edges
 
+    def _syntax(self, ctx, out, st, projects) -> None:
+        """Tests, complexity and module-level state with tree-sitter. Needs no Node."""
+        files = sorted({f for p in projects for f in p["files"]})
+        test_files = [f for f in files if TEST_RE.search(f)]
+        src = [f for f in files if f not in set(test_files) and not f.endswith(".d.ts")]
+        configs = js_queries.test_configs(sorted(ctx.tree), st["read"])
+        runner = js_queries.runner_of(configs)
+
+        def go():
+            return js_queries.tests(ctx.treesitter, test_files, runner), js_queries.complexity(ctx.treesitter, src), js_queries.module_state(ctx.treesitter, src)
+        try:
+            found = go()
+        except Exception as e:  # one tool failing must not stop the others
+            ctx.tool_status["tree-sitter-language-pack"] = {"status": "failed", "reason": (str(e).splitlines() or [type(e).__name__])[0]}
+            return
+        ctx.tool_status["tree-sitter-language-pack"] = {"status": "ok", "reason": None}
+        tests, counts, state = found
+        names = {g["path"]: g["module"] for g in out["graph"] if g["kind"] == "module"}
+        edges: dict = {}
+        for a, b in st["test_edges"]:
+            edges.setdefault(a, set()).add(b)
+        for t in tests:
+            t["paths"] = sorted(edges.get(t["path"], ()))
+            t["imports"] = sorted({names[p] for p in t["paths"] if p in names})
+        for g in out["graph"]:
+            if g["kind"] == "module":
+                g["complexity"] = counts.get(g["path"], 0)
+        out["tests"] += tests + configs
+        out["io_candidates"] += state
+
     def _dead(self, ctx, out, install, projects, timeout) -> None:
         knip = js_tools.Knip(ctx.run, install, timeout)
         got = self._each(ctx, "knip", projects, lambda p: js_reduce.dead_items(knip.run_knip(ctx.checkout / p["dir"]), p))
@@ -150,10 +181,9 @@ class JsAdapter(Adapter):
         read = self._reader(ctx)
         projects = js_project.projects(sorted(ctx.tree), read)
         self._entries(ctx, out, projects, read)
-        st = {"test_edges": []}
+        st = {"test_edges": [], "read": read}
         gate = self._node_gate(ctx)
-        for tool in ("semgrep", "tree-sitter-language-pack"):
-            self._skip(ctx, tool, LATER)
+        self._skip(ctx, "semgrep", LATER)
         if gate:
             self._skip(ctx, "typescript", gate)
             self._skip(ctx, "dependency-cruiser", gate)
@@ -172,4 +202,5 @@ class JsAdapter(Adapter):
                 st["test_edges"] = self._graph(ctx, out, install, projects, facts, timeout)
                 self._dead(ctx, out, install, projects, timeout)
                 self._symbols(ctx, out, install, projects, facts, timeout)
+        self._syntax(ctx, out, st, projects)
         return {o: candidates.sort_items(items) for o, items in out.items()}

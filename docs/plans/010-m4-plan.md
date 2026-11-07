@@ -679,7 +679,7 @@ Read section 2, D1, D4 to D12, and "Results (Phase 1)", especially M4-1's values
   - Done-check: `DOSSIER_SLOW=1 ... tests/integration/scripts/test_scip_ts_slow.py -q` passes.
   - Commit: `feat(dossier): run a locked scip-typescript and read its index`
 
-- [ ] **M4-11. Tests, complexity and module state.**
+- [x] **M4-11. Tests, complexity and module state.**
   - Goal: D8.
   - Files: new `scripts/js_queries.py`, `tests/unit/scripts/test_js_queries.py`, `tests/integration/scripts/test_js_queries_slow.py`; edit `scripts/js_adapter.py`.
   - Interface: `by_grammar(files) -> dict`; `tests(ts, files, runner_of) -> list`; `assemble_tests(matches_by_file, runner_of) -> list`; `complexity(ts, files) -> dict`; `module_state(ts, files) -> list`; `test_configs(tree, read) -> list`.
@@ -782,6 +782,8 @@ Commit each task on `feat/dossier-m4`. Do not merge or bump. Write "Results (Pha
 **M4-9.** Done as written. `Knip.run_knip(project_dir)` is the client method name (`run` is the sandbox runner). Dependency findings (`dependencies` and `devDependencies`) both give kind `unused dependency` on the project's `package.json`. Without a `knip.json`, the fixture reports its non-entry files as unused too, so M4-17's expected `dead` list must be built from a real run and checked by hand, not guessed.
 
 **M4-10.** Done as written, with one fact that differs from M4-1's sample: for a file below a folder the symbol is ``scip-typescript npm shopjs 1.0.0 src/`types.ts`/Order#`` (directory descriptors first, then the file), so `finish_symbols` takes the first name after the last `/` descriptor, not the second descriptor. `ScipTs(run, install, timeout).index(project_dir, area, n, has_tsconfig)` writes `<area>/scip/js-<n>.scip`. Risk kept: two projects with the same package name and version would share symbol strings for the same relative path; the plan's D11 accepts this. The slow test does not assert that no `.scip` is left in the checkout; the output path is under the area, and `workarea.verify` already fails the build on tracked changes.
+
+**M4-11.** Done as written; all three grammar names and D8's queries ran as recorded in M4-1. Choices the plan left open: a test file with no framework import and no runner config gets framework `unknown`; the `export let` form is found by the second query (`export_statement declaration: (lexical_declaration)`, start column 7), and the captured text excludes the word `export`; curried calls such as `it.each([..])('x', fn)` are counted once, by the inner call whose function text is a plain dotted name; `coverage_threshold` is the smallest number among statements/branches/functions/lines near `coverageThreshold` (jest) or `thresholds` (vitest), or anywhere in a `.c8rc`/`.nycrc`. The adapter writes `complexity` onto module items and the `tests` list gets `paths` and `imports` from dependency-cruiser's test-file edges (empty when that tool did not run). `tree-sitter-language-pack` now has a real status; `semgrep` still says `Arrives in a later task.`
 
 ---
 
