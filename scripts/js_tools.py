@@ -142,3 +142,24 @@ class Knip:
         if not isinstance(data, dict):
             raise ToolError("knip printed something that is not an object.")
         return data
+
+
+class ScipTs:
+    """Client for scip-typescript: one index file per project, written outside the checkout."""
+
+    def __init__(self, run, install: Path, timeout: float):
+        self.run, self.timeout = run, timeout
+        self.main = str(Path(install) / "node_modules" / "@sourcegraph" / "scip-typescript" / "dist" / "src" / "main.js")
+
+    def index(self, project_dir, area, n: int, has_tsconfig: bool) -> Path:
+        out = Path(area) / "scip"
+        out.mkdir(parents=True, exist_ok=True)
+        target = out / f"js-{n}.scip"
+        target.unlink(missing_ok=True)
+        cmd = ["node", "--max-old-space-size=4096", self.main, "index", "--no-progress-bar", "--output", str(target)]
+        if not has_tsconfig:
+            cmd.append("--infer-tsconfig")
+        _check(self.run(cmd, cwd=Path(project_dir), stage="js-scip", profile="restricted", timeout=self.timeout), "scip-typescript")
+        if not target.is_file() or target.stat().st_size == 0:
+            raise ToolError("scip-typescript finished without writing an index.")
+        return target

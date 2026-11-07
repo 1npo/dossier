@@ -671,7 +671,7 @@ Read section 2, D1, D4 to D12, and "Results (Phase 1)", especially M4-1's values
   - Done-check: `... pytest tests/unit/scripts/test_js_reduce.py -q` passes.
   - Commit: `feat(dossier): list unused JavaScript code with knip`
 
-- [ ] **M4-10. scip-typescript.**
+- [x] **M4-10. scip-typescript.**
   - Goal: D11.
   - Files: edit `scripts/js_tools.py`, `scripts/js_reduce.py`, `scripts/js_adapter.py`, `tests/unit/scripts/test_js_reduce.py`; new `tests/integration/scripts/test_scip_ts_slow.py`.
   - Interface: `ScipTs.index(project_dir, area, n, has_tsconfig) -> Path`; `js_reduce.join_indexes(pairs) -> dict`, with pairs of `(dir, decoded index)`; `js_reduce.finish_symbols(items, exports) -> list`.
@@ -780,6 +780,8 @@ Commit each task on `feat/dossier-m4`. Do not merge or bump. Write "Results (Pha
 **M4-8.** Done as written, with one change to D5: line 5b (the repository's own rules) also needs `--ts-pre-compilation-deps`. Without it dependency-cruiser drops `import type` edges, so the fixture's `import-up` rule showed `kept` instead of `broken`. `graph_items` also returns cycles (project-scoped) with the module and import items; the adapter holds test-file edges in `st["test_edges"]` for M4-11 and does not emit them.
 
 **M4-9.** Done as written. `Knip.run_knip(project_dir)` is the client method name (`run` is the sandbox runner). Dependency findings (`dependencies` and `devDependencies`) both give kind `unused dependency` on the project's `package.json`. Without a `knip.json`, the fixture reports its non-entry files as unused too, so M4-17's expected `dead` list must be built from a real run and checked by hand, not guessed.
+
+**M4-10.** Done as written, with one fact that differs from M4-1's sample: for a file below a folder the symbol is ``scip-typescript npm shopjs 1.0.0 src/`types.ts`/Order#`` (directory descriptors first, then the file), so `finish_symbols` takes the first name after the last `/` descriptor, not the second descriptor. `ScipTs(run, install, timeout).index(project_dir, area, n, has_tsconfig)` writes `<area>/scip/js-<n>.scip`. Risk kept: two projects with the same package name and version would share symbol strings for the same relative path; the plan's D11 accepts this. The slow test does not assert that no `.scip` is left in the checkout; the output path is under the area, and `workarea.verify` already fails the build on tracked changes.
 
 ---
 

@@ -47,7 +47,7 @@ def context(js_repo, tmp_path, trusted=True, run=None):
 
 
 @pytest.fixture(name="offline_tools")
-def offline_tools_fixture(monkeypatch):
+def offline_tools_fixture(monkeypatch, tmp_path):
     """Stand in for the install and the two Node clients, so a unit test never starts Node."""
     monkeypatch.setattr(js_tools, "ensure_installed", lambda run, cache, timeout: Path("/nonexistent"))
     monkeypatch.setattr(js_tools.TsFacts, "facts", lambda self, d, files: {"config": {"used": None}, "imports": [], "exports": [], "types": [],
@@ -55,6 +55,9 @@ def offline_tools_fixture(monkeypatch):
     monkeypatch.setattr(js_tools.DepCruiser, "cruise", lambda self, d, ts=None: {"modules": []})
     monkeypatch.setattr(js_tools.DepCruiser, "violations", lambda self, d, c: [])
     monkeypatch.setattr(js_tools.Knip, "run_knip", lambda self, d: {"issues": []})
+    empty = tmp_path / "empty.scip"
+    empty.write_bytes(b"")
+    monkeypatch.setattr(js_tools.ScipTs, "index", lambda self, d, area, n, has_ts: empty)
 
 
 class TestDetect:
@@ -146,7 +149,7 @@ class TestGates:
 
         js_adapter.JsAdapter().extract(ctx)
 
-        for tool in ("semgrep", "tree-sitter-language-pack", "scip-typescript"):
+        for tool in ("semgrep", "tree-sitter-language-pack"):
             assert ctx.tool_status[tool] == {"status": "skipped", "reason": "Arrives in a later task."}
 
     def test_every_tool_of_the_adapter_has_a_status(self, js_repo, tmp_path, offline_tools):
@@ -204,3 +207,25 @@ class TestDeadStep:
 
         assert ctx.tool_status["knip"]["status"] == "failed" and "Could not load config" in ctx.tool_status["knip"]["reason"]
         assert ctx.tool_status["typescript"]["status"] == "ok" and out["dead"] == []
+
+
+class TestSymbolsStep:
+    def test_a_scip_failure_marks_only_scip_failed(self, js_repo, tmp_path, monkeypatch, offline_tools):
+        def crash(self, d, area, n, has_ts):
+            raise js_tools.ToolError("scip-typescript failed (exit 1):\nno documents")
+        monkeypatch.setattr(js_tools.ScipTs, "index", crash)
+        ctx = context(js_repo, tmp_path)
+
+        out = js_adapter.JsAdapter().extract(ctx)
+
+        assert ctx.tool_status["scip-typescript"]["status"] == "failed" and out["symbols"] == []
+        assert ctx.tool_status["knip"]["status"] == "ok"
+
+    def test_the_project_without_a_tsconfig_is_indexed_with_an_inferred_one(self, js_repo, tmp_path, monkeypatch, offline_tools):
+        seen = []
+        empty = tmp_path / "empty.scip"
+        monkeypatch.setattr(js_tools.ScipTs, "index", lambda self, d, area, n, has_ts: seen.append(has_ts) or empty)
+
+        js_adapter.JsAdapter().extract(context(js_repo, tmp_path))
+
+        assert seen == [True]

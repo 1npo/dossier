@@ -1,7 +1,7 @@
 """The JavaScript and TypeScript adapter (frame): entry points from project files, and the per-tool status for each step.
 
-The tool steps (tree-sitter, semgrep, dependency-cruiser, knip, scip-typescript and the TypeScript script) arrive in later tasks;
-until then each records `skipped`. The four Node tools are gated one by one, so semgrep and tree-sitter never depend on Node.
+The Node steps (TypeScript script, dependency-cruiser, knip, scip-typescript) are built; tree-sitter and semgrep arrive in later tasks
+and record `skipped` until then. The four Node tools are gated one by one, so semgrep and tree-sitter never depend on Node.
 """
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ import js_entries
 import js_project
 import js_reduce
 import js_tools
+import scip_read
 from adapters import OUTPUTS, Adapter
 from gather import TEST_RE
 
@@ -110,6 +111,22 @@ class JsAdapter(Adapter):
         for items in got.values():
             out["dead"] += items
 
+    def _symbols(self, ctx, out, install, projects, facts, timeout) -> None:
+        scip = js_tools.ScipTs(ctx.run, install, timeout)
+        numbers = {p["dir"]: n for n, p in enumerate(projects)}
+
+        def one(p):
+            has_ts = (f"{p['dir']}/tsconfig.json" if p["dir"] else "tsconfig.json") in ctx.tree
+            index = scip.index(ctx.checkout / p["dir"], ctx.area, numbers[p["dir"]], has_ts)
+            return p["dir"], scip_read.decode(index.read_bytes())
+        got = self._each(ctx, "scip-typescript", projects, one)
+        if not got:
+            return
+        items = scip_read.reduce(js_reduce.join_indexes(list(got.values())))
+        ok = ctx.tool_status.get("typescript", {}).get("status") == "ok"
+        exports = [e for f in facts.values() for e in f.get("exports", [])] if ok else None
+        out["symbols"] += js_reduce.finish_symbols(items, exports)
+
     @staticmethod
     def _contracts(ctx, cruiser, project, names, items) -> list:
         folder = project["dir"]
@@ -135,12 +152,13 @@ class JsAdapter(Adapter):
         self._entries(ctx, out, projects, read)
         st = {"test_edges": []}
         gate = self._node_gate(ctx)
-        for tool in ("scip-typescript", "semgrep", "tree-sitter-language-pack"):
-            self._skip(ctx, tool, gate if tool in NODE_TOOLS and gate else LATER)
+        for tool in ("semgrep", "tree-sitter-language-pack"):
+            self._skip(ctx, tool, LATER)
         if gate:
             self._skip(ctx, "typescript", gate)
             self._skip(ctx, "dependency-cruiser", gate)
             self._skip(ctx, "knip", gate)
+            self._skip(ctx, "scip-typescript", gate)
         else:
             timeout = config.timeouts()["tool"]
             try:
@@ -153,4 +171,5 @@ class JsAdapter(Adapter):
                 facts = self._facts(ctx, install, projects, timeout)
                 st["test_edges"] = self._graph(ctx, out, install, projects, facts, timeout)
                 self._dead(ctx, out, install, projects, timeout)
+                self._symbols(ctx, out, install, projects, facts, timeout)
         return {o: candidates.sort_items(items) for o, items in out.items()}

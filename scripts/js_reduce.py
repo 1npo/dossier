@@ -4,6 +4,7 @@ from __future__ import annotations
 import posixpath
 
 import graphs
+import scip_read
 
 JS_EXT = (".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs")
 
@@ -141,3 +142,46 @@ def dead_items(knip: dict, project: dict) -> list:
             for e in issue.get(key) or []:
                 add(path, rule, kind, e["name"], message, e.get("line"))
     return items
+
+
+def join_indexes(pairs: list) -> dict:
+    """One decoded index from several: `pairs` are (project dir, decoded index), and each document path gets the project's folder."""
+    documents = []
+    for folder, index in pairs:
+        for d in index["documents"]:
+            documents.append({**d, "path": _join(folder, d["path"])})
+    return {"documents": documents}
+
+
+def _anonymous(symbol: str) -> str:
+    """Drop the package name and version from a global symbol, so a digest does not change when package.json's version does."""
+    if symbol.startswith("local "):
+        return symbol
+    parts = symbol.split(" ", 4)
+    return " ".join([parts[0], parts[1], ".", ".", parts[4]]) if len(parts) == 5 else symbol
+
+
+def _top_level(symbol: str) -> str | None:
+    """The first name after the file in a symbol, `Order` for ``src/`types.ts`/Order#id.``; None for the file's own module symbol."""
+    ds = scip_read.descriptors(symbol)
+    last_dir = max((n for n, (_, suffix) in enumerate(ds) if suffix == "/"), default=-1)
+    return ds[last_dir + 1][0] if last_dir >= 0 and last_dir + 1 < len(ds) else None
+
+
+def finish_symbols(items: list, exports: list | None) -> list:
+    """`public` means exported from its file (S9). With `exports` None the reducer's value is kept. Symbols lose package and version."""
+    names: dict = {}
+    for e in exports or []:
+        names.setdefault(e["path"], set()).update({e["name"], e.get("local") or e["name"]})
+    out = []
+    for i in items:
+        if i["kind"] != "def":
+            out.append(i)
+            continue
+        row = {**i}
+        top = _top_level(i["symbol"])
+        if exports is not None and top is not None:
+            row["public"] = top in names.get(i["path"], set())
+        row["symbol"] = _anonymous(i["symbol"])
+        out.append(row)
+    return out

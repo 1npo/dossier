@@ -3,6 +3,7 @@ import re
 from pathlib import Path
 
 import js_reduce
+import scip_read
 import pytest
 
 CRUISE = json.loads((Path(__file__).parents[2] / "fixtures" / "js_tools" / "depcruise.json").read_text())
@@ -121,3 +122,67 @@ class TestDeadItems:
 
     def test_an_empty_report_gives_no_items(self):
         assert js_reduce.dead_items({"issues": []}, {"dir": ""}) == []
+
+
+def _index(path, symbol, role, rng=(0, 0, 0, 1)):
+    return {"path": path, "occurrences": [{"range": list(rng), "symbol": symbol, "roles": role, "enclosing_range": None}],
+            "symbols": [{"symbol": symbol, "display_name": symbol.rsplit("/", 1)[-1].strip("."), "documentation": []}]}
+
+
+class TestJoinIndexes:
+    def test_document_paths_get_the_project_folder_and_references_cross_projects(self):
+        lib = "scip-typescript npm lib 1.0.0 `src/x.ts`/f()."
+        a = {"documents": [_index("src/x.ts", lib, 1)]}
+        b = {"documents": [_index("src/y.ts", lib, 0)]}
+
+        items = scip_reduce(js_reduce.join_indexes([("pkg/lib", a), ("apps/web", b)]))
+
+        assert [i["path"] for i in items if i["kind"] == "def"] == ["pkg/lib/src/x.ts"]
+        assert [(i["path"], i["paths"]) for i in items if i["kind"] == "ref-edge"] == [("apps/web/src/y.ts", ["pkg/lib/src/x.ts"])]
+
+
+def scip_reduce(index):
+    return scip_read.reduce(index)
+
+
+class TestFinishSymbols:
+    DEFS = [{"kind": "def", "path": "src/a.ts", "name": "a", "symbol": "scip-typescript npm tiny 1.0.0 `src/a.ts`/a.", "public": True},
+            {"kind": "def", "path": "src/a.ts", "name": "hidden", "symbol": "scip-typescript npm tiny 1.0.0 `src/a.ts`/hidden().", "public": True},
+            {"kind": "def", "path": "src/a.ts", "name": "run", "symbol": "scip-typescript npm tiny 1.0.0 `src/a.ts`/Svc#run().", "public": True},
+            {"kind": "ref-edge", "path": "src/b.ts", "paths": ["src/a.ts"], "count": 1}]
+
+    def test_public_follows_the_exports_of_the_file(self):
+        out = js_reduce.finish_symbols(self.DEFS, [{"path": "src/a.ts", "name": "a"}])
+
+        assert [(d["name"], d["public"]) for d in out if d["kind"] == "def"] == [("a", True), ("hidden", False), ("run", False)]
+
+    def test_a_member_of_an_exported_class_is_public(self):
+        out = js_reduce.finish_symbols(self.DEFS, [{"path": "src/a.ts", "name": "Svc"}])
+
+        assert next(d for d in out if d["name"] == "run")["public"] is True
+
+    def test_a_renamed_export_makes_the_local_name_public(self):
+        out = js_reduce.finish_symbols(self.DEFS, [{"path": "src/a.ts", "name": "alias", "local": "hidden"}])
+
+        assert next(d for d in out if d["name"] == "hidden")["public"] is True
+
+    def test_without_exports_the_reducer_value_is_kept(self):
+        out = js_reduce.finish_symbols(self.DEFS, None)
+
+        assert all(d["public"] for d in out if d["kind"] == "def")
+
+    def test_symbols_lose_package_and_version(self):
+        out = js_reduce.finish_symbols(self.DEFS, None)
+
+        assert out[0]["symbol"] == "scip-typescript npm . . `src/a.ts`/a." and out[3] == self.DEFS[3]
+
+
+class TestFinishSymbolsNestedFiles:
+    def test_a_file_below_a_folder_uses_the_name_after_the_file(self):
+        defs = [{"kind": "def", "path": "src/types.ts", "name": "Order", "symbol": "scip-typescript npm shopjs 1.0.0 src/`types.ts`/Order#", "public": True},
+                {"kind": "def", "path": "src/types.ts", "name": "note", "symbol": "scip-typescript npm shopjs 1.0.0 src/`types.ts`/Order#note.", "public": True},
+                {"kind": "def", "path": "src/types.ts", "name": "Local", "symbol": "scip-typescript npm shopjs 1.0.0 src/`types.ts`/Local#", "public": True}]
+
+        out = js_reduce.finish_symbols(defs, [{"path": "src/types.ts", "name": "Order"}])
+
+        assert [(d["name"], d["public"]) for d in out] == [("Order", True), ("note", True), ("Local", False)]
