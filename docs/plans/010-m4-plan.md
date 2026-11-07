@@ -579,7 +579,7 @@ Read section 2, section 3, D1 to D3, D6 and D16. Load the skills in section 2. T
   - Done-check: `... pytest tests/unit/scripts/test_jsfixture.py -q` passes.
   - Commit: `test(dossier): add the JavaScript fixture repository`
 
-- [ ] **M4-6. Adapter frame and package entries.**
+- [x] **M4-6. Adapter frame and package entries.**
   - Goal: a registered adapter that yields `entry_points` from project files and handles the gates.
   - Files: new `scripts/js_adapter.py`, `scripts/js_entries.py`, `tests/unit/scripts/test_js_adapter.py`, `tests/unit/scripts/test_js_entries.py`; edit `scripts/adapters.py`.
   - Interface: `JsAdapter` as D1. `js_entries.package_entries(project, read) -> list[dict]`, `nx_targets(tree, read)`, `next_routes(files, project)`. In `_registered()` the tuple becomes `(JsAdapter, PythonAdapter, RepoAdapter)`.
