@@ -213,3 +213,50 @@ class TestModelItems:
         items = {i["name"]: i for i in js_reduce.model_items(types)}
 
         assert items["Order"]["fields"][0]["ref"] == "User"
+
+
+def _component(name, path="src/App.tsx", renders=(), **kw):
+    return {"path": path, "name": name, "line": 3, "end_line": 9, "exported": True, "renders": list(renders), "hooks": [], "provides": [], "consumes": [], **kw}
+
+
+class TestUiItems:
+    def test_a_component_gives_an_item_and_a_render_edge_for_a_repository_target(self):
+        tree = frozenset({"src/App.tsx", "src/Button.tsx"})
+        comps = [_component("App", renders=[{"name": "Button", "path": "src/Button.tsx"}, {"name": "Link", "path": None}, {"name": "X", "path": "node_modules/x.js"}])]
+
+        items = js_reduce.ui_items(comps, tree)
+
+        assert [i["kind"] for i in items] == ["ui-component", "renders"]
+        assert items[1] == {"kind": "renders", "path": "src/App.tsx", "paths": ["src/Button.tsx"], "from": "App", "to": "Button"}
+
+    def test_hooks_provides_and_consumes_are_kept(self):
+        item = js_reduce.ui_items([_component("Home", hooks=["useCart"], provides=["Ctx"], consumes=["Ctx"])], frozenset())[0]
+
+        assert (item["hooks"], item["provides"], item["consumes"], item["exported"]) == (["useCart"], ["Ctx"], ["Ctx"], True)
+
+    def test_render_edges_count_per_file_pair_and_skip_the_same_file(self):
+        items = [{"kind": "renders", "path": "a.tsx", "paths": ["b.tsx"], "from": "A", "to": "B"},
+                 {"kind": "renders", "path": "a.tsx", "paths": ["b.tsx"], "from": "A2", "to": "B"},
+                 {"kind": "renders", "path": "a.tsx", "paths": ["a.tsx"], "from": "A", "to": "Inner"}]
+
+        assert js_reduce.render_edges(items) == [{"kind": "ref-edge", "path": "a.tsx", "paths": ["b.tsx"], "count": 2}]
+
+
+class TestRoutes:
+    def test_route_parts_split_method_and_path(self):
+        assert js_reduce.route_parts("get('/tags") == ("GET", "/tags")
+        assert js_reduce.route_parts(".post(\n  '/users") == ("POST", "/users")
+
+    def test_a_resolved_route_becomes_a_ui_route_with_its_lazy_file(self):
+        route = {"path": "src/router.tsx", "line": 11, "end_line": 11, "route": "/home", "resolved": True, "file": "src/Home.tsx", "framework": "react-router"}
+
+        item = js_reduce.route_entries([route])[0]
+
+        assert (item["kind"], item["name"], item["target"], item["trigger"]) == ("ui-route", "/home", "src/Home.tsx", "opening `/home` in the browser")
+
+    def test_an_unresolved_route_keeps_its_source_text_and_targets_its_own_file(self):
+        route = {"path": "src/router.tsx", "line": 10, "end_line": 10, "route": "prefix + '/x'", "resolved": False, "file": None, "framework": "react-router"}
+
+        item = js_reduce.route_entries([route])[0]
+
+        assert (item["name"], item["target"]) == ("prefix + '/x'", "src/router.tsx")

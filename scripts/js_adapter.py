@@ -147,6 +147,16 @@ class JsAdapter(Adapter):
                 out["models"] += parsed["models"]
                 out["io_candidates"] += parsed["io"]
 
+    @staticmethod
+    def _react(ctx, out, facts, tree) -> None:
+        """Components, who renders whom, and browser routes, from the TypeScript script."""
+        comps = [c for f in facts.values() for c in f.get("components", [])]
+        ui = js_reduce.ui_items(comps, tree)
+        out["graph"] += ui
+        out["entry_points"] += js_reduce.route_entries([r for f in facts.values() for r in f.get("routes", [])])
+        if ctx.tool_status.get("scip-typescript", {}).get("status") != "ok":
+            out["symbols"] += js_reduce.render_edges(ui)
+
     def _dead(self, ctx, out, install, projects, timeout) -> None:
         knip = js_tools.Knip(ctx.run, install, timeout)
         got = self._each(ctx, "knip", projects, lambda p: js_reduce.dead_items(knip.run_knip(ctx.checkout / p["dir"]), p))
@@ -215,5 +225,6 @@ class JsAdapter(Adapter):
                 self._dead(ctx, out, install, projects, timeout)
                 out["models"] += js_reduce.model_items([t for f in facts.values() for t in f.get("types", [])])
                 self._symbols(ctx, out, install, projects, facts, timeout)
+                self._react(ctx, out, facts, ctx.tree)
         self._syntax(ctx, out, st, projects)
         return {o: candidates.sort_items(items) for o, items in out.items()}

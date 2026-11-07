@@ -219,3 +219,39 @@ def model_items(types: list, test_re=None) -> list:
         items.append({"path": t["path"], "line": t["line"], "end_line": t["end_line"], "name": t["name"], "kind": kind, "rule": kind,
                       "snippet": f"{t['kind']} {t['name']}", "bases": t.get("bases", []), "fields": fields})
     return sorted(items, key=lambda i: (i["path"], i["line"]))
+
+
+def ui_items(components: list, tree) -> list:
+    """`ui-component` items, and a `renders` item for each component that renders one defined in the repository."""
+    tracked = set(tree)
+    items = []
+    for c in sorted(components, key=lambda c: (c["path"], c["line"], c["name"])):
+        items.append({"kind": "ui-component", "path": c["path"], "line": c["line"], "end_line": c.get("end_line", c["line"]), "name": c["name"],
+                      "exported": c["exported"], "hooks": c["hooks"], "provides": c["provides"], "consumes": c["consumes"]})
+        for r in c["renders"]:
+            if r["path"] and r["path"] in tracked:
+                items.append({"kind": "renders", "path": c["path"], "paths": [r["path"]], "from": c["name"], "to": r["name"]})
+    return items
+
+
+def render_edges(items: list) -> list:
+    """`ref-edge` symbols from `renders` items between two different files, so an arrow can be backed when scip-typescript did not run."""
+    counts: dict = {}
+    for i in items:
+        if i["kind"] == "renders" and i["paths"][0] != i["path"]:
+            counts[(i["path"], i["paths"][0])] = counts.get((i["path"], i["paths"][0]), 0) + 1
+    return [{"kind": "ref-edge", "path": a, "paths": [b], "count": n} for (a, b), n in sorted(counts.items())]
+
+
+def route_parts(detail: str) -> tuple:
+    """(METHOD, path) from a rule's `detail` such as ``get('/tags``; the method is upper-cased."""
+    found = re.match(r"""\s*\.?(\w+)\(\s*[`'"]?(.*)$""", detail, re.S)
+    return (found.group(1).upper(), found.group(2).strip()) if found else ("", detail.strip())
+
+
+def route_entries(routes: list) -> list:
+    """`ui-route` entry points from the TypeScript script's routes. An unresolved route keeps its source text as the name."""
+    return [{"path": r["path"], "line": r["line"], "end_line": r.get("end_line", r["line"]), "kind": "ui-route", "name": r["route"],
+             "trigger": f"opening `{r['route']}` in the browser", "target": r.get("file") or r["path"],
+             "rule": "js.react-router" if r.get("framework") == "react-router" else f"js.{r.get('framework') or 'router'}", "snippet": r["route"][:200]}
+            for r in routes]

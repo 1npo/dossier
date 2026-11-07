@@ -695,7 +695,7 @@ Read section 2, D1, D4 to D12, and "Results (Phase 1)", especially M4-1's values
   - Done-check: `... pytest tests/unit/scripts/test_js_prisma.py tests/unit/scripts/test_measured_er.py tests/unit/scripts/test_js_reduce.py -q` passes.
   - Commit: `feat(dossier): read Prisma schemas and TypeScript entities`
 
-- [ ] **M4-13. React items and UI routes.**
+- [x] **M4-13. React items and UI routes.**
   - Goal: D9's items.
   - Files: edit `scripts/js_reduce.py`, `scripts/js_adapter.py`, `tests/unit/scripts/test_js_reduce.py`.
   - Interface: `js_reduce.ui_items(components, tree) -> list`; `js_reduce.route_entries(routes) -> list`; `route_parts(detail) -> (method, path)`.
@@ -786,6 +786,8 @@ Commit each task on `feat/dossier-m4`. Do not merge or bump. Write "Results (Pha
 **M4-11.** Done as written; all three grammar names and D8's queries ran as recorded in M4-1. Choices the plan left open: a test file with no framework import and no runner config gets framework `unknown`; the `export let` form is found by the second query (`export_statement declaration: (lexical_declaration)`, start column 7), and the captured text excludes the word `export`; curried calls such as `it.each([..])('x', fn)` are counted once, by the inner call whose function text is a plain dotted name; `coverage_threshold` is the smallest number among statements/branches/functions/lines near `coverageThreshold` (jest) or `thresholds` (vitest), or anywhere in a `.c8rc`/`.nycrc`. The adapter writes `complexity` onto module items and the `tests` list gets `paths` and `imports` from dependency-cruiser's test-file edges (empty when that tool did not run). `tree-sitter-language-pack` now has a real status; `semgrep` still says `Arrives in a later task.`
 
 **M4-12.** Prisma, `@Entity` classes, interfaces, object types and enums are done. **Cut (allowed by the Phase 2 cut line):** `mongoose`, `sequelize`, `drizzle` and `zod` entities; `ts_facts.mjs` does not yet report const-based schemas, so they are listed as a gap for the next plan. Prisma is read even when Node is missing or the ref is untrusted (it needs no tool). A Prisma `type` or `view` block is treated like a model. `measured_er.family` is new and `_relations` keys on it.
+
+**M4-13.** Done as written, plus one function the interface did not list: `js_reduce.render_edges(items)` builds the `ref-edge` symbols from `renders` items, and the adapter adds them only when scip-typescript did not succeed (so there is never a double count). A `renders` item between two components in the same file is kept in the graph but gets no edge. An unresolved route has `target` set to its own file, since the card needs some target.
 
 ---
 

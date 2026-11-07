@@ -83,3 +83,12 @@ class TestJsAdapterFrame:
         assert {("User", "prisma"), ("Post", "prisma"), ("Role", "prisma-enum"), ("Order", "ts-interface"), ("Item", "ts-type"),
                 ("Status", "ts-enum"), ("Product", "typeorm")} <= kinds
         assert not {"ButtonProps", "Local"} & {m["name"] for m in models}
+
+    def test_react_components_renders_and_routes_are_recorded(self, ex):
+        _, out, _ = ex
+
+        graph = json.loads((out / "extract" / "graph.json").read_text())["adapters"]["js"]["items"]
+        entries = json.loads((out / "extract" / "entry_points.json").read_text())["adapters"]["js"]["items"]
+
+        assert any(g["kind"] == "renders" and g["from"] == "App" and g["to"] == "Button" for g in graph)
+        assert {e["name"] for e in entries if e["kind"] == "ui-route"} == {"/", "/cart", "/home", "prefix + '/x'"}

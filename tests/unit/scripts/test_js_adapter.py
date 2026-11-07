@@ -250,3 +250,28 @@ class TestModelsStep:
         out = js_adapter.JsAdapter().extract(context(js_repo, tmp_path))
 
         assert [(m["name"], m["kind"]) for m in out["models"] if not m["kind"].startswith("prisma")] == [("Order", "ts-interface")]
+
+
+class TestReactStep:
+    FACTS = {"config": {"used": None}, "imports": [], "exports": [], "types": [], "errors": [],
+             "components": [{"path": "src/App.tsx", "name": "App", "line": 1, "end_line": 5, "exported": True, "hooks": [], "provides": [], "consumes": [],
+                             "renders": [{"name": "Button", "path": "src/main.ts"}]}],
+             "routes": [{"path": "src/router.tsx", "line": 2, "end_line": 2, "route": "/", "resolved": True, "file": None, "framework": "react-router"}]}
+
+    def test_components_routes_and_fallback_edges_appear_when_scip_did_not_run(self, js_repo, tmp_path, monkeypatch, offline_tools):
+        monkeypatch.setattr(js_tools.TsFacts, "facts", lambda self, d, files: TestReactStep.FACTS)
+        monkeypatch.setattr(js_tools.ScipTs, "index", lambda *a: (_ for _ in ()).throw(js_tools.ToolError("scip-typescript failed")))
+        ctx = context(js_repo, tmp_path)
+
+        out = js_adapter.JsAdapter().extract(ctx)
+
+        assert {g["kind"] for g in out["graph"]} >= {"ui-component", "renders"}
+        assert [e["name"] for e in out["entry_points"] if e["kind"] == "ui-route"] == ["/"]
+        assert out["symbols"] == [{"kind": "ref-edge", "path": "src/App.tsx", "paths": ["src/main.ts"], "count": 1}]
+
+    def test_no_fallback_edge_when_scip_succeeded(self, js_repo, tmp_path, monkeypatch, offline_tools):
+        monkeypatch.setattr(js_tools.TsFacts, "facts", lambda self, d, files: TestReactStep.FACTS)
+
+        out = js_adapter.JsAdapter().extract(context(js_repo, tmp_path))
+
+        assert out["symbols"] == []
