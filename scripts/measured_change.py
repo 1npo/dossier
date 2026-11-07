@@ -121,8 +121,8 @@ def bars(rows):
     more = len([x for x in rows if x["commits_12m"]]) - len(top)
     head = "".join(f"<th>{h}</th>" for h in ("File", "Commits in the past 12 months", "Lines added", "Lines removed"))
     tail = f'<p class="muted">The {len(top)} most changed files{f", of {len(top) + more} that changed" if more else ""}. The table below lists every file.</p>'
-    return (f'<div class="table-container hot-box"><table class="table hot-rank" data-nosort aria-label="Files by commits in the last 12 months">'
-            f'<thead><tr>{head}</tr></thead><tbody>{"".join(items)}</tbody></table></div>{tail}')
+    return (f'{tail}<div class="table-container hot-box"><table class="table hot-rank" data-nosort aria-label="Files by commits in the last 12 months">'
+            f'<thead><tr>{head}</tr></thead><tbody>{"".join(items)}</tbody></table></div>')
 
 
 def _file_table(cid, rows, refs, period):

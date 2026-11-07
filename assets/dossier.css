@@ -560,6 +560,7 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 /* hotspots: room around the ranked bars, the toggles and the table */
 .card[data-card="change.hotspots"] .mode-ctl { margin: 0 0 .75rem; }
 .card[data-card="change.hotspots"] .mode-ctl + .mode-ctl { margin-top: -.25rem; }
+.card[data-card="change.hotspots"] .tbl-bar .mode-ctl { margin: 0 0 0 .5rem; }
 .card[data-card="change.hotspots"] :is(.hot-table, [data-hotperiod])[hidden] { display: none; }
 
 /* blast radius: the picker, three labelled boxes the lists fill, then the table set apart from them */
