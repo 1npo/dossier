@@ -7,6 +7,7 @@ Every call goes through the safe runner passed in as `run` (see `sandbox.run`).
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from pathlib import Path
 
@@ -63,3 +64,23 @@ def node_problem(run) -> str | None:
     if toolcheck.parse_version(found.group(1)) < toolcheck.parse_version(minimum):
         return f"Node {found.group(1)} is too old; these tools need {minimum} or later."
     return None
+
+
+class TsFacts:
+    """Client for `ts_facts.mjs`: types, exports, imports, React components and routes, read with the TypeScript compiler API."""
+
+    def __init__(self, run, install: Path, timeout: float):
+        self.run, self.install, self.timeout = run, Path(install), timeout
+
+    def facts(self, project_dir, files: list[str]) -> dict:
+        request = json.dumps({"root": ".", "files": list(files)}).encode()
+        result = self.run(["node", "--max-old-space-size=4096", str(self.install / "ts_facts.mjs")], cwd=Path(project_dir), stage="js-ts-facts",
+                          profile="restricted", timeout=self.timeout, input=request)
+        _check(result, "Reading the TypeScript facts")
+        try:
+            data = json.loads(result.stdout.read_text(errors="replace"))
+        except ValueError as e:
+            raise ToolError(f"Reading the TypeScript facts gave output that is not JSON: {e}") from e
+        if not isinstance(data, dict):
+            raise ToolError("Reading the TypeScript facts gave output that is not an object.")
+        return data

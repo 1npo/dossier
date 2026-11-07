@@ -647,7 +647,7 @@ Read section 2, D1, D4 to D12, and "Results (Phase 1)", especially M4-1's values
 
 ### Tasks (Phase 2)
 
-- [ ] **M4-7. `ts_facts.mjs` and its client.**
+- [x] **M4-7. `ts_facts.mjs` and its client.**
   - Goal: D9: types, exports, imports, components, routes.
   - Files: edit `scripts/node/js-tools/ts_facts.mjs`, `scripts/js_tools.py`; new `tests/integration/scripts/test_ts_facts_slow.py`.
   - Interface: `js_tools.TsFacts(run, install, timeout).facts(project_dir, files) -> dict`, the D9 response. Raises `ToolError` on non-zero, timeout or bad JSON.
