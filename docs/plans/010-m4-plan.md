@@ -519,7 +519,7 @@ Read section 2, section 3, D1 to D3, D6 and D16. Load the skills in section 2. T
 
 ### Tasks (Phase 1)
 
-- [ ] **M4-1. Re-check the tools on this machine.**
+- [x] **M4-1. Re-check the tools on this machine.**
   - Goal: prove what the documentation did not state, before any code depends on it.
   - Files: this plan only ("Results (Phase 1)").
   - Interface: none.
@@ -613,6 +613,19 @@ Berry and pnpm restores may move to Phase 3 (D16), with yarn classic and npm kep
 Commit each task on `feat/dossier-m4`. Do not merge or bump the version. Write "Results (Phase 1)" and commit it: `docs(dossier): record phase 1 of M4 in plan 010`.
 
 ### Results (Phase 1)
+
+Host: Node 26.13.0 (fnm), npm 11.20.0. This session's shell still resolved `/usr/bin/node` 20.19.2, so commands put the fnm Node first on `PATH`. Baseline on `main` after the Node upgrade: 1434 passed, 66 skipped (the plan's 1426 predates the post-M3 report rework, which touched `render.py`, assets and `measured_change.py` and does not contradict this plan). `test_scip_slow.py` passes on Node 26.
+
+**M4-1 (tool re-check, 2026-11-07).**
+
+1. `npm install --ignore-scripts` of D2's package.json: 72 packages, nothing broke (knip's `@oxc-parser/binding-linux-x64-gnu` came through). One copy of `typescript` (6.0.3). knip prints 6.42.1. pnpm's bin is `bin/pnpm.mjs` (12.x too); yarn is `bin/yarn.js`; berry is `@yarnpkg/cli-dist/bin/yarn.js`.
+2. `depcruise --info` shows `typescript >=2.0.0 <7.0.0 -> 6.0.3` usable. D5's command works with `--ts-config` beside `--no-config` (O7: yes; the `@/*` alias resolved: `dependencyTypes` has `aliased-tsconfig`). `modules[].source` and `dependencies[].resolved` are relative to cwd. `.d.ts` files are listed as modules. A type-only import has `dependencyTypes` containing `type-only` (there is no `typeOnly` key). `dynamic` is a boolean on each dependency. Line 5b: `summary.violations` is a list of `{type, from, to, unresolvedTo, dependencyTypes, rule: {severity, name}}`, as assumed.
+3. knip JSON is `{"issues": [{"file", "files": [{"name"}], "dependencies", "devDependencies", "exports", "optionalPeerDependencies", "types", ...}]}`. O6: an unused file is an issue whose `files` list is non-empty (`files: [{"name": "a.ts"}]`, same path as `file`). Exit 0 with `--no-exit-code`.
+4. scip-typescript 0.5.2 with `--output <abs path>` works (about 2 KB). `scip_read.decode` and `reduce` read it unchanged. Symbols look like ``scip-typescript npm tiny 1.0.0 `a.ts`/a.`` : package name and version are inside the string, so D11's rewrite is needed. Each file also gives a `type: "module"` def named after the file, and `public` is true for everything, so D11's `finish_symbols` is needed.
+5. `ts.createProgram` runs on Node 26 and finds the imported file.
+6. Tree-sitter (`ts_worker.py`): `typescript`, `tsx` and `javascript` are accepted (O3). D8's complexity query, with all nine node types and the `operator: ["&&" "||" "??"]` form, gives 6, 3 and 6 matches on small samples, as counted by hand.
+7. Semgrep: `// ruleid:` works for `.ts` and `.tsx` (O4). A `.ts` and a `.tsx` target can sit beside one rule file, and `semgrep --test` passes. **`.mts` and `.cts` are NOT scanned (O5):** no result, no error. **`.d.ts` IS scanned**, so it must be excluded by the adapter. So D10's fixed Gaps item for `.mts` and `.cts` is needed, and M4-15 adds it.
+8. Restores through `sandbox.run`, with a scratch area: yarn classic (`--frozen-lockfile`), berry (`--immutable --mode=skip-build`) and pnpm (`--frozen-lockfile`) all exit 0 and write `node_modules`. Their caches landed in `<area>/home/.cache/yarn`, `.yarn/berry` and `.cache/pnpm` (HOME is already redirected), and nothing outside the scratch folders was written. A `yarn.lock` from berry contains `__metadata`, classic does not. **O1: `npm_config_store_dir` did not move pnpm's store** (the folder was never created), so M4-4 passes `--store-dir <area>/cache/pnpm` on the command line. **O2:** with `packageManager: pnpm@9.0.0` in `package.json`, pnpm 12.15.0 still ran as 12.15.0 (not re-run on a fresh install).
 
 ---
 
