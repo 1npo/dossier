@@ -238,3 +238,17 @@ class TestExtract:
 
     def test_adapter_matches_every_language(self):
         assert repo_adapter.RepoAdapter.languages == ("*",)
+
+
+class TestTestCommand:
+    @pytest.mark.parametrize("command", ["pytest -q", "tox", "make test", "npx jest --ci", "vitest run", "mocha tests", "npx playwright test",
+                                         "cypress run", "npm test", "npm run test", "yarn test", "pnpm run test", "nx test web", "npm run test-e2e"])
+    def test_a_test_command_is_recognised(self, command):
+        assert repo_adapter.TEST_COMMAND.search(command)
+
+    @pytest.mark.parametrize("command", ["npm run build", "npm install", "yarn lint", "pnpm dev", "echo done"])
+    def test_other_commands_are_not(self, command):
+        assert not repo_adapter.TEST_COMMAND.search(command)
+
+    def test_the_adapter_version_changed_with_the_pattern(self):
+        assert repo_adapter.RepoAdapter.version == "3"
