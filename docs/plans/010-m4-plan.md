@@ -560,7 +560,7 @@ Read section 2, section 3, D1 to D3, D6 and D16. Load the skills in section 2. T
   - Done-check: `... pytest tests/unit/scripts/test_restore.py tests/unit/scripts/test_sandbox.py tests/integration/scripts/test_hygiene.py -q` passes.
   - Commit: `feat(dossier): install npm, yarn and pnpm packages from their lockfiles`
 
-- [ ] **M4-5. The JS fixture repository.**
+- [x] **M4-5. The JS fixture repository.**
   - Goal: a small repository with known answers, so each extractor has an exact expected output.
   - Files: new `tests/fixtures/jsrepo/**`, `tests/unit/scripts/test_jsfixture.py`; edit `tests/conftest.py`.
   - Interface: `build_js_repo(dest)` and fixture `js_repo(tmp_path)`, like `build_py_repo`. `line_of` works unchanged. JSON cannot hold markers, so add `key_line(root, rel, key)`: the first line containing `"<key>"`.
@@ -630,6 +630,8 @@ Host: Node 26.13.0 (fnm), npm 11.20.0. This session's shell still resolved `/usr
 **M4-2 (pins and install).** Done as written. One deviation: `sandbox._host_path` did not do what risk 12 assumed. It adds each host tool's folder in `tools.json` order, and `git` (first) lives in `/usr/bin`, so `/usr/bin` came first and `node` inside every sandboxed command resolved to the system Node 20.19.2 even with fnm's Node 26 first on the caller's `PATH`. The slow install test caught it (`node_problem` said "Node 20.19.2 is too old"). Fixed in `sandbox._host_path`: folders outside `SAFE_PATH` now come before the system folders; the order among system folders is unchanged, so Python-only machines get the same `PATH`. Tests: `TestHostPath` in `test_sandbox.py`.
 
 **M4-4 (restore).** Done as written, with one change that M4-1 forced (O1): `npm_config_store_dir` is **not** added to `ALLOWED_NAMES` because pnpm ignores it. The pnpm command carries `--store-dir {pnpm_store}` instead, and `restore.run` expands the token to `<area>/cache/pnpm`. The three yarn names are added as planned. A real run through `restore.plans` and `restore.run` on tiny yarn classic, yarn berry and pnpm projects succeeded, with the berry lockfile picking `berry_command` (checked by hand, not committed as a test because it needs the network). Added `restore.restored(results)` (used by `stages.stage_copy`) so the "every plan of the ecosystem succeeded" rule has a unit test. `test_hygiene.py` gained a test with a control: the same `file:` dependency's `postinstall` does run under plain `npm ci` and does not under the restore command.
+
+**M4-5 (fixture).** Written as listed, with these differences, all small: (1) `stubs/{express,react,react-router,next}/package.json` exist so the committed `package-lock.json` is a real lockfile for the whole workspace and `npm ci --offline` works (checked once by hand). (2) `import-up` in `service.ts` is `import type { Port } from '../main'`: a runtime import would close a cycle main, routes, controller, service, main and add a third cycle to the two the plan lists. The dependency-cruiser rule still matches a type-only edge (M4-1). (3) `router[verb]('/x', h)` carries no marker: only `router.get(path, h)` has `@bs-route`, since a marker must appear once and the first form is not matched by `string-route`. (4) Extra markers: `model-orm`, `test-mock`, `test-todo`, `test-vi-mock`, `test-skip`. (5) `conftest.py` gained `JSFIX`, `build_js_repo`, `js_repo` and `key_line`; `build_py_repo` now shares `_commit_fixture` with it and behaves the same. The fixture has 64 files, all tracked.
 
 ---
 

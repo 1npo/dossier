@@ -1,0 +1,14 @@
+{
+  "forbidden": [
+    {
+      "name": "no-service-to-main",
+      "severity": "error",
+      "from": {
+        "path": "^src/users/service\\.ts$"
+      },
+      "to": {
+        "path": "^src/main\\.ts$"
+      }
+    }
+  ]
+}
