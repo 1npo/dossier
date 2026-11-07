@@ -416,9 +416,8 @@ def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None)
         _, w, g, c = checks_v7.v7(extract)
         result["gaps"] += g
         result["counts"].update(c)
-    if extract and any(g.get("kind") == "module" for g in extract.get("graph", [])):
-        result["gaps"].append({"kind": "coverage", "report": "change", "statement": "Stale feature flags and unused routes are not detected for Python.",
-                               "how_to_confirm": "This is a known limit of this version of dossier."})
+    if extract:
+        result["gaps"] += js_coverage(extract)
     if tree and extract:  # a dossier made before the extractors has no extract/: nothing to hold it to
         try:
             e, w, g, c = v4(reports, tree, facts)
@@ -429,6 +428,9 @@ def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None)
         except (AttributeError, TypeError, KeyError):
             pass
     return result
+
+
+js_coverage = checks_v7.js_coverage
 
 
 def gap_extras(build, reports, extract, cites=None, facts=None, result=None) -> list:

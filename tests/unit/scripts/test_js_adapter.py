@@ -336,3 +336,17 @@ class TestSemgrepStep:
 
         assert ctx.tool_status["semgrep"] == {"status": "failed", "reason": "semgrep failed"}
         assert ctx.tool_status["tree-sitter-language-pack"]["status"] == "ok"
+
+
+class TestNotesStep:
+    def test_unsupported_framework_bun_project_and_unscanned_files_become_notes(self, tmp_path, offline_tools):
+        files = {"package.json": '{"name": "a", "dependencies": {"koa": "1"}}', "bun.lockb": "", "a.js": "", "b.mts": ""}
+        for name, text in files.items():
+            (tmp_path / name).write_text(text)
+        ctx = SimpleNamespace(checkout=tmp_path, tree=frozenset(files), files=["a.js", "b.mts"], area=tmp_path / "area", run=node_run(), trusted=True,
+                              tool_status={}, tool_versions={}, treesitter=FakeTS(), semgrep=FakeSemgrep(), sha="a" * 40, repo_name="r", restored={})
+
+        out = js_adapter.JsAdapter().extract(ctx)
+
+        notes = {(g["note"], g["name"]) for g in out["graph"] if g["kind"] == "js-note"}
+        assert notes == {("framework", "Koa"), ("bun", "."), ("unscanned", "1")}

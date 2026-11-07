@@ -54,3 +54,26 @@ class TestV7:
 
         assert any("generated code" in g["statement"] for g in res["gaps"])
         assert [e for e in res["errors"] if e.startswith("V7")] == []
+
+
+JS_IDS = ("dynamic-require", "barrel-reexport", "react-context", "hook-wiring", "string-route", "route-mount", "module-federation", "di-registration")
+JS_MODULE = {"kind": "module", "path": "src/a.ts", "module": "src/a", "short": "a", "package": None, "is_package": False, "language": "js"}
+
+
+class TestJavaScriptBlindSpots:
+    def test_every_javascript_pattern_has_wording_and_a_report(self):
+        for pattern in JS_IDS:
+            assert pattern in checks_v7.BLIND_SPOTS
+
+    def test_a_hit_of_each_new_pattern_gives_its_own_sentence_not_the_fallback(self):
+        extract = {"blindspots": [hit(p, "src/a.ts", 1) for p in JS_IDS], "graph": [JS_MODULE]}
+
+        _, _, gaps, _ = checks_v7.v7(extract)
+
+        assert not [g for g in gaps if "code that the rule for this pattern points at" in g["statement"]]
+        assert {g["report"] for g in gaps} == {"interactions", "entry"}
+
+    def test_a_literal_dynamic_import_is_not_a_hit_so_it_gives_no_item(self):
+        _, _, gaps, _ = checks_v7.v7({"blindspots": [], "graph": [JS_MODULE]})
+
+        assert [g["statement"] for g in gaps] == [checks_v7.RUNTIME_CONFIG]

@@ -174,6 +174,17 @@ class JsAdapter(Adapter):
         if ctx.tool_status.get("scip-typescript", {}).get("status") != "ok":
             out["symbols"] += js_reduce.render_edges(ui)
 
+    @staticmethod
+    def _notes(out, projects, read, st) -> None:
+        """Things the adapter cannot see, recorded as `js-note` items that Gaps turns into fixed statements."""
+        for name in js_project.manifest_frameworks(projects, read):
+            out["graph"].append({"kind": "js-note", "path": "package.json", "note": "framework", "name": name})
+        for p in projects:
+            if p["manager"] == "bun":
+                out["graph"].append({"kind": "js-note", "path": f"{p['dir']}/package.json" if p["dir"] else "package.json", "note": "bun", "name": p["dir"] or "."})
+        if st["unscanned"]:
+            out["graph"].append({"kind": "js-note", "path": st["unscanned"][0], "note": "unscanned", "name": str(len(st["unscanned"]))})
+
     def _semgrep(self, ctx, out, st, projects) -> None:
         files, st["unscanned"] = js_semgrep.scannable(sorted({f for p in projects for f in p["files"]}))
         if not files:
@@ -261,4 +272,5 @@ class JsAdapter(Adapter):
                 out["symbols"] += symbols
                 out["graph"] += notes
         self._syntax(ctx, out, st, projects)
+        self._notes(out, projects, read, st)
         return {o: candidates.sort_items(items) for o, items in out.items()}
