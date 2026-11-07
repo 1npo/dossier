@@ -1,0 +1,47 @@
+rules:
+  - id: dossier.js.observability.log
+    message: Writes a log line
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: log}
+    pattern-either:
+      - pattern: console.info(...)
+      - pattern: console.warn(...)
+      - pattern: console.error(...)
+      - pattern: console.debug(...)
+      - pattern: pino(...)
+      - pattern: winston.createLogger(...)
+      - patterns:
+          - pattern: $L.$M(...)
+          - metavariable-regex:
+              metavariable: $L
+              regex: ^(log|logger)$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(trace|debug|info|warn|warning|error|fatal|log)$
+
+  - id: dossier.js.observability.metric
+    message: Records a metric
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: metric}
+    pattern-either:
+      - pattern: new Counter(...)
+      - pattern: new Gauge(...)
+      - pattern: new Histogram(...)
+      - pattern: new Summary(...)
+      - patterns:
+          - pattern: statsd.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(increment|decrement|gauge|timing|histogram|set)$
+
+  - id: dossier.js.observability.trace
+    message: Sends traces or errors to a monitoring service
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: trace}
+    pattern-either:
+      - pattern: Sentry.init(...)
+      - pattern: trace.getTracer(...)
+      - pattern: new NodeSDK(...)

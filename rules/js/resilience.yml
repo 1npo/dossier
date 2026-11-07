@@ -1,0 +1,51 @@
+rules:
+  - id: dossier.js.resilience.retry
+    message: Tries again after a failure
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: retry}
+    pattern-either:
+      - pattern: axiosRetry(...)
+      - pattern: pRetry(...)
+      - pattern: '{..., retry: $X, ...}'
+
+  - id: dossier.js.resilience.timeout
+    message: Gives up after a time limit
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: timeout}
+    pattern-either:
+      - pattern: '{..., timeout: $T, ...}'
+      - pattern: AbortSignal.timeout(...)
+
+  - id: dossier.js.resilience.catch-all
+    message: Catches errors broadly
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: catch-all}
+    pattern-either:
+      - pattern: |
+          try {
+            ...
+          } catch ($E) {
+            ...
+          }
+      - pattern: $P.catch(...)
+      - pattern: process.on("uncaughtException", ...)
+      - pattern: process.on("unhandledRejection", ...)
+      - patterns:
+          - pattern-either:
+              - pattern: function ($ERR, $REQ, $RES, $NEXT) {...}
+              - pattern: ($ERR, $REQ, $RES, $NEXT) => {...}
+          - metavariable-regex:
+              metavariable: $ERR
+              regex: ^(err|error)$
+
+  - id: dossier.js.resilience.transaction
+    message: Groups changes so they succeed or fail together
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: transaction}
+    pattern-either:
+      - pattern: $P.$transaction(...)
+      - pattern: $C.transaction(...)

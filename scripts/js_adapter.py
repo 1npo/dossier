@@ -1,7 +1,7 @@
 """The JavaScript and TypeScript adapter (frame): entry points from project files, and the per-tool status for each step.
 
-The Node steps (TypeScript script, dependency-cruiser, knip, scip-typescript) are built; tree-sitter and semgrep arrive in later tasks
-and record `skipped` until then. The four Node tools are gated one by one, so semgrep and tree-sitter never depend on Node.
+Every step records a status per tool. The four Node tools (TypeScript script, dependency-cruiser, knip, scip-typescript) are gated one by
+one, so semgrep and tree-sitter never depend on Node.
 """
 from __future__ import annotations
 
@@ -16,14 +16,15 @@ import js_prisma
 import js_project
 import js_queries
 import js_reduce
+import js_semgrep
 import js_tools
 import scip_read
 from adapters import OUTPUTS, Adapter
 from gather import TEST_RE
 
+RULES = Path(__file__).resolve().parent.parent / "rules" / "js"
 NODE_TOOLS = ("dependency-cruiser", "knip", "scip-typescript", "typescript")
 CRUISE_CONFIGS = tuple(f".dependency-cruiser.{e}" for e in ("js", "cjs", "mjs", "ts", "cts", "mts", "json"))
-LATER = "Arrives in a later task."
 
 
 class JsAdapter(Adapter):
@@ -173,6 +174,19 @@ class JsAdapter(Adapter):
         if ctx.tool_status.get("scip-typescript", {}).get("status") != "ok":
             out["symbols"] += js_reduce.render_edges(ui)
 
+    def _semgrep(self, ctx, out, st, projects) -> None:
+        files, st["unscanned"] = js_semgrep.scannable(sorted({f for p in projects for f in p["files"]}))
+        if not files:
+            return self._skip(ctx, "semgrep", "There are no JavaScript or TypeScript files to scan.")
+        try:
+            found = js_semgrep.items(ctx.semgrep.scan(RULES, files))
+        except Exception as e:  # one tool failing must not stop the others
+            ctx.tool_status["semgrep"] = {"status": "failed", "reason": (str(e).splitlines() or [type(e).__name__])[0]}
+            return
+        ctx.tool_status["semgrep"] = {"status": "ok", "reason": None}
+        for key, rows in found.items():
+            out[key] += rows
+
     def _dead(self, ctx, out, install, projects, timeout) -> None:
         knip = js_tools.Knip(ctx.run, install, timeout)
         got = self._each(ctx, "knip", projects, lambda p: js_reduce.dead_items(knip.run_knip(ctx.checkout / p["dir"]), p))
@@ -219,9 +233,9 @@ class JsAdapter(Adapter):
         projects = js_project.projects(sorted(ctx.tree), read)
         self._entries(ctx, out, projects, read)
         self._prisma(ctx, out, read)
-        st = {"test_edges": [], "read": read, "entries": []}
+        st = {"test_edges": [], "read": read, "entries": [], "unscanned": []}
+        self._semgrep(ctx, out, st, projects)
         gate = self._node_gate(ctx)
-        self._skip(ctx, "semgrep", LATER)
         if gate:
             self._skip(ctx, "typescript", gate)
             self._skip(ctx, "dependency-cruiser", gate)

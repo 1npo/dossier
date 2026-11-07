@@ -260,3 +260,11 @@ class TestRoutes:
         item = js_reduce.route_entries([route])[0]
 
         assert (item["name"], item["target"]) == ("prefix + '/x'", "src/router.tsx")
+
+
+class TestRoutePartsComments:
+    def test_a_line_comment_between_the_call_and_the_path_is_ignored(self):
+        assert js_reduce.route_parts("post( // @ep-post\n  '/users") == ("POST", "/users")
+
+    def test_a_block_comment_is_ignored(self):
+        assert js_reduce.route_parts("get(/* why */ '/x") == ("GET", "/x")

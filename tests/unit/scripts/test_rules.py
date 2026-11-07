@@ -15,7 +15,9 @@ IO_CATEGORIES = {"cli-args", "env-var", "config-file", "file-read", "stdin", "me
                  "timeout", "catch-all", "transaction"}
 OTHER_CATEGORIES = {"entry", "blindspot"}
 BLIND_SPOTS = {"dynamic-import", "entry-point-loading", "string-plugin", "decorator-registry", "getattr-dispatch", "django-apps",
-               "django-signals", "pytest-fixtures", "codegen", "feature-flag", "computed-subcommand"}
+               "django-signals", "pytest-fixtures", "codegen", "feature-flag", "computed-subcommand",
+               "dynamic-require", "barrel-reexport", "react-context", "hook-wiring", "string-route", "route-mount", "module-federation",
+               "di-registration"}
 
 
 def rule_files():
@@ -41,7 +43,7 @@ def read_rules(path: Path) -> list:
 def annotations(target: Path, kind: str) -> set:
     found = set()
     for line in target.read_text().splitlines():
-        m = re.match(rf"\s*#\s*{kind}:\s*(.+)$", line)
+        m = re.match(rf"\s*(?:#|//)\s*{kind}:\s*(.+)$", line)
         if m:
             found |= {i.strip() for i in m.group(1).split(",")}
     return found
@@ -52,12 +54,14 @@ def cases():
 
 
 def target_of(rule_file: Path) -> Path:
-    return TARGETS / rule_file.parent.name / (rule_file.stem + ".py")
+    folder = TARGETS / rule_file.parent.name
+    return next((folder / (rule_file.stem + ext) for ext in (".py", ".ts", ".tsx") if (folder / (rule_file.stem + ext)).exists()),
+                folder / (rule_file.stem + ".py"))
 
 
 class TestRuleFiles:
-    def test_there_are_rule_files_for_both_scopes(self):
-        assert {f.parent.name for f in rule_files()} == {"python", "all"}
+    def test_there_are_rule_files_for_every_scope(self):
+        assert {f.parent.name for f in rule_files()} == {"python", "all", "js"}
 
     @pytest.mark.parametrize("file,rule", cases(), ids=lambda v: v["id"] if isinstance(v, dict) else v.name)
     def test_id_starts_with_dossier_and_the_scope(self, file, rule):

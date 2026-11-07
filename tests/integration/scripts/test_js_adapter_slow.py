@@ -102,3 +102,17 @@ class TestJsAdapterFrame:
         assert {("@shopjs/lib", ".", "sum"), ("@shopjs/lib", ".", "double"), ("@shopjs/lib", ".", "deep"), ("@shopjs/lib", "./utils/fmt", "fmt")} <= api
         assert not [a for a in api if a[2] in ("hidden", "twice")]
         assert not [a for a in api if a[0] == "@shopjs/web"]
+
+    def test_semgrep_finds_the_fixture_routes_inputs_and_blind_spots(self, ex):
+        _, out, record = ex
+
+        def items(name):
+            return json.loads((out / "extract" / f"{name}.json").read_text())["adapters"]["js"]["items"]
+        js = next(a for a in record["details"]["adapters"] if a["name"] == "js")
+        routes = {e["name"] for e in items("entry_points") if e["kind"] == "http-route" and e["rule"].startswith("dossier.js")}
+        patterns = {b["pattern"] for b in items("blindspots")}
+
+        assert js["tools"]["semgrep"]["status"] == "ok"
+        assert {"GET /", "GET /users", "POST /users"} <= routes and not {n for n in routes if "users'" in n}
+        assert {"dynamic-import", "dynamic-require", "barrel-reexport", "react-context", "hook-wiring", "string-route", "route-mount", "di-registration"} <= patterns
+        assert "PORT" in {i["detail"] for i in items("io_candidates") if i["category"] == "env-var"}

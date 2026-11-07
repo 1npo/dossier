@@ -1,0 +1,62 @@
+rules:
+  - id: dossier.js.inputs.env-var
+    message: Reads an environment variable
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: env-var, detail: '\benv(?:\.|\[\s*[''"`])(\w+)'}
+    pattern-either:
+      - pattern: process.env.$K
+      - pattern: process.env[$K]
+      - pattern-regex: import\.meta\.env\.\w+
+
+  - id: dossier.js.inputs.cli-args
+    message: Reads command-line arguments
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: cli-args}
+    pattern-either:
+      - pattern: process.argv
+      - pattern: $P.option(...)
+      - pattern: $P.argument(...)
+      - pattern: yargs(...)
+      - pattern: minimist(...)
+
+  - id: dossier.js.inputs.config-file
+    message: Loads configuration from a file
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: config-file}
+    pattern-either:
+      - pattern: dotenv.config(...)
+      - pattern: require("dotenv").config(...)
+      - pattern: import "dotenv/config"
+
+  - id: dossier.js.inputs.file-read
+    message: Reads a file
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: file-read}
+    pattern-either:
+      - pattern: fs.readFile(...)
+      - pattern: fs.readFileSync(...)
+      - pattern: fs.createReadStream(...)
+      - pattern: fsp.readFile(...)
+      - pattern: fs.promises.readFile(...)
+
+  - id: dossier.js.inputs.stdin
+    message: Reads from standard input
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: stdin}
+    pattern-either:
+      - pattern: process.stdin
+      - pattern: readline.createInterface(...)
+
+  - id: dossier.js.inputs.message-consume
+    message: Receives messages
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: message-consume}
+    pattern-either:
+      - pattern: $C.subscribe(...)
+      - pattern: $S.on("message", ...)

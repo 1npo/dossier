@@ -18,7 +18,8 @@ class FakeTS:
 
 
 class FakeSemgrep:
-    pass
+    def scan(self, config, paths=None, timeout=30):
+        return []
 
 
 def node_run(version="v26.13.0", code=0):
@@ -145,13 +146,13 @@ class TestGates:
 
         assert ctx.tool_status["knip"] == {"status": "skipped", "reason": "Node is not installed."}
 
-    def test_not_yet_built_steps_say_so(self, js_repo, tmp_path, offline_tools):
-        ctx = context(js_repo, tmp_path)
+    def test_semgrep_and_tree_sitter_run_without_node(self, js_repo, tmp_path):
+        ctx = context(js_repo, tmp_path, run=node_run(code=127))
 
         js_adapter.JsAdapter().extract(ctx)
 
-        for tool in ("semgrep",):
-            assert ctx.tool_status[tool] == {"status": "skipped", "reason": "Arrives in a later task."}
+        assert ctx.tool_status["semgrep"] == {"status": "ok", "reason": None}
+        assert ctx.tool_status["tree-sitter-language-pack"] == {"status": "ok", "reason": None}
 
     def test_every_tool_of_the_adapter_has_a_status(self, js_repo, tmp_path, offline_tools):
         ctx = context(js_repo, tmp_path)
@@ -302,3 +303,36 @@ class TestPublicApiStep:
         js_adapter.JsAdapter().extract(context(js_repo, tmp_path))
 
         assert not [e for e in sent if e["entry"].startswith("packages/web/")]
+
+
+class TestSemgrepStep:
+    def test_results_become_entries_findings_and_blind_spots(self, js_repo, tmp_path):
+        seen = {}
+
+        class Semgrep:
+            def scan(self, config, paths=None, timeout=30):
+                seen["rules"], seen["paths"] = config, paths
+                return [{"rule": "dossier.js.entry.http-route", "path": "src/main.ts", "start_line": 2, "end_line": 2, "snippet": "app.get('/',", "detail": "get('/",
+                         "metadata": {"category": "entry", "kind": "http-route"}},
+                        {"rule": "dossier.js.blindspot.react-context", "path": "src/c.tsx", "start_line": 1, "end_line": 1, "snippet": "x", "detail": None,
+                         "metadata": {"category": "blindspot", "pattern": "react-context"}}]
+        ctx = context(js_repo, tmp_path)
+        ctx.semgrep = Semgrep()
+
+        out = js_adapter.JsAdapter().extract(ctx)
+
+        assert seen["rules"].name == "js" and "src/main.ts" in seen["paths"] and not [p for p in seen["paths"] if p.endswith(".d.ts")]
+        assert [(e["kind"], e["name"]) for e in out["entry_points"] if e["rule"].startswith("dossier.js")] == [("http-route", "GET /")]
+        assert [b["pattern"] for b in out["blindspots"]] == ["react-context"]
+
+    def test_a_semgrep_failure_marks_only_semgrep_failed(self, js_repo, tmp_path):
+        class Semgrep:
+            def scan(self, config, paths=None, timeout=30):
+                raise RuntimeError("semgrep failed\nboom")
+        ctx = context(js_repo, tmp_path)
+        ctx.semgrep = Semgrep()
+
+        js_adapter.JsAdapter().extract(ctx)
+
+        assert ctx.tool_status["semgrep"] == {"status": "failed", "reason": "semgrep failed"}
+        assert ctx.tool_status["tree-sitter-language-pack"]["status"] == "ok"

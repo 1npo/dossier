@@ -247,6 +247,7 @@ def render_edges(items: list) -> list:
 
 def route_parts(detail: str) -> tuple:
     """(METHOD, path) from a rule's `detail` such as ``get('/tags``; the method is upper-cased."""
+    detail = re.sub(r"//[^\n]*\n|/\*.*?\*/", "", detail, flags=re.S)
     found = re.match(r"""\s*\.?(\w+)\(\s*[`'"]?(.*)$""", detail, re.S)
     return (found.group(1).upper(), found.group(2).strip()) if found else ("", detail.strip())
 

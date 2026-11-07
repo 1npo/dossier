@@ -1,0 +1,58 @@
+rules:
+  - id: dossier.js.state.db-connect
+    message: Opens a database or cache connection
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: db-connect}
+    pattern-either:
+      - pattern: new PrismaClient(...)
+      - pattern: new Pool(...)
+      - pattern: new Client(...)
+      - pattern: mongoose.connect(...)
+      - pattern: createConnection(...)
+      - pattern: new DataSource(...)
+      - pattern: new Sequelize(...)
+      - pattern: drizzle(...)
+      - pattern: redis.createClient(...)
+      - pattern: new Redis(...)
+
+  - id: dossier.js.state.db-access
+    message: Reads or writes the database
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: db-access}
+    pattern-either:
+      - pattern: prisma.$T.$F(...)
+      - pattern-regex: \$(queryRaw|executeRaw)\w*
+      - patterns:
+          - pattern: $POOL.query(...)
+          - metavariable-regex:
+              metavariable: $POOL
+              regex: ^(pool|client|db|connection|conn)$
+      - pattern: $R.findOne(...)
+      - pattern: $R.save(...)
+      - pattern: knex(...)
+
+  - id: dossier.js.state.global-state
+    message: State shared by the whole program
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: global-state}
+    pattern-either:
+      - pattern: configureStore(...)
+      - pattern: globalThis.$X = ...
+      - patterns:
+          - pattern: create(...)
+          - pattern-inside: |
+              import {..., create, ...} from "zustand";
+              ...
+
+  - id: dossier.js.state.cache
+    message: Keeps data in memory between calls
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: cache}
+    pattern-either:
+      - pattern: new LRUCache(...)
+      - pattern: new NodeCache(...)
+      - pattern: new QueryClient(...)
