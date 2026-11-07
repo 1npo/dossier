@@ -311,6 +311,7 @@
     function visible() { var v = []; for (var i = 0; i < n; i++) if (!st.off[i]) v.push(i); return v; }
     function unfreeze() {
       var cg = $("colgroup", table); if (cg) cg.remove();
+      table.classList.remove("adj-fixed");
       table.style.tableLayout = table.style.width = table.style.minWidth = ""; st.w = null;
     }
     function freeze() {   // pin every visible column at its present width so that one can then change on its own
@@ -318,7 +319,7 @@
       if (!cg) {
         cg = doc.createElement("colgroup");
         vis.forEach(function (i) { var c = doc.createElement("col"); c.style.width = heads[i].getBoundingClientRect().width + "px"; cg.appendChild(c); });
-        table.insertBefore(cg, table.firstChild); table.style.tableLayout = "fixed"; table.style.minWidth = "0";
+        table.insertBefore(cg, table.firstChild); table.style.tableLayout = "fixed"; table.style.minWidth = "0"; table.classList.add("adj-fixed");
       }
       return cg;
     }
@@ -1425,11 +1426,10 @@
       if (b) apply(b.getAttribute("data-" + key + "-set"));
     });
   }
-  // Contributors card: credit commits to their owner or to their author. Hotspots card: show files or components, and bars or a scatter plot. Co-change card: pairs or change clusters.
+  // Contributors card: credit commits to their owner or to their author. Hotspots card: show files or components, over the past 12 months or all time.
   initModes("who");
   initModes("hot");
-  initModes("hotchart");
-  initModes("cc");
+  initModes("hotperiod");
 
   applyTheme(); show();
 })();

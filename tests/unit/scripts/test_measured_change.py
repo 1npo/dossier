@@ -44,7 +44,7 @@ class TestHotspots:
 
         rows = cells(html, "t-change-hotspots-files")
         assert [r[0] for r in rows] == ["src/a.py", "src/b.py", "src/c.py", "src/d.py"]
-        assert rows[3][2:5] == ["0", "0", "0"]
+        assert rows[3][2] == "0"
 
     def test_sorted_by_recent_commits_then_complexity_then_path(self):
         graph = [{"kind": "module", "path": "src/b.py", "complexity": 7}, {"kind": "module", "path": "src/a.py", "complexity": 2}]
@@ -52,31 +52,19 @@ class TestHotspots:
         rows = cells(draw("change.hotspots", ctx(hist(*FILES), TREE, graph=graph)), "t-change-hotspots-files")
 
         assert [r[0] for r in rows][:2] == ["src/b.py", "src/a.py"]
-        assert rows[0][7] == "7" and rows[2][7] == "-"
+        assert rows[0][5] == "7" and rows[2][5] == "-"
 
-    def test_sentence_counts_files_that_did_not_change(self):
+    def test_there_is_no_subtitle_and_no_scatter(self):
         html = draw("change.hotspots", ctx(hist(*FILES), TREE))
 
-        assert "Every source file, most changed in the 12 months before this commit first. 2 of 4 files did not change in that time." in html
-
-    def test_scatter_has_one_circle_and_one_title_per_file(self):
-        html = draw("change.hotspots", ctx(hist(*FILES), TREE))
-
-        assert html.count("<circle") == 4 and html.count("<title>") == 4
-        assert "src/a.py: 5 commits, 100 lines" in html
-        assert 'width="640" height="320"' in html and 'class="chart-scroll"' in html and 'role="img"' in html
-
-    def test_scatter_text_is_at_least_12px(self):
-        html = draw("change.hotspots", ctx(hist(*FILES), TREE))
-
-        assert set(re.findall(r'<text[^>]*font-size="(\d+)"', html)) == {"12"}
+        assert "Every source file" not in html and "<circle" not in html and "scatter" not in html
 
     def test_component_table_sums_file_counts(self):
         catalog = [{"name": "core", "paths": ["src/"]}, {"name": "empty", "paths": ["nothing/"]}]
 
         rows = cells(draw("change.hotspots", ctx(hist(*FILES), TREE, catalog)), "t-change-hotspots-components")
 
-        assert rows == [["core", "4", "10", "160", "-", "-", "0"], ["empty", "0", "0", "0", "-", "-", "0"]]
+        assert rows == [["core", "4", "10", "-", "-", "0"], ["empty", "0", "0", "-", "-", "0"]]
 
     def test_without_a_catalog_the_component_cell_is_a_dash_and_the_table_says_why(self):
         html = draw("change.hotspots", ctx(hist(*FILES), TREE))
@@ -98,18 +86,36 @@ class TestHotspots:
 
         rows = cells(draw("change.hotspots", ctx(items, TREE)), "t-change-hotspots-files")
 
-        assert measured_change.HOTSPOT_FILES[5:7] == ["Lines added (12 months)", "Lines removed (12 months)"]
-        assert [r[5:7] for r in rows if r[0] == items[1]["path"]] == [["30", "4"]] and rows[-1][5:7] == ["-", "-"]
+        assert measured_change.HOTSPOT_FILES[2:5] == ["Commits", "Lines added", "Lines removed"] and "Lines" not in measured_change.HOTSPOT_FILES
+        assert [r[3:5] for r in rows if r[0] == items[1]["path"]] == [["30", "4"]] and rows[-1][3:5] == ["-", "-"]
 
-    def test_bars_rank_the_most_changed_files_and_the_scatter_stays_behind_a_toggle(self):
+    def test_no_column_name_mentions_a_time_frame(self):
+        assert not [c for c in measured_change.HOTSPOT_FILES + measured_change.HOTSPOT_COMPONENTS if "month" in c or "all" in c.lower()]
+
+    def test_a_period_toggle_shows_the_past_12_months_or_all_time(self):
+        items = hist(*FILES)
+        items[1].update(lines_added=300, lines_deleted=40, lines_added_12m=30, lines_deleted_12m=4)
+        catalog = [{"name": "core", "paths": ["src/"]}]
+
+        html = draw("change.hotspots", ctx(items, TREE, catalog))
+
+        assert re.findall(r'data-hotperiod-set="(\w+)" aria-pressed="(\w+)"', html) == [("12m", "true"), ("all", "false")]
+        assert html.count('data-hotperiod="12m"') == 2 and html.count('data-hotperiod="all" hidden>') == 2
+        recent, ever = cells(html, "t-change-hotspots-files"), cells(html, "t-change-hotspots-files-all")
+        assert [r[2] for r in recent[:2]] == ["5", "5"] and [r[0] for r in ever[:2]] == ["src/a.py", "src/b.py"]
+        assert [r[2] for r in ever[:3]] == ["9", "6", "3"] and [r for r in ever if r[0] == "src/a.py"][0][2] == "9"
+        assert [r[3:5] for r in ever if r[0] == "src/a.py"] == [["300", "40"]]
+        assert cells(html, "t-change-hotspots-components-all")[0][:3] == ["core", "4", "18"]
+
+    def test_bars_are_a_headed_table_of_the_most_changed_files(self):
         items = hist(*FILES)
         items[1].update(lines_added_12m=30, lines_deleted_12m=4)
 
         html = draw("change.hotspots", ctx(items, TREE))
 
-        assert re.findall(r'data-hotchart-set="(\w+)" aria-pressed="(\w+)"', html) == [("bars", "true"), ("scatter", "false")]
-        assert 'data-hotchart="scatter" hidden>' in html and html.count('class="hb-bar"') == 2
-        assert "+30" in html and "&minus;4" in html
+        assert 'class="table-container hot-box"' in html and html.count('class="hb-bar"') == 2
+        assert re.findall(r"<th>([^<]*)</th>", html.split("hot-rank")[1].split("</thead>")[0]) == ["File", "Commits in the past 12 months", "Lines added", "Lines removed"]
+        assert "+30" in html and "&minus;4" in html and "The 2 most changed files" in html
 
     def test_no_source_files_leaves_the_placeholder(self):
         assert draw("change.hotspots", ctx(hist(*FILES), ["README.md"])) is None
@@ -212,26 +218,12 @@ class TestInFlight:
         assert "none-found" in draw("change.in-flight", ctx(hist(), TREE))
 
 
-class TestClusters:
+class TestCochangeCard:
     def c(self, *pairs, tree=("a.py", "b.py", "c.py", "d.py", "e.py")):
         return ctx(hist(pairs_total=len(pairs)) + [pair(a, b, n, share) for a, b, n, share in pairs], tree)
 
-    def test_files_that_all_change_together_form_a_group_and_a_lone_pair_does_not(self):
-        got = measured_change.clusters(self.c(("a.py", "b.py", 5, 80), ("b.py", "c.py", 4, 60), ("a.py", "c.py", 4, 70), ("d.py", "e.py", 9, 90)))
-
-        assert [c["files"] for c in got] == [["a.py", "b.py", "c.py"]]
-
-    def test_a_long_chain_is_not_one_group(self):
-        chain = [(f"{x}.py", f"{y}.py", 5, 80) for x, y in zip("abcde", "bcdef")]
-
-        assert measured_change.clusters(self.c(*chain, tree=tuple(f"{x}.py" for x in "abcdef"))) == []
-
-    def test_weak_pairs_do_not_join_a_group(self):
-        assert measured_change.clusters(self.c(("a.py", "b.py", 5, 80), ("b.py", "c.py", 4, 20), ("a.py", "c.py", 4, 20))) == []
-
-    def test_the_card_has_a_pairs_clusters_switch_and_the_share_note_at_the_end(self):
+    def test_the_card_has_no_cluster_view_and_the_share_note_is_at_the_end(self):
         html = draw("change.cochange", self.c(("a.py", "b.py", 5, 80), ("b.py", "c.py", 4, 60), ("a.py", "c.py", 4, 70)))
 
-        assert re.findall(r'data-cc-set="(\w+)" aria-pressed="(\w+)"', html) == [("pairs", "true"), ("clusters", "false")]
-        assert 't-change-cochange-clusters' in html and html.rstrip().endswith("changed in the same commit.</p>")
-        assert "Share is" not in html.split('<div data-cc="pairs">')[0]
+        assert "cluster" not in html and "data-cc" not in html and html.rstrip().endswith("changed in the same commit.</p>")
+        assert "Share is" not in html.split("<table")[0]
