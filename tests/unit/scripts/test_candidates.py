@@ -293,3 +293,19 @@ class TestUiFeed:
 
     def test_a_python_repository_has_the_digest_it_had(self):
         assert candidates.digest("interactions", BASE) == candidates.digest("interactions", {**BASE, "graph": list(BASE["graph"])})
+
+
+class TestHitNames:
+    def test_a_hit_with_a_name_different_from_its_snippet_prints_the_name(self):
+        extract = {"entry_points": [item(path="project.json", snippet="nx build", name="api:build", kind="nx-target", group="g1", id="ep-1")]}
+
+        got = candidates.text("entry", extract, {}, {})
+
+        assert "ep-1  project.json:1  nx build  [api:build]" in got
+
+    def test_a_hit_whose_name_is_its_snippet_prints_no_brackets(self):
+        extract = {"entry_points": [item(snippet="GET /x", name="GET /x", kind="http-route", group="g1", id="ep-1")]}
+
+        got = candidates.text("entry", extract, {}, {})
+
+        assert "GET /x  [" not in got

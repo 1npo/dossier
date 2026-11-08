@@ -277,7 +277,7 @@ def _group(items: list) -> list:
     for it in items:
         groups.setdefault(it["group"], []).append(it)
     return [{"group": g, "rule": v[0].get("rule") or v[0].get("kind"), "path": v[0]["path"],
-             "hits": [{"id": i["id"], "line": i.get("line"), "end_line": i.get("end_line"), "snippet": i.get("snippet") or i.get("name", "")}
+             "hits": [{"id": i["id"], "line": i.get("line"), "end_line": i.get("end_line"), "snippet": i.get("snippet") or i.get("name", ""), "name": i.get("name", "")}
                       for i in sorted(v, key=lambda i: i.get("line") or 0)]}
             for g, v in sorted(groups.items(), key=lambda kv: (kv[1][0]["path"], kv[1][0].get("rule") or "", kv[0]))]
 
@@ -326,7 +326,8 @@ def text(rid: str, extract: dict, reports: dict, facts: dict, *, only_open: bool
         for g in card["groups"]:
             lines = ", ".join(str(h["line"]) for h in g["hits"])
             out.append(f"{g['group']}  {g['rule']}  {g['path']}  ({len(g['hits'])} hits: lines {lines})")
-            out += [f"    {h['id']}  {g['path']}:{h['line']}  {h['snippet']}" for h in g["hits"]]
+            out += [f"    {h['id']}  {g['path']}:{h['line']}  {h['snippet']}" + (f"  [{h['name']}]" if h["name"] and h["name"] != h["snippet"] else "")
+                    for h in g["hits"]]
     if "components" in d and not only_open:  # --open prints only what still needs a decision
         c = d["components"]
         out.append("== Folders with source files ==")
