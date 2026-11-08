@@ -955,7 +955,7 @@ Read section 2, D8, D15 to D19, and "Results" of Phases 1 to 3. Load the skills 
   - Done-check: the two test files pass; block E prints `OK`.
   - Commit: `feat(dossier): show the C# public API in the contracts card`
 
-- [ ] **M5-25. Partial badges, Gaps and staleness.**
+- [x] **M5-25. Partial badges, Gaps and staleness.**
   - Goal: section 3 rows 34 and 35, D16.
   - Files: edit `tests/unit/scripts/test_process.py`, `tests/unit/scripts/test_candidates.py`; `scripts/process.py` only if a test proves it must change (then stop and report first).
   - Steps: tests: with scip-dotnet skipped, the three cards are partial with the `Made without scip-dotnet:` reason, and the Gaps item is written once; in a mixed C# and JS build, a missing SDK badges only the C# tool's cards; `dotnet` missing gives the existing host Gaps item; a moved line in a C# file changes no digest.

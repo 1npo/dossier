@@ -330,3 +330,16 @@ class TestProjectsFeed:
         js = {"graph": [{"kind": "source-root", "path": "p/package.json", "root": "p"}, dict(mod("p/x"), language="js")]}
 
         assert candidates._feed("projects", py) == [] and candidates._feed("projects", js) == []
+
+
+class TestCSharpStaleness:
+    def extract(self, line):
+        return {"graph": [{"kind": "module", "module": "src/A/X", "path": "src/A/X.cs", "short": "X", "language": "csharp", "project": "src/A/A.csproj"},
+                          {"kind": "import", "from": "src/A/X", "to": "src/A/Y", "path": "src/A/X.cs", "paths": ["src/A/Y.cs"], "lines": [line]},
+                          {"kind": "cs-project", "path": "src/A/A.csproj", "name": "A", "references": []}],
+                "symbols": [{"kind": "def", "path": "src/A/X.cs", "line": line, "symbol": "X#", "public": True}],
+                "entry_points": [{"path": "src/A/X.cs", "line": line, "kind": "program-main", "name": "Main"}],
+                "models": [{"path": "src/A/X.cs", "line": line, "kind": "ef-entity", "name": "X"}]}
+
+    def test_moving_every_line_in_a_csharp_file_changes_no_digest(self):
+        assert candidates.digests(self.extract(3)) == candidates.digests(self.extract(30))
