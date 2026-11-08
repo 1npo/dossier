@@ -63,6 +63,18 @@ rules:
       - pattern: $C.subscribe(...)
       - pattern: $S.on("message", ...)
 
+  - id: dossier.js.inputs.request-header-destructured
+    message: Reads a request header
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: request-header, detail: '^([\w-]+)$'}
+    patterns:
+      - pattern: const {..., $H, ...} = $REQ.headers
+      - focus-metavariable: $H
+      - metavariable-regex:
+          metavariable: $REQ
+          regex: ^(req|request|ctx\.request|context\.req)$
+
   - id: dossier.js.inputs.request-header
     message: Reads a request header
     languages: [js, ts]

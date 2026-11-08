@@ -23,8 +23,11 @@ def _route_name(detail: str | None, snippet: str) -> str:
 
 
 def items(results: list) -> dict:
-    """{"entry_points": [...], "io_candidates": [...], "blindspots": [...]} from `Semgrep.scan` results."""
+    """{"entry_points": [...], "io_candidates": [...], "blindspots": [...]} from `Semgrep.scan` results.
+
+    A named request header gets one row however often it is read (header names ignore case)."""
     out = {"entry_points": [], "io_candidates": [], "blindspots": []}
+    headers = set()
     for r in results:
         meta, family = r["metadata"], r["rule"].split(".")[2]
         base = {"path": r["path"], "line": r["start_line"], "end_line": r["end_line"], "rule": r["rule"], "snippet": r["snippet"]}
@@ -44,5 +47,10 @@ def items(results: list) -> dict:
                 name = r.get("detail") or r["snippet"]
             out["entry_points"].append({**base, "kind": kind, "name": name, "trigger": TRIGGERS[kind].format(name=name), "target": r["path"]})
         else:
+            if meta["category"] == "request-header" and r.get("detail"):
+                key = r["detail"].lower()
+                if key in headers:
+                    continue
+                headers.add(key)
             out["io_candidates"].append({**base, "category": meta["category"], "detail": r.get("detail")})
     return out

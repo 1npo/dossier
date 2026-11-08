@@ -42,6 +42,10 @@ cache.get(key, handler);
 
 // ruleid: dossier.js.blindspot.route-mount
 app.use('/api', api);
+// ruleid: dossier.js.blindspot.route-mount
+express.Router().use('/api', api);
+// ruleid: dossier.js.blindspot.route-mount
+Router().use('/v1', v1);
 // ok: dossier.js.blindspot.route-mount
 app.use(cors());
 
