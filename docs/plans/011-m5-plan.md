@@ -562,7 +562,7 @@ Read section 2, section 3, D1 to D7, D20 and sections 7 and 8. Load the skills i
   - Done-check: `... pytest tests/unit/scripts/test_sandbox.py tests/integration/scripts/test_hygiene.py -q` passes.
   - Commit: `feat(dossier): pass the .NET settings that keep restores quiet and private`
 
-- [ ] **M5-5. Find solutions and projects.**
+- [x] **M5-5. Find solutions and projects.**
   - Goal: D7.
   - Files: new `scripts/cs_project.py`, `tests/unit/scripts/test_cs_project.py`.
   - Interface: `projects(tree, read) -> dict`; `source_roots(result, tree) -> list`; `frameworks_named(result) -> list[str]` (D9's Gaps names, sorted); `is_generated(path, read) -> bool` (D12).
@@ -669,6 +669,8 @@ Run 2026-11-08 by Sonnet 5.5 on branch `feat/dossier-m5` (from `main` at `7e5b7f
 **M5-3.** `cs_sdk.py` holds the roll-forward rules (all nine values, with the docs' own examples as tests). **Deviation from the plan's signatures:** `problem(installed, reqs)` and `runtime_majors(text)` take data already read instead of a `run` callable, so they stay pure; `list_sdks(path)` and `list_runtime_majors(path)` are the thin callers of `dotnet`. `apply(report, reqs, installed)` marks the `dotnet` host entry `old` with `needs` = `{version} ({rollForward}) for {path}`. Wiring: new `toolcheck.preflight_at(top, sha, path)`, used by both `doctor` and `stage_tools` (so the checks cannot drift); a Python-only tree gets exactly today's report (tested). `format_text` therefore prints `needs 10.0.403 (latestFeature) for global.json or later`, which reads a little oddly; left as the plan specifies. Suite after: 2037 passed, 118 skipped.
 
 **M5-4.** `sandbox.ALLOWED_NAMES` gains the six names; `build_env` sets the five fixed values for every profile and passes `DOTNET_ROOT` only when the parent has it. All seven names were confirmed in the docs (M5-1 step 2). The fixed names are set on every sandboxed call, including Python and JS ones (`build_env` knows no language); they only matter to `dotnet`. `test_hygiene.py` passes unchanged.
+
+**M5-5.** `cs_project.py` (D7). Choices a reader might not expect: `packages.lock.json` presence is read from the raw tracked list because `gather.noise_reason` treats lock files as noise; `package_id` falls back to the assembly name for a packable project; `source_roots` skips a project whose root would be the repository root (consumers ignore empty roots); `frameworks_named` uses D9's Gaps list exactly (MediatR is supported, so it is not named). 36 tests.
 
 
 ---
