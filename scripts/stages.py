@@ -73,8 +73,7 @@ def stage_pin(build, top, ref, sha) -> dict:
 
 def stage_tools(build, top, sha, opts: Options) -> dict:
     t0 = time.monotonic()
-    langs = toolcheck.languages_at(top, sha)
-    report = toolcheck.preflight(langs)
+    report = toolcheck.preflight_at(top, sha)
     found = [{"name": h["id"], "version": h["version"]} for h in report["host"] if h["version"]]
     bad = [h for h in report["host"] if h["status"] != "ok" and not h.get("optional")]
     if report["missing"] and not opts.allow_missing:

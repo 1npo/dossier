@@ -10,6 +10,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+import cs_sdk
 import gather
 
 TOOLS_FILE = Path(__file__).resolve().parent / "tools.json"
@@ -116,6 +117,22 @@ def preflight(langs: list[str], tools: dict | None = None, path: str | None = No
     missing = [h["id"] for h in host if h["status"] != "ok" and not h["optional"]] + [s["id"] for s in selfi if s["status"] == "missing"]
     return {"languages": [{"name": l, "tier": tier_of(l, tools)} for l in langs], "host": host,
             "self_installing": selfi, "missing": missing}
+
+
+def preflight_at(top: str, sha: str, path: str | None = None) -> dict:
+    """preflight for the languages at sha, plus the .NET SDK a C# repository's global.json asks for."""
+    langs = languages_at(top, sha)
+    report = preflight(langs, path=path)
+    if "C#" in langs:
+        names = subprocess.run(["git", "-C", top, "ls-tree", "-r", "--name-only", "-z", sha], capture_output=True)
+        paths = [p for p in names.stdout.decode("utf-8", "replace").split("\0") if p]
+
+        def read(p):
+            r = subprocess.run(["git", "-C", top, "show", f"{sha}:{p}"], capture_output=True)
+            return r.stdout.decode("utf-8", "replace") if r.returncode == 0 else None
+
+        cs_sdk.apply(report, cs_sdk.requirements(paths, read), cs_sdk.list_sdks(path))
+    return report
 
 
 def format_text(report: dict) -> str:

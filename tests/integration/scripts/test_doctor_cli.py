@@ -57,3 +57,24 @@ class TestDoctorCli:
 
         assert r.returncode == 0, r.stdout
         assert json.loads(r.stdout)["missing"] == []
+
+
+class TestDoctorCliDotnetSdk:
+    def cs_repo(self, tmp_path):
+        r = tmp_path / "csrepo"
+        r.mkdir()
+        (r / "global.json").write_text('{"sdk": {"version": "10.0.403", "rollForward": "latestFeature"}}')
+        (r / "A.cs").write_text("class A {}\n")
+        env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull}
+        for args in (["init", "-b", "main"], ["add", "-A"], ["-c", "user.name=t", "-c", "user.email=t@x", "commit", "-m", "m"]):
+            subprocess.run(["git", "-C", str(r), *args], check=True, capture_output=True, env=env)
+        return r
+
+    def test_old_sdk_for_the_global_json_prints_too_old_and_exits_1(self, tmp_path, bin_dir):
+        fake(bin_dir, "dotnet", "10.0.114 [/x]")
+        env = {"PATH": str(bin_dir), "DOSSIER_CONFIG": str(bin_dir / "none.json")}
+
+        r = subprocess.run([sys.executable, str(SCRIPT), "doctor", str(self.cs_repo(tmp_path))], capture_output=True, text=True, env=env)
+
+        assert r.returncode == 1
+        assert "TOO OLD  dotnet 10.0.114" in r.stdout

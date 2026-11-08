@@ -547,7 +547,7 @@ Read section 2, section 3, D1 to D7, D20 and sections 7 and 8. Load the skills i
   - Done-check: `uv run --with pytest --with pygments python -m pytest tests/unit/scripts/test_cs_scip.py tests/unit/scripts/test_toolcheck.py -q` passes; `DOSSIER_SLOW=1 ... tests/integration/scripts/test_cs_scip_slow.py --basetemp=$HOME/.cache/dossier-m5-slow` passes; `uv run scripts/dossier.py doctor --all` prints `scip-dotnet 0.2.16 from a hash-checked NuGet package`.
   - Commit: `feat(dossier): pin scip-dotnet as a hash-checked NuGet package`
 
-- [ ] **M5-3. The .NET SDK policy.**
+- [x] **M5-3. The .NET SDK policy.**
   - Goal: D6, in `doctor` and preflight.
   - Files: new `scripts/cs_sdk.py`, `tests/unit/scripts/test_cs_sdk.py`; edit `scripts/stages.py`, `scripts/dossier.py` (the `doctor` path), new `tests/unit/scripts/test_cs_preflight.py` (no test file covers `stage_tools` today), `tests/integration/scripts/test_doctor_cli.py`.
   - Interface: D6's functions, plus `runtime_majors(run) -> list[int]`.
@@ -663,6 +663,10 @@ Run 2026-11-08 by Sonnet 5.5 on branch `feat/dossier-m5` (from `main` at `7e5b7f
 - A harness bug of mine: first tiny-solution restore ran outside `sandbox.run`; fixed for every later command.
 
 **Slow baseline (before any M5 code):** 4 failed, 2105 passed, 1 skipped (17 min). The three known failures plus `test_history_git.py::TestDegrading::test_a_timeout_keeps_the_complete_records_and_does_not_crash`, which passes alone in 0.3 s; it is timing-sensitive and I was running other heavy work at the time. Treat it as a flake, not a fourth known failure.
+
+**M5-2.** Pinned 0.2.16 with the `nupkg` block; `doctor --all` prints `scip-dotnet 0.2.16 from a hash-checked NuGet package`; slow install test passed (2.4 s). `verified` is 2026-11-08. Suite after: 2006 passed, 118 skipped.
+
+**M5-3.** `cs_sdk.py` holds the roll-forward rules (all nine values, with the docs' own examples as tests). **Deviation from the plan's signatures:** `problem(installed, reqs)` and `runtime_majors(text)` take data already read instead of a `run` callable, so they stay pure; `list_sdks(path)` and `list_runtime_majors(path)` are the thin callers of `dotnet`. `apply(report, reqs, installed)` marks the `dotnet` host entry `old` with `needs` = `{version} ({rollForward}) for {path}`. Wiring: new `toolcheck.preflight_at(top, sha, path)`, used by both `doctor` and `stage_tools` (so the checks cannot drift); a Python-only tree gets exactly today's report (tested). `format_text` therefore prints `needs 10.0.403 (latestFeature) for global.json or later`, which reads a little oddly; left as the plan specifies. Suite after: 2037 passed, 118 skipped.
 
 
 ---
