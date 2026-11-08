@@ -1144,7 +1144,7 @@ Read section 2, section 6 and "Results" of Phases 3a to 4a. Load the skills in s
 
 ### Tasks (Phase 4b)
 
-- [ ] **M4-28a. Fix each `dossier wrong` row.**
+- [x] **M4-28a. Fix each `dossier wrong` row.**
   - Goal: the exit criterion on the primary repository.
   - Files: whatever each fix needs, under the rules in section 2.
   - Steps: (1) For each row, fix the rule or add a Gaps entry where no rule can work, with a test first, in its own commit. (2) Rebuild what changed. (3) Rerun blocks T, P and E. (4) If block T shows a new disagreement, stop and ask the author to run Phase 4a again.
@@ -1171,6 +1171,30 @@ Entry points recall 100% and precision at least 95%; inputs and outputs recall a
 Do not merge. Commit results: `docs(dossier): record phase 4b of M4 in plan 010`.
 
 ### Results (Phase 4b)
+
+**Done 2026-11-07 on `feat/dossier-m4` by Sonnet 5.5.** M4-28a is done. `SCR=/home/nick/.cache/dossier-m4-8vGZ`. The truth file was not edited; its `sha256sum` is still `932d8eef...` (Phase 4a).
+
+**Figures, before and after.**
+
+| | Before (Phase 4a rescore) | After |
+|---|---|---|
+| Entry points recall | 77% | 100% (35 of 35) |
+| Entry points precision | 91% | 100% |
+| Inputs recall | 90% | 100% (21 matched, 0 missed) |
+| Outputs recall | 61% | 100% (23 matched, 0 missed) |
+
+The 4 unmatched input rows and 3 unmatched output rows are the "none" rows that Phase 4a ruled `no error`. No new disagreement, so no return to Phase 4a. `render` exit 0, no `error:` line; `dossier check` `problems: 0`. Block P `SAME` and block E `OK` (248,233 characters each), both against the merge-base with `main` (`c76757b`, see Phase 4 deviation 1). Fast suite: 1962 passed, 116 skipped.
+
+**Fixes, by 4a defect.** Each code fix has its test first, in its own commit.
+1. Nx names: `candidates` now prints `[name]` after the snippet when they differ (`nx build  [api:build]`). The Nx rows were renamed in the report.
+2. Static files: new rule `dossier.js.entry.static-files`, named `static files`; the report has the row.
+3. Files read: `express.static` also matches `dossier.js.inputs.file-read`; the report row lists the `assets` files.
+4. `Authorization`: new rule `dossier.js.inputs.request-header` with a new category `request-header` (home card `io.inputs`) for `req.headers.x`, `req.header()` and `req.get()`.
+5. to 10. Report wording only (no rule can find them): `console.error` named, route paths in the network responses, `Tag` created, SQL migrations, `dist/api` and `coverage/api` as files written, and the tag service not throwing `HttpException`. The report text is in the scratch generator, not the repository.
+
+**Deviation.** The first rebuild reused the old extract, because the reuse key holds the adapter version and not the rules. The `js` adapter version went from `1` to `2` (own commit and test), so a rule change reruns it. Python is not affected (block P).
+
+**Left for the milestone review.** (1) Rule changes do not invalidate a build unless the adapter version moves; a hash of the rule files in the key would be safer. (2) `request-header` matches every use of the header, not one per header (5 hits on `auth.ts` for one header).
 
 ## Phase 5: React and mixed repositories, then merge
 
