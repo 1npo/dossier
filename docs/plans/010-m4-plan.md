@@ -1079,14 +1079,14 @@ Load `git-commit`. `git switch feat/dossier-m4`. Set `SCR` from "Results (Phase 
 
 ### Tasks (Phase 4a)
 
-- [ ] **T-2. Rule on every disagreement.**
+- [x] **T-2. Rule on every disagreement.**
   - Goal: a miss or an extra row is settled by reading the code, not by the session that built the dossier.
   - Files: `$SCR/truth/rulings.md`, and `$SCR/truth/rw.json` when the list was wrong.
   - Steps: for each row, read the cited code and give one verdict with a reason: `list wrong` (amend the truth file), `dossier wrong` (Phase 4b fixes it), or `blind spot` (name the Gaps entry or blind-spot rule that explains it). For a dossier row that matches nothing, say whether it is a true entry point or input or output. Sonnet's explanation is not evidence. Then rerun `sha256sum` if the file changed.
   - Done-check: every row in `review.md` has a verdict.
   - Commit: none for the files. See below.
 
-- [ ] **T-3. Check the component map.**
+- [x] **T-3. Check the component map.**
   - Goal: section 11's component check for a public repository (S1).
   - Files: `$SCR/truth/rulings.md`.
   - Steps: for every row of `components.catalog`, open its paths and confirm that they exist, that the files belong together, and that Responsibility says what the code does. Give each `ok` or `dossier wrong`, with a reason.
@@ -1112,6 +1112,27 @@ The two done-checks pass, and any new hash is recorded.
 Write under "Results (Phase 4a)": the count of each verdict, every `list wrong` change with its reason and new hash, and each `dossier wrong` row by path and name, with no code from the repository. Tick T-2 and T-3 and commit: `docs(dossier): record the ground truth rulings in plan 010`. Do not merge.
 
 ### Results (Phase 4a)
+
+Rulings are in `$SCR/truth/rulings.md`. Every one of the 36 rows in `review.md` and all 8 components have a verdict, from the code only.
+
+- **Counts.** `dossier wrong` 28 (of which 19 are naming only: a correct row that leaves out the target id, call name or route path), `list wrong` 1, `blind spot` 0, `no error` 7 (true "none" rows and one repeated log line). Components: 8 `ok`, 0 `dossier wrong`.
+- **`list wrong` changes** to `$SCR/truth/rw.json`:
+  1. Added input, network requests, `GET /` at `src/main.ts:21`: the server accepts it, and the truth already had it as an entry point.
+  2. Added output, network responses, the root route's status body at `src/main.ts:22`: a real response, like the other route groups'. It came from the unmatched "profile, tag and root" output row, which stays `dossier wrong` for its paths.
+  - New `sha256sum`: `932d8eefde1a232b8dde3d93ea514e6f2926037c6391b8f2bfc97c63d20dfc5d` (was `8dd5c9c2…`, which matched Phase 3a). Rescore: entry points recall 77%, precision 91%; inputs recall 90%; outputs recall 61%.
+- **`dossier wrong`, by defect, for Phase 4b:**
+  1. `entry.catalog`: the 7 Nx rows (`project.json` lines 7, 40, 55, 62, 69; `e2e/project.json` lines 7, 15) must be named `api:build`, `api:serve`, `api:lint`, `api:test`, `api:docker-build`, `e2e:e2e`, `e2e:lint`. `nx lint` stands for two targets. Cause: `dossier candidates` prints the snippet, not the item's name. Counts 10 rows (7 missed, 3 unmatched).
+  2. `entry.catalog`: no row for the static files served at the root from `assets` (`src/main.ts:19`).
+  3. `io.inputs`, files read: says none, but the process reads the `assets` files per request (`src/main.ts:19`). Counts 2 rows.
+  4. `io.inputs`: no row for the `Authorization` header (`src/app/routes/auth/auth.ts:6`). No semgrep pattern for request headers.
+  5. `io.outputs`, stdout/stderr: the seed row (`src/prisma/seed.ts:54`) does not name `console.error`. Counts 2 rows.
+  6. `io.outputs`, network responses: the three rows give no route paths (`/api/articles`, `/api/users` and `/api/user`, `/api/profiles`, `/api/tags`). Counts 7 rows.
+  7. `io.outputs`, database writes: `Tag` rows are created, not only linked (`src/app/routes/article/article.service.ts:204` and `:356`).
+  8. `io.outputs`, database writes: the SQL migrations in `src/prisma/migrations`, applied by the Prisma CLI, are missing.
+  9. `io.outputs`, files written: says none, but `build` writes `dist/api` (`project.json:13`) and Jest writes `coverage/api` (`jest.config.ts:10`, on under the `ci` configuration in `nx.json`). Counts 3 rows.
+  10. Outside T-3's scope: `components.catalog`, server, Public surface says every service throws `HttpException`; `src/app/routes/tag/tag.service.ts` does not.
+- **Blind spots.** None: the `js` blind-spot list is empty and no Gaps entry covers any row. The Gaps "nothing was built" entry does not excuse "files written: none".
+- **Figures.** Four Nx rows match only because their text holds another key (`build`, `test`, `src/main.ts`), so entry-point precision is flattered. Seen in passing: the e2e test for the root route expects a different body from the one `src/main.ts` returns, so it would fail; a health item, not a ruling.
 
 ## Phase 4b: Fixes after the rulings
 
