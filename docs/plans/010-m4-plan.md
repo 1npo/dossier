@@ -1309,6 +1309,18 @@ The author does this. **Needed on the machine:** Node 22.13 or later, and npm. Y
 
 **One fix session is left before M5:** Sonnet, rows marked **fix** (P4-1, P4-2 with 4b-2, P4-4, P4-5, 4b-1, Axios in P5-1). Each needs a failing test first. The deferred rows go to `post-v1.md`. The clean full slow run is still not repeated; the fix session runs it with `--basetemp` outside `/tmp`, and the three known failures (`test_overlapping_paragraphs_are_reported`, `chart-text-small`, G2) stay recorded as failing without these changes.
 
+
+**Results (follow-up fix session, 2026-11-08).** Done on `fix/dossier-m4-followup` (from `d1ee32d`) by Sonnet 5.5. Each fix has its test written first and its own commit.
+- **P4-1.** `blindspot.route-mount` also matches `Router(...).use(...)` and `express.Router(...).use(...)` (fixture cases added).
+- **P4-2 and 4b-2.** New rule `inputs.request-header-destructured` for `const { authorization } = req.headers`. `js_semgrep.items` keeps one `request-header` row per named header, ignoring case. Reads with no name are all kept.
+- **P5-1, Axios.** `entry.http-route` skips matches that follow an `axios` import in the same file. MSW handlers stay deferred.
+- **P4-4.** The `change` section "Same name defined more than once" lists only top-level names (no locals, object keys or members). A test in `test_candidates_cli.py` had `def` items with no `symbol`; I gave them symbols.
+- **P4-5.** `gather.TEST_RE` no longer matches `.json`, `*.config.*` or helper folders (`helpers`, `support`, `fixtures`, `utils`, `pages`, `page-objects`) under `e2e/`, `cypress/` or `playwright/`. It matches `.cy.` files by name.
+- **4b-1.** The build key holds `rules`, a hash of the adapter's rule files (`Adapter.rules`). A build stored without it is rebuilt. The JS adapter is version 5 (header and test-file changes); `test_js_adapter.py` pins it.
+- **Default suite:** 1893 passed, 1 skipped (unit only).
+- **Slow suite** (`DOSSIER_SLOW=1`, `--basetemp=~/.cache/dossier-fix-m4`, 16 min 17 s): 2104 passed, 1 skipped, 3 failed. The three are the known failures: `test_overlapping_paragraphs_are_reported`, `test_each_browser_mutation_makes_a_fail[chart-text-small-chart text]` and the G2 golden (`test_the_page_the_current_code_renders_looks_as_the_pre_m0_page_did`). The 17 failures of the earlier run did not return, which confirms the full `/tmp` as their cause.
+- **Next:** the deferred rows (P4-3, MSW handlers) go to `post-v1.md`; this session did not touch that file.
+
 ---
 
 ## 6. Verification
