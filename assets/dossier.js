@@ -400,7 +400,7 @@
 
 
   // ---- code viewer: a source marker [n] opens the cited code in a panel on the right. The files are embedded in #code-data.
-  var panel = $("#code-panel"), codeTab = $("#code-tab"), codeBody = $("#cp-body"), code = {}, cur = null, pinned = false, isOpen = false;
+  var panel = $("#code-panel"), legend = $("#legend-panel"), codeBody = $("#cp-body"), code = {}, cur = null, pinned = false, isOpen = false, legendOpen = false;
   try { code = JSON.parse($("#code-data").textContent); } catch (e) {}
   try { pinned = localStorage.getItem("dossier-code-pin") === "1"; } catch (e) {}
   function parseRef(h) { var m = /^#?ref-(.+)-(\d+)$/.exec(h || ""); return m && { rid: m[1], n: +m[2] }; }
@@ -410,9 +410,21 @@
     var w = isOpen && pinned && window.innerWidth - panel.offsetWidth >= 480 ? panel.offsetWidth : 0;
     root.style.setProperty("--code-w-px", w + "px");
   }
+  function syncTabs() {   // every report's tab shows whether its panel is open
+    $$(".panel-tab").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.panel === "code" ? isOpen : legendOpen)); });
+  }
+  function setLegend(on) {
+    if (on && isOpen) setOpen(false);
+    legendOpen = on; legend.hidden = !on; syncTabs();
+  }
   function setOpen(on) {
-    isOpen = on; panel.hidden = !on; codeTab.hidden = on || !cur;
+    if (on && legendOpen) setLegend(false);
+    isOpen = on; panel.hidden = !on; syncTabs();
     doc.body.classList.toggle("code-pinned", on && pinned); syncWidth();
+  }
+  function setEmpty(on) {   // nothing is cited in this report: say so instead of showing code
+    panel.classList.toggle("empty", on); $("#cp-empty").hidden = !on; codeBody.hidden = on;
+    if (on) { $(".cp-path", panel).textContent = ""; $(".cp-win", panel).textContent = ""; $("#cp-count").textContent = ""; $("#cp-sources").hidden = true; }
   }
   function setPin(on) {
     pinned = on; $("#cp-pin").setAttribute("aria-pressed", String(on));
@@ -452,7 +464,7 @@
   function openRef(rid, n, sup) {
     var li = refLi(rid, n); if (!li || !code[li.dataset.view]) return;
     cur = { rid: rid, n: n, sup: sup || null };
-    setOpen(true); showCode(li); showNav();
+    setEmpty(false); setOpen(true); showCode(li); showNav();
   }
   function step(d) {
     var list = refList(cur.rid), li = list[Math.max(0, Math.min(list.length - 1, list.indexOf(refLi(cur.rid, cur.n)) + d))];
@@ -460,9 +472,10 @@
   }
   function toggleCode() {
     if (isOpen) return setOpen(false);
-    if (cur) return setOpen(true);
+    if (cur) { setEmpty(false); return setOpen(true); }
     var a = $(".report:not([hidden]) sup.cite a[data-view]"), r = a && parseRef(a.getAttribute("href"));
     if (r) openRef(r.rid, r.n, a.parentElement);
+    else { setEmpty(true); setOpen(true); }
   }
   function gotoRef() {
     var id = "ref-" + cur.rid + "-" + cur.n;
@@ -502,7 +515,10 @@
     }
     var open = t.closest("[data-open]");
     if (open) { var k = open.dataset.open.lastIndexOf("-"); openRef(open.dataset.open.slice(0, k), +open.dataset.open.slice(k + 1), null); return; }
-    if (t.closest("#code-tab")) return toggleCode();
+    var tab = t.closest(".panel-tab");
+    if (tab) return tab.dataset.panel === "code" ? toggleCode() : setLegend(!legendOpen);
+    if (t.closest("#legend-panel")) { if (t.closest("#lg-close")) setLegend(false); return; }
+    if (legendOpen) setLegend(false);
     if (t.closest("#code-panel")) {
       var id = t.closest("button") && t.closest("button").id, src = t.closest("[data-src]");
       if (src) openRef(cur.rid, +src.dataset.src, cur.sup);
@@ -517,10 +533,11 @@
     var t = e.target, typing = t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable);
     if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === "v") toggleCode();
+    else if (e.key === "l") setLegend(!legendOpen);
     else if (e.key === "p") setPin(!pinned);
     else if (e.key === "[" && isOpen) step(-1);
     else if (e.key === "]" && isOpen) step(1);
-    else if (e.key === "Escape" && isOpen && !pinned && !$(".diagram.expanded")) setOpen(false);
+    else if (e.key === "Escape" && !$(".diagram.expanded")) { if (legendOpen) setLegend(false); else if (isOpen && !pinned) setOpen(false); }
   });
   window.addEventListener("resize", syncWidth);
   $("#cp-pin").setAttribute("aria-pressed", String(pinned));
@@ -1361,8 +1378,15 @@
   $("#menu-toggle").addEventListener("click", function () { var sb = $(".sidebar"); if (sb && sb.toggle) sb.toggle(); });
 
   // keep the sticky header height in sync so anchors land below it
-  function syncHeader() { var h = $(".masthead"); if (h) root.style.setProperty("--header-h", (h.offsetHeight + 12) + "px"); }
+  // the masthead and the open report's title bar both stay in view, so anchors must land below both
+  function syncHeader() {
+    var h = $(".masthead"), t = $(".report:not([hidden]) .report-head");
+    if (!h) return;
+    root.style.setProperty("--mh-h", h.offsetHeight + "px");
+    root.style.setProperty("--header-h", (h.offsetHeight + (t ? t.offsetHeight : 0) + 12) + "px");
+  }
   window.addEventListener("resize", syncHeader); syncHeader();
+  if (window.ResizeObserver) { var ro = new ResizeObserver(syncHeader); ro.observe($(".masthead")); $$(".report-head").forEach(function (h) { ro.observe(h); }); }
   // ---- blast radius: pick a file or a component and list what depends on it
   var blastReady = false;
   function initBlast() {

@@ -136,17 +136,27 @@ import report_section  # noqa: E402
 
 
 def legacy_head(title, headline_html):
-    return f'<header class="report-head"><h1>{title}</h1><p class="headline">{headline_html}</p></header>'
+    return f'<header class="report-head"><div class="rh-text"><h1>{title}</h1><p class="headline">{headline_html}</p></div>{render.REPORT_TABS}</header>'
 
 
 def test_head_without_schema_is_the_legacy_string():
     assert render.head_html("capabilities", "Capabilities", "Hello") == legacy_head("Capabilities", "Hello")
 
 
-def test_head_with_schema_adds_only_the_tier_key():
+def test_head_with_schema_is_the_same_as_without():
     sch = schema.load("entry")
     h = render.head_html("entry", "Entry points", "Hello", sch)
-    assert sch["question"] not in h and h.count('class="headline"') == 1 and render.TIER_KEY in h
+    assert sch["question"] not in h and h.count('class="headline"') == 1 and h == legacy_head("Entry points", "Hello")
+
+
+def test_head_holds_the_legend_tab_above_the_code_tab():
+    h = render.head_html("entry", "Entry points", "Hello")
+    assert h.index('data-panel="legend"') < h.index('data-panel="code"')
+
+
+def test_legend_defines_every_card_badge_and_basis_pill():
+    lg = render.legend_html()
+    assert all(f">{t}</span>" in lg for t in render.TIER_INFO) and all(w in lg for w in ("confirmed", "inferred", "unknown", "added by Claude"))
 
 
 def test_head_for_overview_differs_from_legacy_only_by_the_additions():

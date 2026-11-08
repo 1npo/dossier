@@ -62,9 +62,17 @@
     <div class="cp-sources muted" id="cp-sources" hidden></div>
   </header>
   <div class="cp-body" id="cp-body" tabindex="0" role="region" aria-label="Code"></div>
+  <p class="cp-empty" id="cp-empty" hidden>There are no citations to view in this report.</p>
   <footer class="cp-keys muted"><kbd>v</kbd> show or hide <kbd>p</kbd> pin <kbd>[</kbd> <kbd>]</kbd> previous or next <kbd>Esc</kbd> collapse</footer>
 </aside>
-<button type="button" id="code-tab" class="code-tab" hidden title="Show the source panel (v)">Code <kbd>v</kbd></button>
+<aside id="legend-panel" class="code-panel legend-panel" aria-label="Legend" hidden>
+  <header>
+    <div class="cp-title"><strong>Legend</strong></div>
+    <div class="cp-bar"><button type="button" class="btn" data-variant="outline" data-size="sm" id="lg-close" title="Collapse the panel">Collapse <kbd>l</kbd></button></div>
+  </header>
+  <div class="cp-body lg-body" tabindex="0" role="region" aria-label="Legend"><!--@LEGEND--></div>
+  <footer class="cp-keys muted"><kbd>l</kbd> show or hide <kbd>Esc</kbd> collapse</footer>
+</aside>
 <script type="application/json" id="code-data"><!--@CODE--></script>
 <script type="application/json" id="cal-data"><!--@CAL--></script>
 <script type="application/json" id="fact-data"><!--@FACTS--></script>
