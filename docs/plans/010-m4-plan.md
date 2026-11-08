@@ -1009,7 +1009,7 @@ Read section 2, section 6 and "Results" of Phases 1 to 3. Load the skills in sec
   - Done-check: the test passes and the hash matches.
   - Commit: `test(dossier): add the ground truth comparison tool`
 
-- [ ] **M4-28. Run the blocks for `RW`, and the Python golden.**
+- [x] **M4-28. Run the blocks for `RW`, and the Python golden.**
   - Goal: the exit criterion on the primary repository.
   - Files: this plan only, unless a block finds a bug.
   - Steps: run, in order, blocks S, A, B, C, D, F, G, H, L, T, J, N, K, P, E, I, as section 6 gives them. **A failure is a finding:** fix the cause on this branch with a test first, in its own commit, then rerun the block. Fix the code, not the check. **Block T is the exception:** record its disagreements and carry on, because Phase 4a judges them. Never edit the truth file.
@@ -1041,7 +1041,31 @@ Do not merge. Commit results: `docs(dossier): record phase 4 of M4 in plan 010`.
 
 ### Results (Phase 4)
 
+**Done 2026-11-07 on `feat/dossier-m4` by Sonnet 5.5.** M4-27 (`tests/tools/ground_truth.py`, 8 unit tests; the truth hash matched) and M4-28 are done. `SCR=/home/nick/.cache/dossier-m4-8vGZ`, kept for review. Targets of block T were **not met**; Phase 4a rules on them. The truth file was not read or edited, only scored through the tool.
+
+**Deviations.**
+1. **Baseline for blocks P and E.** `BASE_SHA` 3a68c36 is no longer the right baseline: the post-M3 rework on `main` (`fac0480`) added `lines_added` and `lines_deleted` to history items and changed five reports. Against 3a68c36, P gave 6 differences. Against the merge-base with `main` (`c76757b`), P gave `SAME` and E gave `OK`. Section 6 should say "merge-base with main".
+2. **Block J.** As written, the edit commit is on no default branch, so the ref is untrusted and the four Node tools are skipped. `graph`, `symbols` and `models` then vanish and `components`, `data`, `interactions`, `reading` and `conventions` go stale. Rerun with `--allow-ref --restore yes`.
+3. Shell: `$D` as a string does not split in zsh, so `D` is a function in `$SCR/env.sh`.
+
 ### Verification results (Phase 4)
+
+**S.** Both `-trusted` lines printed. **A.** exit 0, all four Node tools "from a lockfile with npm", Node 26.13.0.
+**B.** exit 0 in 32 s; all six tools `ok` for `js`. Items: entry_points 32 js + 1 repo, graph 70 (import 41, module 27, source-root 1, cycle 1), models 11 js + 4 repo, symbols 865, io_candidates 96, dead 10, tests 13, blindspots 0. Entry kinds: http-route 20, nx-target 7, package-script 4, server-listen 1, container 1. Restore ok. No `package-main` or `package-bin` (none declared).
+**C.** Looked right. Note: `candidates` prints only the snippet for entry points (`nx build`), not the item name (`api:build`), so a writer cannot reproduce names.
+**D.** All 14 reports written by a generator script in `$SCR/gen`; every `candidates --open` printed nothing.
+**F.** 3 render rounds (fixed a bad citation range, a bad facts key). Final: exit 0, no `error:`, 45 `V2` warnings (names in prose outside the cited lines), 0 `V3`.
+**G.** `problems: 0` (5 diagrams, 1 min 42 s). Render rerun exit 0. Shots exist for entry, data, interactions only; light and dark of the interactions flow and the data ER diagram read well. The `Tag` interface and `Tag` Prisma model are separate boxes.
+**H.** entities 11, fields 75; `data.entities` 11 rows; `entry.catalog` 33; `io.inputs` 18; `change.dead-code` 16; partial badges 0; extractors all `ok`; page 7.4 MB. **Blind spots on the page: 0, expected above 0** (see findings).
+**L.** Not separately checked beyond block H; no `public-api` item was produced.
+**T.** entry points recall **77%**, precision **91%**; inputs recall **90%**; outputs recall **59%** (targets 100 / 95 / 95 / 95). 8 + 2 + 9 missed rows and 3 + 6 + 8 unmatched rows, listed in `$SCR/truth/review.md` with my notes. Main causes: the 7 Nx rows (key-format, see C), `assets`, the `Authorization` header (no rule), and output rows that lack paths and call names (writer wording), plus `dist/api` and `coverage` not written as files-written.
+**J (rerun).** mode `incremental`, stale: `contributors` (new author), `gaps`, `overview`; fresh 11. `entry`, `data`, `interactions` and `components` are not stale, so Python's staleness fault does not show for JS. The untrusted first run: stale 8 reports, as deviation 2.
+**N.** `doctor` shows `node` and `npm` MISSING, exit 1; `prepare` exit 2; `--allow-missing` exit 0 with four tools `skipped` ("Node is not installed."), routes still found (32 items); render exit 0, 4 partial badges, all four `found:` lines. With node back, the `js` section is recomputed.
+**K.** untrusted: exit 0, four tools `skipped` with the fixed reason, semgrep and tree-sitter ok, 32 items. `--allow-ref --no-restore`: tools run; knip `failed` (exit 2, "Error loading jest.config.ts"), as predicted.
+**P.** `SAME` (against the merge-base, deviation 1). **E.** `OK`, 248,233 characters each.
+**I.** Fast: 1953 passed, 116 skipped, 60 s. Slow (`--basetemp` under `~/.cache`): 2066 passed, 3 failed, 16 min 31 s. The failures are G2, `test_overlapping_paragraphs_are_reported` and `chart-text-small`, all known before this phase (my `--deselect` path was wrong, so G2 ran).
+
+**Findings for the milestone review.** (1) Route-mount rule misses `Router().use('/api', api)` because its receiver is a call, so Gaps gives no warning that routes are mounted under a prefix. (2) No rule matches `req.headers.authorization`. (3) `candidates` hides names of Nx targets and package scripts. (4) `change` "Same name defined more than once" lists local variables and object keys (`bio0`, `email3`), which is noise. (5) `e2e/jest.config.ts` and the e2e helper files are counted as test files. (6) Writer cost: the `V2` check warns on names in prose; 45 warnings for a 56-file repository. (7) A prior-phase note: tests for Python in subfolders are still unsupported.
 
 ---
 
