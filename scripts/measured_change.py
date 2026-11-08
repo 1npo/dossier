@@ -215,16 +215,19 @@ def cochange(cid, ctx, refs):
 
 def dead_rows(extract, dependencies):
     """[(item, kind, evidence, path or None, line or None)]: tool findings, unused dependencies, modules nothing imports."""
-    rows = [(d["name"], d["type"], f'{d["message"]} ({d["confidence"]}% confidence)', d["path"], d.get("line")) for d in extract.get("dead", [])]
+    rows = [(d["name"], d["type"], d["message"] if d.get("confidence") is None else f'{d["message"]} ({d["confidence"]}% confidence)',
+             d["path"], d.get("line")) for d in extract.get("dead", [])]
+    from_knip = {d["name"] for d in extract.get("dead", []) if d.get("type") == "unused dependency"}  # knip names the same packages
     for u in (dependencies or {}).get("unused", []) or []:
-        rows.append((u["n"], "unused dependency", u["note"], None, None))
+        if u["n"] not in from_knip:
+            rows.append((u["n"], "unused dependency", u["note"], None, None))
     graph = extract.get("graph", [])
     imported = {p for g in graph if g.get("kind") == "import" for p in g.get("paths") or []}
     imported |= {p for t in extract.get("tests", []) if t.get("kind") == "test-file" for p in t.get("paths") or []}
     entry_files = {e["path"] for e in extract.get("entry_points", [])}
     for m in sorted((g for g in graph if g.get("kind") == "module"), key=lambda g: g["path"]):
         base = m["path"].rsplit("/", 1)[-1]
-        if m["path"] in imported or m["path"] in entry_files or base in ("__init__.py", "__main__.py"):
+        if m.get("language") == "js" or m["path"] in imported or m["path"] in entry_files or base in ("__init__.py", "__main__.py"):
             continue
         rows.append((m["module"], "module nothing imports", "No module and no test imports it.", m["path"], None))
     return rows

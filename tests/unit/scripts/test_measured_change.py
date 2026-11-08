@@ -184,6 +184,27 @@ class TestDeadRows:
         assert [(g[0], g[1]) for g in got] == [("f", "function"), ("left-pad", "unused dependency"), ("a", "module nothing imports")]
         assert got[0][2] == "unused function 'f' (60% confidence)"
 
+    def test_a_finding_with_no_confidence_has_no_percentage(self):
+        extract = {"dead": [{"name": "x.ts", "type": "unused file", "message": "No entry point or other file uses this file.",
+                             "confidence": None, "path": "src/x.ts", "line": None}]}
+
+        got = measured_change.dead_rows(extract, None)
+
+        assert got[0][2] == "No entry point or other file uses this file."
+
+    def test_a_javascript_module_nothing_imports_is_left_to_knip(self):
+        js = {"kind": "module", "module": "src/a", "path": "src/a.ts", "language": "js"}
+
+        assert measured_change.dead_rows({"graph": [js]}, None) == []
+
+    def test_a_knip_dependency_replaces_the_same_name_from_the_dependency_report(self):
+        extract = {"dead": [{"name": "left-pad", "type": "unused dependency", "message": "Not imported.", "confidence": None, "path": "package.json", "line": None}]}
+
+        got = measured_change.dead_rows(extract, {"unused": [{"n": "left-pad", "note": "No file imports it."}, {"n": "other", "note": "No file imports it."}]})
+
+        assert [(g[0], g[1]) for g in got] == [("left-pad", "unused dependency"), ("other", "unused dependency")]
+        assert got[0][2] == "Not imported."
+
     def test_card_has_the_caveat_and_a_row_per_finding(self):
         c = ctx(hist(), TREE, graph=[mod("a.py")])
         c["extract"]["dead"] = []

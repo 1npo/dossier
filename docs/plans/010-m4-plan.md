@@ -821,7 +821,7 @@ Read section 2, D4, D9, D10, D13 to D15, and "Results" of Phases 1 and 2. Load t
   - Done-check: the named test files pass; block E prints `OK`.
   - Commit: `feat(dossier): handle JavaScript paths and names in components and checks`
 
-- [ ] **M4-19. Dead code rows.**
+- [x] **M4-19. Dead code rows.**
   - Goal: row 28 and 29.
   - Files: edit `scripts/measured_change.py`, `tests/unit/scripts/test_measured_change.py`.
   - Interface: `dead_rows` unchanged in signature.
