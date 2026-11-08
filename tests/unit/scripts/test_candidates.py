@@ -309,3 +309,24 @@ class TestHitNames:
         got = candidates.text("entry", extract, {}, {})
 
         assert "GET /x  [" not in got
+
+
+class TestProjectsFeed:
+    PROJ = {"kind": "cs-project", "path": "src/A/A.csproj", "name": "A", "references": []}
+
+    def test_a_project_reference_changes_the_components_digest(self):
+        base = {"graph": [self.PROJ]}
+        more = {"graph": [dict(self.PROJ, references=["src/B/B.csproj"])]}
+
+        assert candidates.digest("components", base) != candidates.digest("components", more)
+
+    def test_moving_a_line_does_not(self):
+        module = {"kind": "module", "module": "src/A/X", "path": "src/A/X.cs", "line": 3}
+
+        assert candidates.digest("components", {"graph": [self.PROJ, module]}) == candidates.digest("components", {"graph": [self.PROJ, dict(module, line=40)]})
+
+    def test_a_python_and_a_javascript_extract_keep_their_digest(self):
+        py = {"graph": [mod("a"), edge("a", "b")]}
+        js = {"graph": [{"kind": "source-root", "path": "p/package.json", "root": "p"}, dict(mod("p/x"), language="js")]}
+
+        assert candidates._feed("projects", py) == [] and candidates._feed("projects", js) == []

@@ -5,6 +5,7 @@ shifts. Standard library only: `adapters` imports this module.
 """
 from __future__ import annotations
 
+from collections import Counter
 import hashlib
 import json
 import re
@@ -202,7 +203,7 @@ def open_items(rid: str, extract: dict, reports: dict) -> list:
 FEEDS = {
     "reading": ("modules", "imports", "entry_points", "test_files"),
     "entry": ("entry_points",),
-    "components": ("modules", "imports", "defs"),
+    "components": ("modules", "imports", "defs", "projects"),
     "interactions": ("modules", "imports", "cycles", "contracts", "ref_edges", "ui", "cand:interactions"),
     "io": ("cand:io", "entry_points", "public_api"),
     "data": ("models", "cand:data"),
@@ -228,6 +229,8 @@ def _feed(name, extract):
         return [["cycle", g["modules"]] for g in _graph(extract, "cycle")]
     if name == "contracts":
         return [["contract", g["contract"], g["status"], [[v["from"], v["to"]] for v in g.get("violations") or []]] for g in _graph(extract, "contract")]
+    if name == "projects":  # C# projects and what they reference; Python and JS have none, so their digests do not change
+        return [["project", g["path"], sorted(g.get("references") or [])] for g in _graph(extract, "cs-project")]
     if name == "defs":
         return [["def", g["path"], g["symbol"], g.get("public")] for g in extract.get("symbols", []) if g.get("kind") == "def"]
     if name == "ref_edges":
@@ -338,6 +341,11 @@ def text(rid: str, extract: dict, reports: dict, facts: dict, *, only_open: bool
         if "projects" in c:
             out.append("== JavaScript and TypeScript projects ==")
             out += [f"{p['root']}  ({p['modules']} modules)" for p in c["projects"]]
+        cs = [g for g in extract.get("graph", []) if g.get("kind") == "cs-project"]
+        if cs:
+            out.append("== C# projects ==")
+            files = Counter(m.get("project") for m in extract.get("graph", []) if m.get("kind") == "module" and m.get("language") == "csharp")
+            out += [f"{g['path']}  (SDK {g['sdk']}, {g['output_type']}{', test project' if g.get('test') else ''}, {files[g['path']]} files)" for g in cs]
         out.append("== Import communities (folders that import each other most) ==")
         out += [f"{x['label']}: {', '.join(x['folders'])}" for x in c["communities"]]
     if "catalog" in d:

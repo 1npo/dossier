@@ -184,3 +184,29 @@ class TestV2JavaScript:
         _, js, _, _ = self.go(make_cites, "It returns a `Promise`.", js=True)
 
         assert len(plain) == 1 and js == []
+
+
+class TestV2CSharp:
+    def go(self, make_cites, text, **kw):
+        return checks.v2(reports(text, ["src/app.py:1-2"]), make_cites(BLOBS, ("src",)), {"src/app.py", "README.md"}, **kw)
+
+    def test_module_inputs_adds_the_stem_of_a_csharp_file(self):
+        names, js = checks.module_inputs([{"kind": "module", "module": "src/OrderService", "short": "OrderService", "language": "csharp"}])
+
+        assert {"src/OrderService", "OrderService"} <= names and js is False
+
+    def test_has_csharp_is_true_only_for_a_csharp_module(self):
+        assert checks.has_csharp([{"kind": "module", "module": "a", "language": "csharp"}]) is True
+        assert checks.has_csharp([{"kind": "module", "module": "a", "language": "js"}]) is False
+
+    def test_csharp_keywords_are_skipped_only_for_a_csharp_repository(self, make_cites):
+        _, plain, _, _ = self.go(make_cites, "It is an `Task`.")
+        _, cs, _, _ = self.go(make_cites, "It is an `Task`.", csharp=True)
+
+        assert len(plain) == 1 and cs == []
+
+    def test_a_csharp_short_name_is_not_looked_for_in_the_code(self, make_cites):
+        _, warnings, _, _ = self.go(make_cites, "See `OrderService`.", modules=checks.module_inputs([
+            {"kind": "module", "module": "src/OrderService", "short": "OrderService", "language": "csharp"}])[0])
+
+        assert warnings == []

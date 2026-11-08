@@ -131,7 +131,7 @@ def component_candidates(tree, extract: dict, facts: dict) -> dict:
     out = {"folders": [folders[k] for k in sorted(folders)],
            "packages": [{"package": p, "modules": sum(1 for m in modules if m["module"] == p or m["module"].startswith(p + "."))} for p in keep],
            "communities": [{"label": k, "folders": sorted(v)} for k, v in sorted(groups.items()) if len(v) > 0]}
-    roots = sorted({g["root"] for g in extract.get("graph", []) if g.get("kind") == "source-root" and g.get("root")})
+    roots = sorted({g["root"] for g in extract.get("graph", []) if g.get("kind") == "source-root" and g.get("root") and not g["path"].endswith(".csproj")})
     if roots:  # JavaScript and TypeScript projects; Python-only repositories have none, so their result is unchanged
         out["projects"] = [{"root": r, "modules": sum(1 for m in modules if m["path"].startswith(r + "/"))} for r in roots]
     return out

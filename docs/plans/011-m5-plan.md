@@ -931,7 +931,7 @@ Read section 2, D8, D15 to D19, and "Results" of Phases 1 to 3. Load the skills 
 
 ### Tasks (Phase 4)
 
-- [ ] **M5-22. Readers: names, components and candidates text.**
+- [x] **M5-22. Readers: names, components and candidates text.**
   - Goal: D8's readers, D16's text section and feed.
   - Files: edit `scripts/checks.py`, `scripts/candidates.py`, `tests/unit/scripts/test_checks_v2.py`, `tests/unit/scripts/test_checks_v3.py`, `tests/unit/scripts/test_candidates_cli.py`, `tests/unit/scripts/test_candidates.py`.
   - Interface: `checks.CS_WORDS = {"var", "string", "int", "bool", "void", "async", "await", "Task", "new", "this", "null", "public", "private", "protected", "internal", "static", "class", "record", "interface", "namespace", "using"}`, skipped by V2 only when a `module` item has `language: "csharp"`. `checks_v3.Resolver` already reads `short`. `candidates.text` gains `== C# projects ==`. `FEEDS["components"]` gains `"projects"`.
