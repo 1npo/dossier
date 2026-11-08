@@ -252,3 +252,19 @@ class TestToolStatus:
 
     def test_no_extract_folder_gives_nothing(self, tmp_path):
         assert candidates.tool_status(tmp_path) == {}
+
+
+class TestPublicApiFeed:
+    API = {"kind": "public-api", "path": "src/a.ts", "line": 3, "name": "one", "symbol_kind": "function", "package": "lib", "subpath": ".", "audience": "marked private"}
+
+    def test_a_new_name_changes_the_io_digest(self):
+        base = {"symbols": [self.API]}
+        more = {"symbols": [self.API, dict(self.API, name="two")]}
+
+        assert candidates.digest("io", base) != candidates.digest("io", more)
+
+    def test_a_moved_line_does_not(self):
+        assert candidates.digest("io", {"symbols": [self.API]}) == candidates.digest("io", {"symbols": [dict(self.API, line=40)]})
+
+    def test_a_repository_without_a_public_api_has_the_digest_it_had(self):
+        assert candidates.digest("io", {"entry_points": [], "io_candidates": []}) == candidates.digest("io", {"entry_points": [], "io_candidates": [], "symbols": []})

@@ -204,7 +204,7 @@ FEEDS = {
     "entry": ("entry_points",),
     "components": ("modules", "imports", "defs"),
     "interactions": ("modules", "imports", "cycles", "contracts", "ref_edges", "cand:interactions"),
-    "io": ("cand:io", "entry_points"),
+    "io": ("cand:io", "entry_points", "public_api"),
     "data": ("models", "cand:data"),
     "behavior": ("test_files", "cand:behavior"),
     "conventions": ("cand:all", "modules"),
@@ -232,6 +232,8 @@ def _feed(name, extract):
         return [["def", g["path"], g["symbol"], g.get("public")] for g in extract.get("symbols", []) if g.get("kind") == "def"]
     if name == "ref_edges":
         return [["ref", g["path"], (g.get("paths") or [""])[0]] for g in extract.get("symbols", []) if g.get("kind") == "ref-edge"]
+    if name == "public_api":
+        return [["api", g["package"], g["subpath"], g["name"], g.get("path")] for g in extract.get("symbols", []) if g.get("kind") == "public-api"]
     if name == "test_files":
         return [["test", t["path"], t.get("tests"), t.get("skips"), t.get("xfails")] for t in extract.get("tests", []) if t.get("kind") == "test-file"]
     if name == "test_configs":

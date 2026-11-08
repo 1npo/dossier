@@ -193,6 +193,9 @@ def _measured_counts(m) -> dict:
     ui = sum(1 for g in extract.get("graph", []) if g.get("kind") == "ui-component")
     if ui:  # drawn whether or not the repository has history
         out["interactions.graph"] = [("t-interactions-graph-react", ui, REACT_COLUMNS)]
+    api = len(measured_tables.public_api_rows(extract))
+    if api:  # the card draws a table only when there are names to list
+        out["io.contracts"] = [("t-io-contracts-api", api, measured_tables.API_COLUMNS)]
     if not measured_change.has_history(m):
         return out
     files = components.source_files(m.get("tree"), extract)

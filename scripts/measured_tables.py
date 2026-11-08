@@ -71,3 +71,32 @@ def react_components(cid: str, extract: dict, refs) -> str:
         rows.append([r.E(c["name"]), r.path_code(c["path"]), r.E(_names(n for _, n in drawn.get(key, []))), r.E(_names(rendered_by.get(key, []))),
                      r.E(_names(c.get("hooks") or [])), r.E("; ".join(context) or "-"), r.source_cell(refs, (c["path"], c.get("line")))])
     return r.render_table(REACT_COLUMNS, rows, refs, "t-" + cid.replace(".", "-") + "-react", plain=True)
+
+
+API_COLUMNS = ["Package", "Import path", "Name", "Kind", "Defined in", "Audience", "Source"]
+NO_API = "No package here declares a public API. What this repository offers from outside is in Entry points."
+
+
+def public_api_rows(extract: dict) -> list:
+    """The `public-api` symbols, one per (package, import path, name), sorted by package, subpath, name."""
+    seen: dict = {}
+    for s in extract.get("symbols", []):
+        if s.get("kind") == "public-api":
+            seen.setdefault((s["package"], s["subpath"], s["name"]), s)
+    return [seen[k] for k in sorted(seen)]
+
+
+def public_api(ctx: dict, refs) -> str:
+    """The table of what other packages can import (D17): empty for a repository without JavaScript, one line when it declares nothing."""
+    extract = ctx.get("extract") or {}
+    found = public_api_rows(extract)
+    if not found:
+        return f'<p class="muted">{NO_API}</p>' if any(g.get("language") == "js" for g in extract.get("graph", []) if g.get("kind") == "module") else ""
+    r = _render()
+    rows = []
+    for s in found:
+        sub = s["subpath"][1:] if s["subpath"].startswith(".") else s["subpath"]
+        where = r.path_code(s["path"]) if s.get("path") and not s.get("external") else r.E(f"from {s['external']}") if s.get("external") else "-"
+        rows.append([r.E(s["package"]), r.E(s["package"] + sub), r.E(s["name"]), r.E(s["symbol_kind"]), where, r.E(s["audience"]),
+                     r.source_cell(refs, (s["path"], s.get("line"))) if s.get("path") and not s.get("external") else ""])
+    return heading("Public API of each package") + r.render_table(API_COLUMNS, rows, refs, "t-io-contracts-api", plain=True)

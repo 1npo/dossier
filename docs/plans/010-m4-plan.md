@@ -845,7 +845,7 @@ Read section 2, D4, D9, D10, D13 to D15, and "Results" of Phases 1 and 2. Load t
   - Done-check: the two test files pass; block E prints `OK`.
   - Commit: `feat(dossier): list React components in the dependency graph card`
 
-- [ ] **M4-21a. The public API table.**
+- [x] **M4-21a. The public API table.**
   - Goal: D17's card, Gaps and staleness.
   - Files: edit `scripts/render.py` (`render_card`), `scripts/measured_tables.py`, `scripts/page_audit.py`, `scripts/candidates.py`, `scripts/checks.py`, `tests/unit/scripts/test_measured.py`, `tests/unit/scripts/test_page_audit.py`.
   - Interface: `measured_tables.public_api(ctx, refs) -> str`, table id `t-io-contracts-api`. Add `io.contracts` beside `interactions.graph` in the counts at `page_audit.py:176`, not in `_measured_counts`, which returns early when there is no history.

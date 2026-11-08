@@ -359,6 +359,61 @@ class TestReactTable:
         assert rows["Button"][3] == "App"
 
 
+API_ITEMS = [
+    {"kind": "public-api", "path": "src/store.ts", "line": 4, "name": "create", "symbol_kind": "function", "package": "zustand", "subpath": ".", "audience": "marked private"},
+    {"kind": "public-api", "path": "src/vanilla.ts", "line": 9, "name": "createStore", "symbol_kind": "function", "package": "zustand", "subpath": "./vanilla",
+     "audience": "marked private"},
+    {"kind": "public-api", "path": None, "line": None, "name": "Draft", "symbol_kind": "type", "package": "zustand", "subpath": ".", "audience": "marked private",
+     "external": "immer"},
+    {"kind": "def", "path": "src/store.ts", "line": 4, "name": "create", "symbol": "x"},
+]
+API_ID = "t-io-contracts-api"
+
+
+class TestPublicApi:
+    def html(self, items=API_ITEMS, graph=(), refs=None):
+        import measured_tables
+
+        return measured_tables.public_api({"extract": {"symbols": list(items), "graph": list(graph)}}, refs or Refs())
+
+    def test_one_row_per_name_by_package_then_import_path_then_name(self):
+        rows = rows_of(table_html(self.html(), API_ID))
+
+        assert [(r[0], r[1], r[2]) for r in rows] == [("zustand", "zustand", "Draft"), ("zustand", "zustand", "create"), ("zustand", "zustand/vanilla", "createStore")]
+
+    def test_columns(self):
+        head = re.findall(r"<th(?:\s[^>]*)?>([^<]*)", table_html(self.html(), API_ID))
+
+        assert head == ["Package", "Import path", "Name", "Kind", "Defined in", "Audience", "Source"]
+
+    def test_defined_in_names_the_file_or_the_outside_package(self):
+        rows = {r[2]: r for r in rows_of(table_html(self.html(), API_ID))}
+
+        assert rows["create"][4] == "src/store.ts" and rows["create"][5] == "marked private"
+        assert rows["Draft"][4] == "from immer"
+
+    def test_source_cites_the_defining_line(self):
+        rows = {r[2]: r for r in rows_of(table_html(self.html(refs=MarkedRefs()), API_ID))}
+
+        assert rows["createStore"][6] == "[src/vanilla.ts:9]" and rows["Draft"][6] == ""
+
+    def test_the_same_name_twice_is_one_row(self):
+        assert len(rows_of(table_html(self.html(API_ITEMS + [API_ITEMS[0]]), API_ID))) == 3
+
+    def test_no_items_in_a_javascript_repository_says_so(self):
+        graph = [{"kind": "module", "module": "src/a", "path": "src/a.ts", "language": "js"}]
+
+        assert "No package here declares a public API. What this repository offers from outside is in Entry points." in self.html([], graph)
+
+    def test_no_items_and_no_javascript_draws_nothing(self):
+        assert self.html([], [{"kind": "module", "module": "a", "path": "a.py"}]) == ""
+
+    def test_repository_text_is_escaped(self):
+        item = dict(API_ITEMS[0], name="<i>x</i>")
+
+        assert "<i>x</i>" not in self.html([item])
+
+
 class TestJavaScriptAreas:
     EXTRACT = {"graph": [{"kind": "source-root", "path": "apps/react-vite/package.json", "root": "apps"},
                          {"kind": "source-root", "path": "apps/nextjs/package.json", "root": "apps"},
