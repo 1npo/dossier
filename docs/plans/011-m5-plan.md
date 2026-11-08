@@ -901,7 +901,25 @@ Commit each task on `feat/dossier-m5`. Do not merge or bump. Write "Results (Pha
 
 ### Results (Phase 3)
 
-(Empty.)
+Run 2026-11-08 by Sonnet 5.5 on `feat/dossier-m5`. SDK 10.0.403. Default run (slow tests skipped): **2557 passed, 266 skipped**. Slow suite (18 min 49 s): **3 failed (only the three known ones), 2819 passed, 1 skipped**. `test_py_adapter_slow.py` and `test_js_adapter_slow.py` passed unedited. Scratch folders removed. Nothing merged or bumped.
+
+**Order and deviations**
+- M5-17 was done **before** M5-16, because the `public` flag on scip `def` items (D11) needs `cs_api.is_public`.
+- M5-19 was already done in Phase 2 (under M5-13: `dotnet test` regex, `RepoAdapter.version` "4", tests); only ticked.
+- `ScipDotnet.index` returns `(path, exit code, log)`, not `(path, log)`, so `failure()` can see the exit code. `soft_failure(log)` is new (the `Failure:` lines with exit 0). Zero documents is checked in the adapter after `join`.
+- `disambiguate` runs on the **joined** index, so duplicates across targets are found too (plan: per index, before joining). `join(indexes, tree)` drops documents for files not tracked (`obj/`, `bin/`, as Phase 1 found).
+- `disambiguate`/`finish_symbols` take `decls` as `{path: declarations}`. `cs_api.items` returns the friends too, but the adapter puts them on `cs-project` items (`friends`), as M5-24 expects.
+- **A Phase 2 gap, fixed here:** D14's file-based inputs were never written. `cs_semgrep.config_inputs` now gives a `config-file` item (`cs.appsettings`) per `appsettings*.json` and an `env-var` item (`cs.launch-env`) per variable in `Properties/launchSettings.json`.
+- Notes `ambiguous-symbol` and `unindexed` need a tracked path or the stage drops them; the first uses the first scip target.
+- Dead code (D17): `refs` counts only references from other files, so I also keep a type off the list when its name appears elsewhere in its own file (from `idents`). A type with no definition in the index is not listed. The `dead` note is added when at least one row is listed.
+- Fixture changes (CSFIX is original code), needed by M5-21 as written: `using Shop.Core;` in `OrderService.cs` and `ShopContext.cs` (the edges the plan expects need it), a `Product` class in `Reports.cs` (Dapper row), and `public Item Pick()` with both `Item` namespaces imported (`@name-ambiguous`, gives the `ambiguous-name` note). Phase 2 had flagged the first two.
+- M5-21 differences from the plan text: the build project's own `Main` and the second Bullseye target are real entry points with no `@ep` marker, so they are listed as two named extras; there are **three** test files, not four; `[Function]` entries sit on the attribute line, one above their marker; `ci-command` is in the `repo` adapter's section.
+- Cross-project `ref-edge` (Shop.Api to Shop.Core): with no `using`, none appeared and I first added a strict xfail; after the fixture change scip-dotnet resolves it even though Shop.Api is **not restored**, so the xfail was removed and the assertion is a plain test.
+
+**Findings for the milestone review**
+- scip-dotnet symbols carry no project or namespace prefix beyond the last segment. A top-level-statements `Program` (no `def`) in one project references `Program#` of another project (`Legacy`), giving **false `ref-edge`s** (`src/Shop.Api/Program.cs` to `tools/Legacy/Program.cs`, tests to Legacy) and inflated `refs`. Not fixed. A filter that drops edges between projects with no project-reference path would fix it; I did not add it.
+- Unrestored projects index fine here (0 `Failure:` lines), but `CA`-style Aspire projects fail (Phase 1).
+- A tracked generated file is still indexed by scip; its defs are dropped, its edges are kept.
 
 ---
 
