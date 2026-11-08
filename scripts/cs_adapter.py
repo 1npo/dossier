@@ -13,6 +13,7 @@ import cs_models
 import cs_project
 import cs_queries
 import cs_sdk
+import cs_tests
 from adapters import OUTPUTS, Adapter
 from gather import TEST_RE
 
@@ -100,6 +101,16 @@ class CSharpAdapter(Adapter):
         if ambiguous:
             out["graph"].append({"kind": "cs-note", "path": files[0], "note": "ambiguous-name", "name": str(ambiguous)})
         out["models"] += cs_models.model_items(decls, result, read, generated, tests)
+        found = cs_tests.tests(decls, result, read, tests)
+        edges: dict = {}
+        for a, b in test_edges:
+            edges.setdefault(a, set()).add(b)
+        modules = {g["path"]: g["module"] for g in out["graph"] if g["kind"] == "module"}
+        for t in found:
+            t["paths"] = sorted(edges.get(t["path"], ()))
+            t["imports"] = sorted({modules[p] for p in t["paths"] if p in modules})
+        out["tests"] += found + cs_tests.test_configs(sorted(ctx.tree), read, result)
+        out["io_candidates"] += cs_tests.module_state(decls, tests | generated)
         st.update(decls=decls, tests=tests, generated=generated, test_edges=test_edges, files=files)
 
     def extract(self, ctx) -> dict:

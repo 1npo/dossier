@@ -731,7 +731,7 @@ Read section 2, D1, D7 to D10, D12 to D14, and "Results (Phase 1)", especially M
   - Done-check: `... pytest tests/unit/scripts/test_cs_models.py tests/unit/scripts/test_measured_er.py -q` passes.
   - Commit: `feat(dossier): read EF Core entities, Dapper rows and migrations`
 
-- [ ] **M5-13. Tests, complexity and static state.**
+- [x] **M5-13. Tests, complexity and static state.**
   - Goal: D14's test, complexity and state parts.
   - Files: edit `scripts/cs_queries.py`, `scripts/cs_adapter.py`, `tests/unit/scripts/test_cs_queries.py`, `tests/integration/scripts/test_cs_queries_slow.py`.
   - Interface: `tests(decls, projects, texts) -> list`; `complexity(ts, files) -> dict`; `module_state(decls) -> list`; `test_configs(tree, read) -> list`.

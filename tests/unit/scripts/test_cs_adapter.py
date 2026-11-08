@@ -230,3 +230,25 @@ class TestModels:
         out, _ = extract(cs_repo, tmp_path, monkeypatch)
 
         assert sorted((m["kind"], m["name"]) for m in out["models"]) == [("ef-entity", "Order"), ("migration", "2026_Init")]
+
+
+class TestTests:
+    def test_test_files_come_from_test_projects_with_edges_to_the_code_they_use(self, cs_repo, tmp_path, monkeypatch):
+        fact = {"name": "Adds", "kind": "method", "modifiers": ["public"], "line": 5, "end_line": 5, "attributes": [{"name": "Fact", "args": "", "line": 4}],
+                "type": "void", "static": False, "params": []}
+        tests_type = {**_ty("OrdersTests", "Shop.Tests"), "members": [fact]}
+        state = {"name": "_count", "kind": "field", "modifiers": ["static"], "line": 5, "end_line": 5, "attributes": [], "type": "int", "static": True, "params": [], "init": ""}
+        service = {**_ty("OrderService", "Shop.Api.Services"), "members": [state]}
+        with_decls(monkeypatch, {ORDER: _d(["Shop.Core"], [_ty("Order", "Shop.Core")]), TESTS: _d(["Shop.Tests"], [tests_type], ["Shop.Core"], ["Order"]),
+                                 SERVICE: _d(["Shop.Api.Services"], [service])})
+
+        out, _ = extract(cs_repo, tmp_path, monkeypatch)
+        item = {t["path"]: t for t in out["tests"] if t["kind"] == "test-file"}[TESTS]
+
+        assert (item["framework"], item["tests"], item["test_kind"], item["paths"], item["imports"]) == ("xunit", 1, "integration", [ORDER], ["src/Shop.Core/Order"])
+        assert [(s["path"], s["name"]) for s in out["io_candidates"] if s["category"] == "global-state"] == [(SERVICE, "_count")]
+
+    def test_config_items_are_listed(self, cs_repo, tmp_path, monkeypatch):
+        out, _ = extract(cs_repo, tmp_path, monkeypatch)
+
+        assert all(c["kind"] in ("config", "test-file") for c in out["tests"])

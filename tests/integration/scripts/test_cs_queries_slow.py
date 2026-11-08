@@ -109,3 +109,34 @@ class TestModelsOnTheFixture:
         assert got[("ef-entity", "Order")]["line"] == cs_repo.line_of("src/Shop.Core/Order.cs", "model-order")
         assert sorted(r["name"] for r in rows if r["kind"] == "migration") == ["20260101000000_Init", "ShopContextModelSnapshot"]
         assert [f["many"] for f in got[("ef-entity", "Customer")]["fields"] if f["name"] == "Orders"] == [True]
+
+
+class TestTestsOnTheFixture:
+    @pytest.fixture
+    def rows(self, decls, cs_repo):
+        import cs_project
+        root = Path(cs_repo.path)
+        files = sorted(str(p.relative_to(root)) for p in root.rglob("*") if p.is_file() and ".git/" not in str(p))
+
+        def read(f):
+            return (root / f).read_text(encoding="utf-8", errors="replace")
+        result = cs_project.projects(files, read)
+        tests = {f for p in result["projects"] if "language" not in p and p["test"] for f in p["files"]}
+        import cs_tests
+        return {t["path"]: t for t in cs_tests.tests(decls, result, read, tests)}, cs_tests.module_state(decls, tests)
+
+    def test_orders_tests_counts_and_kind(self, rows):
+        item = rows[0]["tests/Shop.Tests/OrdersTests.cs"]
+
+        assert (item["tests"], item["skips"], item["mocks"], item["fixtures"], item["framework"], item["test_kind"]) == (4, 1, 1, 1, "xunit", "integration")
+
+    def test_helpers_is_a_test_file_with_no_tests(self, rows):
+        assert rows[0]["tests/Shop.Tests/TestHelpers.cs"]["tests"] == 0
+
+    def test_math_tests_is_nunit(self, rows):
+        item = rows[0]["tests/Shop.NUnitTests/MathTests.cs"]
+
+        assert (item["framework"], item["tests"], item["skips"], item["fixtures"]) == ("nunit", 2, 1, 1)
+
+    def test_only_the_changing_static_field_is_state(self, rows):
+        assert [(s["path"], s["name"]) for s in rows[1] if s["path"].endswith("OrderService.cs")] == [("src/Shop.Api/Services/OrderService.cs", "_count")]
