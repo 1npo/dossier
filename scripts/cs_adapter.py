@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import candidates
 import config
 import cs_api
 import cs_entries
@@ -243,4 +244,4 @@ class CSharpAdapter(Adapter):
             out["entry_points"] += (cs_entries.controller_routes(decls) + cs_entries.program_entries(result, decls)
                                     + cs_entries.class_entries(decls) + cs_entries.function_entries(decls))
         self._scip(ctx, out, result, st, self._scip_gate(ctx, read))
-        return out
+        return {o: candidates.sort_items(items) for o, items in out.items()}

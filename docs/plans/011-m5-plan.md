@@ -841,7 +841,7 @@ Read section 2, D2, D3, D11, D15, D17 and "Results" of Phases 1 and 2. **If the 
   - Done-check: `... pytest tests/unit/scripts/test_cs_scip.py -q` passes.
   - Commit: `feat(dossier): list C# internal types that nothing references`
 
-- [ ] **M5-19. Repository adapter: `dotnet test`.**
+- [x] **M5-19. Repository adapter: `dotnet test`.**
   - Goal: D14's CI command.
   - Files: edit `scripts/repo_adapter.py`, `tests/unit/scripts/test_repo_adapter.py`.
   - Interface: `TEST_COMMAND` gains `|\bdotnet test\b`. `RepoAdapter.version` becomes `"4"`.
@@ -849,7 +849,7 @@ Read section 2, D2, D3, D11, D15, D17 and "Results" of Phases 1 and 2. **If the 
   - Done-check: `... pytest tests/unit/scripts/test_repo_adapter.py -q` passes.
   - Commit: `feat(dossier): recognise dotnet test in CI files`
 
-- [ ] **M5-20. Prepare the adapter for an end-to-end run.**
+- [x] **M5-20. Prepare the adapter for an end-to-end run.**
   - Goal: the adapter writes every output, with each tool's status, in D1's order.
   - Files: edit `scripts/cs_adapter.py`, `tests/unit/scripts/test_cs_adapter.py`.
   - Steps: tests with fake tools: the order is pure Python, tree-sitter, semgrep, scip-dotnet; a tree-sitter failure leaves semgrep's items and marks graph-dependent steps empty with tree-sitter `failed`; a scip-dotnet failure leaves the fallback defs (D11); `extract` sorts items with `candidates.sort_items`. Implement whatever is still missing from earlier tasks.

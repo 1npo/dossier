@@ -2,6 +2,7 @@ import subprocess
 from types import SimpleNamespace
 
 import adapters
+import candidates
 import cs_adapter
 import cs_scip
 import cs_sdk
@@ -131,6 +132,73 @@ class TestToolStatus:
 
         assert ctx.tool_status["semgrep"] == {"status": "ok", "reason": None}
         assert ctx.tool_status["tree-sitter-language-pack"]["status"] == "ok"
+
+
+class OrderTS(FakeTS):
+    def __init__(self, calls):
+        self.calls = calls
+
+    def query(self, language, paths, query):
+        self.calls.append("tree-sitter")
+        return []
+
+
+class OrderSemgrep(FakeSemgrep):
+    def __init__(self, calls):
+        self.calls = calls
+
+    def scan(self, config, paths=None, timeout=30):
+        self.calls.append("semgrep")
+        return []
+
+
+class BrokenTS:
+    def query(self, language, paths, query):
+        raise RuntimeError("tree-sitter is broken")
+
+
+class TestSteps:
+    def test_tools_run_in_order_pure_python_tree_sitter_semgrep_then_scip_dotnet(self, cs_repo, tmp_path, monkeypatch):
+        calls = []
+        fake = scip_fake.install(monkeypatch, {})
+        monkeypatch.setattr(cs_sdk, "list_sdks", lambda path=None: ["10.0.403"])
+        original = fake.index
+        monkeypatch.setattr(fake, "index", lambda self, *a: (calls.append("scip-dotnet"), original(self, *a))[1])
+        ctx = context(cs_repo, tmp_path)
+        ctx.treesitter, ctx.semgrep = OrderTS(calls), OrderSemgrep(calls)
+
+        out = cs_adapter.CSharpAdapter().extract(ctx)
+
+        first = [calls.index(x) for x in ("tree-sitter", "semgrep", "scip-dotnet")]
+        assert first == sorted(first) and out["graph"]
+
+    def test_tree_sitter_failure_keeps_semgrep_and_marks_the_graph_empty(self, cs_repo, tmp_path, monkeypatch):
+        scip_fake.install(monkeypatch, {})
+        monkeypatch.setattr(cs_sdk, "list_sdks", lambda path=None: ["10.0.403"])
+        ctx = context(cs_repo, tmp_path)
+        ctx.treesitter = BrokenTS()
+        hit = {"rule": "dossier.csharp.blindspot.codegen", "path": "src/Shop.Api/Flags.cs", "start_line": 2, "end_line": 2, "snippet": "x",
+               "metadata": {"category": "blindspot", "pattern": "codegen"}}
+        ctx.semgrep = SimpleNamespace(scan=lambda config, paths=None, timeout=30: [hit])
+
+        out = cs_adapter.CSharpAdapter().extract(ctx)
+
+        assert ctx.tool_status["tree-sitter-language-pack"] == {"status": "failed", "reason": "tree-sitter is broken"}
+        assert ctx.tool_status["semgrep"]["status"] == "ok"
+        assert "src/Shop.Api/Flags.cs" in [b["path"] for b in out["blindspots"]]
+        assert not [g for g in out["graph"] if g["kind"] in ("module", "import")] and out["models"] == [] and out["tests"] == []
+
+    def test_scip_dotnet_failure_leaves_the_fallback_defs(self, cs_repo, tmp_path, monkeypatch):
+        monkeypatch.setattr(cs_scip, "fallback_defs", lambda decls, generated: [{"kind": "def", "path": "a.cs", "line": 1, "name": "A", "via": "tree-sitter"}])
+        out, ctx = extract(cs_repo, tmp_path, monkeypatch, plan={"Shop.slnx": (1, "boom", None)})
+
+        assert ctx.tool_status["scip-dotnet"]["status"] == "failed" and [s["via"] for s in out["symbols"] if s["kind"] == "def"] == ["tree-sitter"]
+
+    def test_every_output_list_is_sorted_by_path_then_line(self, cs_repo, tmp_path, monkeypatch):
+        out, _ = extract(cs_repo, tmp_path, monkeypatch)
+
+        for name, items in out.items():
+            assert items == candidates.sort_items(items), name
 
 
 class TestScip:
