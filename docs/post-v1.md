@@ -17,7 +17,7 @@ The Python adapter reads `pyproject.toml` at the repository root only. In a repo
 
 ## Findings deferred from the M4 review
 
-- `candidates` hides the names of Nx targets and package scripts (found on `RW`).
-- MSW mock handlers (`http.get(...)`) are not detected as entry points (found on `BP`; the `BP` reports list them by hand). Axios calls are fixed separately in M4's follow-up.
+- **P4-3.** `candidates` hides the names of Nx targets and package scripts (found on `RW`). Deferred because the reports can still name them by hand.
+- **P5-1, MSW part.** MSW mock handlers (`http.get(...)`) are not detected as entry points (found on `BP`; the `BP` reports list them by hand). Deferred because it only adds missing mock routes; the Axios false entry points were fixed in the M4 follow-up.
 
 Ruled on 2026-11-08 in [plans/010-m4-plan.md](plans/010-m4-plan.md), "Results (Phase 5)".
