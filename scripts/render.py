@@ -1038,8 +1038,6 @@ def render_card(card, entry, refs, rid, ctx=None):
             elif card["id"] in ("contributors.concentration", "contributors.agents"):
                 entry = measured.fill_people(entry, card["id"], ctx or {})
             body = blocks_body(card, entry["blocks"], refs, tid, ((ctx or {}).get("checks") or {}).get("unbacked"))
-            if card["id"] == "contributors.concentration":
-                body = measured_people.bus_line(ctx or {}) + body
             if card["id"] == "risks.tracker":
                 body = source_key() + body
         elif "entries" in entry:
@@ -1637,7 +1635,7 @@ def panel_history(entries, refs):
              E(h["summary"]) + (f'<div class="muted">{E(h["note"])}</div>' if h.get("note") else ""),
              num(h["gaps"]["unknown"]), num(h["gaps"]["inference"]), num(h["gaps"]["assumption"]), f'<span class="nw">{E(h["skill_version"])}</span>', refs.mark(["commit:" + h["sha"]])] for h in reversed(entries)]
     return card("Dossier changelog", render_table(["Built", "Commit", "Branch", "What changed", "Unknown", "Inferred", "Assumed", "Skill version", "Source"], rows, refs, "t-hist", False, True,
-                group=[("", 4), ("Open items at that build", 3), ("", 2)]), "history", "Open items are the unknowns, inferences and assumptions listed in the gaps report at the time of each build.", cid="dossier.changelog")
+                group=[("", 4), ("Open items at that build", 3), ("", 2)]), "history", cid="dossier.changelog")
 
 
 def risk_counts(rep):
@@ -1853,11 +1851,8 @@ def build_page(rid, reports, facts, state, ctx):
                         *([count_pill(cnt[k], k) for k in CONF] if authored else ['<span class="muted">n/a</span>'] * 3)])
         parts.append(card("Reports in this dossier", render_table(["Report", "In one sentence", "Confirmed", "Inferred", "Unknown"], idx, refs, "t-index", False, True,
                      group=[("", 2), ("Statements by basis", 3)],
-                     foot=["<strong>Total</strong>", f'<span class="muted">{sum(tot.values())} statements in all</span>', *[count_pill(tot[k], k) for k in CONF]]), "report-index",
-                     "Each count is a number of statements. Confirmed ones are stated in the code or history, inferred ones are reasoned from context, and unknown ones were not found.", cid="dossier.reports"))
-        parts.append(card("Cards in this dossier", cards_body(refs), "card-index",
-                          "Every card in every report. The tier says who produced it: M a tool measured it, A a tool found it and Claude decided, R Claude read it, M+A a tool measured it and Claude explained it.",
-                          cid="dossier.cards"))
+                     foot=["<strong>Total</strong>", f'<span class="muted">{sum(tot.values())} statements in all</span>', *[count_pill(tot[k], k) for k in CONF]]), "report-index", cid="dossier.reports"))
+        parts.append(card("Cards in this dossier", process.tier_stats() + cards_body(refs), "card-index", cid="dossier.cards"))
         parts.append(panel_history(ctx["history"], refs))
     elif rid == "corrections":
         headline = "Everything the user has corrected, and whether the correction has been applied."

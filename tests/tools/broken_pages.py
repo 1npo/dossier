@@ -181,7 +181,7 @@ def _table_span(html: str, tid: str):
 def hotspot_row_removed(html: str) -> str:
     """The last row of the hotspot file table is not drawn."""
     start, end = _table_span(html, "t-change-hotspots-files")
-    return html[:html.rindex("<tr>", start, end)] + html[end:]
+    return html[:html.rindex("<tr", start, end)] + html[end:]
 
 
 def chart_text_small(html: str) -> str:

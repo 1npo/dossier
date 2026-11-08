@@ -79,19 +79,6 @@ class TestBusFactor:
         assert measured_people.bus_factor(humans(0)) == {"bus_factor": None, "top_owner_share": None}
 
 
-class TestBusLine:
-    def test_the_line_states_both_figures(self):
-        assert measured_people.bus_line(humans(60, 40)) == (
-            '<p class="bus-factor">Bus factor: 1. The largest share held by one person is 60% of the lines people wrote. '
-            "Agents and bots are not counted.</p>")
-
-    def test_no_human_lines_says_it_is_not_known(self):
-        assert "Bus factor: not known, because no person has lines at this commit." in measured_people.bus_line(humans(0))
-
-    def test_no_history_gives_nothing(self):
-        assert measured_people.bus_line({"extract": {}}) == ""
-
-
 def table_entry(columns, *rows):
     return {"card": "x", "blocks": [{"type": "table", "columns": columns, "rows": [{"cells": list(r), "conf": "confirmed"} for r in rows]}]}
 

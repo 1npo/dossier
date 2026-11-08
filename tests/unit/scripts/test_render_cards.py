@@ -414,13 +414,13 @@ class TestContributorCardsFilledByCode:
         return {"card": "contributors.concentration", "blocks": [{"type": "table", "columns": cols, "rows": [
             {"cells": ["Core", "Ann", "-", "single owner"], "conf": "confirmed", "cite": ["a.py:1"]}]}]}
 
-    def test_the_share_is_drawn_from_the_history_and_the_bus_factor_line_comes_first(self, make_cites):
+    def test_the_share_is_drawn_from_the_history_with_no_line_above_the_table(self, make_cites):
         sch = next(c for c in schema.load_all()["contributors"]["cards"] if c["id"] == "contributors.concentration")
 
         html = render.render_card(sch, self.entry(), refs(make_cites), "contributors", self.ctx())
 
         assert "<td>100%</td>" in html
-        assert html.index('class="bus-factor"') < html.index("<table")
+        assert "bus-factor" not in html
 
     def test_without_history_the_card_has_no_bus_factor_line(self, make_cites):
         sch = next(c for c in schema.load_all()["contributors"]["cards"] if c["id"] == "contributors.concentration")

@@ -27,7 +27,7 @@ def draw(cid, c):
 
 def cells(html, tid):
     table = re.search(rf'<table class="table[^"]*" id="{tid}">(.*?)</table>', html, re.S).group(1)
-    rows = re.findall(r"<tr>(.*?)</tr>", re.search(r"<tbody>(.*?)</tbody>", table, re.S).group(1), re.S)
+    rows = re.findall(r"<tr[^>]*>(.*?)</tr>", re.search(r"<tbody>(.*?)</tbody>", table, re.S).group(1), re.S)
     return [[re.sub(r"<[^>]+>", "", c) for c in re.findall(r"<td[^>]*>(.*?)</td>", r, re.S)] for r in rows]
 
 
@@ -107,15 +107,14 @@ class TestHotspots:
         assert [r[3:5] for r in ever if r[0] == "src/a.py"] == [["300", "40"]]
         assert cells(html, "t-change-hotspots-components-all")[0][:3] == ["core", "4", "18"]
 
-    def test_bars_are_a_headed_table_of_the_most_changed_files(self):
-        items = hist(*FILES)
-        items[1].update(lines_added_12m=30, lines_deleted_12m=4)
+    def test_one_file_table_with_the_top_rows_marked_and_a_top_all_toggle(self):
+        html = draw("change.hotspots", ctx(hist(*FILES), TREE))
 
-        html = draw("change.hotspots", ctx(items, TREE))
-
-        assert 'class="table-container hot-box"' in html and html.count('class="hb-bar"') == 2
-        assert re.findall(r"<th>([^<]*)</th>", html.split("hot-rank")[1].split("</thead>")[0]) == ["File", "Commits in the past 12 months", "Lines added", "Lines removed"]
-        assert "+30" in html and "&minus;4" in html and "The 2 most changed files" in html
+        assert "hot-box" not in html and "hot-rank" not in html
+        assert re.findall(r'data-hotshow-set="(\w+)" aria-pressed="(\w+)"', html) == [("top", "true"), ("all", "false")]
+        assert html.count('<table class="table hot-files"') == 2
+        files = html.split('id="t-change-hotspots-files"')[1].split("</table>")[0]
+        assert files.count('<tr class="hot-top">') == 2   # a.py and b.py changed; c.py did not
 
     def test_no_source_files_leaves_the_placeholder(self):
         assert draw("change.hotspots", ctx(hist(*FILES), ["README.md"])) is None
@@ -246,5 +245,5 @@ class TestCochangeCard:
     def test_the_card_has_no_cluster_view_and_the_share_note_is_at_the_end(self):
         html = draw("change.cochange", self.c(("a.py", "b.py", 5, 80), ("b.py", "c.py", 4, 60), ("a.py", "c.py", 4, 70)))
 
-        assert "cluster" not in html and "data-cc" not in html and html.rstrip().endswith("changed in the same commit.</p>")
+        assert "cluster" not in html and "data-cc" not in html and html.rstrip().endswith("changed in the same commit.</span></p>")
         assert "Share is" not in html.split("<table")[0]

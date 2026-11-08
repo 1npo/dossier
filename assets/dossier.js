@@ -1549,6 +1549,18 @@
   initModes("who");
   initModes("hot");
   initModes("hotperiod");
+  // Hotspots card: Top 15 or All files. The top 15 rows carry class hot-top; the stylesheet hides the others while the card says "top".
+  (function () {
+    var card = $('.card[data-card="change.hotspots"]'), group = doc.getElementById("hotshow-mode");
+    if (!card || !group) return;
+    card.dataset.hotshow = "top";
+    group.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-hotshow-set]");
+      if (!b) return;
+      card.dataset.hotshow = b.getAttribute("data-hotshow-set");
+      $$("[data-hotshow-set]", group).forEach(function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+    });
+  })();
   // Hotspots card: the two button groups sit in the filter bar of the table on show, beside the filter box and the Columns menu.
   (function () {
     var card = $('.card[data-card="change.hotspots"]'), ctls = card ? $$(".mode-ctl", card) : [];
@@ -1559,7 +1571,7 @@
       var bar = per && $(".tbl-bar", per);
       if (bar) ctls.forEach(function (c) { bar.appendChild(c); });
     }
-    ["hot", "hotperiod"].forEach(function (k) {
+    ["hot", "hotperiod", "hotshow"].forEach(function (k) {
       var g = doc.getElementById(k + "-mode");
       if (g) g.addEventListener("click", function () { setTimeout(dock, 0); });
     });
