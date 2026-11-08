@@ -67,8 +67,6 @@ class TestShopSolution:
 
         assert ("src/Shop.Core/Order.cs", "src/Shop.Core/Customer.cs") in edges
 
-    @pytest.mark.xfail(strict=True, reason="Only Shop.Core can be restored offline, and an unrestored project does not resolve its project references; "
-                                           "Plan 011 M5-16 step 2 asks for this edge, which the fixture cannot give (see Results, Phase 3).")
     def test_api_references_core(self, indexed):
         items, _, _ = _reduced(indexed)
 

@@ -1,3 +1,5 @@
+using Shop.Core;
+
 namespace Shop.Data;
 
 public class ShopContext(IConfiguration config) : DbContext // @model-ctx

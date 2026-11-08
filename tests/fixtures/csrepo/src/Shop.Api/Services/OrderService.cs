@@ -1,3 +1,5 @@
+using Shop.Core;
+
 namespace Shop.Api.Services;
 
 public class OrderService : IOrderService

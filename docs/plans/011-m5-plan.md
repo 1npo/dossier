@@ -856,7 +856,7 @@ Read section 2, D2, D3, D11, D15, D17 and "Results" of Phases 1 and 2. **If the 
   - Done-check: full suite passes.
   - Commit: `feat(dossier): run every C# step in order with its own status`
 
-- [ ] **M5-21. The fixture test of record.**
+- [x] **M5-21. The fixture test of record.**
   - Goal: prove all eight outputs on `CSFIX`, end to end.
   - Files: new `tests/integration/scripts/test_cs_adapter_slow.py`.
   - Interface: runs `stages.stage_copy` and `stages.stage_extract` on `cs_repo`, with `DOSSIER_*` under `tmp_path`, `--restore yes` (only `Shop.Core` has a lock file, so only it restores, offline), then asserts on `extract/*.json`.
