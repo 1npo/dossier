@@ -69,3 +69,29 @@ class TestComplexityOnTheFixture:
         got = cs_queries.complexity(ts, ["src/Shop.Api/Services/OrderService.cs", "src/Shop.Core/Totals.A.cs"])
 
         assert got["src/Shop.Api/Services/OrderService.cs"] > 0 and got["src/Shop.Core/Totals.A.cs"] == 0
+
+
+class TestEntriesOnTheFixture:
+    @pytest.fixture
+    def found(self, decls, cs_repo):
+        import cs_entries
+        import cs_project
+        files = sorted(str(p.relative_to(cs_repo.path)) for p in Path(cs_repo.path).rglob("*") if p.is_file() and ".git/" not in str(p))
+        result = cs_project.projects(files, lambda f: (Path(cs_repo.path) / f).read_text(encoding="utf-8", errors="replace"))
+        rows = (cs_entries.controller_routes(decls) + cs_entries.program_entries(result, decls) + cs_entries.class_entries(decls)
+                + cs_entries.function_entries(decls) + cs_entries.page_routes(files, lambda f: (Path(cs_repo.path) / f).read_text(encoding="utf-8", errors="replace")))
+        return {(r["kind"], r["name"]): r for r in rows}
+
+    def test_the_controller_routes_sit_on_their_marker_lines(self, found, cs_repo):
+        path = "src/Shop.Api/Controllers/OrdersController.cs"
+
+        assert found[("http-route", "GET /api/Orders")]["line"] == cs_repo.line_of(path, "ep-ctl-list")
+        assert ("http-route", "GET /api/Orders/{id}") in found and ("http-route", "POST /submit") in found
+
+    def test_the_other_kinds_are_found(self, found):
+        assert ("program-main", "Shop.Api") in found and ("program-main", "Legacy") in found and ("hosted-service", "Cleanup") in found
+        assert ("queue-consumer", "MailConsumer") in found and ("function", "Ping") in found and ("scheduled-job", "Tick") in found
+        assert ("ui-route", "/counter") in found
+
+    def test_conventional_controllers_give_nothing(self, found):
+        assert not [k for k in found if k[1].startswith("GET /Home")]

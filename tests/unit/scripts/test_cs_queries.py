@@ -71,6 +71,20 @@ class TestTypes:
         assert [(a["name"], a["args"], a["line"]) for a in d["types"][0]["attributes"]] == [("ApiController", "", 5), ("Route", '"api/[controller]"', 6)]
 
 
+class TestComments:
+    def test_a_comment_after_an_attribute_or_a_base_does_not_hide_the_declaration(self):
+        d = one(cap("type", "public class Cleanup : BackgroundService // @ep-hosted\n{\n}", 3, 5),
+                cap("member.method", '[HttpGet] // @marker\npublic IActionResult List() => Ok();', 4))
+
+        assert d["types"][0]["bases"] == ["BackgroundService"]
+        assert d["types"][0]["members"][0]["name"] == "List" and d["types"][0]["members"][0]["attributes"][0]["name"] == "HttpGet"
+
+    def test_a_url_inside_an_attribute_string_is_not_a_comment(self):
+        d = one(cap("type", '[Route("http://x/y")]\npublic class C\n{\n}', 1, 4))
+
+        assert d["types"][0]["attributes"][0]["args"] == '"http://x/y"'
+
+
 class TestMembers:
     def _members(self, *members):
         d = one(cap("type", "public class C\n{\n}", 1, 20), *members)
@@ -80,7 +94,7 @@ class TestMembers:
         got = self._members(cap("member.method", '[HttpGet("{id}")]\n[Authorize]\npublic IActionResult Get(int id) => Ok();', 3))
 
         assert [a["name"] for a in got["Get"]["attributes"]] == ["HttpGet", "Authorize"]
-        assert got["Get"]["params"] == [{"name": "id", "type": "int", "this": False}]
+        assert got["Get"]["params"] == [{"name": "id", "type": "int", "this": False, "attrs": []}]
         assert got["Get"]["type"] == "IActionResult"
 
     def test_an_attribute_with_a_target_or_the_attribute_suffix_loses_both(self):
@@ -129,8 +143,16 @@ class TestMembers:
         assert [m["name"] for m in d["types"][0]["members"]] == ["A", "B"]
 
 
+class TestParameterAttributes:
+    def test_a_trigger_attribute_on_a_parameter_is_kept(self):
+        d = one(cap("type", "public class C\n{\n}", 1, 9), cap("member.method", '[Function("Ping")]\npublic string Run([HttpTrigger(AuthorizationLevel.Anonymous, "get")] string req) => "";', 3))
+
+        assert d["types"][0]["members"][0]["params"] == [{"name": "req", "type": "string", "this": False, "attrs": ["HttpTrigger"]}]
+
+
 class TestFileFacts:
     def test_a_global_statement_marks_top_level_code(self):
+        assert one(cap("global", "var x = 1;", 4), cap("global", "run();", 2))["top_level_line"] == 2
         assert one(cap("global", "var x = 1;", 1))["top_level"] is True
         assert one()["top_level"] is False
 

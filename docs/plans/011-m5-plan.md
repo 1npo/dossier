@@ -715,7 +715,7 @@ Read section 2, D1, D7 to D10, D12 to D14, and "Results (Phase 1)", especially M
   - Done-check: `... pytest tests/unit/scripts/test_cs_graph.py tests/unit/scripts/test_cs_adapter.py -q` passes.
   - Commit: `feat(dossier): link C# files by the types they use`
 
-- [ ] **M5-11. Entry points.**
+- [x] **M5-11. Entry points.**
   - Goal: D9's tree-sitter and pure-Python kinds.
   - Files: new `scripts/cs_entries.py`, `tests/unit/scripts/test_cs_entries.py`; edit `scripts/cs_adapter.py`.
   - Interface: `controller_routes(decls) -> list`; `program_entries(projects, decls) -> list`; `class_entries(decls) -> list` (hosted services, Quartz jobs, consumers); `function_entries(decls) -> list`; `page_routes(tree, read) -> list`.

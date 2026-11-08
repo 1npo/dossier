@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import cs_entries
 import cs_graph
 import cs_project
 import cs_queries
@@ -106,6 +107,11 @@ class CSharpAdapter(Adapter):
         out["graph"] += self._project_items(result, ctx.tree) + self._notes(result, ctx.tree)
         st: dict = {}
         self._syntax(ctx, out, result, read, st)
+        out["entry_points"] += cs_entries.page_routes(sorted(ctx.tree), read)
+        if "decls" in st:
+            decls = {f: d for f, d in st["decls"].items() if f not in st["generated"]}
+            out["entry_points"] += (cs_entries.controller_routes(decls) + cs_entries.program_entries(result, decls)
+                                    + cs_entries.class_entries(decls) + cs_entries.function_entries(decls))
         gate = self._scip_gate(ctx, read)
         for tool in self.tools:
             if tool not in ctx.tool_status:

@@ -135,7 +135,8 @@ def _d(namespaces, types, usings=(), idents=()):
 
 
 def _ty(name, ns):
-    return {"name": name, "namespace": ns, "partial": False}
+    return {"name": name, "namespace": ns, "partial": False, "kind": "class", "modifiers": ["public"], "line": 1, "end_line": 9, "bases": [],
+            "attributes": [], "members": [], "params": [], "outer": None}
 
 
 def with_decls(monkeypatch, table):
@@ -191,3 +192,24 @@ class TestGraph:
         out, _ = extract(cs_repo, tmp_path, monkeypatch)
 
         assert notes(out, "ambiguous-name")[0][0] == "1"
+
+
+class TestEntryPoints:
+    def test_razor_pages_are_found_without_tree_sitter(self, cs_repo, tmp_path, monkeypatch):
+        out, _ = extract(cs_repo, tmp_path, monkeypatch)
+
+        got = {(e["kind"], e["name"], e["path"]) for e in out["entry_points"]}
+
+        assert ("ui-route", "/counter", "src/Shop.Api/Components/Pages/Counter.razor") in got
+        assert ("http-route", "GET /", "src/Shop.Api/Pages/Index.cshtml") in got
+
+    def test_declaration_entries_are_added_when_tree_sitter_ran(self, cs_repo, tmp_path, monkeypatch):
+        controller = {"name": "OrdersController", "kind": "class", "modifiers": ["public"], "line": 3, "end_line": 9, "bases": ["ControllerBase"], "partial": False,
+                      "outer": None, "namespace": "N", "params": [], "attributes": [{"name": "Route", "args": '"api/o"', "line": 2}],
+                      "members": [{"name": "List", "kind": "method", "modifiers": ["public"], "line": 5, "end_line": 5, "static": False, "params": [], "type": "X",
+                                   "attributes": [{"name": "HttpGet", "args": "", "line": 4}]}]}
+        with_decls(monkeypatch, {"src/Shop.Api/Controllers/OrdersController.cs": _d(["N"], [controller])})
+
+        out, _ = extract(cs_repo, tmp_path, monkeypatch)
+
+        assert ("GET /api/o", 5) in [(e["name"], e["line"]) for e in out["entry_points"] if e["path"].endswith("OrdersController.cs")]

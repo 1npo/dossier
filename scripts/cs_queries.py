@@ -29,6 +29,14 @@ PARAM_MODS = {"this", "ref", "out", "in", "params", "scoped", "readonly"}
 
 # ---- text scanners ---------------------------------------------------------------------------------------------------
 
+COMMENT_RE = re.compile(r"(?<![:\w\"'])//[^\n]*|/\*.*?\*/", re.S)
+
+
+def _blank_comments(text: str) -> str:
+    """The text with comments removed but every newline kept, so line numbers still count."""
+    return COMMENT_RE.sub(lambda m: "\n" * m.group(0).count("\n"), text)
+
+
 def _skip_string(text: str, i: int) -> int:
     """Index just after the string or character literal that starts at `i`."""
     quote, verbatim = text[i], i > 0 and text[i - 1] == "@"
@@ -147,13 +155,14 @@ def _params(text: str) -> list:
     """Parameters from the text between the parentheses."""
     out = []
     for raw in _split(text):
-        raw = _attributes(raw, 0)[1]
+        attrs, raw = _attributes(raw, 0)
         raw = raw[:_end_of_head(raw, "=")].strip()
         tokens = raw.rsplit(None, 1)
         if len(tokens) != 2:
             continue
         words = tokens[0].split()
-        out.append({"name": tokens[1], "type": " ".join(w for w in words if w not in PARAM_MODS), "this": "this" in words})
+        out.append({"name": tokens[1], "type": " ".join(w for w in words if w not in PARAM_MODS), "this": "this" in words,
+                    "attrs": [a["name"] for a in attrs]})
     return out
 
 
@@ -191,7 +200,7 @@ def _bases(after_name: str) -> list:
 # ---- declarations ----------------------------------------------------------------------------------------------------
 
 def _type(m: dict) -> dict | None:
-    text = m["text"]
+    text = _blank_comments(m["text"])
     head = text[:_end_of_head(text, "{;")]
     attrs, rest = _attributes(head, m["start_line"])
     mods, rest = _modifiers(rest)
@@ -205,7 +214,7 @@ def _type(m: dict) -> dict | None:
 
 
 def _member(m: dict, kind: str) -> dict | None:
-    text = m["text"]
+    text = _blank_comments(m["text"])
     attrs, rest = _attributes(text, m["start_line"])
     mods, rest = _modifiers(rest)
     base = {"kind": kind, "modifiers": mods, "line": m["start_line"], "end_line": m["end_line"], "attributes": attrs,
@@ -256,7 +265,7 @@ def assemble(matches_by_file: dict) -> dict:
 
 
 def _file(ms: list) -> dict:
-    out = {"namespaces": [], "usings": [], "types": [], "top_level": False, "idents": {}, "qualified": [], "assembly_attributes": []}
+    out = {"namespaces": [], "usings": [], "types": [], "top_level": False, "top_level_line": None, "idents": {}, "qualified": [], "assembly_attributes": []}
     ns_rows = []
     for m in ms:
         cap = m["capture"]
@@ -274,6 +283,7 @@ def _file(ms: list) -> dict:
             out["assembly_attributes"] += _attributes(m["text"].replace("assembly:", "", 1), m["start_line"])[0]
         elif cap == "global":
             out["top_level"] = True
+            out["top_level_line"] = min(span[0], out["top_level_line"] or span[0])
         elif cap == "ident":
             if m["text"][:1].isupper():
                 out["idents"].setdefault(m["text"], []).append(m["start_line"])
