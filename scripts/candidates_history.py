@@ -8,6 +8,7 @@ import re
 
 import components
 import measured_people
+import scip_read
 
 TOP_QUARTER = 4
 SOLE_OWNER = 80
@@ -34,11 +35,18 @@ def _old_names(extract, tree):
     return names
 
 
+def _top_level(symbol):
+    """True for a name declared at the top of its file: no local variable, object key or class member."""
+    if symbol.startswith("local "):
+        return False
+    return sum(suffix not in ("/", ":") for _, suffix in scip_read.descriptors(symbol)) == 1
+
+
 def _duplicate_names(extract):
     where: dict = {}
     for s in extract.get("symbols", []):
         name = s.get("name") or ""
-        if s.get("kind") == "def" and name and not name.startswith(("__", "test")):
+        if s.get("kind") == "def" and name and not name.startswith(("__", "test")) and _top_level(s.get("symbol") or ""):
             where.setdefault(name, set()).add(s["path"])
     return [f"{n}  in {len(p)} files: {', '.join(sorted(p))}" for n, p in sorted(where.items()) if len(p) > 1]
 
