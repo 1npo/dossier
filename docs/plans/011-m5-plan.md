@@ -1077,7 +1077,7 @@ Do not install anything, restore, build or run the repository's code, and do not
 
 ### Tasks (Phase 4a)
 
-- [ ] **T-1. Write the truth file.**
+- [x] **T-1. Write the truth file.**
   - Goal: an independent list that the dossier is scored against.
   - Files: `$SCR/truth/rw.json`, which is never committed.
   - Format: `{"entry_points": [{"kind", "key", "where"}], "io": [{"direction": "input"|"output", "category", "key", "where"}]}`. `key` is a short string the matching row must contain, such as `GET /api/articles` or `Jwt__SigningKey`. `where` is `path:line`; for a test helper, add ` (test helper)` after it.
@@ -1110,7 +1110,13 @@ On `feat/dossier-m5` if it exists, else on a branch `docs/dossier-m5-truth` from
 
 ### Results (Phase 4a)
 
-(Empty.)
+- Date: 2026-11-08, run with Opus 5.5.
+- `SCR=/home/nick/.cache/dossier-m5-vWDO`. The truth file is `$SCR/truth/rw.json` and the clone at `RW_PIN` is `$SCR/src/rw`.
+- `sha256sum $SCR/truth/rw.json`: `68f2295388cc5e7adc7d5a484ad44344918f71b828dd6ef5686c97fa1f9cef94`.
+- Rows: 58 entry points and 206 io rows (103 inputs, 103 outputs), 264 in all. Five rows are marked `(test helper)`.
+- Done-check passed: `python3 -m json.tool` parses the file, and a script confirmed that every `where` names a line that exists and is not blank. Each cited line was also read back against its row by hand.
+- Read: all 148 tracked paths from `git ls-files`, including every source, project, config, migration (with the generated `.Designer.cs` and snapshot files), test, workflow, script and doc file.
+- Not read: `logo.png` (an image), and the package lists in the three `packages.lock.json` files (only their headers were checked). The `realworld` submodule was not fetched, so its suites are not in the list. Nothing was installed, restored, built or run.
 
 ---
 
