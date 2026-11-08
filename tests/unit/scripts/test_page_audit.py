@@ -453,6 +453,17 @@ class TestPublicApiOnTheContractsCard:
 
         assert any("io.contracts" in x and "t-io-contracts-api" in x and "2 rows, expected 3" in x for x in errs)
 
+    def test_v11_fails_when_a_friend_line_is_missing(self, make_cites):
+        ctx = {"extract": {"symbols": self.API, "graph": [{"kind": "cs-project", "path": "L/L.csproj", "name": "L", "packable": True, "friends": ["T"]}]}, "tree": set()}
+        e = self.authored()
+        html = page(make_cites, e, ctx=ctx)
+        assert page_audit.audit(html, reports_of(e), whole_page=False, measured=ctx) == []
+        html = html.replace('<p class="muted">L lets T use its internal names (InternalsVisibleTo).</p>', "")
+
+        errs = page_audit.audit(html, reports_of(e), whole_page=False, measured=ctx)
+
+        assert any("io.contracts" in x and "InternalsVisibleTo" in x and "0 lines, expected 1" in x for x in errs)
+
     def test_a_repository_without_javascript_has_the_html_it_had_before(self, make_cites):
         e = self.authored()
 

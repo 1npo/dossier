@@ -490,6 +490,47 @@ class TestPublicApi:
         assert "<i>x</i>" not in self.html([item])
 
 
+CS_API = [
+    {"kind": "public-api", "path": "src/Lib/Guard.cs", "line": 5, "name": "Guard.Against", "symbol_kind": "property", "package": "Lib", "subpath": "Lib.Guards",
+     "audience": "packable"},
+    {"kind": "public-api", "path": "src/Lib/Guard.cs", "line": 3, "name": "Guard", "symbol_kind": "class", "package": "Lib", "subpath": "Lib.Guards", "audience": "packable"},
+    {"kind": "public-api", "path": "src/Lib/Root.cs", "line": 2, "name": "Root", "symbol_kind": "class", "package": "Lib", "subpath": "", "audience": "packable, obsolete"},
+]
+CS_GRAPH = [{"kind": "module", "module": "src/Lib/Guard", "path": "src/Lib/Guard.cs", "language": "csharp"},
+            {"kind": "cs-project", "path": "src/Lib/Lib.csproj", "name": "Lib", "packable": True, "friends": ["Lib.Tests", "Lib.Bench"]},
+            {"kind": "cs-project", "path": "src/Web/Web.csproj", "name": "Web", "packable": False, "friends": ["Web.Tests"]}]
+
+
+class TestCSharpPublicApi:
+    def html(self, items=CS_API, graph=CS_GRAPH):
+        import measured_tables
+
+        return measured_tables.public_api({"extract": {"symbols": list(items), "graph": list(graph)}}, Refs())
+
+    def test_rows_are_ordered_by_package_namespace_and_name_with_the_namespace_as_import_path(self):
+        rows = rows_of(table_html(self.html(), API_ID))
+
+        assert [(r[0], r[1], r[2]) for r in rows] == [("Lib", "Lib", "Root"), ("Lib", "Lib.Guards", "Guard"), ("Lib", "Lib.Guards", "Guard.Against")]
+        assert rows[0][5] == "packable, obsolete"
+
+    def test_a_friend_line_follows_the_table_for_each_packable_project_and_friend(self):
+        html = self.html()
+        lines = re.findall(r'<p class="muted">([^<]*)</p>', html.split("</table>")[-1])
+
+        assert lines == ["Lib lets Lib.Bench use its internal names (InternalsVisibleTo).", "Lib lets Lib.Tests use its internal names (InternalsVisibleTo)."]
+
+    def test_friend_lines_for_a_project_that_is_not_packable_are_left_out(self):
+        assert "Web.Tests" not in self.html()
+
+    def test_a_csharp_repository_with_no_packable_project_says_no_package_declares_an_api(self):
+        graph = [dict(g, packable=False) if g["kind"] == "cs-project" else g for g in CS_GRAPH]
+
+        assert "No package here declares a public API." in self.html([], graph)
+
+    def test_a_repository_with_no_javascript_or_csharp_draws_nothing(self):
+        assert self.html([], [{"kind": "module", "module": "a", "path": "a.py"}]) == ""
+
+
 class TestJavaScriptAreas:
     EXTRACT = {"graph": [{"kind": "source-root", "path": "apps/react-vite/package.json", "root": "apps"},
                          {"kind": "source-root", "path": "apps/nextjs/package.json", "root": "apps"},

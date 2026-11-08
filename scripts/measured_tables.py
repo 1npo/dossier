@@ -86,17 +86,31 @@ def public_api_rows(extract: dict) -> list:
     return [seen[k] for k in sorted(seen)]
 
 
+def friend_lines(extract: dict) -> list:
+    """One sentence per (packable C# project, friend assembly) that the project's `InternalsVisibleTo` names (D15), sorted."""
+    pairs = {(g["name"], f) for g in extract.get("graph", []) if g.get("kind") == "cs-project" and g.get("packable") for f in g.get("friends") or []}
+    return [f"{p} lets {f} use its internal names (InternalsVisibleTo)." for p, f in sorted(pairs)]
+
+
 def public_api(ctx: dict, refs) -> str:
-    """The table of what other packages can import (D17): empty for a repository without JavaScript, one line when it declares nothing."""
+    """The table of what other packages can import (D17), then the `InternalsVisibleTo` lines (D15).
+
+    Empty for a repository with no JavaScript or C#; one line when it declares nothing."""
     extract = ctx.get("extract") or {}
     found = public_api_rows(extract)
-    if not found:
-        return f'<p class="muted">{NO_API}</p>' if any(g.get("language") == "js" for g in extract.get("graph", []) if g.get("kind") == "module") else ""
     r = _render()
+    lines = "".join(f'<p class="muted">{r.E(x)}</p>' for x in friend_lines(extract))
+    if not found:
+        has_code = any(g.get("language") in ("js", "csharp") for g in extract.get("graph", []) if g.get("kind") == "module")
+        return (f'<p class="muted">{NO_API}</p>' if has_code else "") + lines
     rows = []
     for s in found:
-        sub = s["subpath"][1:] if s["subpath"].startswith(".") else s["subpath"]
+        if s["subpath"].startswith("."):  # JavaScript: the subpath is relative to the package
+            sub = s["subpath"][1:]
+            importable = s["package"] + sub
+        else:  # C#: the subpath is the namespace
+            importable = s["subpath"] or s["package"]
         where = r.path_code(s["path"]) if s.get("path") and not s.get("external") else r.E(f"from {s['external']}") if s.get("external") else "-"
-        rows.append([r.E(s["package"]), r.E(s["package"] + sub), r.E(s["name"]), r.E(s["symbol_kind"]), where, r.E(s["audience"]),
+        rows.append([r.E(s["package"]), r.E(importable), r.E(s["name"]), r.E(s["symbol_kind"]), where, r.E(s["audience"]),
                      r.source_cell(refs, (s["path"], s.get("line"))) if s.get("path") and not s.get("external") else ""])
-    return heading("Public API of each package") + r.render_table(API_COLUMNS, rows, refs, "t-io-contracts-api", plain=True)
+    return heading("Public API of each package") + r.render_table(API_COLUMNS, rows, refs, "t-io-contracts-api", plain=True) + lines

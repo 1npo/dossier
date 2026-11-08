@@ -947,7 +947,7 @@ Read section 2, D8, D15 to D19, and "Results" of Phases 1 to 3. Load the skills 
   - Done-check: `... pytest tests/unit/scripts/test_measured.py -q` passes; block E prints `OK`.
   - Commit: `feat(dossier): find C# config, build and tooling files`
 
-- [ ] **M5-24. The public API table for C#.**
+- [x] **M5-24. The public API table for C#.**
   - Goal: D15's card changes, with V11.
   - Files: edit `scripts/measured_tables.py`, `scripts/page_audit.py`, `tests/unit/scripts/test_measured.py`, `tests/unit/scripts/test_page_audit.py`.
   - Interface: `public_api` shows C# rows unchanged in shape; appends the friend lines (from `cs-project` items and a new `friends` field on them, set in M5-17) as `<p class="muted">` lines after the table; the "No package here declares a public API" condition includes `csharp` modules. V11 counts the friend lines.
