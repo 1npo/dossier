@@ -642,7 +642,7 @@ table.happened { width: 100%; border-collapse: collapse; font-size: .8125rem; }
 .hot-files td:nth-child(4) { color: var(--ok); } .hot-files td:nth-child(5) { color: var(--bad); }
 .card[data-card="change.hotspots"][data-hotshow="top"] .hot-files tbody tr:not(.hot-top) { display: none; }
 /* the notes at the foot of a measured card: muted, with a bullet between them */
-.card-notes { margin: 1rem 0 0; font-size: .875rem; } .card-notes .dot { margin: 0 .35rem; }
+.card-notes { margin: 1rem 0 0; font-size: .875rem; } ul.card-notes { padding-left: 1.2rem; list-style: disc; } ul.card-notes li { margin: .15rem 0; }
 /* a provenance row under a card's text keeps its distance from the text */
 .card section > :not(:first-child).prov { margin-top: .9rem; }
 /* sidebar brand: logo plus the skill name and version; collapsed, the logo sits above the toggle so the toggle stays the last item of the row */

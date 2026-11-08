@@ -34,9 +34,12 @@ def intro(text):
 
 
 def foot_notes(*lines):
-    """The notes at the bottom of a card, muted, with a bullet between them when there is more than one."""
+    """The notes at the bottom of a card, muted. One note is a plain line; several are a bulleted list, one bullet per note."""
     E = _render().E
-    return '<p class="muted card-notes">' + ' <span class="dot" aria-hidden="true">&bull;</span> '.join(f"<span>{E(t)}</span>" for t in lines if t) + "</p>"
+    notes = [t for t in lines if t]
+    if len(notes) == 1:
+        return f'<p class="muted card-notes">{E(notes[0])}</p>'
+    return '<ul class="muted card-notes">' + "".join(f"<li>{E(t)}</li>" for t in notes) + "</ul>"
 
 
 def none_found(text):
@@ -94,6 +97,11 @@ def component_rows(rows, catalog, period="12m"):
     return acc
 
 
+def _signed(n, sign):
+    """Lines added (+) or removed (minus sign) in the file table; a dash when the history did not count them."""
+    return (f"{sign}{n:,}", n) if n is not None else ("-", -1)
+
+
 def _churn(n):
     """A count of lines added or removed in the last 12 months; a dash for a history read before these were counted."""
     return _num(n) if n is not None else ("-", -1)
@@ -115,7 +123,7 @@ def _file_table(cid, rows, refs, period):
     key = "commits_12m" if period == "12m" else "commits"
     sfx = "_12m" if period == "12m" else ""
     ordered = rows if period == "12m" else sorted(rows, key=lambda x: (-x["commits"], x["path"]))
-    cells = [[r.path_code(x["path"]), r.E(x["component"] or "-"), _num(x[key]), _churn(x["added" + sfx]), _churn(x["deleted" + sfx]),
+    cells = [[r.path_code(x["path"]), r.E(x["component"] or "-"), _num(x[key]), _signed(x["added" + sfx], "+"), _signed(x["deleted" + sfx], "\u2212"),
               _num(x["complexity"]) if x["complexity"] is not None else "-", r.E(x["last"] or "-"), r.source_cell(refs, (x["path"], None))] for x in ordered]
     html = _table(cid, "-files" if period == "12m" else "-files-all", HOTSPOT_FILES, cells, refs)
     html = html.replace('<table class="table"', '<table class="table hot-files"', 1)
