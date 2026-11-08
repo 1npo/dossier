@@ -895,7 +895,7 @@ Read section 2, D4, D9, D10, D13 to D15, and "Results" of Phases 1 and 2. Load t
   - Done-check: `... pytest tests/unit/scripts/test_prompts.py -q` passes; `grep -n "for Python" prompts/reports.md` prints nothing.
   - Commit: `docs(dossier): tell Claude how to use the JavaScript findings`
 
-- [ ] **M4-26. Docs and version.**
+- [x] **M4-26. Docs and version.**
   - Goal: D15.
   - Files: edit `VERSION`, `README.md`, `rules/README.md`, this plan.
   - Steps: (1) `VERSION` to `0.9.0`. (2) `README.md`: one sentence that TypeScript, JavaScript and React have full support, and Node 22.13 or later is needed for them. The full rewrite stays in M6. (3) `rules/README.md`: `js/` exists; its blind-spot ids. (4) Run the full and slow suites.
