@@ -1000,7 +1000,7 @@ Read section 2, D8, D15 to D19, and "Results" of Phases 1 to 3. Load the skills 
   - Done-check: the two test files pass.
   - Commit: `test(dossier): check blast radius and dead code rows for C# files`
 
-- [ ] **M5-30. Docs and version.**
+- [x] **M5-30. Docs and version.**
   - Goal: D20.
   - Files: edit `VERSION`, `README.md`, `rules/README.md`, `docs/process.md`, this plan.
   - Steps: (0) `docs/process.md`'s M5 row becomes `7 Sonnet, 2 Opus, and 1 more Sonnet if Opus finds faults (plan 011, D20)` (Q3). (1) `VERSION` to `0.10.0`. (2) `README.md`: one sentence that C# has full support and needs the .NET SDK its `global.json` asks for (8 or later otherwise). The full rewrite stays in M6. (3) `rules/README.md`: `csharp/` exists; its blind-spot ids. (4) Run the full and slow suites.
@@ -1035,7 +1035,24 @@ Commit on `feat/dossier-m5`. Do not merge. Write "Results (Phase 4)" and commit:
 
 ### Results (Phase 4)
 
-(Empty.)
+Run 2026-11-08 by Sonnet 5.5 on `feat/dossier-m5`. Default suite: **2613 passed, 273 skipped**. Slow suite (21 min 49 s): **3 failed (only the three known ones), 2882 passed, 1 skipped**; `test_py_adapter_slow.py` and `test_js_adapter_slow.py` passed unedited. `m5_page` passes V11 and V12 at both widths and themes. `VERSION` is `0.10.0`. Nothing cut (M5-26 was done). Nothing merged. Scratch folders removed.
+
+**Block E** printed `OK` after M5-24 (248,746 characters on both sides). M5-22, 23, 25, 26, 28 and 29 do not touch `render.py`, the CSS or the JS, so I did not run it for them.
+
+**Deviations and judgement calls**
+- M5-22: C# `source-root` items (made by `cs_project`) would have printed under "JavaScript and TypeScript projects". `components.component_candidates` now skips roots whose `path` ends in `.csproj`. `checks.v2` gained a `csharp` argument and `checks.has_csharp(graph)`; `module_inputs` still returns two values. The C# line reads `path  (SDK x, Exe, test project, N files)`.
+- M5-23: `.editorconfig` already was the `editorconfig` row; `dotnet-format` needs an `.editorconfig` plus `EnforceCodeStyleInBuild` true in a props, targets or project file. CI names: `dotnet format`/`dotnet-format`.
+- M5-24: a C# row's Import path is its namespace (the package name when the namespace is empty); a JS subpath still starts with `.`. Friend lines come from packable projects only (as `cs_api` does). V11 counts `<p>` lines holding `(InternalsVisibleTo)`.
+- M5-25: the new tests passed on the first run, so `process.py` is unchanged and there is no "Fails before" line.
+- M5-26: `netcoreapp3.1` gives a row (cycle 3.1, "not in the data"); `netcoreapp2.x`, `netstandard*` and `net4*` give none. The source is the project path; a framework set in `Directory.Build.props` still names the project that inherits it (D19 said "the project or `Directory.Build.props`"; `cs-project` items do not record where it came from).
+- M5-27: `m5_page` reuses `m4_page._add`. The mixed test puts `CSFIX` in `backend/` and `JSFIX/packages/web` in `frontend/`, with `no_restore`.
+- M5-28: the old JS prompt test that pinned "the Python packages or JavaScript projects" now pins the wording with C# projects added. The `doctor` sentence in `SKILL.md` also says the C# data is missing without the SDK.
+- M5-29: **a real fault found and fixed**: `measured_change.dead_rows` listed every C# module with no incoming edge (including generated ones) as "module nothing imports". It now skips `csharp` as it skips `js`.
+- M5-30: `rules/README.md` already described `csharp/`; I added its twelve blind-spot ids. `README.md` gets one sentence under Install.
+
+**Findings for the milestone review**
+- **`.razor` and `.csproj` files are not source files** (`gather` has no Razor language and `.csproj` is a manifest). The plan expected a `.razor` file in hotspots by path; it appears in no hotspot or blast-radius table, only (with a `.csproj`) in co-change pairs, shown as "not in the graph". I took the safe default and pinned today's behaviour in tests rather than add Razor to `gather` (that would add a language row, a "basic support" Gaps line and a components-catalog duty). Say if Razor should count as source.
+- Phase 3's false `ref-edge`s between top-level-statements `Program` classes of different projects are still unfixed.
 
 ---
 

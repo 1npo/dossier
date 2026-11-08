@@ -28,7 +28,7 @@ How the work in [plans/004-v1-spec.md](plans/004-v1-spec.md) gets planned, built
 | M2 | 3 |
 | M3 | 3, then **pause** |
 | M4 | 5 Sonnet, 2 Opus, and 1 more Sonnet if Opus finds faults (plan 010, D16) |
-| M5 | 1 |
+| M5 | 7 Sonnet, 2 Opus, and 1 more Sonnet if Opus finds faults (plan 011, D20) |
 | M6 | 1 |
 
 Cut a milestone's sessions at a committed, tested boundary, for example: framework and Python adapter; reports built on the extractors; checks V2 to V5. A new session starts from the spec, the milestone plan and the git log, never from an earlier session's memory.
