@@ -13,6 +13,7 @@ import components
 import gather
 import measured_blast
 import measured_change
+import measured_cs
 import measured_er
 import measured_graph
 import measured_js
@@ -65,12 +66,12 @@ def _shallowest(dirs: set) -> list:
 def _is_config(p: str) -> bool:
     base = p.rsplit("/", 1)[-1]
     return (p in ("pyproject.toml", "setup.cfg", ".env.example") or base.endswith(".ini") or (base.endswith(".toml") and not p.startswith(".github/"))
-            or p.startswith("config/") or "/config/" in p or bool(re.fullmatch(r"settings.*\.py", base)) or measured_js.is_config(p))
+            or p.startswith("config/") or "/config/" in p or bool(re.fullmatch(r"settings.*\.py", base)) or measured_js.is_config(p) or measured_cs.is_config(p))
 
 
 def _is_build(p: str, read=None) -> bool:
     base = p.rsplit("/", 1)[-1]
-    return p in ("pyproject.toml", "setup.py", "Makefile", "noxfile.py", "tox.ini") or base.startswith("Dockerfile") or measured_js.is_build(p, read)
+    return p in ("pyproject.toml", "setup.py", "Makefile", "noxfile.py", "tox.ini") or base.startswith("Dockerfile") or measured_js.is_build(p, read) or measured_cs.is_build(p)
 
 
 def _is_ci(p: str) -> bool:
@@ -141,7 +142,7 @@ def _tooling(cid, ctx, refs):
     r = _render()
     rows = []
     found = {tool: ([(f, None) for f in files if f in tree], sections) for tool, (files, sections) in TOOLS.items()}
-    js_where = measured_js.tool_locations(tree, read, _line_of)
+    js_where = {**measured_js.tool_locations(tree, read, _line_of), **measured_cs.tool_locations(tree, read, _line_of)}
     for tool in list(found) + [t for t in js_where if t not in found]:
         files, sections = found.get(tool, ([], ()))
         where = list(files)
@@ -154,7 +155,7 @@ def _tooling(cid, ctx, refs):
         where += js_where.get(tool, [])
         if not where:
             continue
-        name = measured_js.ci_pattern(tool) if tool in measured_js.NODE_TOOLS else re.compile(r"(?<![\w-])" + re.escape(tool) + r"(?![\w-])", re.I)
+        name = measured_js.ci_pattern(tool) if tool in measured_js.NODE_TOOLS else re.compile(r"(?<![\w-])(" + measured_cs.CI_NAMES.get(tool, re.escape(tool)) + r")(?![\w-])", re.I)
         ci_hits = [p for p in ci if name.search(read(p) or "")]
         enforced = (["pre-commit"] if tool != "pre-commit" and name.search(hooks) else []) + (["husky"] if tool != "husky" and name.search(husky) else []) \
             + [r.path_code(p) for p in ci_hits]

@@ -939,7 +939,7 @@ Read section 2, D8, D15 to D19, and "Results" of Phases 1 to 3. Load the skills 
   - Done-check: the named test files pass; block E prints `OK`.
   - Commit: `feat(dossier): handle C# names and projects in checks and candidates`
 
-- [ ] **M5-23. Where things live, and tooling.**
+- [x] **M5-23. Where things live, and tooling.**
   - Goal: section 3 row 30's measured cards for C#.
   - Files: new `scripts/measured_cs.py`; edit `scripts/measured.py`, `tests/unit/scripts/test_measured.py`.
   - Interface: `measured_cs.is_config(p)`: `appsettings*.json`, `launchSettings.json`, `global.json`, `NuGet.config` (any case), `Directory.Build.props`, `Directory.Build.targets`, `Directory.Packages.props`, `*.runsettings`, `.config/dotnet-tools.json`. `is_build(p)`: `*.sln`, `*.slnx`, `*.csproj`, `build.cake`. `TOOLS` additions: `csharpier` (`.csharpierrc`, `.csharpierrc.json`, `.csharpierrc.yaml`, or a `csharpier` entry in `.config/dotnet-tools.json`), `dotnet-format` (`.editorconfig` with `EnforceCodeStyleInBuild` true in a props or project file), `StyleCop` (`stylecop.json` or a `StyleCop.Analyzers` package), `.globalconfig`. Migration folders need no change: `_reading_map` already takes them from `migration` model items (`measured.py:94`), which D13 now produces for C#; a test asserts the EF `Migrations/` folder appears.
