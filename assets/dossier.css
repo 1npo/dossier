@@ -535,6 +535,8 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 /* the cards take their padding, border and radius from the Nova style of Basecoat, the same for every card; only the corner badges are added here */
 .card > header { position: relative; }
 .card > header:has(> .card-badges) { padding-right: 7rem; }
+/* a second badge (partial) needs more room, or the title runs under it */
+.card > header:has(> .card-badges .partial) { padding-right: 10.5rem; }
 
 /* tier badges sit in the top right corner of the card and are colour-coded: M blue, A violet, R teal, M+A indigo */
 .card-badges { position: absolute; top: 0; right: 1rem; display: flex; align-items: center; gap: .35rem; }
