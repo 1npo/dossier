@@ -669,6 +669,7 @@
     else if (e.key === "k") goRep(repIdx() - 1);
     else if (e.key === "g") { e.preventDefault(); gopen(); }
     else if (e.key === "?") setKeys(!keysOpen);
+    else if (e.key === "t") $("#theme-toggle").click();
   });
 
   // ---- calendar zoom
