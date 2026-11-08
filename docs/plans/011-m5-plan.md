@@ -522,7 +522,7 @@ Read section 2, section 3, D1 to D7, D20 and sections 7 and 8. Load the skills i
 
 ### Tasks (Phase 1)
 
-- [ ] **M5-1. The scip-dotnet gate and the tool re-check.**
+- [x] **M5-1. The scip-dotnet gate and the tool re-check.**
   - Goal: D2's criteria, and every fact this plan could not run, before any code depends on them.
   - Files: this plan only ("Results (Phase 1)").
   - Interface: none. Work in `S=$(mktemp -d -p "$HOME/.cache" dossier-m5-gate-XXXX)`. Commands that run `dotnet` go through `sandbox.run` with `area=$S/area`, so the environment is the real one: `python3 -c "import sys; sys.path.insert(0,'$SKILL/scripts'); import sandbox; r=sandbox.run([...], area='$S/area', cwd='...', stage='gate', timeout=900); print(r.returncode, r.seconds, r.stdout, r.stderr)"`.
@@ -634,7 +634,36 @@ Commit each task on `feat/dossier-m5`. Do not merge or bump. Write "Results (Pha
 
 ### Results (Phase 1)
 
-(Empty.)
+Run 2026-11-08 by Sonnet 5.5 on branch `feat/dossier-m5` (from `main` at `7e5b7f1`). Pre-flight: tree clean; SDK 10.0.403, runtime 10.0.14, Node 26.13.0. Default suite baseline: **1993 passed, 117 skipped (58.5 s)**. Slow baseline: see the "Slow baseline" line at the end of this section.
+
+**M5-1 (scratch folder was `~/.cache/dossier-m5-gate-*`, removed at the end of the phase).**
+
+- Step 1 (G1): `.nupkg` is 56,673,777 bytes; SHA-512 matches the pin; `tools/net10.0/any/` has 77 files; `Runner="dotnet"`. **Pass.**
+- Step 2 (environment names): all seven names are in the .NET SDK docs (`dotnet-environment-variables.md`: `DOTNET_ROOT`, `DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE`, `DOTNET_GENERATE_ASPNET_CERTIFICATE`, `DOTNET_ADD_GLOBAL_TOOLS_TO_PATH`, `DOTNET_SKIP_FIRST_TIME_EXPERIENCE`) and the MSBuild wiki (`MSBUILDDISABLENODEREUSE`). **None dropped from D5.**
+- Step 3 (G2): `--version` prints `0.2.16+fadd98aebb1ede2c55801636360c002679b54112`, exit 0. **Pass.**
+- Step 4 (G3, G8, tiny solution): restore `--locked-mode` through `sandbox.run` exit 0; index exit 0 in 7.2 s; `scip_read.decode` and `reduce` read it unchanged; one `ref-edge` `App/Program.cs` to `Lib/Thing.cs`. Symbols look like `scip-dotnet nuget . . Lib/Thing#Add().`; occurrences use the 4-number `range` form. **G3: pass, except the clause "every `.cs` file has at least one `def`"**: `App/Program.cs` (top-level statements) has only `local 0`, which `reduce` drops, and the index also holds generated `obj/**/*.cs` files (6 on the tiny solution). I treated this as a wording problem in G3, not a gate failure, and carried on with scip-dotnet (rule in section 2). D11 must (a) drop documents under `obj/` and `bin/`, and (b) not expect a `def` from a top-level-statements file. **G8:** no document exists for the generated regex code (as expected); the call site occurrence names `R` (role 0, col 152), but `reduce` reports `refs: 0` for `R`, so call data into partial or generated members is weak.
+- Step 5 (tree-sitter): all 40 node names in D14's list are valid in the `csharp` grammar and matched on a test file. **Nothing rejected.**
+- Step 6 (semgrep, 5 shapes tested): `lock ($X) { ... }`, `throw new $E(...)` with `metavariable-regex`, `class $C : $B { ... }` with a regex on `$B`, and `$C["..."]` with a regex on `$C` all work. **`catch { ... }` is an invalid C# pattern** (parse error) and a lone `catch (Exception $E) { ... }` matches nothing; **`try { ... } catch (Exception $E) { ... }` works.** Phase 2 must write the catch-all rule that way. The bare `catch` form with a `try` wrapper was not tested. Two harness facts: `semgrep --test` wants the rules and the test files in different folders with the same relative name (`r/t.yml`, `t/t.cs`), and a `// ruleid:` comment must sit on the line above the match.
+- Step 7 (real repositories, clones at the pins):
+  - **G4 (`RW`)**: locked restore exit 0 in 8.2 s; index exit 0 in 16.3 s; 106 of 106 tracked `.cs` files have a document (100%), 112 documents in all (6 under `obj/`); 0 `Failure:` lines. **Pass.**
+  - **G5**: 103 `ref-edge`s from `tests/Conduit.IntegrationTests/` to `src/Conduit/`. **Pass.**
+  - **G6**: 0 of the definitions lack the `scip-dotnet nuget . . ` prefix. **Pass.**
+  - **G7** (record only): 4 global symbols are defined in more than one document, all of them EF migrations written as a partial type (`X.cs` plus `X.Designer.cs`). Symbols keep only the last namespace segment (`Sqlite/InitialSchema#`, `SqlServer/InitialSchema#`).
+  - **G9**: `RW` with no restore (fresh copy): exit 0, 112 documents, 0 `Failure:` lines, 15.0 s. `CA` (no lock files, no restore): exit 0, 147 documents, 108 of 110 tracked `.cs` files covered, 167 `ref-edge`s, 17.7 s, **2 `Failure:` lines**, for `src/AppHost/AppHost.csproj` and `tests/TestAppHost/TestAppHost.csproj` (the Aspire projects). **Pass.**
+  - **G10**: empty folder: exit 1, no index file. A `.csproj` with broken XML: exit 0, an index file is written with 0 documents, one `Failure:` line plus a warning "no documents were indexed". This confirms section 3 row 4: D11 must read the log and the document count.
+  - **G11**: no tracked file changed in any copy; the only new paths are the ignored `obj/` folders. **Pass.**
+  - **G12**: **Pass, with a caveat I caused.** Before the baseline, I ran one `dotnet restore` of the tiny solution without `sandbox.run` (real `HOME`), which touched `~/.nuget`, `~/.dotnet` and `~/.local/share/NuGet` at 14:48. I took the modification times after that and compared them after the `CA` index; they were unchanged. The sandboxed restores of `RW` (about 14:50) and the sandboxed index runs also left them unchanged.
+- Step 8: restore honoured `NUGET_PACKAGES`; packages are under `<area>/cache/nuget/`.
+
+**Gate: passed.** G1 to G6 (G3 with the clause noted above), G9, G11 and G12 pass. Fallback (a) is not in use. **For the author:** the G3 wording ("every `.cs` file has at least one `def`") cannot hold for top-level-statement files; say if you want the gate treated as failed.
+
+**Findings for the milestone review**
+- scip-dotnet indexes `obj/**/*.cs`; D11 must filter those documents.
+- `CA`'s Aspire projects fail to load in scip-dotnet without a restore and the package targets; this is the expected `partial` case for Gaps.
+- A harness bug of mine: first tiny-solution restore ran outside `sandbox.run`; fixed for every later command.
+
+**Slow baseline:** (filled in below when the run ends)
+
 
 ---
 
