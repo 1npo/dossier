@@ -1,0 +1,103 @@
+rules:
+  - id: dossier.js.blindspot.dynamic-import
+    message: Imports a module whose name is worked out at run time
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: blindspot, pattern: dynamic-import}
+    pattern-regex: \bimport\(\s*[^'"\s]
+
+  - id: dossier.js.blindspot.dynamic-require
+    message: Loads a module whose name is worked out at run time
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: blindspot, pattern: dynamic-require}
+    patterns:
+      - pattern: require($X)
+      - pattern-not: require("...")
+
+  - id: dossier.js.blindspot.barrel-reexport
+    message: Passes names on from other files
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: blindspot, pattern: barrel-reexport}
+    pattern-regex: (?m)^[ \t]*export\s+(\*|\{[^}]*\})\s+from\s
+
+  - id: dossier.js.blindspot.react-context
+    message: Passes values through React context
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: blindspot, pattern: react-context}
+    pattern-either:
+      - pattern: createContext(...)
+      - pattern: React.createContext(...)
+      - pattern: useContext(...)
+      - pattern: React.useContext(...)
+
+  - id: dossier.js.blindspot.hook-wiring
+    message: A custom hook that wires up behaviour
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: blindspot, pattern: hook-wiring}
+    pattern-regex: (?m)^[ \t]*export\s+(const|function)\s+use[A-Z]
+
+  - id: dossier.js.blindspot.string-route
+    message: A route whose path is built at run time
+    languages: [js, ts]
+    severity: INFO
+    options:
+      constant_propagation: false
+    metadata: {category: blindspot, pattern: string-route}
+    patterns:
+      - pattern: $R.$M($P, $H, ...)
+      - pattern-not: $R.$M("...", $H, ...)
+      - metavariable-regex:
+          metavariable: $R
+          regex: ^(app|router|server|fastify|api|.*[Rr]outer|.*[Aa]pp)$
+      - metavariable-regex:
+          metavariable: $M
+          regex: ^(get|post|put|patch|delete|options|head|all)$
+
+  - id: dossier.js.blindspot.route-mount
+    message: Routes mounted under a prefix
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: blindspot, pattern: route-mount}
+    patterns:
+      - pattern: $R.use("...", $X)
+      - metavariable-regex:
+          metavariable: $R
+          regex: ^(app|router|server|fastify|api|.*[Rr]outer|.*[Aa]pp)$
+
+  - id: dossier.js.blindspot.module-federation
+    message: Code loaded from other builds
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: blindspot, pattern: module-federation}
+    pattern-either:
+      - pattern: ModuleFederationPlugin
+      - pattern: federation(...)
+      - pattern-regex: '\bremotes\s*:'
+
+  - id: dossier.js.blindspot.di-registration
+    message: Objects built and passed in by a dependency injection container
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: blindspot, pattern: di-registration}
+    pattern-either:
+      - pattern: |
+          @Injectable(...)
+          class $C {...}
+      - pattern: |
+          @Module(...)
+          class $C {...}
+      - pattern: container.bind(...)
+      - pattern: container.register(...)
+
+  - id: dossier.js.blindspot.computed-subcommand
+    message: A command-line command registered under a computed name
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: blindspot, pattern: computed-subcommand}
+    patterns:
+      - pattern: $P.command($X, ...)
+      - pattern-not: $P.command("...", ...)

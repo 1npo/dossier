@@ -10,3 +10,7 @@ Things to consider once dossier 1.0.0 is done. Nothing here is planned yet. Each
 ## Correct TS and C# against real codebases
 
 The TS and C# results in 1.0.0 are measured on public repositories, because the author has none of their own and is new to both languages. When the author takes over TS and C# codebases at work, they will learn them and correct dossier as they go: rules, entry-point kinds, what counts as an entity, and the public API. Decided in the M4 plan review (spec decisions 33 and 34).
+
+## Python projects in subfolders
+
+The Python adapter reads `pyproject.toml` at the repository root only. In a repository whose Python lives in a subfolder (for example `backend/` beside a `frontend/`), it finds no modules, so the graph, the dead-code rows and the other measured cards for that code stay empty. The JS adapter does not have this limit: it finds `package.json` files at any depth. M4 left the Python adapter alone because its output had to stay identical, and its mixed-language test keeps the Python fixture at the root. A fix would look for `pyproject.toml` (and `setup.py`, `requirements.txt`) below the root, treat each as a source root the way the JS adapter does, and keep the root-level result unchanged. Found in Phase 3 of M4 ([plans/010-m4-plan.md](plans/010-m4-plan.md), "Results (Phase 3)").

@@ -93,6 +93,74 @@ class TestTooling:
         assert "No formatter or linter configuration was found." in html
 
 
+JS_TREE = {"package.json", "package-lock.json", "tsconfig.json", ".eslintrc.cjs", ".prettierrc", ".husky/pre-commit", ".github/workflows/ci.yml",
+           "nx.json", ".env.example", "apps/web/package.json", "apps/web/tsconfig.app.json", "apps/web/vite.config.ts", "apps/web/.env.example",
+           "apps/web/src/main.tsx", "apps/web/jest.config.js", "libs/util/package.json", "libs/util/src/index.ts"}
+JS_FILES = {
+    "package.json": '{\n  "name": "root",\n  "scripts": {"build": "nx build"},\n  "eslintConfig": {"root": true},\n  "lint-staged": {"*.ts": "eslint"}\n}\n',
+    "apps/web/package.json": '{"name": "web", "scripts": {"build": "vite build"}, "prettier": {"semi": false}}',
+    "libs/util/package.json": '{"name": "util", "scripts": {"test": "jest"}}',
+    ".husky/pre-commit": "npx lint-staged\n",
+    ".github/workflows/ci.yml": "steps:\n- run: yarn eslint .\n- run: yarn tsc --noEmit\n",
+}
+JS_CTX = {"tree": JS_TREE, "extract": {}, "read": JS_FILES.get}
+
+
+class TestJavaScriptReadingMap:
+    def places(self, concern):
+        return [r[1] for r in rows_of(measured.body("reading.map", JS_CTX, Refs())) if r[0] == concern]
+
+    def test_configuration_includes_manifests_tsconfigs_env_examples_and_tool_configs_at_any_depth(self):
+        got = self.places("configuration")
+
+        for p in ("package.json", "tsconfig.json", ".env.example", "apps/web/package.json", "apps/web/tsconfig.app.json", "apps/web/.env.example",
+                  "apps/web/vite.config.ts", "apps/web/jest.config.js", "libs/util/package.json"):
+            assert p in got or any(g.endswith("/") and p.startswith(g) for g in got), p
+
+    def test_build_includes_a_manifest_with_a_build_script_and_build_tool_configs(self):
+        got = self.places("build")
+
+        assert "package.json" in got and "apps/web/package.json" in got and "nx.json" in got and "apps/web/vite.config.ts" in got
+        assert "libs/util/package.json" not in got
+
+    def test_a_python_tree_gives_the_rows_it_gave_before(self):
+        rows = rows_of(measured.body("reading.map", CTX, Refs()))
+
+        assert [r[1] for r in rows if r[0] == "build"] == ["Makefile", "pyproject.toml"]
+        assert [r[1] for r in rows if r[0] == "configuration"] == ["config/", "pyproject.toml"]
+
+
+class TestJavaScriptTooling:
+    def rows(self):
+        return {r[0]: r for r in rows_of(measured.body("conventions.tooling", JS_CTX, Refs()))}
+
+    def test_tools_are_found_by_config_file_at_any_depth(self):
+        got = self.rows()
+
+        assert {"eslint", "prettier", "typescript", "husky", "lint-staged"} <= set(got)
+        assert "tsconfig.json" in got["typescript"][1] and "apps/web/tsconfig.app.json" in got["typescript"][1]
+
+    def test_a_key_in_package_json_counts_and_names_that_file(self):
+        got = self.rows()
+
+        assert "package.json" in got["eslint"][1] and "apps/web/package.json" in got["prettier"][1]
+
+    def test_ci_and_hooks_show_where_a_tool_is_enforced(self):
+        got = self.rows()
+
+        assert ".github/workflows/ci.yml" in got["eslint"][2] and ".github/workflows/ci.yml" in got["typescript"][2]
+        assert "husky" in got["lint-staged"][2]
+        assert got["prettier"][2] == "not enforced in the repository"
+
+    def test_python_tools_still_come_first_and_unchanged(self):
+        assert [r[0] for r in rows_of(measured.body("conventions.tooling", CTX, Refs()))] == ["ruff", "black", "pre-commit"]
+
+    def test_a_package_json_that_is_not_json_is_skipped(self):
+        ctx = {"tree": {"package.json"}, "read": {"package.json": "{ not json"}.get}
+
+        assert "No formatter or linter configuration was found." in measured.body("conventions.tooling", ctx, Refs())
+
+
 class TestViolations:
     GRAPH = [
         {"kind": "import", "path": "a.py", "paths": ["b.py"], "from": "a", "to": "b", "lines": [3]},
@@ -211,6 +279,158 @@ class TestDependencyGraph:
 
     def test_no_imports_says_so(self):
         assert "No imports between modules were found." in measured.body("interactions.graph", {"extract": {"graph": []}}, Refs())
+
+
+UI_GRAPH = [
+    {"kind": "module", "module": "src/App", "short": "App", "path": "src/App.tsx", "language": "js", "package": None, "is_package": False},
+    {"kind": "module", "module": "src/Button", "short": "Button", "path": "src/Button.tsx", "language": "js", "package": None, "is_package": False},
+    {"kind": "import", "path": "src/App.tsx", "paths": ["src/Button.tsx"], "from": "src/App", "to": "src/Button", "lines": [1]},
+    {"kind": "ui-component", "path": "src/Button.tsx", "line": 3, "name": "Button", "exported": True, "hooks": [], "provides": [], "consumes": []},
+    {"kind": "ui-component", "path": "src/App.tsx", "line": 5, "name": "App", "exported": True, "hooks": ["useState", "useAuth"],
+     "provides": ["ThemeContext"], "consumes": ["UserContext"]},
+    {"kind": "ui-component", "path": "src/App.tsx", "line": 20, "name": "Footer", "exported": False, "hooks": [], "provides": [], "consumes": []},
+    {"kind": "renders", "path": "src/App.tsx", "paths": ["src/Button.tsx"], "from": "App", "to": "Button"},
+    {"kind": "renders", "path": "src/App.tsx", "paths": ["src/App.tsx"], "from": "App", "to": "Footer"},
+]
+REACT_ID = "t-interactions-graph-react"
+
+
+class TestReactTable:
+    def html(self, graph=UI_GRAPH, refs=None):
+        return measured.body("interactions.graph", {"extract": {"graph": graph}}, refs or Refs())
+
+    def test_one_row_per_component_sorted_by_file_then_name(self):
+        rows = rows_of(table_html(self.html(), REACT_ID))
+
+        assert [(r[0], r[1]) for r in rows] == [("App", "src/App.tsx"), ("Footer", "src/App.tsx"), ("Button", "src/Button.tsx")]
+
+    def test_columns_are_those_of_the_plan(self):
+        head = re.findall(r"<th(?:\s[^>]*)?>([^<]*)", table_html(self.html(), REACT_ID))
+
+        assert head == ["Component", "File", "Renders", "Rendered by", "Hooks", "Context", "Source"]
+
+    def test_renders_and_rendered_by_come_from_the_renders_items(self):
+        rows = {r[0]: r for r in rows_of(table_html(self.html(), REACT_ID))}
+
+        assert rows["App"][2] == "Button, Footer" and rows["App"][3] == "-"
+        assert rows["Button"][2] == "-" and rows["Button"][3] == "App"
+        assert rows["Footer"][3] == "App"
+
+    def test_hooks_and_context_are_listed(self):
+        rows = {r[0]: r for r in rows_of(table_html(self.html(), REACT_ID))}
+
+        assert rows["App"][4] == "useAuth, useState"
+        assert rows["App"][5] == "provides ThemeContext; uses UserContext"
+        assert rows["Button"][4] == "-" and rows["Button"][5] == "-"
+
+    def test_the_source_column_cites_the_definition_line(self):
+        rows = {r[0]: r for r in rows_of(table_html(self.html(refs=MarkedRefs()), REACT_ID))}
+
+        assert rows["Button"][6] == "[src/Button.tsx:3]"
+
+    def test_the_table_follows_the_module_table_under_its_own_heading(self):
+        html = self.html()
+
+        assert html.index("Every module import") < html.index("Every React component") < html.index(REACT_ID)
+
+    def test_components_without_any_import_are_still_listed(self):
+        graph = [g for g in UI_GRAPH if g["kind"] != "import"]
+
+        html = self.html(graph)
+
+        assert REACT_ID in html and "No imports between modules were found." in html
+
+    def test_a_repository_with_no_components_draws_what_it_drew_before(self):
+        html = self.html([g for g in UI_GRAPH if g["kind"] not in ("ui-component", "renders")])
+
+        assert REACT_ID not in html and "React" not in html
+
+    def test_repository_text_is_escaped(self):
+        graph = UI_GRAPH + [{"kind": "ui-component", "path": "src/x.tsx", "line": 1, "name": "<b>X</b>", "exported": True, "hooks": [], "provides": [], "consumes": []}]
+
+        assert "<b>X</b>" not in self.html(graph)
+
+    def test_a_tag_named_differently_from_its_definition_is_matched_by_file_when_the_file_has_one_component(self):
+        graph = [g for g in UI_GRAPH if g["kind"] != "renders"] + [
+            {"kind": "renders", "path": "src/App.tsx", "paths": ["src/Button.tsx"], "from": "App", "to": "Btn"}]
+
+        rows = {r[0]: r for r in rows_of(table_html(self.html(graph), REACT_ID))}
+
+        assert rows["Button"][3] == "App"
+
+
+API_ITEMS = [
+    {"kind": "public-api", "path": "src/store.ts", "line": 4, "name": "create", "symbol_kind": "function", "package": "zustand", "subpath": ".", "audience": "marked private"},
+    {"kind": "public-api", "path": "src/vanilla.ts", "line": 9, "name": "createStore", "symbol_kind": "function", "package": "zustand", "subpath": "./vanilla",
+     "audience": "marked private"},
+    {"kind": "public-api", "path": None, "line": None, "name": "Draft", "symbol_kind": "type", "package": "zustand", "subpath": ".", "audience": "marked private",
+     "external": "immer"},
+    {"kind": "def", "path": "src/store.ts", "line": 4, "name": "create", "symbol": "x"},
+]
+API_ID = "t-io-contracts-api"
+
+
+class TestPublicApi:
+    def html(self, items=API_ITEMS, graph=(), refs=None):
+        import measured_tables
+
+        return measured_tables.public_api({"extract": {"symbols": list(items), "graph": list(graph)}}, refs or Refs())
+
+    def test_one_row_per_name_by_package_then_import_path_then_name(self):
+        rows = rows_of(table_html(self.html(), API_ID))
+
+        assert [(r[0], r[1], r[2]) for r in rows] == [("zustand", "zustand", "Draft"), ("zustand", "zustand", "create"), ("zustand", "zustand/vanilla", "createStore")]
+
+    def test_columns(self):
+        head = re.findall(r"<th(?:\s[^>]*)?>([^<]*)", table_html(self.html(), API_ID))
+
+        assert head == ["Package", "Import path", "Name", "Kind", "Defined in", "Audience", "Source"]
+
+    def test_defined_in_names_the_file_or_the_outside_package(self):
+        rows = {r[2]: r for r in rows_of(table_html(self.html(), API_ID))}
+
+        assert rows["create"][4] == "src/store.ts" and rows["create"][5] == "marked private"
+        assert rows["Draft"][4] == "from immer"
+
+    def test_source_cites_the_defining_line(self):
+        rows = {r[2]: r for r in rows_of(table_html(self.html(refs=MarkedRefs()), API_ID))}
+
+        assert rows["createStore"][6] == "[src/vanilla.ts:9]" and rows["Draft"][6] == ""
+
+    def test_the_same_name_twice_is_one_row(self):
+        assert len(rows_of(table_html(self.html(API_ITEMS + [API_ITEMS[0]]), API_ID))) == 3
+
+    def test_no_items_in_a_javascript_repository_says_so(self):
+        graph = [{"kind": "module", "module": "src/a", "path": "src/a.ts", "language": "js"}]
+
+        assert "No package here declares a public API. What this repository offers from outside is in Entry points." in self.html([], graph)
+
+    def test_no_items_and_no_javascript_draws_nothing(self):
+        assert self.html([], [{"kind": "module", "module": "a", "path": "a.py"}]) == ""
+
+    def test_repository_text_is_escaped(self):
+        item = dict(API_ITEMS[0], name="<i>x</i>")
+
+        assert "<i>x</i>" not in self.html([item])
+
+
+class TestJavaScriptAreas:
+    EXTRACT = {"graph": [{"kind": "source-root", "path": "apps/react-vite/package.json", "root": "apps"},
+                         {"kind": "source-root", "path": "apps/nextjs/package.json", "root": "apps"},
+                         {"kind": "source-root", "path": "package.json", "root": ""}]}
+
+    def test_package_roots_include_the_source_roots(self):
+        assert measured_graph.package_roots(self.EXTRACT) == ["apps"]
+
+    def test_each_app_is_an_area_below_the_apps_folder(self):
+        roots = measured_graph.package_roots(self.EXTRACT)
+
+        assert measured_graph.component_area(["apps/react-vite/src/"], roots) == "react-vite"
+
+    def test_python_roots_are_unchanged(self):
+        extract = {"graph": [{"kind": "module", "path": "src/cannalerts/__init__.py", "module": "cannalerts", "package": "cannalerts", "is_package": True}]}
+
+        assert measured_graph.package_roots(extract) == ["src/cannalerts"]
 
 
 class TestComponentArea:

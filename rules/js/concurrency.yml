@@ -1,0 +1,48 @@
+rules:
+  - id: dossier.js.concurrency.thread
+    message: Starts a worker thread
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: thread}
+    pattern-either:
+      - pattern: new Worker($PATH)
+      - pattern: new Worker($PATH, {...})
+
+  - id: dossier.js.concurrency.process-pool
+    message: Starts other processes
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: process-pool}
+    pattern-either:
+      - pattern: child_process.fork(...)
+      - pattern: child_process.spawn(...)
+      - pattern: child_process.exec(...)
+      - pattern: cluster.fork(...)
+
+  - id: dossier.js.concurrency.async
+    message: Runs work at the same time or later
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: async}
+    pattern-either:
+      - pattern: Promise.all(...)
+      - pattern: Promise.allSettled(...)
+      - pattern: Promise.race(...)
+      - pattern: setInterval(...)
+      - pattern: setImmediate(...)
+
+  - id: dossier.js.concurrency.lock
+    message: Guards shared state with a lock
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: lock}
+    pattern-either:
+      - pattern: new Mutex(...)
+      - pattern: new Semaphore(...)
+
+  - id: dossier.js.concurrency.queue
+    message: An in-process or external work queue
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: queue}
+    pattern: new Queue(...)

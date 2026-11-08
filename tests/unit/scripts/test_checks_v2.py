@@ -156,3 +156,31 @@ class TestV2FileAndModuleNames:
         res = checks.validate(reports("State lives in `alerts.state`.", ["src/app.py:1-2"]), extract, make_cites(BLOBS, ("src",)), {})
 
         assert not [w for w in res["warnings"] if w.startswith("V2")]
+
+
+class TestV2JavaScript:
+    def go(self, make_cites, text, **kw):
+        return checks.v2(reports(text, ["src/app.py:1-2"]), make_cites(BLOBS, ("src",)), {"src/app.py", "README.md"}, **kw)
+
+    def test_a_short_module_name_is_not_looked_for_in_the_code(self, make_cites):
+        _, warnings, _, _ = self.go(make_cites, "State lives in `routes`.", modules=checks.module_inputs([
+            {"kind": "module", "module": "src/routes/index", "short": "routes", "language": "js"}])[0])
+
+        assert warnings == []
+
+    def test_module_inputs_adds_each_short_name_and_flags_javascript(self):
+        names, js = checks.module_inputs([{"kind": "module", "module": "src/a", "short": "a", "language": "js"},
+                                          {"kind": "import", "from": "x", "to": "y"}])
+
+        assert {"src/a", "a"} <= names and js is True
+
+    def test_module_inputs_for_python_is_unchanged(self):
+        names, js = checks.module_inputs([{"kind": "module", "module": "app.cli", "package": "app"}])
+
+        assert names == {"app.cli"} and js is False
+
+    def test_javascript_words_are_skipped_only_for_a_javascript_repository(self, make_cites):
+        _, plain, _, _ = self.go(make_cites, "It returns a `Promise`.")
+        _, js, _, _ = self.go(make_cites, "It returns a `Promise`.", js=True)
+
+        assert len(plain) == 1 and js == []

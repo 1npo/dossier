@@ -1,0 +1,17 @@
+{
+  "name": "shopjs",
+  "targets": {
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node dist/main.js"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p tsconfig.app.json"
+      }
+    }
+  }
+}

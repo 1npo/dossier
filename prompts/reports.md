@@ -12,6 +12,8 @@ A report is as long as its content. Never merge items to shorten a table; the pa
 
 The page also shows measured tables from `facts.json` (languages, environment variables, secret scan, code ownership). Do not repeat those tables. Refer to them with `[[facts:...]]` and add what only reading the code can tell.
 
+**Repositories with more than one language.** The cards are the same as for any other repository, and the rows cover every language. Say which language a row belongs to only where it matters, for example in an entry point or a component that exists in both.
+
 ## entry
 
 Report 04: Entry points. Question: *Where does execution start?*
@@ -19,6 +21,8 @@ Report 04: Entry points. Question: *Where does execution start?*
 ### Entry points (`entry.catalog`)
 
 Every way execution can start. Decide about each finding: console scripts, `__main__` modules, CLI commands (one row per command, and mark `added: true` when no tool found it), HTTP routes (one row per route group), scheduled jobs, queue consumers, container commands, CI schedules, Makefile targets, systemd units, shebang scripts. `Starts at` names the function or file.
+
+In JavaScript and TypeScript repositories the findings also include package bins, package scripts, `main` entries, Nx targets and UI routes. Write a route's full path: add any prefix that a `route-mount` finding shows, so a router mounted under `/api` is `GET /api/tags` and not `GET /tags`. Keep one row per entry point. Package scripts are entry points. A script that only wraps another one may be merged with it only when both have the same `path` and `name`; otherwise dismiss it with a reason.
 
 Shape: a table with columns Kind, Name, Triggered by, Starts at, Notes.
 
@@ -40,7 +44,7 @@ Drawn by code from the tool findings. **Do not write this card:** leave it out o
 
 ### Component catalog (`components.catalog`)
 
-One row per component, drafted from the component candidates (see "Components" in `method.md`). `Paths` lists the component's folders, files or globs in backticks. `Depends on`, `Used by` and `Size` are measured and drawn by code: write `-` in those three cells. List files that belong to no component in the entry's `unassigned` list.
+One row per component, drafted from the component candidates (see "Components" in `method.md`). `Paths` lists the component's folders, files or globs in backticks. `Depends on`, `Used by` and `Size` are measured and drawn by code: write `-` in those three cells. List files that belong to no component in the entry's `unassigned` list. A repository of several apps gets one component per folder with a clear job; do not merge apps into one component. `Public surface` names what the component offers to other packages, or says that it is internal.
 
 Shape: a table with columns Component, Paths, Responsibility, Public surface, Depends on, Used by, Size.
 
@@ -70,7 +74,7 @@ Report 06: Interactions. Question: *How do the parts talk to each other, and whe
 
 ### Dependency graph (`interactions.graph`)
 
-Drawn by code from the tool findings. **Do not write this card:** leave it out of the file.
+Drawn by code from the tool findings. **Do not write this card:** leave it out of the file. In a React repository the card also lists the React components, with what each renders and which hooks and context it uses; use that list when you write the flows. How context values reach their consumers, and what a custom hook wires up, are not worked out: Gaps says so.
 
 ### Cycles and layer violations (`interactions.violations`)
 
@@ -126,7 +130,7 @@ Tool findings that arrive here (home card): stdout, file-write, outbound-call, m
 
 Written agreements with other systems: OpenAPI, protobuf, GraphQL and JSON-schema files, public exports, route tables, client SDK use. Consumers outside the repository are `unknown` unless declared.
 
-Shape: a table with columns Contract, Direction, Counterparty, Schema location, Versioning. One row per contract and direction. `Direction` is exactly `offered` (this repository publishes it) or `consumed` (this repository relies on it); `summary.json` joins repositories on that word, and `render` fails on anything else.
+Shape: a table with columns Contract, Direction, Counterparty, Schema location, Versioning. One row per contract and direction. The page draws a table of the real public API of each package below your rows (what other packages can import); never copy it. Write one row per package that has such an API, as `offered`. `Direction` is exactly `offered` (this repository publishes it) or `consumed` (this repository relies on it); `summary.json` joins repositories on that word, and `render` fails on anything else.
 
 ## data
 
@@ -134,7 +138,7 @@ Report 08: Data model. Question: *What data exists, and what is true about it?*
 
 ### Entities and types (`data.entities`)
 
-Every entity the code defines: dataclasses, Pydantic and ORM models, SQL tables, typed dictionaries, enums. Decide about each finding (migrations are not entities). One row per entity: `Fields` lists every field by name, and `Owner component` names a catalog component.
+Every entity the code defines: dataclasses, Pydantic and ORM models, SQL tables, typed dictionaries, enums, and in TypeScript interfaces, object types, enums, Prisma models and ORM classes (the tool leaves out `Props` types). Decide about each finding (migrations are not entities). One row per entity: `Fields` lists every field by name, and `Owner component` names a catalog component.
 
 Shape: a table with columns Name, Kind, Fields, Defined in, Owner component.
 
@@ -302,7 +306,7 @@ Shape: a table with columns Item, Why (as far as known), Evidence, Source. The p
 
 ### Dead code and stale flags (`change.dead-code`)
 
-**Do not write this card.** The page draws the tool findings: unused code, unused dependencies, and modules nothing imports. Stale feature flags and unused routes are not detected for Python, and Gaps says so.
+**Do not write this card.** The page draws the tool findings: unused code, unused dependencies, and modules nothing imports. Stale feature flags and unused routes are not detected, and Gaps says so.
 
 ### Docs versus code (`change.docs-drift`)
 
@@ -378,7 +382,7 @@ Shape: a table with columns Term, Meaning, Where it lives.
 
 ### Technologies and idioms (`reading.technologies`)
 
-Each language, framework and library with a role in the code (from the manifests and imports), what it does here, and the idiom a newcomer needs to know (DI container, ORM style, state management).
+Each language, framework and library with a role in the code (from the manifests and imports), what it does here, and the idiom a newcomer needs to know (DI container, ORM style, state management; for React, the state, routing and data-fetching idioms).
 
 Shape: a table with columns Technology, Role here, Idiom to know.
 

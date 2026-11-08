@@ -120,7 +120,7 @@ def group_members(extract: dict) -> dict:
 
 SCHEMA_DIR = Path(__file__).resolve().parent.parent / "prompts" / "schema"
 CATEGORY_CARD = {
-    "cli-args": "io.inputs", "env-var": "io.inputs", "config-file": "io.inputs", "file-read": "io.inputs", "stdin": "io.inputs",
+    "cli-args": "io.inputs", "env-var": "io.inputs", "config-file": "io.inputs", "file-read": "io.inputs", "stdin": "io.inputs", "request-header": "io.inputs",
     "message-consume": "io.inputs", "db-connect": "data.stores", "db-access": "interactions.state",
     "global-state": "interactions.state", "cache": "interactions.state", "thread": "interactions.concurrency",
     "async": "interactions.concurrency", "process-pool": "interactions.concurrency", "lock": "interactions.concurrency",
@@ -203,8 +203,8 @@ FEEDS = {
     "reading": ("modules", "imports", "entry_points", "test_files"),
     "entry": ("entry_points",),
     "components": ("modules", "imports", "defs"),
-    "interactions": ("modules", "imports", "cycles", "contracts", "ref_edges", "cand:interactions"),
-    "io": ("cand:io", "entry_points"),
+    "interactions": ("modules", "imports", "cycles", "contracts", "ref_edges", "ui", "cand:interactions"),
+    "io": ("cand:io", "entry_points", "public_api"),
     "data": ("models", "cand:data"),
     "behavior": ("test_files", "cand:behavior"),
     "conventions": ("cand:all", "modules"),
@@ -232,6 +232,13 @@ def _feed(name, extract):
         return [["def", g["path"], g["symbol"], g.get("public")] for g in extract.get("symbols", []) if g.get("kind") == "def"]
     if name == "ref_edges":
         return [["ref", g["path"], (g.get("paths") or [""])[0]] for g in extract.get("symbols", []) if g.get("kind") == "ref-edge"]
+    if name == "ui":  # a React component and the files it renders; no line numbers
+        drawn: dict = {}
+        for g in _graph(extract, "renders"):
+            drawn.setdefault((g["path"], g["from"]), set()).update(g.get("paths") or [])
+        return [["ui", g["path"], g["name"], sorted(drawn.get((g["path"], g["name"]), ()))] for g in _graph(extract, "ui-component")]
+    if name == "public_api":
+        return [["api", g["package"], g["subpath"], g["name"], g.get("path")] for g in extract.get("symbols", []) if g.get("kind") == "public-api"]
     if name == "test_files":
         return [["test", t["path"], t.get("tests"), t.get("skips"), t.get("xfails")] for t in extract.get("tests", []) if t.get("kind") == "test-file"]
     if name == "test_configs":
@@ -270,7 +277,7 @@ def _group(items: list) -> list:
     for it in items:
         groups.setdefault(it["group"], []).append(it)
     return [{"group": g, "rule": v[0].get("rule") or v[0].get("kind"), "path": v[0]["path"],
-             "hits": [{"id": i["id"], "line": i.get("line"), "end_line": i.get("end_line"), "snippet": i.get("snippet") or i.get("name", "")}
+             "hits": [{"id": i["id"], "line": i.get("line"), "end_line": i.get("end_line"), "snippet": i.get("snippet") or i.get("name", ""), "name": i.get("name", "")}
                       for i in sorted(v, key=lambda i: i.get("line") or 0)]}
             for g, v in sorted(groups.items(), key=lambda kv: (kv[1][0]["path"], kv[1][0].get("rule") or "", kv[0]))]
 
@@ -319,13 +326,18 @@ def text(rid: str, extract: dict, reports: dict, facts: dict, *, only_open: bool
         for g in card["groups"]:
             lines = ", ".join(str(h["line"]) for h in g["hits"])
             out.append(f"{g['group']}  {g['rule']}  {g['path']}  ({len(g['hits'])} hits: lines {lines})")
-            out += [f"    {h['id']}  {g['path']}:{h['line']}  {h['snippet']}" for h in g["hits"]]
+            out += [f"    {h['id']}  {g['path']}:{h['line']}  {h['snippet']}" + (f"  [{h['name']}]" if h["name"] and h["name"] != h["snippet"] else "")
+                    for h in g["hits"]]
     if "components" in d and not only_open:  # --open prints only what still needs a decision
         c = d["components"]
         out.append("== Folders with source files ==")
         out += [f"{f['path']}  ({f['files']} files, {f['lines']} lines)" for f in c["folders"]]
-        out.append("== Python packages ==")
-        out += [f"{p['package']}  ({p['modules']} modules)" for p in c["packages"]]
+        if c["packages"] or "projects" not in c:
+            out.append("== Python packages ==")
+            out += [f"{p['package']}  ({p['modules']} modules)" for p in c["packages"]]
+        if "projects" in c:
+            out.append("== JavaScript and TypeScript projects ==")
+            out += [f"{p['root']}  ({p['modules']} modules)" for p in c["projects"]]
         out.append("== Import communities (folders that import each other most) ==")
         out += [f"{x['label']}: {', '.join(x['folders'])}" for x in c["communities"]]
     if "catalog" in d:

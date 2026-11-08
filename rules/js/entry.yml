@@ -1,0 +1,147 @@
+rules:
+  - id: dossier.js.entry.http-route
+    message: A web route
+    languages: [js, ts]
+    severity: INFO
+    options:
+      constant_propagation: false
+    metadata: {category: entry, kind: http-route, detail: '\.((?:get|post|put|patch|delete|options|head|all)\(\s*(?://[^\n]*\n\s*)*[''"`][^''"`]*)'}
+    patterns:
+      - pattern: $R.$M("...", $H, ...)
+      - metavariable-regex:
+          metavariable: $R
+          regex: ^(app|router|server|fastify|api|.*[Rr]outer|.*[Aa]pp)$
+      - metavariable-regex:
+          metavariable: $M
+          regex: ^(get|post|put|patch|delete|options|head|all)$
+
+  - id: dossier.js.entry.route-chain
+    message: A web route declared with a chain of methods
+    languages: [js, ts]
+    severity: INFO
+    options:
+      constant_propagation: false
+    metadata: {category: entry, kind: http-route, detail: '\.route\(\s*[''"`]([^''"`]*)'}
+    patterns:
+      - pattern: $R.route("...").$M(...)
+      - metavariable-regex:
+          metavariable: $R
+          regex: ^(app|router|server|fastify|api|.*[Rr]outer|.*[Aa]pp)$
+
+  - id: dossier.js.entry.fastify-route
+    message: A web route declared with an options object
+    languages: [js, ts]
+    severity: INFO
+    options:
+      constant_propagation: false
+    metadata: {category: entry, kind: http-route, detail: 'url\s*:\s*[''"`]([^''"`]*)'}
+    patterns:
+      - pattern: '$R.route({..., url: "...", ...})'
+      - metavariable-regex:
+          metavariable: $R
+          regex: ^(app|router|server|fastify|api|.*[Rr]outer|.*[Aa]pp)$
+
+  - id: dossier.js.entry.nest-route
+    message: A web route declared with a NestJS decorator
+    languages: [ts]
+    severity: INFO
+    metadata: {category: entry, kind: http-route, detail: '@((?:Get|Post|Put|Patch|Delete)\(\s*[''"`]?[^''"`)]*)'}
+    pattern-either:
+      - pattern: |
+          @Get(...)
+          $M(...) {...}
+      - pattern: |
+          @Post(...)
+          $M(...) {...}
+      - pattern: |
+          @Put(...)
+          $M(...) {...}
+      - pattern: |
+          @Patch(...)
+          $M(...) {...}
+      - pattern: |
+          @Delete(...)
+          $M(...) {...}
+
+  - id: dossier.js.entry.server-listen
+    message: The server starts listening
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: entry, kind: server-listen}
+    patterns:
+      - pattern: $R.listen(...)
+      - metavariable-regex:
+          metavariable: $R
+          regex: ^(app|router|server|fastify|api|.*[Rr]outer|.*[Aa]pp|.*[Ss]erver)$
+
+  - id: dossier.js.entry.cli-command
+    message: A command-line command registered by name
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: entry, kind: cli-command, detail: '\.command\(\s*[''"`]([^''"`\s<\[]*)'}
+    pattern: $P.command("...", ...)
+
+  - id: dossier.js.entry.queue-worker
+    message: A worker that consumes jobs from a queue
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: entry, kind: queue-consumer, detail: 'Worker\(\s*[''"`]([^''"`]*)'}
+    patterns:
+      - pattern: new Worker("...", $FN, ...)
+      - pattern-not: new Worker("...", {...}, ...)
+
+  - id: dossier.js.entry.queue-consume
+    message: A consumer of messages from a queue
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: entry, kind: queue-consumer, detail: 'consume\(\s*[''"`]([^''"`]*)'}
+    patterns:
+      - pattern: $CH.consume(...)
+      - metavariable-regex:
+          metavariable: $CH
+          regex: ^(ch|channel|.*[Cc]hannel)$
+
+  - id: dossier.js.entry.kafka-consumer
+    message: A consumer of messages from Kafka
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: entry, kind: queue-consumer}
+    pattern: '$C.run({..., eachMessage: ..., ...})'
+
+  - id: dossier.js.entry.nest-processor
+    message: A NestJS queue processor
+    languages: [ts]
+    severity: INFO
+    metadata: {category: entry, kind: queue-consumer, detail: 'Processor\(\s*[''"`]([^''"`]*)'}
+    pattern: |
+      @Processor(...)
+      class $C {...}
+
+  - id: dossier.js.entry.scheduled-job
+    message: A job that runs on a schedule
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: entry, kind: scheduled-job, detail: '\(\s*[''"`]([^''"`]*)'}
+    pattern-either:
+      - pattern: cron.schedule(...)
+      - pattern: new CronJob(...)
+
+  - id: dossier.js.entry.nest-cron
+    message: A NestJS method that runs on a schedule
+    languages: [ts]
+    severity: INFO
+    metadata: {category: entry, kind: scheduled-job, detail: 'Cron\(\s*[''"`]?([^''"`)]*)'}
+    pattern: |
+      @Cron(...)
+      $M(...) {...}
+
+  - id: dossier.js.entry.static-files
+    message: Static files served from a folder
+    languages: [js, ts]
+    severity: INFO
+    options:
+      constant_propagation: false
+    metadata: {category: entry, kind: http-route}
+    pattern-either:
+      - pattern: $R.use(express.static(...))
+      - pattern: $R.use($P, express.static(...))

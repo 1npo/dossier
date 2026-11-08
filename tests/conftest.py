@@ -15,6 +15,7 @@ import render  # noqa: E402
 SHA = "a" * 40
 collect_ignore_glob = ["fixtures/*"]
 PYFIX = Path(__file__).resolve().parent / "fixtures" / "pyrepo"
+JSFIX = Path(__file__).resolve().parent / "fixtures" / "jsrepo"
 
 
 class FakeRepo:
@@ -196,11 +197,19 @@ def line_of_fixture():
     return line_of
 
 
-def build_py_repo(dest: Path):
-    """Copy the Python fixture repository (tests/fixtures/pyrepo) to `dest` and commit it once on main."""
-    repo = Path(dest) / "pyrepo"
-    shutil.copytree(PYFIX, repo, ignore=shutil.ignore_patterns("__pycache__"))
-    (repo / "scripts" / "seed.sh").chmod(0o755)
+def key_line(root, rel, key):
+    """The 1-based line of `rel` under `root` whose text holds `"<key>"` first; for JSON files, which cannot hold markers."""
+    for i, text in enumerate((Path(root) / rel).read_text(encoding="utf-8").splitlines(), 1):
+        if f'"{key}"' in text:
+            return i
+    raise LookupError(f'key "{key}" not found in {rel}')
+
+
+def _commit_fixture(src: Path, dest: Path, name: str, chmod=()):
+    repo = Path(dest) / name
+    shutil.copytree(src, repo, ignore=shutil.ignore_patterns("__pycache__", "node_modules"))
+    for rel in chmod:
+        (repo / rel).chmod(0o755)
     env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull,
            "GIT_AUTHOR_NAME": "T", "GIT_AUTHOR_EMAIL": "t@x.io", "GIT_COMMITTER_NAME": "T", "GIT_COMMITTER_EMAIL": "t@x.io"}
 
@@ -211,10 +220,27 @@ def build_py_repo(dest: Path):
     git("add", "-A")
     git("commit", "-m", "fixture")
     return types.SimpleNamespace(path=str(repo), sha=git("rev-parse", "HEAD"),
-                                 line_of=lambda rel, name: line_of(repo, rel, name))
+                                 line_of=lambda rel, marker: line_of(repo, rel, marker),
+                                 key_line=lambda rel, key: key_line(repo, rel, key))
+
+
+def build_py_repo(dest: Path):
+    """Copy the Python fixture repository (tests/fixtures/pyrepo) to `dest` and commit it once on main."""
+    return _commit_fixture(PYFIX, dest, "pyrepo", chmod=[Path("scripts") / "seed.sh"])
+
+
+def build_js_repo(dest: Path):
+    """Copy the JavaScript fixture repository (tests/fixtures/jsrepo) to `dest` and commit it once on main."""
+    return _commit_fixture(JSFIX, dest, "jsrepo")
 
 
 @pytest.fixture
 def py_repo(tmp_path):
     """The Python fixture repository as a git repository with one commit on main."""
     return build_py_repo(tmp_path)
+
+
+@pytest.fixture
+def js_repo(tmp_path):
+    """The JavaScript fixture repository as a git repository with one commit on main."""
+    return build_js_repo(tmp_path)

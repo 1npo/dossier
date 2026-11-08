@@ -420,6 +420,76 @@ class TestPartialCards:
         assert process.partial_cards(build_with(self.tools(), self.extract(**status))) == {}
 
 
+class TestPartialCardsJavaScript:
+    SELF = TestPartialCards.SELF + [{"id": t} for t in ("dependency-cruiser", "knip", "scip-typescript", "typescript")]
+
+    def tools(self, missing=()):
+        return rec("tools", details={"self_installing": self.SELF, "missing": list(missing), "languages": []})
+
+    def extract(self, python=None, js=None):
+        ok = {"grimp": {"status": "ok"}, "scip-python": {"status": "ok"}, "vulture": {"status": "ok"}}
+        adapters = [{"name": "js", "status": "ok", "tools": js or {}}, {"name": "python", "status": "ok", "tools": {**ok, **(python or {})}}]
+        return rec("extract", details={"adapters": adapters})
+
+    def test_a_skipped_knip_marks_the_dead_code_card_with_its_reason(self):
+        js = {"knip": {"status": "skipped", "reason": "Node is not installed."}}
+
+        got = process.partial_cards(build_with(self.tools(), self.extract(js=js)))
+
+        assert got == {"change.dead-code": "Made without knip: Node is not installed."}
+
+    def test_in_a_mixed_build_only_the_absent_javascript_tool_is_named(self):
+        js = {"scip-typescript": {"status": "failed", "reason": "Out of memory."}, "dependency-cruiser": {"status": "ok"}}
+
+        got = process.partial_cards(build_with(self.tools(), self.extract(js=js)))
+
+        assert got["interactions.graph"] == "Made without scip-typescript: Out of memory."
+        assert "grimp" not in " ".join(got.values()) and "scip-python" not in " ".join(got.values())
+
+    def test_a_shared_card_names_both_languages_tools_when_both_are_absent(self):
+        js = {"scip-typescript": {"status": "failed", "reason": "Out of memory."}}
+        py = {"scip-python": {"status": "skipped", "reason": "Node is missing"}}
+
+        got = process.partial_cards(build_with(self.tools(), self.extract(python=py, js=js)))
+
+        assert got["interactions.graph"] == "Made without scip-python: Node is missing. Made without scip-typescript: Out of memory."
+
+    def test_the_typescript_script_marks_the_entity_and_entry_cards(self):
+        js = {"typescript": {"status": "failed", "reason": "No tsconfig."}}
+
+        got = process.partial_cards(build_with(self.tools(), self.extract(js=js)))
+
+        assert {"data.entities", "data.relationships", "entry.catalog", "interactions.graph"} == set(got)
+
+    def test_a_missing_knip_is_named_once_in_the_badge(self):
+        got = process.partial_cards(build_with(self.tools(["knip"]), self.extract()))
+
+        assert got == {"change.dead-code": "Made without knip: it is not installed."}
+
+
+class TestCoverageItemsJavaScript:
+    def statements(self, *records):
+        return [i["statement"] for i in process.coverage_items(build_with(*records))]
+
+    def test_a_skipped_knip_is_one_gaps_item(self):
+        ex = rec("extract", details={"adapters": [{"name": "js", "status": "ok", "tools": {"knip": {"status": "skipped", "reason": "Node is not installed."}}}]})
+
+        assert self.statements(ex) == ["The tool knip did not finish, so the cards that use it are marked partial: Node is not installed."]
+
+    def test_a_missing_node_gives_the_host_gaps_item(self):
+        host = [{"id": "node", "status": "missing", "install": "brew install node"}]
+
+        assert self.statements(rec("tools", details={"host": host, "languages": []})) == [
+            "The tool node was not installed, so this build ran without it. Install it with: brew install node"]
+
+    def test_a_node_that_is_too_old_gives_the_old_tool_item(self):
+        host = [{"id": "node", "status": "old", "version": "20.19.2", "needs": "22.13.0", "install": "fnm install 22"}]
+
+        got = self.statements(rec("tools", details={"host": host, "languages": []}))
+
+        assert got and "too old (20.19.2; it needs 22.13.0)" in got[0]
+
+
 class TestCheckLine:
     def line(self, **counts):
         build = build_with(rec("check", part="render", by="render", counts={"citations": 4, "unresolved": 1, "errors": 0, **counts}))

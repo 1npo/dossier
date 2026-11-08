@@ -16,6 +16,7 @@ import components
 import measured_blast
 import measured_change
 import measured_er
+import measured_tables
 import measured_upgrade
 import schema
 
@@ -179,6 +180,7 @@ def _drawn_counts(extract, build) -> dict:
     return out
 
 
+REACT_COLUMNS = measured_tables.REACT_COLUMNS
 HOTSPOT_FILES = measured_change.HOTSPOT_FILES
 HOTSPOT_COMPONENTS = measured_change.HOTSPOT_COMPONENTS
 BLAST_COLUMNS = ["File", "Component", "Direct dependents", "All dependents", "Importing tests", "Co-changing files"]
@@ -188,6 +190,12 @@ def _measured_counts(m) -> dict:
     """card id -> [(table id, rows the source has, the columns it must start with)] for the cards code draws from the history (M3)."""
     extract = m.get("extract") or {}
     out = {}
+    ui = sum(1 for g in extract.get("graph", []) if g.get("kind") == "ui-component")
+    if ui:  # drawn whether or not the repository has history
+        out["interactions.graph"] = [("t-interactions-graph-react", ui, REACT_COLUMNS)]
+    api = len(measured_tables.public_api_rows(extract))
+    if api:  # the card draws a table only when there are names to list
+        out["io.contracts"] = [("t-io-contracts-api", api, measured_tables.API_COLUMNS)]
     if not measured_change.has_history(m):
         return out
     files = components.source_files(m.get("tree"), extract)

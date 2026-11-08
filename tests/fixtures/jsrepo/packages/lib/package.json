@@ -1,0 +1,12 @@
+{
+  "name": "@shopjs/lib",
+  "version": "1.0.0",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./utils/*": "./src/utils/*.ts",
+    "./internal/*": null
+  }
+}

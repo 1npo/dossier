@@ -1,0 +1,11 @@
+CREATE TABLE "User" (
+  "id" SERIAL PRIMARY KEY,
+  "email" TEXT NOT NULL UNIQUE,
+  "role" TEXT NOT NULL DEFAULT 'USER'
+);
+
+CREATE TABLE "Post" (
+  "id" INTEGER PRIMARY KEY,
+  "title" TEXT NOT NULL,
+  "authorId" INTEGER NOT NULL REFERENCES "User" ("id")
+);

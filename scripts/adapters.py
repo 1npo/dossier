@@ -1,7 +1,7 @@
 """The adapter interface, the extract stage and the path filter.
 
 An adapter turns one language's code into the standard outputs (entry points, import graph, symbols, ...).
-The Python adapter and the repository-wide adapter are registered in `_registered()`.
+The JavaScript, Python and repository-wide adapters are registered in `_registered()`.
 """
 from __future__ import annotations
 
@@ -60,9 +60,10 @@ ADAPTERS: tuple = ()  # kept for callers that pass their own tuple; the shipped 
 
 def _registered() -> tuple:
     """The adapters dossier ships. Imported on first use: both modules import this one, so a top-level import would cycle."""
+    from js_adapter import JsAdapter
     from py_adapter import PythonAdapter
     from repo_adapter import RepoAdapter
-    return (PythonAdapter, RepoAdapter)
+    return (JsAdapter, PythonAdapter, RepoAdapter)
 
 
 def detect(languages: list, adapters=None) -> list:

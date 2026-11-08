@@ -289,10 +289,22 @@ def module_names(modules) -> frozenset:
     return frozenset(out)
 
 
-def _checked_span(span: str, files: set, modules=frozenset()) -> bool:
+# Words that are language syntax or built-in names in JavaScript and TypeScript, as `SKIP_WORDS` is for Python.
+JS_WORDS = frozenset({"const", "let", "var", "function", "async", "await", "undefined", "this", "new", "typeof", "interface", "type",
+                      "enum", "Promise", "Array", "Object", "string", "number", "boolean"})
+
+
+def module_inputs(graph) -> tuple:
+    """(module names for V2, whether any module is JavaScript or TypeScript). A JS module is also known by its `short` name."""
+    mods = [g for g in graph or () if g.get("kind") == "module"]
+    names = {g["module"] for g in mods} | {g["short"] for g in mods if g.get("short")}
+    return frozenset(names), any(g.get("language") == "js" for g in mods)
+
+
+def _checked_span(span: str, files: set, modules=frozenset(), skip=SKIP_WORDS) -> bool:
     """Is this backticked span a code identifier worth looking for? File names and module names are not."""
     s = span.strip()
-    if not NAME.match(s) or s in files or s.casefold() in SKIP_WORDS or s.rstrip("()") in SKIP_WORDS:
+    if not NAME.match(s) or s in files or s.casefold() in skip or s.rstrip("()") in skip:
         return False
     found = render.BARE_FILE.search(s)
     if (found and found.group(1) == s) or s in modules:
@@ -309,13 +321,14 @@ def _span_found(span: str, text: str) -> bool:
     return "." in s and s.rstrip("()").rsplit(".", 1)[1] in text
 
 
-def v2(reports: dict, cites, files: set, modules=()) -> tuple[list, list, list, dict]:
+def v2(reports: dict, cites, files: set, modules=(), js: bool = False) -> tuple[list, list, list, dict]:
     """A name in backticks in a statement appears in the code the statement cites (D9). Warnings only.
 
     File names and module names (by their full dotted name or a suffix of it) are not looked for in the code.
     """
     warnings, gaps = [], []
     known = module_names(modules)
+    skip = SKIP_WORDS | JS_WORDS if js else SKIP_WORDS
     for rid, rep in sorted(reports.items()):
         title = (schema.load(rid) or {}).get("title", rid)
         for c in render.claims_of(rid, rep or {}):
@@ -326,7 +339,7 @@ def v2(reports: dict, cites, files: set, modules=()) -> tuple[list, list, list, 
             if text is None:
                 continue
             for span in dict.fromkeys(SPAN.findall(_claim_text(c))):
-                if not _checked_span(span, files, known) or _span_found(span, text):
+                if not _checked_span(span, files, known, skip) or _span_found(span, text):
                     continue
                 shown = " ".join(str(c["text"]).split())[:50]
                 warnings.append(f"V2: {rid} '{shown}': {span} does not appear in the code it cites ({', '.join(refs)}).")
@@ -395,7 +408,8 @@ def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None)
         tree = None
     if cites:
         try:
-            e, w, g, c = v2(reports, cites, set(tree or ()), {g["module"] for g in (extract or {}).get("graph", []) if g.get("kind") == "module"})
+            names, js = module_inputs((extract or {}).get("graph", []))
+            e, w, g, c = v2(reports, cites, set(tree or ()), names, js)
             result["warnings"] += w
             result["gaps"] += g
             result["counts"].update(c)
@@ -416,9 +430,8 @@ def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None)
         _, w, g, c = checks_v7.v7(extract)
         result["gaps"] += g
         result["counts"].update(c)
-    if extract and any(g.get("kind") == "module" for g in extract.get("graph", [])):
-        result["gaps"].append({"kind": "coverage", "report": "change", "statement": "Stale feature flags and unused routes are not detected for Python.",
-                               "how_to_confirm": "This is a known limit of this version of dossier."})
+    if extract:
+        result["gaps"] += js_coverage(extract)
     if tree and extract:  # a dossier made before the extractors has no extract/: nothing to hold it to
         try:
             e, w, g, c = v4(reports, tree, facts)
@@ -429,6 +442,9 @@ def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None)
         except (AttributeError, TypeError, KeyError):
             pass
     return result
+
+
+js_coverage = checks_v7.js_coverage
 
 
 def gap_extras(build, reports, extract, cites=None, facts=None, result=None) -> list:

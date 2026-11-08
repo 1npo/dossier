@@ -22,6 +22,7 @@ ALLOWED_NAMES = frozenset({
     "DOTNET_CLI_TELEMETRY_OPTOUT", "DOTNET_NOLOGO", "UV_CACHE_DIR", "npm_config_cache", "NUGET_PACKAGES",
     "DOTNET_CLI_HOME", "PIP_CACHE_DIR", "npm_config_userconfig", "UV_PYTHON_INSTALL_DIR",
     "GH_CONFIG_DIR", "GH_PROMPT_DISABLED", "GH_NO_UPDATE_NOTIFIER",
+    "YARN_CACHE_FOLDER", "YARN_GLOBAL_FOLDER", "YARN_ENABLE_TELEMETRY",
 })
 SAFE_PATH = ("/usr/local/bin", "/usr/bin", "/bin")
 
@@ -48,6 +49,8 @@ def _host_path(parent: Mapping[str, str]) -> str:
         d = str(Path(exe).parent) if exe else None
         if d and d not in dirs:
             dirs.append(d)
+    # git lives in /usr/bin and comes first, so a newer node from a version manager must be moved ahead of the system folders
+    dirs = [d for d in dirs if d not in SAFE_PATH] + [d for d in dirs if d in SAFE_PATH]
     for d in SAFE_PATH:
         if d not in dirs:
             dirs.append(d)
@@ -88,7 +91,8 @@ def build_env(area: Path, *, profile: str = "restricted", ecosystem: str | None 
     cache = area / "cache"
     env.update(npm_config_cache=str(cache / "npm"), NUGET_PACKAGES=str(cache / "nuget"),
                DOTNET_CLI_HOME=str(cache / "dotnet"), PIP_CACHE_DIR=str(cache / "pip"),
-               npm_config_userconfig=str(home / ".npmrc-empty"))
+               npm_config_userconfig=str(home / ".npmrc-empty"), YARN_CACHE_FOLDER=str(cache / "yarn"),
+               YARN_GLOBAL_FOLDER=str(cache / "yarn-berry"), YARN_ENABLE_TELEMETRY="0")
     if profile == "tool":
         shared = tools_cache(area)
         env.update(UV_CACHE_DIR=str(shared / "uv"), UV_PYTHON_INSTALL_DIR=str(shared / "python"),

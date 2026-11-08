@@ -1,0 +1,22 @@
+{
+  "name": "shopjs",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "bin": {
+    "shopjs": "dist/cli.js"
+  },
+  "main": "dist/main.js",
+  "scripts": {
+    "start": "node dist/main.js",
+    "test": "jest"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
+  "dependencies": {
+    "express": "file:stubs/express"
+  }
+}

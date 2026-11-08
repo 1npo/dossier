@@ -1,0 +1,9 @@
+{
+  "name": "@shopjs/web",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "react": "file:../../stubs/react",
+    "react-router": "file:../../stubs/react-router"
+  }
+}

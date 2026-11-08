@@ -1,0 +1,5 @@
+{"issues": [
+  {"file": "src/unused.ts", "files": [{"name": "src/unused.ts"}], "dependencies": [], "devDependencies": [], "exports": [], "types": [], "optionalPeerDependencies": []},
+  {"file": "src/a.ts", "files": [], "dependencies": [], "devDependencies": [], "exports": [{"name": "extra", "line": 4, "col": 14}], "types": [{"name": "Local", "line": 6, "col": 11}], "optionalPeerDependencies": []},
+  {"file": "package.json", "files": [], "dependencies": [{"name": "left-pad", "line": 7, "col": 6}], "devDependencies": [], "exports": [], "types": [], "optionalPeerDependencies": []}
+]}

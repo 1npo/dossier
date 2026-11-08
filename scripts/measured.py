@@ -15,6 +15,7 @@ import measured_blast
 import measured_change
 import measured_er
 import measured_graph
+import measured_js
 import measured_people
 import measured_upgrade
 
@@ -64,12 +65,12 @@ def _shallowest(dirs: set) -> list:
 def _is_config(p: str) -> bool:
     base = p.rsplit("/", 1)[-1]
     return (p in ("pyproject.toml", "setup.cfg", ".env.example") or base.endswith(".ini") or (base.endswith(".toml") and not p.startswith(".github/"))
-            or p.startswith("config/") or "/config/" in p or bool(re.fullmatch(r"settings.*\.py", base)))
+            or p.startswith("config/") or "/config/" in p or bool(re.fullmatch(r"settings.*\.py", base)) or measured_js.is_config(p))
 
 
-def _is_build(p: str) -> bool:
+def _is_build(p: str, read=None) -> bool:
     base = p.rsplit("/", 1)[-1]
-    return p in ("pyproject.toml", "setup.py", "Makefile", "noxfile.py", "tox.ini") or base.startswith("Dockerfile")
+    return p in ("pyproject.toml", "setup.py", "Makefile", "noxfile.py", "tox.ini") or base.startswith("Dockerfile") or measured_js.is_build(p, read)
 
 
 def _is_ci(p: str) -> bool:
@@ -94,7 +95,7 @@ def _reading_map(cid, ctx, refs):
     rows = [
         ("configuration", _rollup({p for p in tree if _is_config(p)}, tree)),
         ("tests", test_places),
-        ("build", _rollup({p for p in tree if _is_build(p) and build_system(p)}, tree)),
+        ("build", _rollup({p for p in tree if _is_build(p, read) and build_system(p)}, tree)),
         ("docs", _rollup({p for p in tree if p.startswith("docs/") or ("/" not in p and p.endswith(".md"))}, tree)),
         ("migrations", [d + "/" for d in _shallowest(migrations)]),
         ("CI", _rollup({p for p in tree if _is_ci(p)}, tree)),
@@ -136,21 +137,27 @@ def _tooling(cid, ctx, refs):
     texts = {p: (read(p) or "") for p in SHARED if p in tree}
     ci = sorted(p for p in tree if p.startswith(".github/workflows/") and p.endswith((".yml", ".yaml")) or p == ".gitlab-ci.yml")
     hooks = read(".pre-commit-config.yaml") or "" if ".pre-commit-config.yaml" in tree else ""
+    husky = "\n".join(read(p) or "" for p in sorted(tree) if measured_js.HOOK_FILE.search(p))
     r = _render()
     rows = []
-    for tool, (files, sections) in TOOLS.items():
-        where = [(f, None) for f in files if f in tree]
+    found = {tool: ([(f, None) for f in files if f in tree], sections) for tool, (files, sections) in TOOLS.items()}
+    js_where = measured_js.tool_locations(tree, read, _line_of)
+    for tool in list(found) + [t for t in js_where if t not in found]:
+        files, sections = found.get(tool, ([], ()))
+        where = list(files)
         for p, text in texts.items():
             for marker in sections + (("[flake8]",) if tool == "flake8" and p != "pyproject.toml" else ()):
                 n = _line_of(text, marker)
                 if n:
                     where.append((p, n))
                     break
+        where += js_where.get(tool, [])
         if not where:
             continue
-        name = re.compile(r"(?<![\w-])" + re.escape(tool) + r"(?![\w-])", re.I)
+        name = measured_js.ci_pattern(tool) if tool in measured_js.NODE_TOOLS else re.compile(r"(?<![\w-])" + re.escape(tool) + r"(?![\w-])", re.I)
         ci_hits = [p for p in ci if name.search(read(p) or "")]
-        enforced = (["pre-commit"] if tool != "pre-commit" and name.search(hooks) else []) + [r.path_code(p) for p in ci_hits]
+        enforced = (["pre-commit"] if tool != "pre-commit" and name.search(hooks) else []) + (["husky"] if tool != "husky" and name.search(husky) else []) \
+            + [r.path_code(p) for p in ci_hits]
         rows.append([tool, ", ".join(r.path_code(p) for p, _ in where), ", ".join(enforced) if enforced else NOT_ENFORCED,
                      r.source_cell(refs, *where, *[(p, None) for p in ci_hits])])
     if not rows:

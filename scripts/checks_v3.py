@@ -70,7 +70,7 @@ class Resolver:
         self.by_path = {m["path"]: m["module"] for m in mods}
         self.by_last: dict = {}
         for m in mods:
-            self.by_last.setdefault(m["module"].rsplit(".", 1)[-1], []).append(m["module"])
+            self.by_last.setdefault(m.get("short") or m["module"].rsplit(".", 1)[-1], []).append(m["module"])
         self.rows = catalog_rows
         self.imports = {(g["from"], g["to"]) for g in graph if g.get("kind") == "import"}
         self.refs = {(e["path"], e["paths"][0]) for e in extract.get("symbols", []) if e.get("kind") == "ref-edge" and e.get("paths")}

@@ -252,3 +252,60 @@ class TestToolStatus:
 
     def test_no_extract_folder_gives_nothing(self, tmp_path):
         assert candidates.tool_status(tmp_path) == {}
+
+
+class TestPublicApiFeed:
+    API = {"kind": "public-api", "path": "src/a.ts", "line": 3, "name": "one", "symbol_kind": "function", "package": "lib", "subpath": ".", "audience": "marked private"}
+
+    def test_a_new_name_changes_the_io_digest(self):
+        base = {"symbols": [self.API]}
+        more = {"symbols": [self.API, dict(self.API, name="two")]}
+
+        assert candidates.digest("io", base) != candidates.digest("io", more)
+
+    def test_a_moved_line_does_not(self):
+        assert candidates.digest("io", {"symbols": [self.API]}) == candidates.digest("io", {"symbols": [dict(self.API, line=40)]})
+
+    def test_a_repository_without_a_public_api_has_the_digest_it_had(self):
+        assert candidates.digest("io", {"entry_points": [], "io_candidates": []}) == candidates.digest("io", {"entry_points": [], "io_candidates": [], "symbols": []})
+
+
+class TestUiFeed:
+    COMP = {"kind": "ui-component", "path": "src/App.tsx", "line": 5, "name": "App", "exported": True, "hooks": [], "provides": [], "consumes": []}
+    EDGE = {"kind": "renders", "path": "src/App.tsx", "paths": ["src/Button.tsx"], "from": "App", "to": "Button"}
+
+    def digest(self, *graph):
+        return candidates.digest("interactions", {"graph": list(graph)})
+
+    def test_a_moved_component_changes_no_digest(self):
+        assert self.digest(self.COMP, self.EDGE) == self.digest(dict(self.COMP, line=90, end_line=120), self.EDGE)
+
+    def test_a_new_rendered_file_changes_interactions(self):
+        other = dict(self.EDGE, paths=["src/Card.tsx"])
+
+        assert self.digest(self.COMP, self.EDGE) != self.digest(self.COMP, self.EDGE, other)
+
+    def test_a_new_component_changes_interactions_and_not_reading(self):
+        extra = dict(self.COMP, name="Footer")
+
+        assert self.digest(self.COMP) != self.digest(self.COMP, extra)
+        assert candidates.digest("reading", {"graph": [self.COMP]}) == candidates.digest("reading", {"graph": [self.COMP, extra]})
+
+    def test_a_python_repository_has_the_digest_it_had(self):
+        assert candidates.digest("interactions", BASE) == candidates.digest("interactions", {**BASE, "graph": list(BASE["graph"])})
+
+
+class TestHitNames:
+    def test_a_hit_with_a_name_different_from_its_snippet_prints_the_name(self):
+        extract = {"entry_points": [item(path="project.json", snippet="nx build", name="api:build", kind="nx-target", group="g1", id="ep-1")]}
+
+        got = candidates.text("entry", extract, {}, {})
+
+        assert "ep-1  project.json:1  nx build  [api:build]" in got
+
+    def test_a_hit_whose_name_is_its_snippet_prints_no_brackets(self):
+        extract = {"entry_points": [item(snippet="GET /x", name="GET /x", kind="http-route", group="g1", id="ep-1")]}
+
+        got = candidates.text("entry", extract, {}, {})
+
+        assert "GET /x  [" not in got

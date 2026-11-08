@@ -39,9 +39,10 @@ def _label(text: str) -> str:
 
 
 def package_roots(extract: dict) -> list:
-    """Folders of the top-level Python packages, longest first (`src/cannalerts`)."""
+    """Folders of the top-level Python packages and the JavaScript source roots, longest first (`src/cannalerts`, `apps`)."""
     roots = {m["path"].rsplit("/", 1)[0] for m in extract.get("graph", [])
              if m.get("kind") == "module" and m.get("is_package") and m.get("package") == m.get("module") and "/" in m["path"]}
+    roots |= {g["root"] for g in extract.get("graph", []) if g.get("kind") == "source-root" and g.get("root")}
     return sorted(roots, key=lambda r: (-len(r), r))
 
 
@@ -111,8 +112,11 @@ def _graph(cid, ctx, refs):
     extract = ctx.get("extract") or {}
     if "graph" not in extract:
         return None
+    react = ""
+    if any(g.get("kind") == "ui-component" for g in extract["graph"]):  # only for a repository that has React components
+        react = measured_tables.heading("Every React component") + measured_tables.react_components(cid, extract, refs)
     if not _imports(extract):
-        return '<p class="muted">No imports between modules were found.</p>'
+        return '<p class="muted">No imports between modules were found.</p>' + react
     rows, roots = ctx.get("catalog") or [], package_roots(extract)
     group = _group_of(extract, rows, roots)
     imports = [(g["path"], g["paths"][0]) for g in _imports(extract)]
@@ -122,7 +126,8 @@ def _graph(cid, ctx, refs):
     return (measured_tables.heading(f"Imports between {kind}s")
             + measured_tables.component_edges(cid, imports, group, refs, kind)
             + measured_tables.heading("Every module import")
-            + measured_tables.module_imports(cid, _imports(extract), group, refs, kind))
+            + measured_tables.module_imports(cid, _imports(extract), group, refs, kind)
+            + react)
 
 
 def _map(cid, ctx, refs):

@@ -89,6 +89,8 @@ The commit calendars (on Overview and Contributors) open on days and zoom out to
 
 ## Install
 
+TypeScript, JavaScript and React repositories have full support from version 0.9.0, and need Node 22.13 or later.
+
 Requires Claude Code and [uv](https://docs.astral.sh/uv/), which installs Pygments for `dossier.py` on demand. Without Pygments the code is shown without colors, and `build` prints a warning. The page check in `build` uses Playwright, which `uv` installs on demand; the first run also needs `uv run --with playwright python -m playwright install chromium`.
 
 ```sh

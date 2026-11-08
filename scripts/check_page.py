@@ -107,7 +107,7 @@ CONTRAST_JS = r"""
 """
 
 
-SECRET_PATH = r"(^|/)(\.env(\.[^/]+)?|id_rsa|id_ed25519|[^/]+\.(pem|key|p12|pfx))$"
+SECRET_PATH = r"(^|/)(\.env(\.(?!example|sample|template|dist)[^/]+)?|id_rsa|id_ed25519|[^/]+\.(pem|key|p12|pfx))$"
 
 PANEL_JS = "() => { const p = document.getElementById('code-panel'); return !p.hidden && p.getBoundingClientRect().width > 0; }"
 COUNT_JS = "() => document.getElementById('cp-count').textContent"

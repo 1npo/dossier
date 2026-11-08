@@ -14,7 +14,7 @@ from adapters import Adapter
 
 RULES_ALL = Path(__file__).resolve().parent.parent / "rules" / "all"
 MAX_BYTES = 1_000_000
-TEST_COMMAND = re.compile(r"\b(pytest|tox|nox)\b|make test\b")
+TEST_COMMAND = re.compile(r"\b(pytest|tox|nox|jest|vitest|mocha)\b|make test\b|\bplaywright test\b|\bcypress run\b|\b(npm|yarn|pnpm)( run)? test\b|\bnx test\b")
 NOT_COLUMN = ("primary", "foreign", "constraint", "unique", "key", "check", "index", "exclude")
 TRIGGERS = {"container": "When the container starts", "make-target": "Running `make {name}`", "ci-schedule": "On the schedule `{name}`",
             "shebang-script": "When the script is run", "systemd-unit": "When the system service starts"}
@@ -183,7 +183,7 @@ def _executable_files(checkout: Path, sha: str) -> list:
 
 class RepoAdapter(Adapter):
     name = "repo"
-    version = "2"
+    version = "3"
     languages = ("*",)
     tools = ("semgrep",)
 

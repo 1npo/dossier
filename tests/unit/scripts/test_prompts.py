@@ -138,3 +138,63 @@ class TestChangeAndContributorsGuide:
 
     def test_history_is_a_citation_key_and_v8_is_listed(self):
         assert "`history`" in self.method and "V8" in self.method
+
+
+class TestJavaScriptGuidance:
+    guide = (PROMPTS / "reports.md").read_text(encoding="utf-8")
+    method = (PROMPTS / "method.md").read_text(encoding="utf-8")
+
+    def section(self, card_id):
+        return self.guide.split(f"(`{card_id}`)", 1)[1].split("###", 1)[0]
+
+    def test_the_method_names_the_javascript_tools(self):
+        line = next(l for l in self.method.splitlines() if l.startswith("Before the code is read, tools ("))
+
+        for tool in ("dependency-cruiser", "knip", "scip-typescript", "TypeScript compiler"):
+            assert tool in line
+
+    def test_the_method_speaks_of_javascript_projects_beside_python_packages(self):
+        assert "the Python packages or JavaScript projects" in self.method
+
+    def test_a_route_is_written_with_its_full_path(self):
+        section = self.section("entry.catalog")
+
+        assert "full path" in section and "route-mount" in section
+
+    def test_package_scripts_are_entry_points_and_wrapping_scripts_merge_only_on_the_same_path_and_name(self):
+        section = self.section("entry.catalog")
+
+        assert "package scripts" in section.lower() and "same `path` and `name`" in section and "dismiss" in section
+
+    def test_the_entities_card_lists_the_javascript_kinds_and_says_props_are_left_out(self):
+        section = self.section("data.entities")
+
+        for word in ("interfaces", "object types", "enums", "Prisma models", "ORM classes", "Props"):
+            assert word in section
+
+    def test_several_apps_are_not_merged_into_one_component(self):
+        assert "do not merge apps" in self.section("components.catalog")
+
+    def test_the_public_surface_is_what_the_component_offers_other_packages(self):
+        assert "other packages" in self.section("components.catalog") and "internal" in self.section("components.catalog")
+
+    def test_the_contracts_card_does_not_copy_the_public_api_table(self):
+        section = self.section("io.contracts")
+
+        assert "never copy" in section and "offered" in section and "public API" in section
+
+    def test_the_graph_card_says_it_lists_react_components_and_that_context_wiring_is_in_gaps(self):
+        section = self.section("interactions.graph")
+
+        assert "React components" in section and "Gaps" in section and "Do not write this card" in section
+
+    def test_stale_flags_are_not_said_to_be_python_only(self):
+        assert "for Python" not in self.guide
+
+    def test_technologies_gives_react_idioms(self):
+        section = self.section("reading.technologies")
+
+        assert "React" in section and "routing" in section and "data-fetching" in section
+
+    def test_a_paragraph_covers_repositories_with_more_than_one_language(self):
+        assert "Repositories with more than one language" in self.guide

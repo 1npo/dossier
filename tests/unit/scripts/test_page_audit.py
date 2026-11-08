@@ -377,3 +377,83 @@ class TestAddedColumnNames:
         html = page(make_cites, e)
 
         assert re.findall(r"<th[^>]*>([^<]*)</th>", html)[-3:] == ["Source", "Basis", "Citations"]
+
+
+class TestReactTableAudit:
+    GRAPH = [
+        {"kind": "ui-component", "path": "src/Button.tsx", "line": 3, "name": "Button", "exported": True, "hooks": [], "provides": [], "consumes": []},
+        {"kind": "ui-component", "path": "src/App.tsx", "line": 5, "name": "App", "exported": True, "hooks": ["useState"], "provides": [], "consumes": []},
+        {"kind": "ui-component", "path": "src/App.tsx", "line": 20, "name": "Footer", "exported": False, "hooks": [], "provides": [], "consumes": []},
+        {"kind": "renders", "path": "src/App.tsx", "paths": ["src/Button.tsx"], "from": "App", "to": "Button"},
+    ]
+
+    def check(self, drop_row=False):
+        import measured
+
+        class Refs:
+            def mark(self, cites):
+                return ""
+
+        ctx = {"extract": {"graph": self.GRAPH}, "tree": set()}
+        html = measured.body("interactions.graph", ctx, Refs())
+        if drop_row:
+            body = html[html.index("<tbody>", html.index('id="t-interactions-graph-react"')):]
+            html = html.replace(re.search(r"<tr>.*?</tr>", body, re.S).group(0), "", 1)
+        cards = {}
+        for n in page_audit.parse(f'<div class="card" data-card="interactions.graph">{html}</div>').walk():
+            if "data-card" in n.attrs:
+                cards.setdefault(n.attrs["data-card"], []).append(n)
+        return page_audit._check_measured(cards, ctx, html)
+
+    def test_a_complete_table_has_no_error(self):
+        assert self.check() == []
+
+    def test_a_missing_row_is_an_error(self):
+        assert self.check(drop_row=True) == ["V11: interactions.graph: table t-interactions-graph-react has 2 rows, expected 3."]
+
+
+class TestPublicApiOnTheContractsCard:
+    API = [{"kind": "public-api", "path": "src/a.ts", "line": 1, "name": n, "symbol_kind": "function", "package": "lib", "subpath": ".", "audience": "marked private"}
+           for n in ("one", "two", "three")]
+    CTX = {"extract": {"symbols": API, "graph": []}, "tree": set()}
+
+    def card(self, make_cites, entry):
+        return page(make_cites, entry, ctx=self.CTX)
+
+    def na(self):
+        return {"card": "io.contracts", "na": {"reason": "No contracts are offered.", "cite": ["a.py:1"]}}
+
+    def authored(self):
+        cols = card_of("io.contracts")["slots"][0]["columns"]
+        return {"card": "io.contracts", "blocks": [{"type": "table", "columns": cols, "rows": [row("c", "offered", "web", "a.py", "none")]}]}
+
+    def test_the_table_follows_the_authored_table(self, make_cites):
+        html = self.card(make_cites, self.authored())
+
+        assert html.index("Public API of each package") > html.index("Counterparty") and "t-io-contracts-api" in html
+
+    def test_the_table_survives_a_not_applicable_entry(self, make_cites):
+        assert "t-io-contracts-api" in self.card(make_cites, self.na())
+
+    def test_a_pending_entry_has_no_table(self, make_cites):
+        assert "t-io-contracts-api" not in self.card(make_cites, {"card": "io.contracts", "pending": True})
+
+    def test_v11_passes_when_every_row_is_drawn(self, make_cites):
+        e = self.authored()
+
+        assert page_audit.audit(self.card(make_cites, e), reports_of(e), whole_page=False, measured=self.CTX) == []
+
+    def test_v11_fails_when_a_row_is_missing(self, make_cites):
+        e = self.authored()
+        html = self.card(make_cites, e)
+        start = html.index("<tbody>", html.index('id="t-io-contracts-api"'))
+        html = html.replace(re.search(r"<tr>.*?</tr>", html[start:], re.S).group(0), "", 1)
+
+        errs = page_audit.audit(html, reports_of(e), whole_page=False, measured=self.CTX)
+
+        assert any("io.contracts" in x and "t-io-contracts-api" in x and "2 rows, expected 3" in x for x in errs)
+
+    def test_a_repository_without_javascript_has_the_html_it_had_before(self, make_cites):
+        e = self.authored()
+
+        assert page(make_cites, e, ctx={"extract": {"symbols": [], "graph": []}}) == page(make_cites, e)

@@ -12,7 +12,7 @@ from pathlib import Path
 import measured_change
 
 SNAPSHOT = Path(__file__).resolve().parent / "eol.json"
-PACKAGE_PRODUCTS = {"django": "django"}
+PACKAGE_PRODUCTS = {"django": "django", "react": "react", "next": "nextjs"}
 
 
 def _render():
@@ -28,6 +28,36 @@ def load_snapshot() -> dict:
 def _cycle(text):
     m = re.search(r"(\d+)\.(\d+)", text or "")
     return f"{m.group(1)}.{m.group(2)}" if m else None
+
+
+def _major(text):
+    m = re.search(r"\d+", text or "")
+    return m.group(0) if m else None
+
+
+def _cycle_of(product):
+    """Django's cycles are `5.2`; those of Node, React and Next are a major number."""
+    return _cycle if product == "django" else _major
+
+
+def _node_pin(ctx):
+    """(pinned text, source path) from `.nvmrc`, `.node-version`, then `engines.node` of the first package.json, or (None, None)."""
+    read, tree = ctx.get("read"), sorted(ctx.get("tree") or ())
+    if read is None:
+        return None, None
+    for name in (".nvmrc", ".node-version"):
+        text = (read(name) or "").strip() if name in tree else ""
+        if text and _major(text.splitlines()[0]):
+            return text.splitlines()[0], name
+    manifests = sorted((p for p in tree if p.rsplit("/", 1)[-1] == "package.json"), key=lambda p: (p.count("/"), p))
+    if manifests:
+        try:
+            engines = (json.loads(read(manifests[0]) or "{}").get("engines") or {}).get("node")
+        except (ValueError, AttributeError):
+            engines = None
+        if isinstance(engines, str) and _major(engines):
+            return f"engines.node {engines}", manifests[0]
+    return None, None
 
 
 def _gap(cycles, cycle, today):
@@ -59,12 +89,19 @@ def rows(ctx, snapshot=None):
         gap, _ = _gap(cycles, _cycle(pinned), today)
         newest = cycles[0]
         out.append(("Python", pinned, f"{newest['latest']} (latest)", gap, source))
+    node, node_source = _node_pin(ctx)
+    if node and "nodejs" in snap["products"]:
+        cycles = snap["products"]["nodejs"]
+        gap, _ = _gap(cycles, _major(node), today)
+        out.append(("Node.js", node, f"{cycles[0]['latest']} (latest)", gap, node_source))
     deps = (facts.get("dependencies") or {}).get("deps") or []
+    seen = set()
     for d in sorted(deps, key=lambda d: d["n"]):
         product = PACKAGE_PRODUCTS.get(d["n"].lower())
-        cycle = _cycle(d.get("v"))
-        if not product or product not in snap["products"] or not cycle:
+        cycle = _cycle_of(product)(d.get("v")) if product else None
+        if not product or product not in snap["products"] or not cycle or (d["n"], d.get("v")) in seen:
             continue
+        seen.add((d["n"], d.get("v")))
         cycles = snap["products"][product]
         gap, _ = _gap(cycles, cycle, today)
         src = next((m["path"] for m in manifests if any(x.get("name", "").lower() == d["n"].lower() for x in m["dependencies"])), None)

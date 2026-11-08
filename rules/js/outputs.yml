@@ -1,0 +1,89 @@
+rules:
+  - id: dossier.js.outputs.stdout
+    message: Writes to standard output or error
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: stdout}
+    pattern-either:
+      - pattern: console.log(...)
+      - pattern: process.stdout.write(...)
+      - pattern: process.stderr.write(...)
+
+  - id: dossier.js.outputs.file-write
+    message: Writes a file
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: file-write}
+    pattern-either:
+      - pattern: fs.writeFile(...)
+      - pattern: fs.writeFileSync(...)
+      - pattern: fs.appendFile(...)
+      - pattern: fs.createWriteStream(...)
+      - pattern: fsp.writeFile(...)
+
+  - id: dossier.js.outputs.outbound-call
+    message: Calls another service
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: outbound-call, detail: '\(\s*[''"`]([^''"`]*)'}
+    pattern-either:
+      - pattern: fetch(...)
+      - pattern: axios(...)
+      - pattern: axios.$M(...)
+      - pattern: Axios.create(...)
+      - pattern: got(...)
+      - pattern: ky(...)
+      - pattern: http.request(...)
+      - pattern: https.request(...)
+      - pattern: new S3Client(...)
+      - pattern: nodemailer.createTransport(...)
+      - patterns:
+          - pattern: $A.$M(...)
+          - metavariable-regex:
+              metavariable: $A
+              regex: ^(api|apiClient|client|httpClient)$
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(get|post|put|patch|delete)$
+
+  - id: dossier.js.outputs.message-produce
+    message: Sends messages
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: message-produce}
+    pattern-either:
+      - patterns:
+          - pattern: $Q.add(...)
+          - metavariable-regex:
+              metavariable: $Q
+              regex: (?i).*queue.*
+      - pattern: '$P.send({..., topic: ..., ...})'
+      - pattern: $CH.sendToQueue(...)
+      - pattern: $CH.publish(...)
+
+  - id: dossier.js.outputs.exit-code
+    message: Ends the process with an exit code
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: exit-code}
+    pattern-either:
+      - pattern: process.exit(...)
+      - pattern: process.exitCode = $X
+
+  - id: dossier.js.outputs.error-response
+    message: Answers with an error
+    languages: [js, ts]
+    severity: INFO
+    metadata: {category: error-response}
+    pattern-either:
+      - patterns:
+          - pattern: $RES.status($N)
+          - metavariable-regex:
+              metavariable: $N
+              regex: ^[45]\d\d$
+      - patterns:
+          - pattern: throw new $E(...)
+          - metavariable-regex:
+              metavariable: $E
+              regex: ^(.*(Http|Api).*(Exception|Error)|(BadRequest|NotFound|Unauthorized|Forbidden|Conflict).*Exception)$
+      - pattern: notFound()
