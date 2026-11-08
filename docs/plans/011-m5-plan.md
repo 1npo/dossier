@@ -782,7 +782,30 @@ Commit each task on `feat/dossier-m5`. Do not merge or bump. Write "Results (Pha
 
 ### Results (Phase 2)
 
-(Empty.)
+Run 2026-11-08 by Sonnet 5.5 on `feat/dossier-m5`. Default suite before: 2199 passed, 119 skipped. After: 2352 passed, 1 skipped (default run, before the last test-only commit). Slow suite: 3 failed (only the three known ones), 2638 passed, 1 skipped (17 min 47 s). Gate was `passed` in Phase 1, so scip-dotnet still waits for Phase 3 (its status is `skipped`, "Arrives in a later task."). Scratch folders (`~/.cache/dossier-m5-*`) removed.
+
+**What M5-1 recorded and I used:** `catch { ... }` is written `try { ... } catch { ... }` and `try { ... } catch (Exception $E) { ... }`; both worked. Test files and rule files go in separate folders (`t/csharp`, `r/csharp`); a `// ruleid:` sits directly above the match. A C# test target is parsed as one file, so type declarations must come last (a class followed by statements is a syntax error that fails every rule in that file); `rules/README.md` now says so.
+
+**M5-9** `cs_queries.py`. The worker returns captures with no parent links, so each query captures a whole declaration and `assemble` reads its head with small scanners (strings, brackets, comments blanked with newlines kept). Namespaces: a file-scoped one is only its first line in the tree, so I give it an end of "end of file". Extra keys beyond D14: `top_level_line`, `qualified` (dotted names), `assembly_attributes`, per-parameter `attrs`, `get` on properties, `init` on fields. Attributes drop `Attribute` and any `assembly:`/`return:` target; `line` of a declaration with attributes is the **first attribute line** (the node starts there), so `@ep-ctl-list` equals the route row's line. 23 unit tests, 7 slow tests.
+
+**M5-10** `cs_graph.py` plus `complexity` in `cs_queries.py`. Lookup tiers (a judgement call, C# scoping): types in the file's own namespace and its parents win over `using` directives; ambiguity inside one tier gives no edge and counts once per (file, name). `type_uses` takes an extra `generated=` argument (the plan's signature had no way to know). Test files are not link targets. `module` items skip test files (D9). Wiring writes `module`, `import`, `cycle` and the `ambiguous-name` note, and sets tree-sitter `ok` or `failed`.
+
+**M5-11** `cs_entries.py`. Judgement calls: (1) a `[Function]` with `TimerTrigger` is a `scheduled-job`, not a `function` (D9 listed it under both); other triggers use D9's text. (2) A controller method with no class `[Route]` and no template (conventional routing) gives no row. (3) `MapFallback` is the route name `ANY (fallback)`. (4) Entry rows from test files are dropped in the adapter. (5) `build.cake` is not `.cs`, so Cake scripts are not scanned; Cake's `Task("x")` in a `.cs` file inside a project that references `Cake.Frosting` is. Not done: Razor `@page` inside `.razor` with `@attribute [Route]` forms.
+
+**M5-12** `cs_models.py`; `measured_er.family` gives `ef` for the three EF kinds, `other` for Dapper rows and `[Table]` classes, and Python/JS relations are asserted unchanged. Signature has two extra arguments: `read` (the `Entity<T>()`, `OwnsOne<T>()` and Dapper `Query<T>()` calls are in method bodies, which declarations do not hold) and `generated`. A type is one kind only (first of ef-entity, ef-owned, dapper-row, table-class). A partial entity is one item at its first part, with fields from every part. Fields of a base class declared in the repository are attached to the entity's path. `Product` (Reports.cs) is **not** declared in the fixture, so no `dapper-row` comes out of the fixture; the unit tests cover it.
+
+**M5-13** The plan's `tests`, `module_state` and `test_configs` live in the new **`cs_tests.py`**, not `cs_queries.py` (which had reached the size limit); their tests are `test_cs_tests.py`. `tests` counts skipped methods inside `tests` (OrdersTests: tests 4, skips 1, as the plan's check says), unlike the JS counts. `static readonly` with `new()` is state only when the field's type is a collection. Also `dotnet test` joins `TEST_COMMAND` and `repo` is version 4 (tests updated). Test-project package matching is case-insensitive.
+
+**M5-14** Seven rule files, 49 rules in all with M5-15, each with a `ruleid` and an `ok`. Judgement calls: `log` receivers must start with `log`/end with `logger` (`catalog.LogInformation` is not a log; the plan's `(?i).*log.*` matched it). `db-connect` and `entry` details are single-group regexes. `string-route` only fires for `MapGet/Post/Put/Delete/Patch/Methods`, not bare `Map` (too common: `mapper.Map(x)`). `cs_semgrep.items` takes `project_of` and `build_projects`; a `Target(...)` hit counts only in a project referencing `Bullseye` or `Cake.Frosting`. Slow test `test_cs_semgrep_slow.py` runs the real rules over the fixture and checks every I/O, entry and blind-spot marker (51 checks).
+
+**M5-15** `checks_v7.cs_coverage`, nine new wordings, all D10 notes (including `sdk`, `ambiguous-symbol`, `unindexed`, `msbuild`, `api`, `dead`, which Phases 3 and 4 will emit). `codegen` hits for generated files are made in Python from the header (generated files are not scanned, D12). Not done: the `generator` note for a `PackageReference` whose `IncludeAssets` names `analyzers` (needs raw XML that `cs_project` does not keep); the named packages are covered.
+
+**Phase 2 acceptance.** `prepare` of the fixture with `--no-restore --allow-missing` writes a `csharp` section in `blindspots`, `entry_points`, `graph`, `io_candidates`, `models`, `tests` (counts 26, 22, 72, 35, 5, 3) and empty ones in `symbols` and `dead`. `test_py_adapter_slow.py` and `test_js_adapter_slow.py` were not edited.
+
+**Findings for the milestone review**
+- Fixture `OrderService.cs` uses `Order` with no `using Shop.Core;`, so (correctly) no link is made; nothing to fix, but a test that expects that edge would be wrong.
+- Source-generated output and `.cake` scripts are blind spots semgrep cannot read; Gaps already says so for generators.
+- `Product` is missing from the fixture, so Dapper rows are only unit-tested (Phase 3 may add the class if it wants a slow check).
 
 ---
 
