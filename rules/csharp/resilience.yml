@@ -1,0 +1,53 @@
+rules:
+  - id: dossier.csharp.resilience.retry
+    message: Retries a failing call
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: retry}
+    pattern-either:
+      - pattern: $B.AddPolicyHandler(...)
+      - pattern: Policy.Handle<$E>()
+      - pattern: $P.WaitAndRetry(...)
+      - pattern: $P.WaitAndRetryAsync(...)
+      - pattern: $P.RetryAsync(...)
+      - pattern: $B.AddResilienceHandler(...)
+      - pattern: $B.AddStandardResilienceHandler(...)
+      - pattern: new ResiliencePipelineBuilder(...)
+      - pattern: $B.AddRetry(...)
+      - pattern: $O.EnableRetryOnFailure(...)
+
+  - id: dossier.csharp.resilience.timeout
+    message: Sets a time limit
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: timeout}
+    pattern-either:
+      - pattern: $X.Timeout = $T
+      - pattern: $X.CancelAfter(...)
+      - pattern: $B.AddTimeout(...)
+      - pattern: $O.CommandTimeout(...)
+      - pattern-regex: (?m)^[ \t]*\[RequestTimeout\b[^\]]*\]
+
+  - id: dossier.csharp.resilience.catch-all
+    message: Catches every error
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: catch-all}
+    pattern-either:
+      - pattern: |
+          try { ... } catch (Exception $E) { ... }
+      - pattern: |
+          try { ... } catch { ... }
+      - pattern: $A.UseExceptionHandler(...)
+      - pattern: AppDomain.CurrentDomain.UnhandledException += $H
+      - pattern-regex: (?m)^[^\n/]*\bclass\s+\w+[^\n{]*:[^\n{]*\bIExceptionHandler\b
+
+  - id: dossier.csharp.resilience.transaction
+    message: Uses a database transaction
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: transaction}
+    pattern-either:
+      - pattern: $X.BeginTransaction(...)
+      - pattern: $X.BeginTransactionAsync(...)
+      - pattern: new TransactionScope(...)

@@ -1,0 +1,55 @@
+rules:
+  - id: dossier.csharp.concurrency.thread
+    message: Starts a thread
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: thread}
+    pattern-either:
+      - pattern: new Thread(...)
+      - pattern: ThreadPool.QueueUserWorkItem(...)
+
+  - id: dossier.csharp.concurrency.async
+    message: Runs work in the background or in parallel
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: async}
+    pattern-either:
+      - pattern: Task.Run(...)
+      - pattern: Task.WhenAll(...)
+      - pattern: Task.WhenAny(...)
+      - pattern: Parallel.For(...)
+      - pattern: Parallel.ForEach(...)
+      - pattern: Parallel.ForEachAsync(...)
+      - pattern: new PeriodicTimer(...)
+      - pattern: new Timer(...)
+
+  - id: dossier.csharp.concurrency.lock
+    message: Takes a lock
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: lock}
+    pattern-either:
+      - pattern: |
+          lock ($X) { ... }
+      - pattern: new SemaphoreSlim(...)
+      - pattern: new Mutex(...)
+      - pattern: new ReaderWriterLockSlim(...)
+      - pattern: Interlocked.$M(...)
+
+  - id: dossier.csharp.concurrency.queue
+    message: Uses an in-memory queue
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: queue}
+    pattern-either:
+      - pattern: Channel.CreateBounded<$T>(...)
+      - pattern: Channel.CreateUnbounded<$T>(...)
+      - pattern: new BlockingCollection<$T>(...)
+      - pattern: new ConcurrentQueue<$T>(...)
+
+  - id: dossier.csharp.concurrency.process-pool
+    message: Starts another process
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: process-pool}
+    pattern: Process.Start(...)

@@ -1,6 +1,6 @@
 # Semgrep rules
 
-Semgrep rules shipped with dossier live here, one folder per scope. The `python/`, `js/` and `all/` rules exist and are used by the Python, JavaScript and repository adapters; the `csharp/` folder arrives with that language. The `js/` rules cover both JavaScript and TypeScript (`languages: [js, ts]`) and their test files are `.ts`; they use `// ruleid:` and `// ok:` comments. Rule files are YAML and end in `.yml`. Rule ids are `dossier.<scope>.<family>.<name>`.
+Semgrep rules shipped with dossier live here, one folder per scope. The `python/`, `js/` and `all/` rules exist and are used by the Python, JavaScript and repository adapters; the `csharp/` rules (C#, `languages: [csharp]`, test files are `.cs`) are used by the C# adapter. The `js/` rules cover both JavaScript and TypeScript (`languages: [js, ts]`) and their test files are `.ts`; they use `// ruleid:` and `// ok:` comments, and so do the `csharp/` ones. A C# test file is parsed as one C# file, so keep type declarations at the end of it. A `// ruleid:` comment must sit on the line above the first line of the match; one line matched by two rules takes one comment with the ids separated by commas. Rule files are YAML and end in `.yml`. Rule ids are `dossier.<scope>.<family>.<name>`.
 
 Every rule has `metadata`:
 

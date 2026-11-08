@@ -1,0 +1,83 @@
+rules:
+  - id: dossier.csharp.state.db-connect
+    message: Connects to a database or a cache server
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: db-connect, detail: '\b(Use(?:SqlServer|Sqlite|Npgsql|MySql|InMemoryDatabase|Cosmos)|AddDbContext(?:Pool)?|Sql(?:ite)?Connection|NpgsqlConnection|MongoClient|ConnectionMultiplexer|AddStackExchangeRedisCache)\b'}
+    pattern-either:
+      - pattern: $O.UseSqlServer(...)
+      - pattern: $O.UseSqlite(...)
+      - pattern: $O.UseNpgsql(...)
+      - pattern: $O.UseMySql(...)
+      - pattern: $O.UseInMemoryDatabase(...)
+      - pattern: $O.UseCosmos(...)
+      - pattern: $S.AddDbContext<$T>(...)
+      - pattern: $S.AddDbContextPool<$T>(...)
+      - pattern: new SqlConnection(...)
+      - pattern: new NpgsqlConnection(...)
+      - pattern: new SqliteConnection(...)
+      - pattern: new MongoClient(...)
+      - pattern: ConnectionMultiplexer.Connect(...)
+      - pattern: $S.AddStackExchangeRedisCache(...)
+
+  - id: dossier.csharp.state.db-access
+    message: Reads or writes the database
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: db-access}
+    patterns:
+      - pattern-either:
+          - pattern: $X.SaveChanges()
+          - pattern: $X.SaveChangesAsync(...)
+          - pattern: $X.Set<$T>()
+          - pattern: $X.FromSqlRaw(...)
+          - pattern: $X.FromSqlInterpolated(...)
+          - pattern: $X.ExecuteSqlRaw(...)
+          - pattern: $X.ExecuteSqlRawAsync(...)
+          - pattern: $X.ExecuteSqlInterpolated(...)
+          - pattern: $X.ExecuteSqlInterpolatedAsync(...)
+          - pattern: $X.SqlQuery<$T>(...)
+          - pattern: $X.ExecuteUpdate(...)
+          - pattern: $X.ExecuteUpdateAsync(...)
+          - pattern: $X.ExecuteDelete()
+          - pattern: $X.ExecuteDeleteAsync(...)
+          - patterns:
+              - pattern-either:
+                  - pattern: $C.Query(...)
+                  - pattern: $C.Query<$T>(...)
+                  - pattern: $C.QueryAsync(...)
+                  - pattern: $C.QueryAsync<$T>(...)
+                  - pattern: $C.Execute(...)
+                  - pattern: $C.ExecuteAsync(...)
+              - metavariable-regex:
+                  metavariable: $C
+                  regex: (?i)^.*(conn|connection|db).*$
+          - patterns:
+              - pattern: $D.$S.$M(...)
+              - metavariable-regex:
+                  metavariable: $D
+                  regex: (?i)^.*(context|db)$
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: ^(Add|AddAsync|AddRange|Remove|RemoveRange|Update|Attach|Find|FindAsync)$
+
+  - id: dossier.csharp.state.cache
+    message: Uses a cache
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: cache}
+    patterns:
+      - pattern-either:
+          - pattern: $S.AddMemoryCache(...)
+          - pattern: $S.AddOutputCache(...)
+          - pattern: $S.AddHybridCache(...)
+          - pattern: $S.SetStringAsync(...)
+          - pattern-regex: (?m)^[ \t]*\[ResponseCache\b[^\]]*\]
+          - patterns:
+              - pattern-either:
+                  - pattern: $C.GetOrCreate(...)
+                  - pattern: $C.GetOrCreateAsync(...)
+                  - pattern: $C.Set(...)
+              - metavariable-regex:
+                  metavariable: $C
+                  regex: (?i)^.*cache.*$

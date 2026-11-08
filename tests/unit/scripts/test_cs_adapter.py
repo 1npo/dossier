@@ -103,8 +103,8 @@ class TestToolStatus:
     def test_trusted_with_sdk_defers_the_tools_not_built_yet_to_a_later_task(self, cs_repo, tmp_path, monkeypatch):
         _, ctx = extract(cs_repo, tmp_path, monkeypatch)
 
-        assert {t: s["status"] for t, s in ctx.tool_status.items()} == {"scip-dotnet": "skipped", "semgrep": "skipped", "tree-sitter-language-pack": "ok"}
-        assert all(s["reason"] == "Arrives in a later task." for t, s in ctx.tool_status.items() if t != "tree-sitter-language-pack")
+        assert {t: s["status"] for t, s in ctx.tool_status.items()} == {"scip-dotnet": "skipped", "semgrep": "ok", "tree-sitter-language-pack": "ok"}
+        assert ctx.tool_status["scip-dotnet"]["reason"] == "Arrives in a later task."
 
     def test_untrusted_ref_gives_the_trust_reason_for_scip_dotnet(self, cs_repo, tmp_path, monkeypatch):
         _, ctx = extract(cs_repo, tmp_path, monkeypatch, trusted=False)
@@ -125,7 +125,8 @@ class TestToolStatus:
     def test_semgrep_and_tree_sitter_do_not_depend_on_trust_or_sdk(self, cs_repo, tmp_path, monkeypatch):
         _, ctx = extract(cs_repo, tmp_path, monkeypatch, trusted=False, sdks=())
 
-        assert ctx.tool_status["semgrep"]["reason"] == "Arrives in a later task."
+        assert ctx.tool_status["semgrep"] == {"status": "ok", "reason": None}
+        assert ctx.tool_status["tree-sitter-language-pack"]["status"] == "ok"
 
 
 def _d(namespaces, types, usings=(), idents=()):
@@ -252,3 +253,48 @@ class TestTests:
         out, _ = extract(cs_repo, tmp_path, monkeypatch)
 
         assert all(c["kind"] in ("config", "test-file") for c in out["tests"])
+
+
+class TestSemgrep:
+    class Scripted:
+        def __init__(self, results=(), boom=False):
+            self.results, self.boom, self.asked = list(results), boom, None
+
+        def scan(self, config, paths=None, timeout=30):
+            self.asked = list(paths)
+            if self.boom:
+                raise RuntimeError("semgrep exploded\nmore")
+            return self.results
+
+    def _run(self, cs_repo, tmp_path, monkeypatch, semgrep):
+        monkeypatch.setattr(cs_sdk, "list_sdks", lambda path=None: ["10.0.403"])
+        ctx = context(cs_repo, tmp_path)
+        ctx.semgrep = semgrep
+        return cs_adapter.CSharpAdapter().extract(ctx), ctx
+
+    def test_only_source_files_that_are_not_generated_are_scanned(self, cs_repo, tmp_path, monkeypatch):
+        sg = self.Scripted()
+
+        self._run(cs_repo, tmp_path, monkeypatch, sg)
+
+        assert "src/Shop.Api/Program.cs" in sg.asked
+        assert not [f for f in sg.asked if f.endswith(".Designer.cs")] and all(f.endswith(".cs") for f in sg.asked)
+
+    def test_results_become_items_and_entry_points_in_test_files_are_dropped(self, cs_repo, tmp_path, monkeypatch):
+        def r(rule, path, detail, **meta):
+            return {"rule": f"dossier.csharp.{rule}", "path": path, "start_line": 3, "end_line": 3, "snippet": "s", "detail": detail, "metadata": meta}
+        sg = self.Scripted([r("entry.minimal-route", "src/Shop.Api/Program.cs", 'MapGet("/health', category="entry", kind="http-route"),
+                            r("entry.minimal-route", "tests/Shop.Tests/OrdersTests.cs", 'MapGet("/t', category="entry", kind="http-route"),
+                            r("inputs.env-var", "src/Shop.Api/Program.cs", "SHOP_KEY", category="env-var")])
+
+        out, ctx = self._run(cs_repo, tmp_path, monkeypatch, sg)
+
+        assert [e["name"] for e in out["entry_points"] if e["kind"] == "http-route" and e["rule"].endswith("minimal-route")] == ["GET /health"]
+        assert [(i["category"], i["detail"]) for i in out["io_candidates"] if i["category"] == "env-var"] == [("env-var", "SHOP_KEY")]
+        assert ctx.tool_status["semgrep"]["status"] == "ok"
+
+    def test_a_semgrep_failure_marks_the_tool_failed_and_the_rest_still_runs(self, cs_repo, tmp_path, monkeypatch):
+        out, ctx = self._run(cs_repo, tmp_path, monkeypatch, self.Scripted(boom=True))
+
+        assert ctx.tool_status["semgrep"] == {"status": "failed", "reason": "semgrep exploded"}
+        assert any(g["kind"] == "cs-project" for g in out["graph"])

@@ -1,0 +1,78 @@
+rules:
+  - id: dossier.csharp.inputs.env-var
+    message: Reads an environment variable
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: env-var, detail: 'GetEnvironmentVariable\(\s*"([^"]*)'}
+    pattern-either:
+      - pattern: Environment.GetEnvironmentVariable("...")
+      - pattern: Environment.GetEnvironmentVariable(...)
+
+  - id: dossier.csharp.inputs.config-file
+    message: Reads configuration
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: config-file, detail: '(?:GetConnectionString\(|GetSection\(|GetValue<[^>]*>\(|BindConfiguration\(|AddJsonFile\(|\[)\s*"([^"]*)'}
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern: $C["..."]
+              - metavariable-regex:
+                  metavariable: $C
+                  regex: (?i)^.*config.*$
+          - pattern: $C.GetValue<$T>("...")
+          - pattern: $C.GetSection("...")
+          - pattern: $C.GetConnectionString("...")
+          - pattern: $S.Configure<$T>(...)
+          - pattern: $S.BindConfiguration("...")
+          - pattern: $B.AddJsonFile("...", ...)
+          - pattern: $B.AddEnvironmentVariables(...)
+          - pattern: $B.AddUserSecrets<$T>()
+          - pattern: $B.AddAzureKeyVault(...)
+
+  - id: dossier.csharp.inputs.cli-args
+    message: Reads command-line arguments
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: cli-args}
+    pattern-either:
+      - pattern: Environment.GetCommandLineArgs()
+      - pattern: $X.CreateBuilder(args)
+      - pattern: $X.CreateDefaultBuilder(args)
+      - pattern: args[$N]
+
+  - id: dossier.csharp.inputs.file-read
+    message: Reads a file
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: file-read}
+    pattern-either:
+      - pattern: File.ReadAllText(...)
+      - pattern: File.ReadAllTextAsync(...)
+      - pattern: File.ReadAllLines(...)
+      - pattern: File.ReadAllLinesAsync(...)
+      - pattern: File.ReadAllBytes(...)
+      - pattern: File.ReadAllBytesAsync(...)
+      - pattern: File.OpenRead(...)
+      - pattern: File.OpenText(...)
+      - pattern: new StreamReader(...)
+      - pattern: $A.UseStaticFiles(...)
+
+  - id: dossier.csharp.inputs.stdin
+    message: Reads from standard input
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: stdin}
+    pattern-either:
+      - pattern: Console.ReadLine()
+      - pattern: Console.ReadKey(...)
+      - pattern: Console.In
+
+  - id: dossier.csharp.inputs.request-header
+    message: Reads a request header
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: request-header, detail: '(?:Headers\[|FromHeader\([^"\]]*)\s*"([^"]*)'}
+    pattern-either:
+      - pattern: $R.Headers["..."]
+      - pattern-regex: \[FromHeader\b[^\]]*\]

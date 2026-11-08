@@ -739,7 +739,7 @@ Read section 2, D1, D7 to D10, D12 to D14, and "Results (Phase 1)", especially M
   - Done-check: both test files pass, the second with `DOSSIER_SLOW=1`.
   - Commit: `feat(dossier): extract C# tests, complexity and static state with tree-sitter`
 
-- [ ] **M5-14. The C# semgrep rules.**
+- [x] **M5-14. The C# semgrep rules.**
   - Goal: D14's rule files, each proven to fire and not to fire.
   - Files: new `rules/csharp/{entry,inputs,outputs,state,concurrency,resilience,observability}.yml`, `tests/fixtures/semgrep/csharp/*.cs`, `scripts/cs_semgrep.py`, `tests/unit/scripts/test_cs_semgrep.py`; edit `tests/unit/scripts/test_rules.py`, `scripts/cs_adapter.py`, `rules/README.md`.
   - Interface: `cs_semgrep.items(results) -> dict` as `js_semgrep.items`; `route_name(detail, snippet) -> str`. The adapter scans only non-generated `.cs` files.

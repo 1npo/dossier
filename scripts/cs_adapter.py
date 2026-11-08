@@ -13,6 +13,7 @@ import cs_models
 import cs_project
 import cs_queries
 import cs_sdk
+import cs_semgrep
 import cs_tests
 from adapters import OUTPUTS, Adapter
 from gather import TEST_RE
@@ -89,6 +90,7 @@ class CSharpAdapter(Adapter):
         files = sorted(set(result["loose_files"]) | {f for p in result["projects"] if "language" not in p for f in p["files"]})
         tests = self._test_files(result, files)
         generated = {f for f in files if cs_project.is_generated(f, read)}
+        st.update(files=files, tests=tests, generated=generated)
         try:
             decls = cs_queries.declarations(ctx.treesitter, files)
             counts = cs_queries.complexity(ctx.treesitter, [f for f in files if f not in generated and f not in tests])
@@ -111,7 +113,27 @@ class CSharpAdapter(Adapter):
             t["imports"] = sorted({modules[p] for p in t["paths"] if p in modules})
         out["tests"] += found + cs_tests.test_configs(sorted(ctx.tree), read, result)
         out["io_candidates"] += cs_tests.module_state(decls, tests | generated)
-        st.update(decls=decls, tests=tests, generated=generated, test_edges=test_edges, files=files)
+        st.update(decls=decls, test_edges=test_edges)
+
+    def _semgrep(self, ctx, out, result, st) -> None:
+        """Entry points, I/O sites and blind spots with the C# rules, in source files that are not generated."""
+        scan = [f for f in st["files"] if f not in st["generated"]]
+        if not scan:
+            return self._skipped(ctx, "semgrep", "There are no C# files to scan.")
+        owner = {f: p["path"] for p in result["projects"] if "language" not in p for f in p["files"]}
+        builders = {p["path"] for p in result["projects"] if "language" not in p and {"bullseye", "cake.frosting"} & {x.lower() for x in p["packages"]}}
+        try:
+            found = cs_semgrep.items(ctx.semgrep.scan(RULES, scan), owner.get, builders)
+        except Exception as e:  # one tool failing must not stop the others
+            return self._failed(ctx, "semgrep", e)
+        ctx.tool_status["semgrep"] = {"status": "ok", "reason": None}
+        found["entry_points"] = [e for e in found["entry_points"] if e["path"] not in st["tests"]]
+        for key, rows in found.items():
+            out[key] += rows
+
+    @staticmethod
+    def _skipped(ctx, tool: str, reason: str) -> None:
+        ctx.tool_status[tool] = {"status": "skipped", "reason": reason}
 
     def extract(self, ctx) -> dict:
         out = {o: [] for o in OUTPUTS}
@@ -120,6 +142,7 @@ class CSharpAdapter(Adapter):
         out["graph"] += self._project_items(result, ctx.tree) + self._notes(result, ctx.tree)
         st: dict = {}
         self._syntax(ctx, out, result, read, st)
+        self._semgrep(ctx, out, result, st)
         out["entry_points"] += cs_entries.page_routes(sorted(ctx.tree), read)
         if "decls" in st:
             decls = {f: d for f, d in st["decls"].items() if f not in st["generated"]}
