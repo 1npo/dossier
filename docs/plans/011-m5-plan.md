@@ -723,7 +723,7 @@ Read section 2, D1, D7 to D10, D12 to D14, and "Results (Phase 1)", especially M
   - Done-check: `... pytest tests/unit/scripts/test_cs_entries.py -q` passes.
   - Commit: `feat(dossier): find C# entry points from controllers, Main and attributes`
 
-- [ ] **M5-12. Models.**
+- [x] **M5-12. Models.**
   - Goal: D13.
   - Files: new `scripts/cs_models.py`, `tests/unit/scripts/test_cs_models.py`; edit `scripts/measured_er.py`, `tests/unit/scripts/test_measured_er.py`, `scripts/cs_adapter.py`.
   - Interface: `model_items(decls, projects) -> list`; `measured_er.family` gains `ef`.

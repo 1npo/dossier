@@ -9,6 +9,7 @@ from pathlib import Path
 
 import cs_entries
 import cs_graph
+import cs_models
 import cs_project
 import cs_queries
 import cs_sdk
@@ -98,6 +99,7 @@ class CSharpAdapter(Adapter):
                          + cs_graph.namespace_cycles(imports, decls, result))
         if ambiguous:
             out["graph"].append({"kind": "cs-note", "path": files[0], "note": "ambiguous-name", "name": str(ambiguous)})
+        out["models"] += cs_models.model_items(decls, result, read, generated, tests)
         st.update(decls=decls, tests=tests, generated=generated, test_edges=test_edges, files=files)
 
     def extract(self, ctx) -> dict:

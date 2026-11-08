@@ -185,6 +185,20 @@ class TestFamily:
             ["sql", "prisma", "prisma", "other", "other"]
 
 
+class TestEfFamily:
+    def test_ef_entities_owned_types_and_enums_are_their_own_family_and_dapper_rows_are_other(self):
+        assert [measured_er.family({"kind": k}) for k in ("ef-entity", "ef-owned", "cs-enum", "dapper-row", "table-class")] == ["ef", "ef", "ef", "other", "other"]
+
+    def test_an_ef_field_joins_the_ef_entity_not_a_dapper_row_of_the_same_name(self):
+        row = {"kind": "dapper-row", "name": "Customer", "path": "r.cs", "line": 1, "fields": []}
+        customer = {"kind": "ef-entity", "name": "Customer", "path": "c.cs", "line": 1, "fields": []}
+        order = {"kind": "ef-entity", "name": "Order", "path": "o.cs", "line": 1, "fields": [{"name": "Customer", "ref": "Customer", "type": "Customer"}]}
+
+        rels = measured_er._relations([order], [row, customer, order], {})
+
+        assert [(o["name"], t["path"], f) for o, t, f in rels] == [("Order", "c.cs", "Customer")]
+
+
 class TestRelationsAcrossFamilies:
     def test_a_prisma_field_joins_the_prisma_model_not_an_interface_of_the_same_name(self):
         iface = {"kind": "ts-interface", "name": "User", "path": "a.ts", "line": 1, "fields": []}

@@ -16,6 +16,7 @@ import measured_tables
 
 MAX_ENTITIES = 12
 SQL = "sql-table"
+EF_KINDS = ("ef-entity", "ef-owned", "cs-enum")
 
 
 def _render():
@@ -37,7 +38,7 @@ def entities(extract: dict) -> list:
 def family(entity: dict) -> str:
     """Which kind of source an entity comes from, so a relation joins an entity only to one of its own family."""
     kind = entity["kind"]
-    return "sql" if kind == SQL else "prisma" if kind in ("prisma", "prisma-enum") else "other"
+    return "sql" if kind == SQL else "prisma" if kind in ("prisma", "prisma-enum") else "ef" if kind in EF_KINDS else "other"
 
 
 def safe_type(text) -> str:

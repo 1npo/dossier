@@ -213,3 +213,20 @@ class TestEntryPoints:
         out, _ = extract(cs_repo, tmp_path, monkeypatch)
 
         assert ("GET /api/o", 5) in [(e["name"], e["line"]) for e in out["entry_points"] if e["path"].endswith("OrdersController.cs")]
+
+
+class TestModels:
+    def test_models_come_from_the_declarations_and_migrations_are_read_in_generated_files(self, cs_repo, tmp_path, monkeypatch):
+        order = {**_ty("Order", "Shop.Core"), "members": [{"name": "Id", "kind": "property", "modifiers": ["public"], "line": 5, "end_line": 5, "attributes": [],
+                                                              "type": "int", "static": False, "params": [], "get": True}]}
+        ctx_type = {**_ty("ShopContext", "Shop.Data"), "bases": ["DbContext"],
+                    "members": [{"name": "Orders", "kind": "property", "modifiers": ["public"], "line": 5, "end_line": 5, "attributes": [], "type": "DbSet<Order>",
+                                 "static": False, "params": [], "get": True}]}
+        designer = "src/Shop.Data/Migrations/20260101000000_Init.Designer.cs"
+        mig = {**_ty("Init", "Shop.Data.Migrations"), "bases": ["Migration"], "attributes": [{"name": "Migration", "args": '"2026_Init"', "line": 1}]}
+        with_decls(monkeypatch, {"src/Shop.Core/Order.cs": _d(["Shop.Core"], [order]), "src/Shop.Data/ShopContext.cs": _d(["Shop.Data"], [ctx_type], ["Shop.Core"]),
+                                 designer: _d(["Shop.Data.Migrations"], [mig])})
+
+        out, _ = extract(cs_repo, tmp_path, monkeypatch)
+
+        assert sorted((m["kind"], m["name"]) for m in out["models"]) == [("ef-entity", "Order"), ("migration", "2026_Init")]

@@ -95,3 +95,17 @@ class TestEntriesOnTheFixture:
 
     def test_conventional_controllers_give_nothing(self, found):
         assert not [k for k in found if k[1].startswith("GET /Home")]
+
+
+class TestModelsOnTheFixture:
+    def test_order_and_customer_are_entities_and_the_dto_is_not(self, decls, cs_repo):
+        import cs_models
+        root = Path(cs_repo.path)
+        rows = cs_models.model_items(decls, {"projects": []}, lambda f: (root / f).read_text(encoding="utf-8", errors="replace"))
+        got = {(r["kind"], r["name"]): r for r in rows}
+
+        assert ("ef-entity", "Order") in got and ("ef-entity", "Customer") in got and ("cs-enum", "OrderStatus") in got
+        assert not [k for k in got if k[1] == "OrderDto"]
+        assert got[("ef-entity", "Order")]["line"] == cs_repo.line_of("src/Shop.Core/Order.cs", "model-order")
+        assert sorted(r["name"] for r in rows if r["kind"] == "migration") == ["20260101000000_Init", "ShopContextModelSnapshot"]
+        assert [f["many"] for f in got[("ef-entity", "Customer")]["fields"] if f["name"] == "Orders"] == [True]
