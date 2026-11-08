@@ -374,12 +374,22 @@
    ],
    "via": "dotnet-tool",
    "package": "scip-dotnet",
-   "version": "0.2.14",
-   "published": "2026-05-05",
+   "version": "0.2.16",
+   "published": "2026-10-21",
+   "nupkg": {
+    "url": "https://api.nuget.org/v3-flatcontainer/scip-dotnet/0.2.16/scip-dotnet.0.2.16.nupkg",
+    "sha512": "UUaPQCnqIWFYGXaKtgjieBP0WR0uH8L55pwqhtOJH/3El+zCF5/cXXX30oYXrfKYZibDjun2knU8r1212i+eWw==",
+    "size": 56673777
+   },
    "gives": "C# symbols and references",
    "source": "https://github.com/sourcegraph/scip-dotnet",
    "first_used": "M5",
-   "cards": []
+   "verified": "2026-11-08",
+   "cards": [
+    "components.catalog",
+    "interactions.flows",
+    "interactions.graph"
+   ]
   },
   {
    "id": "dotnet-package-list",
@@ -393,7 +403,7 @@
    "gives": "NuGet packages, including indirect ones",
    "source": "https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-package-list",
    "first_used": "M5",
-   "open": "Part of the .NET SDK; its version is the SDK's.",
+   "open": "Not run: packages.lock.json already lists the indirect packages, and nothing reads this output (plan 011, S6).",
    "cards": []
   }
  ],

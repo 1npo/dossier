@@ -539,7 +539,7 @@ Read section 2, section 3, D1 to D7, D20 and sections 7 and 8. Load the skills i
   - Done-check: "Results (Phase 1)" has one line per step and one per criterion with the values seen, and the words `Gate: passed` or `Gate: failed`.
   - Commit: `docs(dossier): record the scip-dotnet gate and the M5 tool re-check in plan 011`
 
-- [ ] **M5-2. Pin and install scip-dotnet.**
+- [x] **M5-2. Pin and install scip-dotnet.**
   - Goal: D3 and D4.
   - Files: new `scripts/cs_scip.py` (install part only), `tests/unit/scripts/test_cs_scip.py`, `tests/integration/scripts/test_cs_scip_slow.py`; edit `scripts/tools.json`, `scripts/toolcheck.py`, `tests/unit/scripts/test_toolcheck.py`.
   - Interface: `install_dir(cache_root, version) -> Path`; `ensure_installed(cache_root, tool: dict, timeout: float, fetch=None) -> Path` (`fetch` defaults to a `urllib` download and is replaced by a fake in unit tests); `tool_dll(folder, runtime_majors) -> Path | None`.
@@ -662,7 +662,7 @@ Run 2026-11-08 by Sonnet 5.5 on branch `feat/dossier-m5` (from `main` at `7e5b7f
 - `CA`'s Aspire projects fail to load in scip-dotnet without a restore and the package targets; this is the expected `partial` case for Gaps.
 - A harness bug of mine: first tiny-solution restore ran outside `sandbox.run`; fixed for every later command.
 
-**Slow baseline:** (filled in below when the run ends)
+**Slow baseline (before any M5 code):** 4 failed, 2105 passed, 1 skipped (17 min). The three known failures plus `test_history_git.py::TestDegrading::test_a_timeout_keeps_the_complete_records_and_does_not_crash`, which passes alone in 0.3 s; it is timing-sensitive and I was running other heavy work at the time. Treat it as a flake, not a fourth known failure.
 
 
 ---

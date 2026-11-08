@@ -111,7 +111,7 @@ def preflight(langs: list[str], tools: dict | None = None, path: str | None = No
         if not scopes & set(t["scope"]):
             continue
         needs = [h for h in HOST_FOR_VIA[t["via"]] if status.get(h, "missing") != "ok"]
-        selfi.append({"id": t["id"], "version": t["version"], "via": t["via"], "locked": bool(t.get("node_lock")),
+        selfi.append({"id": t["id"], "version": t["version"], "via": t["via"], "locked": bool(t.get("node_lock")), "checked": bool(t.get("nupkg")),
                       "status": "missing" if needs else "first-use", "needs": needs})
     missing = [h["id"] for h in host if h["status"] != "ok" and not h["optional"]] + [s["id"] for s in selfi if s["status"] == "missing"]
     return {"languages": [{"name": l, "tier": tier_of(l, tools)} for l in langs], "host": host,
@@ -154,7 +154,8 @@ def format_text(report: dict) -> str:
         for s in selfi:
             ver = s["version"] or "(version open)"
             tail = f" (cannot install: needs {', '.join(s['needs'])})" if s["needs"] else ""
-            how = "from a lockfile with npm" if s.get("locked") else f"via {s['via']}"
+            how = ("from a lockfile with npm" if s.get("locked")
+                   else "from a hash-checked NuGet package" if s.get("checked") else f"via {s['via']}")
             out.append(f"  {s['id']} {ver} {how}{tail}")
     n = len([m for m in report["missing"] if m in {h["id"] for h in report["host"] if h["status"] != "ok" and not h.get("optional")}])
     if n:
