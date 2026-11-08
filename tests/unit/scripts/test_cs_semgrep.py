@@ -58,3 +58,41 @@ class TestItems:
         got = cs_semgrep.items([hit("blindspot.di-scan", category="blindspot", pattern="di-scan")])["blindspots"]
 
         assert got[0]["pattern"] == "di-scan" and got[0]["rule"] == "dossier.csharp.blindspot.di-scan"
+
+
+LAUNCH = '{\n  "profiles": {\n    "Api": {\n      "environmentVariables": {\n        "ASPNETCORE_ENVIRONMENT": "Development",\n        "SHOP_MODE": "x"\n      }\n    },\n    "Other": {"commandName": "Project"}\n  }\n}\n'
+
+
+class TestConfigInputs:
+    def rows(self, files):
+        return cs_semgrep.config_inputs(sorted(files), lambda p: files.get(p))
+
+    def test_each_appsettings_file_is_a_config_file_item(self):
+        rows = self.rows({"src/Api/appsettings.json": "{}", "src/Api/appsettings.Development.json": "{}", "src/Api/other.json": "{}"})
+
+        assert [(r["path"], r["category"], r["rule"], r["detail"]) for r in rows] == [
+            ("src/Api/appsettings.Development.json", "config-file", "cs.appsettings", "appsettings.Development.json"),
+            ("src/Api/appsettings.json", "config-file", "cs.appsettings", "appsettings.json")]
+
+    def test_appsettings_name_matches_in_any_case(self):
+        assert len(self.rows({"AppSettings.JSON": "{}"})) == 1
+
+    def test_launch_profile_environment_variables_are_env_var_items_on_their_own_lines(self):
+        rows = self.rows({"src/Api/Properties/launchSettings.json": LAUNCH})
+
+        assert [(r["category"], r["rule"], r["detail"], r["line"]) for r in rows] == [
+            ("env-var", "cs.launch-env", "ASPNETCORE_ENVIRONMENT", 5), ("env-var", "cs.launch-env", "SHOP_MODE", 6)]
+
+    def test_launch_settings_outside_properties_is_ignored(self):
+        assert self.rows({"launchSettings.json": LAUNCH}) == []
+
+    def test_broken_launch_settings_gives_nothing(self):
+        assert self.rows({"a/Properties/launchSettings.json": "{ nope"}) == []
+
+    def test_unreadable_file_gives_nothing(self):
+        assert self.rows({"a/Properties/launchSettings.json": None}) == []
+
+    def test_items_have_the_semgrep_item_keys(self):
+        row = self.rows({"appsettings.json": "{}"})[0]
+
+        assert {"path", "line", "end_line", "rule", "snippet", "category", "detail"} <= set(row)

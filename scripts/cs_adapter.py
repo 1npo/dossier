@@ -218,7 +218,7 @@ class CSharpAdapter(Adapter):
         out["symbols"] += cs_scip.finish_symbols(scip_read.reduce(index), decls, st.get("generated", set()))
         indexed = {d["path"] for d in index["documents"]}
         missing = sorted(f for p in result["projects"] if "language" not in p for f in p["files"] if f not in indexed and f not in st.get("generated", ()))
-        for note, count, path in (("ambiguous-symbol", ambiguous, "."), ("unindexed", len(missing), missing[0] if missing else ".")):
+        for note, count, path in (("ambiguous-symbol", ambiguous, result["targets"][0]), ("unindexed", len(missing), missing[0] if missing else None)):
             if count:
                 out["graph"].append({"kind": "cs-note", "path": path, "note": note, "name": str(count)})
         if problems:
@@ -238,6 +238,7 @@ class CSharpAdapter(Adapter):
         st: dict = {}
         self._syntax(ctx, out, result, read, st)
         self._semgrep(ctx, out, result, st)
+        out["io_candidates"] += cs_semgrep.config_inputs(sorted(ctx.tree), read)
         out["entry_points"] += cs_entries.page_routes(sorted(ctx.tree), read)
         if "decls" in st:
             decls = {f: d for f, d in st["decls"].items() if f not in st["generated"]}

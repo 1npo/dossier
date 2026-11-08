@@ -273,6 +273,14 @@ class TestScip:
 
         assert any(n for n in out["graph"] if n.get("note") == "unindexed" and int(n["name"]) > 5)
 
+    def test_ambiguous_symbols_are_noted_on_a_tracked_file(self, cs_repo, tmp_path, monkeypatch):
+        twin = [("Models/Item#", 1, 0)]
+        plan = {"Shop.slnx": (0, "", {"src/Shop.Core/Models/Item.cs": twin, "src/Shop.Data/Models/Item.cs": twin})}
+
+        out, ctx = self.run(cs_repo, tmp_path, monkeypatch, plan)
+
+        assert notes(out, "ambiguous-symbol") == [("1", "Shop.slnx")]
+
     def test_no_runtime_gives_the_runtime_reason(self, cs_repo, tmp_path, monkeypatch):
         monkeypatch.setattr(cs_sdk, "list_sdks", lambda path=None: ["10.0.403"])
         scip_fake.install(monkeypatch, {})
@@ -446,7 +454,7 @@ class TestSemgrep:
         out, ctx = self._run(cs_repo, tmp_path, monkeypatch, sg)
 
         assert [e["name"] for e in out["entry_points"] if e["kind"] == "http-route" and e["rule"].endswith("minimal-route")] == ["GET /health"]
-        assert [(i["category"], i["detail"]) for i in out["io_candidates"] if i["category"] == "env-var"] == [("env-var", "SHOP_KEY")]
+        assert [(i["category"], i["detail"]) for i in out["io_candidates"] if i["category"] == "env-var" and i["rule"] != "cs.launch-env"] == [("env-var", "SHOP_KEY")]
         assert ctx.tool_status["semgrep"]["status"] == "ok"
 
     def test_a_semgrep_failure_marks_the_tool_failed_and_the_rest_still_runs(self, cs_repo, tmp_path, monkeypatch):

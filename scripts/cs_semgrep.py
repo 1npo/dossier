@@ -1,6 +1,7 @@
 """Turns semgrep results for the C# rules into adapter items (plan 011, D9, D14). Pure."""
 from __future__ import annotations
 
+import json
 import re
 
 TRIGGERS = {"http-route": "a web request to `{name}`", "signalr-hub": "a SignalR connection to `{name}`", "grpc-service": "a gRPC call to `{name}`",
@@ -52,3 +53,30 @@ def items(results: list, project_of=None, build_projects=None) -> dict:
                 headers.add(key)
             out["io_candidates"].append({**base, "category": meta["category"], "detail": r.get("detail")})
     return out
+
+
+def config_inputs(tree, read) -> list:
+    """`io_candidates` from files, not code: each tracked `appsettings*.json` is a config file, and each environment variable named in a
+    launch profile (`Properties/launchSettings.json`) is an environment variable (D14)."""
+    rows = []
+    for path in tree:
+        name = path.rsplit("/", 1)[-1]
+        if re.fullmatch(r"appsettings(\..+)?\.json", name, re.I):
+            rows.append({"path": path, "line": 1, "end_line": 1, "rule": "cs.appsettings", "snippet": name, "category": "config-file", "detail": name})
+        elif path.lower().endswith("properties/launchsettings.json"):
+            rows += _launch_variables(path, read(path))
+    return rows
+
+
+def _launch_variables(path: str, text) -> list:
+    try:
+        profiles = json.loads(text or "").get("profiles", {})
+        names = [k for p in profiles.values() for k in (p.get("environmentVariables") or {})]
+    except (ValueError, AttributeError, TypeError):
+        return []
+    lines = text.splitlines()
+    rows = []
+    for key in dict.fromkeys(names):
+        line = next((n for n, t in enumerate(lines, 1) if f'"{key}"' in t), 1)
+        rows.append({"path": path, "line": line, "end_line": line, "rule": "cs.launch-env", "snippet": f'"{key}"', "category": "env-var", "detail": key})
+    return rows
