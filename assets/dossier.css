@@ -308,10 +308,10 @@ main { transition: margin-right .25s cubic-bezier(.4, 0, .2, 1); }
   html.rail #rail-toggle .chev { transform: scaleX(-1); }
 }
 
-/* sidebar collapse: --sidebar-width is a registered length (initial-value must be px: rem is not computationally independent and the rule is dropped) so the nav width and the main margin both animate. html.anim is added after first paint so the saved state does not animate on load */
-@property --sidebar-width { syntax: "<length>"; inherits: true; initial-value: 296px; }
-html.anim { transition: --sidebar-width .25s cubic-bezier(.4, 0, .2, 1); }
-@media (prefers-reduced-motion: reduce) { html.anim, main, .code-panel, .code-panel.shut { transition: none !important; } }
+/* sidebar collapse: only the sidebar's own width transitions. main jumps to its final margin once (one reflow) and is slid into place with a transform (see setRail in dossier.js); animating the margin would reflow the whole page on every frame. html.anim is added after first paint so the saved state does not animate on load */
+html.anim .sidebar > nav { transition: width .25s cubic-bezier(.4, 0, .2, 1); }
+html.sliding { overflow-x: clip; }
+@media (prefers-reduced-motion: reduce) { html.anim .sidebar > nav, main, .code-panel, .code-panel.shut { transition: none !important; } }
 
 /* commit calendar */
 .cc.ph { visibility: hidden; }

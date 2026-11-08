@@ -567,8 +567,19 @@
   });
   // ---- sidebar: collapse to a rail of icons on wide screens
   var railBtn = $("#rail-toggle");
+  var mainEl = $("main"), slide = null, reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
   function setRail(on) {
+    var from = root.classList.contains("anim") && !reduce.matches && mainEl ? mainEl.getBoundingClientRect().left : null;
     root.classList.toggle("rail", on);
+    if (from !== null) {   // FLIP: main takes its final margin at once, then slides from where it was
+      var d = from - mainEl.getBoundingClientRect().left;
+      if (slide) slide.cancel();
+      if (d) {
+        root.classList.add("sliding");
+        slide = mainEl.animate([{ transform: "translateX(" + d + "px)" }, { transform: "none" }], { duration: 250, easing: "cubic-bezier(.4, 0, .2, 1)" });
+        slide.onfinish = slide.oncancel = function () { root.classList.remove("sliding"); };
+      }
+    }
     railBtn.setAttribute("aria-expanded", String(!on));
     var label = on ? "Expand the sidebar" : "Collapse the sidebar";
     railBtn.title = label; railBtn.setAttribute("aria-label", label);
