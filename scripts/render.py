@@ -1731,7 +1731,8 @@ def with_contents(rid, body):
 # the two tabs in each report's frozen title bar; the legend is above the code viewer
 REPORT_TABS = ('<div class="rh-tabs" role="group" aria-label="Side panels">'
                '<button type="button" class="panel-tab" data-panel="legend" aria-pressed="false" title="Show the legend (l)">Legend <kbd>l</kbd></button>'
-               '<button type="button" class="panel-tab" data-panel="code" aria-pressed="false" title="Show the source panel (v)">Code <kbd>v</kbd></button></div>')
+               '<button type="button" class="panel-tab" data-panel="code" aria-pressed="false" title="Show the source panel (v)">Code <kbd>v</kbd></button>'
+               '<button type="button" class="panel-tab" data-panel="keys" aria-pressed="false" title="Show the keyboard shortcuts (?)">Keys <kbd>?</kbd></button></div>')
 
 BASIS_INFO = ((basis("confirmed"), "Stated in the code or its history."), (basis("inferred"), "Reasoned from context. No single line states it."),
               (basis("unknown"), "Nothing was found."), (badge("confirmed by you", "basis-confirmed", "secondary"), "You confirmed it with /dossier confirm."),
@@ -1744,8 +1745,27 @@ def legend_html():
     tiers = "".join(f'<div><dt><span class="badge tier tier-{t.lower().replace("+", "plus")}" data-variant="outline">{E(t)}</span></dt><dd><b>{E(name)}.</b> {E(tip.split(": ", 1)[1])}</dd></div>'
                     for t, (name, tip) in TIER_INFO.items())
     pills = "".join(f'<div><dt>{pill}</dt><dd>{E(txt)}</dd></div>' for pill, txt in BASIS_INFO)
-    return (f'<h3>Badge on each card</h3><p class="muted">Says who produced the card.</p><dl class="legend-list">{tiers}</dl>'
+    return (f'<h3>Badge on each card</h3><p class="muted">Says who produced the card.</p><dl class="legend-list tiers">{tiers}</dl>'
             f'<h3>Pill on each statement</h3><p class="muted">Says how well the code backs it.</p><dl class="legend-list">{pills}</dl>')
+
+
+KEYS_INFO = (
+    ("Anywhere", (("<kbd>/</kbd> <kbd>Ctrl</kbd>+<kbd>K</kbd>", "Search the dossier."), ("<kbd>b</kbd>", "Collapse or expand the sidebar."),
+                  ("<kbd>j</kbd> <kbd>k</kbd>", "Go to the next or previous report."), ("<kbd>g</kbd>", "Go to a report, card or entry by number or name."),
+                  ("<kbd>l</kbd>", "Show or hide the legend."), ("<kbd>v</kbd>", "Show or hide the code viewer."), ("<kbd>?</kbd>", "Show or hide this list."))),
+    ("In the code viewer", (("<kbd>[</kbd> <kbd>]</kbd>", "Previous or next source reference."), ("<kbd>p</kbd>", "Pin the viewer so the page makes room for it."),
+                            ("<kbd>Esc</kbd>", "Collapse the open panel, or close an expanded diagram."))),
+    ("In the go-to window", (("<kbd>\u2191</kbd> <kbd>\u2193</kbd>", "Choose a result."), ("<kbd>Enter</kbd>", "Go to it."),
+                             ("<kbd>5</kbd>", "A number lists the reports that start with it."), ("<kbd>5 deta</kbd>", "A number then a word searches inside that report."))),
+)
+
+
+def keys_html():
+    """The body of the keys panel."""
+    out = []
+    for head, rows in KEYS_INFO:
+        out.append(f'<h3>{E(head)}</h3><dl class="legend-list keys">' + "".join(f'<div><dt>{k}</dt><dd>{E(d)}</dd></div>' for k, d in rows) + '</dl>')
+    return "".join(out)
 
 
 # cards drawn by the existing panels keep their old anchors, so links to them from before still work
@@ -1954,7 +1974,7 @@ def render_html(facts, reports, state, history, version, cites, build=None, cove
     out = load_asset(ASSETS / "template.html")
     for k, v in {"TITLE": E(f"{mh['name']} dossier"), "CSS": css, "NAV": groups, "RAIL": rail, "MASTHEAD": head, "REPORTS": pages, "MERMAID": mermaid,
                  "BASECOAT_JS": load_asset(VENDOR / "basecoat.min.js"), "JS": load_asset(ASSETS / "dossier.js"),
-                 "SKILLVER": E(str(version)), "LEGEND": legend_html(), "NAME": E(mh["name"]), "SHORT": E(mh["short"]), "CODE": viewer.embed(files, windows),
+                 "SKILLVER": E(str(version)), "LEGEND": legend_html(), "KEYS": keys_html(), "NAME": E(mh["name"]), "SHORT": E(mh["short"]), "CODE": viewer.embed(files, windows),
                  "CAL": jsn(calendar_data(facts)), "FACTS": jsn({k: {"t": v[0], "x": v[1]} for k, v in FACT_INFO.items()})}.items():
         out = out.replace(f"<!--@{k}-->", v)
     return out, gaps

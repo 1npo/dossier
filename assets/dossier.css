@@ -328,6 +328,17 @@ html.sliding { overflow-x: clip; }
 .goto-keys kbd { font-size: .6875rem; padding: 0 .35rem; border: 1px solid var(--border); border-radius: .3rem; background: var(--muted); }
 @media (prefers-reduced-motion: reduce) { #goto[open] { animation: none; } }
 
+/* legend: the card badges are narrower than the statement pills, so their column is narrower too */
+.legend-list.tiers > div { grid-template-columns: 3.75rem minmax(0, 1fr); gap: .75rem; }
+.lg-body h3 + dl.legend-list { margin-top: .75rem; }
+.legend-list.keys > div { grid-template-columns: 8.5rem minmax(0, 1fr); } .legend-list.keys dt { display: flex; flex-wrap: wrap; gap: .25rem; align-items: center; }
+.legend-list.keys kbd { font-family: var(--font-mono, ui-monospace, Menlo, Consolas, monospace); font-size: .75rem; padding: .05rem .4rem; border: 1px solid var(--border); border-radius: .3rem; background: var(--muted); color: var(--foreground); }
+#goto-list li .k { flex: none; width: 1.5rem; text-align: right; }
+#goto-list li .tt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#goto-list li .pp { flex: 0 1 45%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; font-size: .75rem; font-weight: 400; color: var(--muted-foreground); }
+#goto-list li.g-card .tt { padding-left: .5rem; } #goto-list li.g-entry .tt { padding-left: 1.25rem; font-size: .875rem; }
+#goto-list li.more { color: var(--muted-foreground); cursor: default; font-size: .8125rem; }
+
 /* commit calendar */
 .cc.ph { visibility: hidden; }
 .cc.rel { outline: 2px solid var(--pend); outline-offset: -2px; }
