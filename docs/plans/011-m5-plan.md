@@ -962,7 +962,7 @@ Read section 2, D8, D15 to D19, and "Results" of Phases 1 to 3. Load the skills 
   - Done-check: `... pytest tests/unit/scripts/test_process.py tests/unit/scripts/test_candidates.py -q` passes.
   - Commit: `test(dossier): cover partial badges and staleness for the C# tools`
 
-- [ ] **M5-26. Upgrade burden (P1).**
+- [x] **M5-26. Upgrade burden (P1).**
   - Goal: D19. First to cut.
   - Files: edit `scripts/measured_upgrade.py`, `tests/unit/scripts/test_measured_upgrade.py`.
   - Steps: tests: `net10.0` gives a `.NET` row `supported until 2028-11-14` at a commit date before that; `net8.0` gives `end of life since 2026-11-10` at a later date; `netstandard2.0` gives no row; test projects give no row; the Python and Node rows are unchanged (asserted). Implement.
