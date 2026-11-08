@@ -684,6 +684,10 @@ Run 2026-11-08 by Sonnet 5.5 on branch `feat/dossier-m5` (from `main` at `7e5b7f
 
 **M5-8.** `cs_adapter.CSharpAdapter` (D1) is registered first, so `csharp` sorts before `js`. `extract` writes `cs-project`, `project-reference`, `source-root` and `cs-note` items (`framework`, `no-lock`, `razor`) into the `graph` output, as the JS adapter does with `js-note`. On the fixture: 8 C# projects, 4 project references, source roots `samples`, `src`, `tests`, `tools`; one `framework` note (`FastEndpoints`); 7 `no-lock` notes (every project but `Shop.Core`); one `razor` note with count 2. Tool status: scip-dotnet takes the trust reason, then the SDK reason (from `cs_sdk.problem`), else `Arrives in a later task.`; semgrep and tree-sitter always say `Arrives in a later task.` The `rules/csharp` folder does not exist yet (Phase 2 creates it); `rules_hash` copes with a missing folder. Not run end to end on a real build yet (Phase 2 and 3 do that). Suite after: 2199 passed, 119 skipped.
 
+**Phase 1 acceptance.** Default suite: 2199 passed, 119 skipped. Slow suite at the end (17 min): 3 failed (only the three known ones), 2314 passed, 1 skipped; the new slow tests (`test_cs_scip_slow.py`, the NuGet hygiene test) ran, and `test_py_adapter_slow.py` and `test_js_adapter_slow.py` passed unedited. Gate: passed. Scratch folders removed. Nothing merged or bumped; branch `feat/dossier-m5` holds eight task commits plus this one.
+
+**Left for the author:** (1) the G3 wording question above; (2) an untracked `/home/nick/dev/projects/encamp/.claude/worktrees/` folder appeared in the encamp repo at 14:46, before I ran anything; it is not mine and I left it alone.
+
 
 ---
 
