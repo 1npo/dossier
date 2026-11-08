@@ -825,7 +825,7 @@ Read section 2, D2, D3, D11, D15, D17 and "Results" of Phases 1 and 2. **If the 
   - Done-check: `... pytest tests/unit/scripts/test_cs_scip.py -q` passes; `DOSSIER_SLOW=1 ... tests/integration/scripts/test_scip_cs_slow.py -q --basetemp=$HOME/.cache/dossier-m5-slow` passes.
   - Commit: `feat(dossier): index C# with scip-dotnet and read its references`
 
-- [ ] **M5-17. Public surface and the real public API.**
+- [x] **M5-17. Public surface and the real public API.**
   - Goal: D15.
   - Files: new `scripts/cs_api.py`, `tests/unit/scripts/test_cs_api.py`; edit `scripts/cs_adapter.py`.
   - Interface: `is_public(decl, outers, partial_parts) -> bool`; `items(projects, decls, generated) -> (symbols, notes, friends)`.

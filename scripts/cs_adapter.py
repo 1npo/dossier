@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import cs_api
 import cs_entries
 import cs_graph
 import cs_models
@@ -50,7 +51,7 @@ class CSharpAdapter(Adapter):
         items = []
         for p in cs:
             items.append({"kind": "cs-project", "path": p["path"], "name": p["name"], "sdk": p["sdk"], "output_type": p["output_type"],
-                          "frameworks": p["frameworks"], "test": p["test"], "packable": p["packable"], "references": p["references"]})
+                          "frameworks": p["frameworks"], "test": p["test"], "packable": p["packable"], "references": p["references"], "friends": p["friends"]})
             for ref in p["references"]:
                 if ref in by_path:
                     items.append({"kind": "project-reference", "path": p["path"], "paths": [ref], "from": p["name"], "to": by_path[ref]["name"]})
@@ -107,6 +108,9 @@ class CSharpAdapter(Adapter):
                          + cs_graph.namespace_cycles(imports, decls, result))
         if ambiguous:
             out["graph"].append({"kind": "cs-note", "path": files[0], "note": "ambiguous-name", "name": str(ambiguous)})
+        api, api_notes, _ = cs_api.items(result["projects"], decls, generated)
+        out["symbols"] += api
+        out["graph"] += api_notes
         out["models"] += cs_models.model_items(decls, result, read, generated, tests)
         found = cs_tests.tests(decls, result, read, tests)
         edges: dict = {}
