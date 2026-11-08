@@ -176,6 +176,23 @@ class TestScip:
         assert ctx.tool_status["scip-dotnet"]["reason"] == "boom"
         assert any(s["kind"] == "def" and s["name"] == "P" for s in out["symbols"])
 
+    def test_dead_types_are_listed_with_a_note_when_scip_dotnet_is_ok(self, cs_repo, tmp_path, monkeypatch):
+        row = {"path": "src/Shop.Core/Secret.cs", "name": "Secret"}
+        monkeypatch.setattr(cs_scip, "dead_items", lambda *a: [row])
+        plan = {"Shop.slnx": (0, "", {"src/Shop.Core/Order.cs": [("Shop.Core/Order#", 1, 2)]})}
+
+        out, _ = self.run(cs_repo, tmp_path, monkeypatch, plan)
+
+        assert out["dead"] == [row] and notes(out, "dead") == [("1", "src/Shop.Core/Secret.cs")]
+
+    def test_nothing_is_listed_dead_when_scip_dotnet_failed(self, cs_repo, tmp_path, monkeypatch):
+        monkeypatch.setattr(cs_scip, "dead_items", lambda *a: [{"path": "x.cs", "name": "Secret"}])
+        plan = {"Shop.slnx": (0, "Failure: x", {"src/Shop.Core/Order.cs": [("Shop.Core/Order#", 1, 2)]})}
+
+        out, _ = self.run(cs_repo, tmp_path, monkeypatch, plan)
+
+        assert out["dead"] == []
+
     def test_untrusted_ref_never_runs_the_tool_and_lists_declarations(self, cs_repo, tmp_path, monkeypatch):
         out, _ = self.run(cs_repo, tmp_path, monkeypatch, {}, trusted=False)
 

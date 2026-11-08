@@ -364,3 +364,76 @@ class TestSoftFailure:
 
     def test_no_failure_lines_gives_none(self):
         assert cs_scip.soft_failure("all good") is None
+
+
+def tdecl(name, mods=("internal",), kind="class", bases=(), line=3, end=9):
+    return {"name": name, "kind": kind, "modifiers": list(mods), "line": line, "end_line": end, "attributes": [], "bases": list(bases), "partial": False,
+            "outer": None, "namespace": "N", "params": [], "members": []}
+
+
+def dead(types, defs=None, entries=(), models=(), blindspots=(), generated=(), tests=(), idents=None, path="a.cs"):
+    decls = {path: {"types": types, "idents": idents or {}}}
+    defs = [item(f"N/{t['name']}#", path=path, line=t["line"], name=t["name"]) | {"public": "public" in t["modifiers"]} for t in types] if defs is None else defs
+    return cs_scip.dead_items(defs, decls, list(entries), list(models), list(blindspots), set(generated), set(tests))
+
+
+class TestDeadItems:
+    def test_internal_type_with_no_references_is_listed(self):
+        rows = dead([tdecl("Secret")])
+
+        assert [(r["name"], r["rule"], r["type"], r["confidence"]) for r in rows] == [("Secret", "scip-dotnet.unused-type", "dead code without references", None)]
+
+    def test_row_points_at_the_declaration(self):
+        row = dead([tdecl("Secret", line=4, end=8)])[0]
+
+        assert (row["path"], row["line"], row["end_line"]) == ("a.cs", 4, 8)
+
+    def test_referenced_type_is_not_listed(self):
+        defs = [item("N/Secret#", name="Secret") | {"refs": 2, "public": False}]
+
+        assert dead([tdecl("Secret")], defs=defs) == []
+
+    def test_public_type_is_not_listed(self):
+        assert dead([tdecl("Order", mods=("public",))]) == []
+
+    def test_type_with_no_definition_in_the_index_is_not_listed(self):
+        assert dead([tdecl("Secret")], defs=[]) == []
+
+    def test_interface_and_enum_are_not_listed(self):
+        assert dead([tdecl("I", kind="interface"), tdecl("E", kind="enum")]) == []
+
+    def test_record_and_struct_are_listed(self):
+        assert [r["name"] for r in dead([tdecl("R", kind="record"), tdecl("S", kind="struct")])] == ["R", "S"]
+
+    @pytest.mark.parametrize("pattern", ["di-registration", "di-scan", "mediator-handler", "mvc-filter", "route-convention", "reflection"])
+    def test_file_with_a_dynamic_use_hit_is_not_listed(self, pattern):
+        assert dead([tdecl("Secret")], blindspots=[{"path": "a.cs", "pattern": pattern}]) == []
+
+    def test_other_blind_spots_do_not_hide_it(self):
+        assert dead([tdecl("Secret")], blindspots=[{"path": "a.cs", "pattern": "partial-class"}])
+
+    def test_entity_is_not_listed(self):
+        assert dead([tdecl("Secret")], models=[{"path": "a.cs", "name": "Secret", "kind": "ef-entity"}]) == []
+
+    def test_entry_point_inside_the_type_hides_it(self):
+        assert dead([tdecl("Secret", line=3, end=9)], entries=[{"path": "a.cs", "line": 5, "kind": "http-route"}]) == []
+
+    def test_generated_and_test_files_are_not_listed(self):
+        assert dead([tdecl("Secret")], generated=["a.cs"]) == [] and dead([tdecl("Secret")], tests=["a.cs"]) == []
+
+    def test_type_with_a_base_from_outside_the_repository_is_not_listed(self):
+        assert dead([tdecl("Secret", bases=["ControllerBase"])]) == []
+
+    def test_type_with_a_base_declared_in_the_repository_is_listed(self):
+        rows = dead([tdecl("Base", mods=("public",)), tdecl("Secret", bases=["Base"], line=12, end=18)])
+
+        assert [r["name"] for r in rows] == ["Secret"]
+
+    def test_generic_base_is_matched_by_its_name(self):
+        assert dead([tdecl("Secret", bases=["Handler<int>"])]) == []
+
+    def test_name_used_elsewhere_in_its_own_file_hides_it(self):
+        assert dead([tdecl("Secret", line=3, end=9)], idents={"Secret": [3, 12]}) == []
+
+    def test_name_only_inside_its_own_span_does_not_hide_it(self):
+        assert dead([tdecl("Secret", line=3, end=9)], idents={"Secret": [3, 5]})

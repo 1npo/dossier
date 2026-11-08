@@ -220,7 +220,14 @@ class CSharpAdapter(Adapter):
         for note, count, path in (("ambiguous-symbol", ambiguous, "."), ("unindexed", len(missing), missing[0] if missing else ".")):
             if count:
                 out["graph"].append({"kind": "cs-note", "path": path, "note": note, "name": str(count)})
-        ctx.tool_status["scip-dotnet"] = {"status": "failed", "reason": problems[0]} if problems else {"status": "ok", "reason": None}
+        if problems:
+            ctx.tool_status["scip-dotnet"] = {"status": "failed", "reason": problems[0]}
+            return
+        ctx.tool_status["scip-dotnet"] = {"status": "ok", "reason": None}
+        dead = cs_scip.dead_items(out["symbols"], decls, out["entry_points"], out["models"], out["blindspots"], st.get("generated", set()), st.get("tests", set()))
+        out["dead"] += dead
+        if dead:
+            out["graph"].append({"kind": "cs-note", "path": dead[0]["path"], "note": "dead", "name": str(len(dead))})
 
     def extract(self, ctx) -> dict:
         out = {o: [] for o in OUTPUTS}

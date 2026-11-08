@@ -215,3 +215,39 @@ def fallback_defs(decls: dict, generated) -> list:
                 out.append({"kind": "def", "path": path, "line": decl["line"], "end_line": decl["end_line"], "name": name, "symbol": symbol, "type": kind,
                             "public": cs_api.is_public(decl, outers, same), "refs": 0, "via": "tree-sitter"})
     return out
+
+
+DYNAMIC_USE = {"di-registration", "di-scan", "mediator-handler", "mvc-filter", "route-convention", "reflection"}
+UNUSED = "Nothing in the repository references this type."
+
+
+def _base_name(base: str) -> str:
+    return base.split("<", 1)[0].rsplit(".", 1)[-1].strip()
+
+
+def dead_items(symbols: list, decls: dict, entries: list, models: list, blindspots: list, generated, test_files) -> list:
+    """`dead` items for internal types that no other file references (D17). Run only when scip-dotnet gave an index.
+
+    `refs` counts uses from other files, so a name used again inside its own file also keeps a type off the list."""
+    defs = {(s["path"], s["name"]): s for s in symbols if s["kind"] == "def" and s["symbol"].endswith("#")}
+    dynamic = {b["path"] for b in blindspots if b.get("pattern") in DYNAMIC_USE}
+    entities = {(m["path"], m["name"]) for m in models}
+    declared = {t["name"] for d in decls.values() for t in d["types"]}
+    rows = []
+    for path, d in sorted(decls.items()):
+        if path in generated or path in test_files or path in dynamic:
+            continue
+        for t in d["types"]:
+            found = defs.get((path, t["name"]))
+            if (t["kind"] not in ("class", "record", "struct") or found is None or found["public"] or found["refs"] or (path, t["name"]) in entities
+                    or not t["line"] <= found["line"] <= t["end_line"]):
+                continue
+            if any(t["line"] <= e["line"] <= t["end_line"] for e in entries if e["path"] == path and e.get("line")):
+                continue
+            if any(_base_name(b) not in declared for b in t["bases"]):
+                continue
+            if any(not t["line"] <= ln <= t["end_line"] for ln in d.get("idents", {}).get(t["name"], ())):
+                continue
+            rows.append({"path": path, "line": t["line"], "end_line": t["end_line"], "type": "dead code without references", "name": t["name"],
+                         "message": UNUSED, "confidence": None, "rule": "scip-dotnet.unused-type", "snippet": UNUSED})
+    return rows

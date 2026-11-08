@@ -833,7 +833,7 @@ Read section 2, D2, D3, D11, D15, D17 and "Results" of Phases 1 and 2. **If the 
   - Done-check: `... pytest tests/unit/scripts/test_cs_api.py -q` passes.
   - Commit: `feat(dossier): find what each C# library offers to other assemblies`
 
-- [ ] **M5-18. Dead code for C#.**
+- [x] **M5-18. Dead code for C#.**
   - Goal: D17. Cut item 4 in D20.
   - Files: edit `scripts/cs_adapter.py`, `scripts/cs_scip.py`, `tests/unit/scripts/test_cs_scip.py`.
   - Interface: `cs_scip.dead_items(symbols, decls, entries, models, blindspots, generated, test_files) -> list`.
