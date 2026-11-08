@@ -183,6 +183,7 @@ def _executable_files(checkout: Path, sha: str) -> list:
 
 class RepoAdapter(Adapter):
     name = "repo"
+    rules = (RULES_ALL,)
     version = "3"
     languages = ("*",)
     tools = ("semgrep",)
