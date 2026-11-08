@@ -139,3 +139,39 @@ class TestBuildEnv:
         env = env_for(area, ecosystem="npm")
 
         assert env["npm_config_userconfig"] == str(area / "home" / ".npmrc")
+
+
+DOTNET_FIXED = {"MSBUILDDISABLENODEREUSE": "1", "DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE": "1",
+                "DOTNET_GENERATE_ASPNET_CERTIFICATE": "false", "DOTNET_ADD_GLOBAL_TOOLS_TO_PATH": "false",
+                "DOTNET_SKIP_FIRST_TIME_EXPERIENCE": "1"}
+NAMES_BEFORE_M5 = {"PATH", "HTTPS_PROXY", "HOME", "TMPDIR", "XDG_CACHE_HOME", "XDG_CONFIG_HOME",
+                   "DOTNET_CLI_TELEMETRY_OPTOUT", "DOTNET_NOLOGO", "npm_config_cache", "NUGET_PACKAGES", "DOTNET_CLI_HOME",
+                   "PIP_CACHE_DIR", "npm_config_userconfig", "YARN_CACHE_FOLDER", "YARN_GLOBAL_FOLDER", "YARN_ENABLE_TELEMETRY",
+                   "UV_CACHE_DIR", "UV_PYTHON_INSTALL_DIR"}
+
+
+class TestDotnetSettings:
+    def test_every_name_is_on_the_allowlist(self):
+        assert {*DOTNET_FIXED, "DOTNET_ROOT"} <= sandbox.ALLOWED_NAMES
+
+    def test_fixed_values_are_set_for_both_profiles(self, area):
+        for profile in ("restricted", "tool"):
+            env = env_for(area, profile=profile)
+
+            assert {k: env[k] for k in DOTNET_FIXED} == DOTNET_FIXED
+
+    def test_dotnet_root_passes_only_when_the_parent_has_it(self, area):
+        assert "DOTNET_ROOT" not in env_for(area)
+        assert env_for(area, parent={"DOTNET_ROOT": "/opt/dotnet"})["DOTNET_ROOT"] == "/opt/dotnet"
+
+    def test_parent_values_for_the_fixed_names_are_ignored(self, area):
+        env = env_for(area, parent={"MSBUILDDISABLENODEREUSE": "0", "DOTNET_GENERATE_ASPNET_CERTIFICATE": "true"})
+
+        assert env["MSBUILDDISABLENODEREUSE"] == "1" and env["DOTNET_GENERATE_ASPNET_CERTIFICATE"] == "false"
+
+    def test_no_other_name_changes_for_either_profile(self, area):
+        for profile in ("restricted", "tool"):
+            env = env_for(area, profile=profile)
+
+            expected = NAMES_BEFORE_M5 if profile == "tool" else NAMES_BEFORE_M5 - {"UV_PYTHON_INSTALL_DIR"}
+            assert set(env) - set(DOTNET_FIXED) == expected

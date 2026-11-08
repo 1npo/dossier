@@ -555,7 +555,7 @@ Read section 2, section 3, D1 to D7, D20 and sections 7 and 8. Load the skills i
   - Done-check: the named test files pass; `uv run scripts/dossier.py doctor` on a `tmp_path` repository holding `RW`'s `global.json` and one `.cs` file prints the `TOO OLD` line when run with a fake `dotnet` first on `PATH` that lists only `10.0.114`.
   - Commit: `feat(dossier): check the .NET SDK a repository's global.json asks for`
 
-- [ ] **M5-4. Environment names for .NET.**
+- [x] **M5-4. Environment names for .NET.**
   - Goal: D5's environment list, as confirmed by M5-1 step 2.
   - Files: edit `scripts/sandbox.py`, `tests/unit/scripts/test_sandbox.py`, `tests/integration/scripts/test_hygiene.py`.
   - Steps: (1) Tests: each confirmed name is in `ALLOWED_NAMES`; `build_env` sets the fixed values; `DOTNET_ROOT` is passed only when the parent has it; nothing else changes for a Python or JS call (assert today's environment for profile `tool` and `restricted` with a fake parent). (2) Implement. (3) `test_hygiene.py` must pass unchanged in its existing cases.
@@ -667,6 +667,8 @@ Run 2026-11-08 by Sonnet 5.5 on branch `feat/dossier-m5` (from `main` at `7e5b7f
 **M5-2.** Pinned 0.2.16 with the `nupkg` block; `doctor --all` prints `scip-dotnet 0.2.16 from a hash-checked NuGet package`; slow install test passed (2.4 s). `verified` is 2026-11-08. Suite after: 2006 passed, 118 skipped.
 
 **M5-3.** `cs_sdk.py` holds the roll-forward rules (all nine values, with the docs' own examples as tests). **Deviation from the plan's signatures:** `problem(installed, reqs)` and `runtime_majors(text)` take data already read instead of a `run` callable, so they stay pure; `list_sdks(path)` and `list_runtime_majors(path)` are the thin callers of `dotnet`. `apply(report, reqs, installed)` marks the `dotnet` host entry `old` with `needs` = `{version} ({rollForward}) for {path}`. Wiring: new `toolcheck.preflight_at(top, sha, path)`, used by both `doctor` and `stage_tools` (so the checks cannot drift); a Python-only tree gets exactly today's report (tested). `format_text` therefore prints `needs 10.0.403 (latestFeature) for global.json or later`, which reads a little oddly; left as the plan specifies. Suite after: 2037 passed, 118 skipped.
+
+**M5-4.** `sandbox.ALLOWED_NAMES` gains the six names; `build_env` sets the five fixed values for every profile and passes `DOTNET_ROOT` only when the parent has it. All seven names were confirmed in the docs (M5-1 step 2). The fixed names are set on every sandboxed call, including Python and JS ones (`build_env` knows no language); they only matter to `dotnet`. `test_hygiene.py` passes unchanged.
 
 
 ---
