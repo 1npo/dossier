@@ -39,3 +39,16 @@ bus.subscribe('orders', handle);
 socket.on('message', handle);
 // ok: dossier.js.inputs.message-consume
 socket.on('open', handle);
+
+// ruleid: dossier.js.inputs.file-read
+app.use(express.static(__dirname + '/assets'));
+// ruleid: dossier.js.inputs.request-header
+const token = req.headers.authorization;
+// ruleid: dossier.js.inputs.request-header
+const agent = request.header('user-agent');
+// ruleid: dossier.js.inputs.request-header
+const host = req.get('host');
+// ok: dossier.js.inputs.request-header
+const body = req.body;
+// ok: dossier.js.inputs.request-header
+const other = new Map().get('host');

@@ -120,3 +120,10 @@ router.post( // note
 const dynamicPath = '/dyn';
 // ok: dossier.js.entry.http-route
 router.get(dynamicPath, handler);
+
+// ruleid: dossier.js.entry.static-files
+app.use(express.static(__dirname + '/assets'));
+// ruleid: dossier.js.entry.static-files
+server.use('/files', express.static('public'));
+// ok: dossier.js.entry.static-files
+app.use(express.json());

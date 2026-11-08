@@ -134,3 +134,14 @@ rules:
     pattern: |
       @Cron(...)
       $M(...) {...}
+
+  - id: dossier.js.entry.static-files
+    message: Static files served from a folder
+    languages: [js, ts]
+    severity: INFO
+    options:
+      constant_propagation: false
+    metadata: {category: entry, kind: http-route}
+    pattern-either:
+      - pattern: $R.use(express.static(...))
+      - pattern: $R.use($P, express.static(...))

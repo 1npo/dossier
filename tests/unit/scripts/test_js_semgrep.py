@@ -29,6 +29,17 @@ class TestItems:
 
         assert out["entry_points"][0]["name"] == "POST users"
 
+    def test_static_files_are_an_http_entry_point_named_static_files(self):
+        out = js_semgrep.items([result("dossier.js.entry.static-files", None, "app.use(express.static('a'))", category="entry", kind="http-route")])
+
+        item = out["entry_points"][0]
+        assert (item["kind"], item["name"], item["trigger"]) == ("http-route", "static files", "a web request to `static files`")
+
+    def test_a_request_header_keeps_its_category_and_name(self):
+        out = js_semgrep.items([result("dossier.js.inputs.request-header", "authorization", category="request-header")])
+
+        assert out["io_candidates"][0]["category"] == "request-header" and out["io_candidates"][0]["detail"] == "authorization"
+
     def test_server_listen_is_named_listen(self):
         out = js_semgrep.items([result("dossier.js.entry.server-listen", None, "app.listen(3000);", category="entry", kind="server-listen")])
 

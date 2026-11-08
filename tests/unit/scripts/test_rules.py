@@ -12,7 +12,7 @@ TARGETS = SKILL / "tests" / "fixtures" / "semgrep"
 IO_CATEGORIES = {"cli-args", "env-var", "config-file", "file-read", "stdin", "message-consume", "db-connect", "db-access",
                  "global-state", "cache", "thread", "async", "process-pool", "lock", "queue", "stdout", "file-write",
                  "outbound-call", "message-produce", "exit-code", "error-response", "log", "metric", "trace", "retry",
-                 "timeout", "catch-all", "transaction"}
+                 "timeout", "catch-all", "transaction", "request-header"}
 OTHER_CATEGORIES = {"entry", "blindspot"}
 BLIND_SPOTS = {"dynamic-import", "entry-point-loading", "string-plugin", "decorator-registry", "getattr-dispatch", "django-apps",
                "django-signals", "pytest-fixtures", "codegen", "feature-flag", "computed-subcommand",

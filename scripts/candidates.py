@@ -120,7 +120,7 @@ def group_members(extract: dict) -> dict:
 
 SCHEMA_DIR = Path(__file__).resolve().parent.parent / "prompts" / "schema"
 CATEGORY_CARD = {
-    "cli-args": "io.inputs", "env-var": "io.inputs", "config-file": "io.inputs", "file-read": "io.inputs", "stdin": "io.inputs",
+    "cli-args": "io.inputs", "env-var": "io.inputs", "config-file": "io.inputs", "file-read": "io.inputs", "stdin": "io.inputs", "request-header": "io.inputs",
     "message-consume": "io.inputs", "db-connect": "data.stores", "db-access": "interactions.state",
     "global-state": "interactions.state", "cache": "interactions.state", "thread": "interactions.concurrency",
     "async": "interactions.concurrency", "process-pool": "interactions.concurrency", "lock": "interactions.concurrency",

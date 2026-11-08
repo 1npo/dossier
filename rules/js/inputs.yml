@@ -42,6 +42,8 @@ rules:
       - pattern: fs.createReadStream(...)
       - pattern: fsp.readFile(...)
       - pattern: fs.promises.readFile(...)
+      - pattern: $R.use(express.static(...))
+      - pattern: $R.use($P, express.static(...))
 
   - id: dossier.js.inputs.stdin
     message: Reads from standard input
@@ -60,3 +62,20 @@ rules:
     pattern-either:
       - pattern: $C.subscribe(...)
       - pattern: $S.on("message", ...)
+
+  - id: dossier.js.inputs.request-header
+    message: Reads a request header
+    languages: [js, ts]
+    severity: INFO
+    options:
+      constant_propagation: false
+    metadata: {category: request-header, detail: '(?:headers\.|header\(\s*[''"`]|get\(\s*[''"`])([\w-]+)'}
+    patterns:
+      - pattern-either:
+          - pattern: $REQ.headers.$H
+          - pattern: $REQ.headers[...]
+          - pattern: $REQ.header(...)
+          - pattern: $REQ.get("...")
+      - metavariable-regex:
+          metavariable: $REQ
+          regex: ^(req|request|ctx\.request|context\.req)$

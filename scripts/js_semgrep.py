@@ -32,7 +32,10 @@ def items(results: list) -> dict:
             out["blindspots"].append({**base, "pattern": meta.get("pattern")})
         elif family == "entry":
             kind = meta["kind"]
-            if kind == "http-route":
+            if r["rule"].endswith(".entry.static-files"):
+                name = "static files"
+                base["snippet"] = name
+            elif kind == "http-route":
                 name = _route_name(r.get("detail"), r["snippet"])
                 base["snippet"] = name
             elif kind == "server-listen":
