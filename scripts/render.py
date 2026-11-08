@@ -1750,7 +1750,7 @@ def legend_html():
 
 
 KEYS_INFO = (
-    ("Anywhere", (("<kbd>/</kbd> <kbd>Ctrl</kbd>+<kbd>K</kbd>", "Search the dossier."), ("<kbd>b</kbd>", "Collapse or expand the sidebar."),
+    ("Anywhere", (("<kbd>/</kbd> <kbd>Ctrl</kbd>+<kbd>K</kbd>", "Search the dossier."), ("<kbd>b</kbd>", "Collapse or expand the sidebar."), ("<kbd>t</kbd>", "Switch between light and dark."),
                   ("<kbd>j</kbd> <kbd>k</kbd>", "Go to the next or previous report."), ("<kbd>g</kbd>", "Go to a report, card or entry by number or name."),
                   ("<kbd>l</kbd>", "Show or hide the legend."), ("<kbd>v</kbd>", "Show or hide the code viewer."), ("<kbd>?</kbd>", "Show or hide this list."))),
     ("In the code viewer", (("<kbd>[</kbd> <kbd>]</kbd>", "Previous or next source reference."), ("<kbd>p</kbd>", "Pin the viewer so the page makes room for it."),

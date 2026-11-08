@@ -314,7 +314,8 @@ html.sliding { overflow-x: clip; }
 @media (prefers-reduced-motion: reduce) { html.anim .sidebar > nav, main, .code-panel, .code-panel.shut { transition: none !important; } }
 
 /* key hint beside the sidebar toggle, and the go-to dialog */
-.key-hint { margin-left: auto; margin-right: .35rem; font-size: .75rem; padding: .05rem .4rem; border: 1px solid var(--border); border-radius: .3rem; color: var(--muted-foreground); background: var(--muted); font-family: var(--font-mono, ui-monospace, Menlo, Consolas, monospace); }
+#rail-toggle kbd { font-family: var(--font-mono, ui-monospace, Menlo, Consolas, monospace); font-size: .6875rem; padding: 0 .35rem; border: 1px solid var(--border); border-radius: .3rem; background: var(--muted); color: var(--muted-foreground); }
+html:not(.rail) #rail-toggle { width: auto; padding-inline: .6rem; gap: .5rem; }
 #goto { margin: 12vh auto 0; padding: 0; width: min(32rem, calc(100vw - 2rem)); border: 1px solid var(--border); border-radius: var(--radius); background: var(--popover, var(--card)); color: var(--foreground); box-shadow: 0 16px 48px rgb(0 0 0 / .28); overflow: hidden; }
 #goto::backdrop { background: rgb(0 0 0 / .35); }
 #goto[open] { animation: goto-in .15s ease-out; } @keyframes goto-in { from { opacity: 0; transform: translateY(-.5rem); } }
@@ -338,6 +339,15 @@ html.sliding { overflow-x: clip; }
 #goto-list li .pp { flex: 0 1 45%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; font-size: .75rem; font-weight: 400; color: var(--muted-foreground); }
 #goto-list li.g-card .tt { padding-left: .5rem; } #goto-list li.g-entry .tt { padding-left: 1.25rem; font-size: .875rem; }
 #goto-list li.more { color: var(--muted-foreground); cursor: default; font-size: .8125rem; }
+
+/* breathing room: a title or label never sits flush against the box beneath it */
+.entry > summary { padding-bottom: .1rem; } .entry[open] > summary { margin-bottom: .7rem; }
+.entry > .prov { margin-top: .7rem; }
+.diagram details[open] > summary, details.areas[open] > summary { margin-bottom: .6rem; }
+.flow-bar { margin-bottom: .75rem; }
+.table-container + .tbl-bar, .table-container + .table-hint + .tbl-bar { margin-top: 1.25rem; }
+.basis-cell .badge + .badge { margin-top: .35rem; }
+.basis-cell .badge { vertical-align: top; }
 
 /* commit calendar */
 .cc.ph { visibility: hidden; }
