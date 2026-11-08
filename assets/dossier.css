@@ -313,6 +313,21 @@ html.anim .sidebar > nav { transition: width .25s cubic-bezier(.4, 0, .2, 1); }
 html.sliding { overflow-x: clip; }
 @media (prefers-reduced-motion: reduce) { html.anim .sidebar > nav, main, .code-panel, .code-panel.shut { transition: none !important; } }
 
+/* key hint beside the sidebar toggle, and the go-to dialog */
+.key-hint { margin-left: auto; margin-right: .35rem; font-size: .75rem; padding: .05rem .4rem; border: 1px solid var(--border); border-radius: .3rem; color: var(--muted-foreground); background: var(--muted); font-family: var(--font-mono, ui-monospace, Menlo, Consolas, monospace); }
+#goto { margin: 12vh auto 0; padding: 0; width: min(32rem, calc(100vw - 2rem)); border: 1px solid var(--border); border-radius: var(--radius); background: var(--popover, var(--card)); color: var(--foreground); box-shadow: 0 16px 48px rgb(0 0 0 / .28); overflow: hidden; }
+#goto::backdrop { background: rgb(0 0 0 / .35); }
+#goto[open] { animation: goto-in .15s ease-out; } @keyframes goto-in { from { opacity: 0; transform: translateY(-.5rem); } }
+#goto .input { width: 100%; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; padding: .9rem 1.1rem; font-size: 1rem; background: transparent; box-shadow: none; outline: none; }
+#goto-list { list-style: none; margin: 0; padding: .4rem; max-height: min(22rem, 55vh); overflow: auto; }
+#goto-list li { display: flex; gap: .75rem; align-items: baseline; padding: .5rem .7rem; border-radius: calc(var(--radius) - 2px); cursor: pointer; font-size: .9375rem; }
+#goto-list li .n { color: var(--muted-foreground); font-variant-numeric: tabular-nums; font-size: .8125rem; }
+#goto-list li[aria-selected="true"] { background: var(--accent); color: var(--accent-foreground, var(--foreground)); font-weight: 600; }
+#goto-list li.none { color: var(--muted-foreground); cursor: default; }
+.goto-keys { margin: 0; padding: .55rem 1.1rem; border-top: 1px solid var(--border); font-size: .75rem; }
+.goto-keys kbd { font-size: .6875rem; padding: 0 .35rem; border: 1px solid var(--border); border-radius: .3rem; background: var(--muted); }
+@media (prefers-reduced-motion: reduce) { #goto[open] { animation: none; } }
+
 /* commit calendar */
 .cc.ph { visibility: hidden; }
 .cc.rel { outline: 2px solid var(--pend); outline-offset: -2px; }

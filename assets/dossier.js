@@ -582,7 +582,7 @@
     }
     railBtn.setAttribute("aria-expanded", String(!on));
     var label = on ? "Expand the sidebar" : "Collapse the sidebar";
-    railBtn.title = label; railBtn.setAttribute("aria-label", label);
+    railBtn.title = label + " (b)"; railBtn.setAttribute("aria-label", label);
     try { localStorage.setItem("dossier-rail", on ? "1" : "0"); } catch (e) {}
   }
   var railOn = false; try { railOn = localStorage.getItem("dossier-rail") === "1"; } catch (e) {}
@@ -591,6 +591,48 @@
   railBtn.addEventListener("click", function () { setRail(!root.classList.contains("rail")); });
   $("#rail-search").addEventListener("click", function () { setRail(false); input.focus(); input.select(); });
   $("#rail-theme").addEventListener("click", function () { $("#theme-toggle").click(); });
+
+  // ---- keys: b sidebar, j / k next and previous report, g go to a report by number or name
+  var reps = $$("#nav-groups a[data-nav]").map(function (a) { return { id: a.dataset.nav, n: +$(".n", a).textContent, t: $(".t", a).textContent }; });
+  function repIdx() { var c = $("#nav-groups a[aria-current=page]"); return c ? reps.findIndex(function (r) { return r.id === c.dataset.nav; }) : 0; }
+  function goRep(i) { if (i >= 0 && i < reps.length) location.hash = reps[i].id; }
+  var gt = doc.createElement("dialog"); gt.id = "goto"; gt.setAttribute("aria-label", "Go to a report");
+  gt.innerHTML = '<input type="text" class="input" id="goto-in" placeholder="Go to a report: type a number or a name" autocomplete="off" spellcheck="false" aria-controls="goto-list">' +
+    '<ul id="goto-list" role="listbox"></ul><p class="goto-keys muted"><kbd>↑</kbd> <kbd>↓</kbd> choose <kbd>Enter</kbd> go <kbd>Esc</kbd> cancel</p>';
+  doc.body.appendChild(gt);
+  var gin = $("#goto-in", gt), glist = $("#goto-list", gt), gshown = [], gact = 0;
+  function gmatch(r, q) {
+    if (!q) return true;
+    if (/^\d+$/.test(q)) return String(r.n).indexOf(q.replace(/^0+(?=\d)/, "")) === 0 || String(r.n).padStart(2, "0").indexOf(q) === 0;
+    return r.t.toLowerCase().indexOf(q) >= 0;
+  }
+  function gdraw() {
+    var q = gin.value.trim().toLowerCase();
+    gshown = reps.filter(function (r) { return gmatch(r, q); });
+    gact = Math.min(gact, Math.max(gshown.length - 1, 0));
+    glist.innerHTML = gshown.length ? gshown.map(function (r, i) {
+      return '<li role="option" data-i="' + i + '" aria-selected="' + (i === gact) + '"><span class="n">' + String(r.n).padStart(2, "0") + '</span>' + esc(r.t) + '</li>';
+    }).join("") : '<li class="none">No report matches.</li>';
+    var a = $("[aria-selected=true]", glist); if (a) a.scrollIntoView({ block: "nearest" });
+  }
+  function gopen() { gin.value = ""; gact = Math.max(repIdx(), 0); gdraw(); gt.showModal(); gin.focus(); }
+  function gpick(i) { if (gshown[i]) { gt.close(); location.hash = gshown[i].id; } }
+  gin.addEventListener("input", function () { gact = 0; gdraw(); });
+  gin.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowDown") { e.preventDefault(); gact = Math.min(gact + 1, gshown.length - 1); gdraw(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); gact = Math.max(gact - 1, 0); gdraw(); }
+    else if (e.key === "Enter") { e.preventDefault(); gpick(gact); }
+  });
+  glist.addEventListener("click", function (e) { var li = e.target.closest("li[data-i]"); if (li) gpick(+li.dataset.i); });
+  gt.addEventListener("click", function (e) { if (e.target === gt) gt.close(); });   // a click on the backdrop
+  doc.addEventListener("keydown", function (e) {
+    var t = e.target, typing = t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable);
+    if (typing || gt.open || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "b") setRail(!root.classList.contains("rail"));
+    else if (e.key === "j") goRep(repIdx() + 1);
+    else if (e.key === "k") goRep(repIdx() - 1);
+    else if (e.key === "g") { e.preventDefault(); gopen(); }
+  });
 
   // ---- calendar zoom
   $$("[data-zoom-root]").forEach(function (box) {
