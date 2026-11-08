@@ -91,6 +91,8 @@
     var section = target.closest(".report") || target;
     $$(".report").forEach(function (s) { s.hidden = s !== section; });
     $$("[data-nav]").forEach(function (a) { if (a.dataset.nav === section.id) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+    var h1 = $(".report-head h1", section);
+    document.title = "dossier: " + (root.dataset.project || "") + (h1 ? ": " + h1.textContent.trim() : "");
     drawIn(section); markTables(section);
     if (section.id === "change") initBlast();
     if (target !== section) {

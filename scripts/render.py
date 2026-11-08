@@ -1972,7 +1972,7 @@ def render_html(facts, reports, state, history, version, cites, build=None, cove
     css = load_asset(VENDOR / "basecoat.min.css") + "\n" + load_asset(ASSETS / "dossier.css")
     mermaid = load_asset(VENDOR / "mermaid.min.js").replace("</script", "<\\/script").replace("<!--", "<\\!--")
     out = load_asset(ASSETS / "template.html")
-    for k, v in {"TITLE": E(f"{mh['name']} dossier"), "CSS": css, "NAV": groups, "RAIL": rail, "MASTHEAD": head, "REPORTS": pages, "MERMAID": mermaid,
+    for k, v in {"TITLE": E(f"dossier: {mh['name']}: {TITLES[REPORTS[0][0]]}"), "CSS": css, "NAV": groups, "RAIL": rail, "MASTHEAD": head, "REPORTS": pages, "MERMAID": mermaid,
                  "BASECOAT_JS": load_asset(VENDOR / "basecoat.min.js"), "JS": load_asset(ASSETS / "dossier.js"),
                  "SKILLVER": E(str(version)), "LEGEND": legend_html(), "KEYS": keys_html(), "NAME": E(mh["name"]), "SHORT": E(mh["short"]), "CODE": viewer.embed(files, windows),
                  "CAL": jsn(calendar_data(facts)), "FACTS": jsn({k: {"t": v[0], "x": v[1]} for k, v in FACT_INFO.items()})}.items():

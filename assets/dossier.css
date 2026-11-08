@@ -295,6 +295,7 @@ main { transition: margin-right .25s cubic-bezier(.4, 0, .2, 1); }
 .side-top { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .6rem; } .side-head .side-top .eyebrow { margin: 0; }
 .side-icon { flex: none; } #rail-toggle .chev { transition: transform .2s ease; transform-origin: 11.5px 12px; }
 .rail-only { display: none; }
+#rail-theme .moon, .dark #rail-theme .sun { display: none; } .dark #rail-theme .moon { display: block; }
 #rail-nums a { display: flex; align-items: center; justify-content: center; height: 2rem; border-radius: calc(var(--radius) - 2px); font-size: .8125rem; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--muted-foreground); text-decoration: none; }
 #rail-nums a:hover { background: var(--accent); color: var(--foreground); } #rail-nums a[aria-current="page"] { background: var(--accent); color: var(--foreground); font-weight: 700; }
 @media (min-width: 48rem) {
@@ -578,13 +579,10 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 .table-container.tall { max-height: 70vh; overflow: auto; }
 .table-container.tall thead th { position: sticky; top: 0; z-index: 2; background: var(--card); }
 /* the cards take their padding, border and radius from the Nova style of Basecoat, the same for every card; only the corner badges are added here */
-.card > header { position: relative; }
-.card > header:has(> .card-badges) { padding-right: 7rem; }
-/* a second badge (partial) needs more room, or the title runs under it */
-.card > header:has(> .card-badges .partial) { padding-right: 10.5rem; }
+.card > header:has(> .card-badges) { display: flex; flex-wrap: wrap; align-items: center; column-gap: .5rem; } .card > header > .card-badges { margin-left: 0; } .card > header:has(> .card-badges) > p { flex-basis: 100%; }
 
-/* tier badges sit in the top right corner of the card and are colour-coded: M blue, A violet, R teal, M+A indigo */
-.card-badges { position: absolute; top: 0; right: 1rem; display: flex; align-items: center; gap: .35rem; }
+/* tier badges sit just right of the card title and are colour-coded: M blue, A violet, R teal, M+A indigo */
+.card-badges { display: inline-flex; align-items: center; gap: .35rem; margin-left: .5rem; vertical-align: middle; }
 :root { --tier-m: oklch(.5 .16 260); --tier-a: oklch(.5 .18 305); --tier-r: oklch(.5 .1 190); --tier-ma: oklch(.48 .17 280); }
 .dark { --tier-m: oklch(.8 .11 260); --tier-a: oklch(.8 .12 305); --tier-r: oklch(.82 .1 190); --tier-ma: oklch(.8 .11 280); }
 .badge.tier { background: color-mix(in oklab, var(--tier) 14%, transparent); border-color: color-mix(in oklab, var(--tier) 55%, transparent); color: var(--tier); }
