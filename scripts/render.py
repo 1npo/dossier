@@ -1728,9 +1728,25 @@ def with_contents(rid, body):
     return body, f'<div class="card toc-card" id="{rid}-toc"><header><h2>Contents</h2></header><section><ol class="toc">{items}</ol></section></div>'
 
 
-TIER_KEY = ('<p class="tier-key"><span>Badge on each card:</span><span><b class="tier-m">M</b> measured by a tool</span>'
-            '<span><b class="tier-a">A</b> found by a tool, decided by Claude</span><span><b class="tier-r">R</b> read by Claude</span>'
-            '<span><b class="tier-mplusa">M+A</b> measured, then named or explained by Claude</span></p>')
+# the two tabs in each report's frozen title bar; the legend is above the code viewer
+REPORT_TABS = ('<div class="rh-tabs" role="group" aria-label="Side panels">'
+               '<button type="button" class="panel-tab" data-panel="legend" aria-pressed="false" title="Show the legend (l)">Legend <kbd>l</kbd></button>'
+               '<button type="button" class="panel-tab" data-panel="code" aria-pressed="false" title="Show the source panel (v)">Code <kbd>v</kbd></button></div>')
+
+BASIS_INFO = ((basis("confirmed"), "Stated in the code or its history."), (basis("inferred"), "Reasoned from context. No single line states it."),
+              (basis("unknown"), "Nothing was found."), (badge("confirmed by you", "basis-confirmed", "secondary"), "You confirmed it with /dossier confirm."),
+              (badge("disputed by you", "basis-unknown", "destructive"), "You said it is wrong with /dossier confirm."),
+              (badge("added by Claude"), "Claude found it and no tool listed it."))
+
+
+def legend_html():
+    """The body of the legend panel: what the badge on a card and the pill on a statement mean."""
+    tiers = "".join(f'<div><dt><span class="badge tier tier-{t.lower().replace("+", "plus")}" data-variant="outline">{E(t)}</span></dt><dd><b>{E(name)}.</b> {E(tip.split(": ", 1)[1])}</dd></div>'
+                    for t, (name, tip) in TIER_INFO.items())
+    pills = "".join(f'<div><dt>{pill}</dt><dd>{E(txt)}</dd></div>' for pill, txt in BASIS_INFO)
+    return (f'<h3>Badge on each card</h3><p class="muted">Says who produced the card.</p><dl class="legend-list">{tiers}</dl>'
+            f'<h3>Pill on each statement</h3><p class="muted">Says how well the code backs it.</p><dl class="legend-list">{pills}</dl>')
+
 
 # cards drawn by the existing panels keep their old anchors, so links to them from before still work
 PANEL_ANCHORS = {"dossier.about": "dossier-build", "dossier.reports": "report-index", "dossier.cards": "card-index", "dossier.changelog": "history",
@@ -1743,8 +1759,7 @@ def card_anchor(cid):
 
 
 def head_html(rid, title, headline_html, sch=None):
-    key = TIER_KEY if sch else ""
-    return f'<header class="report-head"><h1>{E(title)}</h1><p class="headline">{headline_html}</p>{key}</header>'
+    return f'<header class="report-head"><div class="rh-text"><h1>{E(title)}</h1><p class="headline">{headline_html}</p></div>{REPORT_TABS}</header>'
 
 
 def questions_body(refs):
@@ -1939,7 +1954,7 @@ def render_html(facts, reports, state, history, version, cites, build=None, cove
     out = load_asset(ASSETS / "template.html")
     for k, v in {"TITLE": E(f"{mh['name']} dossier"), "CSS": css, "NAV": groups, "RAIL": rail, "MASTHEAD": head, "REPORTS": pages, "MERMAID": mermaid,
                  "BASECOAT_JS": load_asset(VENDOR / "basecoat.min.js"), "JS": load_asset(ASSETS / "dossier.js"),
-                 "SKILLVER": E(str(version)), "NAME": E(mh["name"]), "SHORT": E(mh["short"]), "CODE": viewer.embed(files, windows),
+                 "SKILLVER": E(str(version)), "LEGEND": legend_html(), "NAME": E(mh["name"]), "SHORT": E(mh["short"]), "CODE": viewer.embed(files, windows),
                  "CAL": jsn(calendar_data(facts)), "FACTS": jsn({k: {"t": v[0], "x": v[1]} for k, v in FACT_INFO.items()})}.items():
         out = out.replace(f"<!--@{k}-->", v)
     return out, gaps

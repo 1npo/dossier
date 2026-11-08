@@ -37,12 +37,13 @@ Hover a source marker `[n]` to see what it points to. Click it to open the cited
 
 | Key | Action |
 |---|---|
-| `v` | Show or hide the panel |
+| `v` | Show or hide the panel. It opens empty, with a note, when the report has no citations to view |
+| `l` | Show or hide the legend: what the badge on a card and the confirmed, inferred and unknown pills mean |
 | `p` | Pin the panel: it stays open and the page makes room for it. The choice is remembered in the browser |
 | `[` `]` | Previous or next source in the report's reference list |
 | `Esc` | Collapse an unpinned panel (a click outside it does the same) |
 
-The panel also has a row of the statement's other sources and a "Go to reference" button. Citations of directories and commits, and of files that are binary, minified or may hold secrets, do not open the panel; the click jumps to the reference list as before. A click on a "measured facts" marker opens a short explanation of what the measurement is, with a button that shows the gatherer code that made it in the same panel. A file longer than 1,500 lines is embedded as the 1,500-line window that holds the most cited ranges, and the panel says which lines it shows.
+The Legend and Code tabs sit in each report's title bar, which stays in view as you scroll, below the page header. The panel also has a row of the statement's other sources and a "Go to reference" button. Citations of directories and commits, and of files that are binary, minified or may hold secrets, do not open the panel; the click jumps to the reference list as before. A click on a "measured facts" marker opens a short explanation of what the measurement is, with a button that shows the gatherer code that made it in the same panel. A file longer than 1,500 lines is embedded as the 1,500-line window that holds the most cited ranges, and the panel says which lines it shows.
 
 **Sharing.** The page now contains the source of every file it cites, up to 3 MB of text in total. Treat it like the repository: do not share it more widely than the code. Files that match secret patterns or are flagged by the gatherer are never embedded.
 
