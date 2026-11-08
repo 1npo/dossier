@@ -120,7 +120,7 @@ def _expand(pattern: str, key: str, name: str, folder: str, tracked: set, option
         if any(f.startswith(n) and len(n) > len(prefix) for n in nested):
             continue
         stem = posixpath.splitext(f[len(prefix):])[0]
-        stems = {stem, stem[4:] if stem.startswith("src/") else stem}
+        stems = {stem[4:] if stem.startswith("src/") else stem}
         if root_dir is not None and stem.startswith(root_dir.strip("./") + "/"):
             stems.add(stem[len(root_dir.strip("./")) + 1:])
         via = next((r for r in sorted(stems) if _stands_for(pattern.replace("*", r), key.replace("*", r), name, folder, tracked, options, f)), None)
