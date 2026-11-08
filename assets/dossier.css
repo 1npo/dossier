@@ -54,6 +54,8 @@ mark { background: color-mix(in oklab, var(--warn) 30%, transparent); color: inh
 .mh-row h1 { font-size: 1.25rem; } .mh-row #menu-toggle { display: none; }
 .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: .75rem; color: var(--muted-foreground); }
 .chips { display: inline-flex; flex-wrap: wrap; gap: .5rem; align-items: center; } 
+.chips > .badge[data-variant="outline"] { border-color: var(--foreground); }
+.dark .chips > .badge[data-variant="outline"] { border-color: #fff; }
 .mh-row2 { display: flex; align-items: baseline; gap: .5rem 2rem; flex-wrap: wrap; margin-top: .45rem; }
 .lede { color: var(--muted-foreground); margin: 0; flex: 1 1 20rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .badge { font-size: .75rem; }
