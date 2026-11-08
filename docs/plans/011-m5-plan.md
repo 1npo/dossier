@@ -993,7 +993,7 @@ Read section 2, D8, D15 to D19, and "Results" of Phases 1 to 3. Load the skills 
   - Done-check: `... pytest tests/unit/scripts/test_prompts.py -q` passes.
   - Commit: `docs(dossier): tell Claude how to use the C# findings`
 
-- [ ] **M5-29. Git-derived cards for C#.**
+- [x] **M5-29. Git-derived cards for C#.**
   - Goal: the prompt's check that blast radius, ownership and dead-code candidates behave for `.cs`, `.csproj`, `.razor` and generated files.
   - Files: new tests in `tests/unit/scripts/test_measured_blast.py` and `tests/unit/scripts/test_measured_change.py`; code only if a test fails, then fixed with the test first.
   - Steps: tests on a hand-made extract: the blast radius of `Order.cs` holds the files with type-use edges to it and the test files whose `paths` hold it; a `.csproj` file has co-change rows and no graph rows; a `.razor` file appears in hotspots by path and in no graph; a generated file is never in `change.dead-code`; a C# module with no incoming edge is not listed as "module nothing imports" (that row is Python's). Record what was found under "Results (Phase 4)".

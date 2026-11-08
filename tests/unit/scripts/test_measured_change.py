@@ -196,6 +196,20 @@ class TestDeadRows:
 
         assert measured_change.dead_rows({"graph": [js]}, None) == []
 
+    def test_a_csharp_module_nothing_references_is_not_a_module_nothing_imports(self):
+        cs = {"kind": "module", "module": "src/A/Order", "path": "src/A/Order.cs", "language": "csharp"}
+
+        assert measured_change.dead_rows({"graph": [cs]}, None) == []
+
+    def test_a_generated_csharp_file_is_never_listed(self):
+        cs = {"kind": "module", "module": "src/A/Order.g", "path": "src/A/Order.g.cs", "language": "csharp", "generated": True}
+        scip = {"name": "Unused", "type": "dead code without references", "message": "Nothing references this type.", "confidence": None,
+                "path": "src/A/Real.cs", "line": 3, "rule": "scip-dotnet.unused-type"}
+
+        got = measured_change.dead_rows({"graph": [cs], "dead": [scip]}, None)
+
+        assert [g[0] for g in got] == ["Unused"]
+
     def test_a_knip_dependency_replaces_the_same_name_from_the_dependency_report(self):
         extract = {"dead": [{"name": "left-pad", "type": "unused dependency", "message": "Not imported.", "confidence": None, "path": "package.json", "line": None}]}
 
@@ -218,6 +232,21 @@ class TestDeadRows:
         c["extract"]["dead"] = []
 
         assert "none-found" in draw("change.dead-code", c)
+
+
+class TestHotspotsOfCSharpFiles:
+    def test_a_razor_and_a_project_file_are_not_source_files_so_hotspots_leave_them_out(self):
+        files = [("src/Api/Index.razor", 4, 8, 60, "2026-05-01"), ("src/Api/Api.csproj", 2, 5, 30, "2026-04-01"), ("src/Api/Order.cs", 1, 3, 90, "2026-03-01")]
+        tree = [f[0] for f in files]
+
+        html = draw("change.hotspots", ctx(hist(*files), tree))
+
+        assert [r[0] for r in cells(html, "t-change-hotspots-files")] == ["src/Api/Order.cs"]
+
+    def test_a_project_file_in_a_co_change_pair_is_not_in_the_graph(self):
+        extract = {"graph": [{"kind": "module", "path": "src/Api/Order.cs", "module": "src/Api/Order", "language": "csharp"}]}
+
+        assert measured_change.linked("src/Api/Api.csproj", "src/Api/Order.cs", extract) == "not in the graph"
 
 
 class TestInFlight:
