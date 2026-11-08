@@ -1204,21 +1204,21 @@ Read section 2, section 6 and "Results" of Phases 1 to 4b. Load the skills in se
 
 ### Tasks (Phase 5)
 
-- [ ] **M4-29. Run the blocks for `BP`.**
+- [x] **M4-29. Run the blocks for `BP`.**
   - Goal: the React checks.
   - Files: this plan only, unless a block finds a bug.
   - Steps: block R. A failure is a finding, handled as in M4-28.
   - Done-check: results recorded under "Verification results (Phase 5)".
   - Commit: `docs(dossier): record the M4 verification on the React repository`
 
-- [ ] **M4-30. Run the mixed block and the final checks.**
+- [x] **M4-30. Run the mixed block and the final checks.**
   - Goal: mixed repositories, card skeletons, the full suite.
   - Files: this plan only.
   - Steps: blocks M, Y, X, I, E, then Z.
   - Done-check: as those blocks say.
   - Commit: `docs(dossier): record the M4 mixed repository run`
 
-- [ ] **M4-31. Merge and hand over.**
+- [x] **M4-31. Merge and hand over.**
   - Goal: the milestone review can start.
   - Files: this plan.
   - Steps: (1) Tick and record. (2) Follow `git-workflow`: `git merge --no-ff feat/dossier-m4` into `main`, push `main`, delete the branch. (3) Tell the author the procedure below.
@@ -1263,7 +1263,7 @@ The author does this. **Needed on the machine:** Node 22.13 or later, and npm. Y
 
 ### Results (Phase 5)
 
-**In progress (2026-11-07, Sonnet 5.5, `feat/dossier-m4`).** M4-29 to M4-31 are NOT done. `SCR=/home/nick/.cache/dossier-m4-8vGZ` (use `source $SCR/env.sh`; put `~/.local/share/fnm/node-versions/v26.13.0/installation/bin` first on `PATH`). The `BP` clone is at `$SCR/src/bp`, the library clone at `$SCR/src/lib`, and the mixed repository at `$SCR/m`.
+**Done 2026-11-08 on `feat/dossier-m4` by Sonnet 5.5.** M4-29 to M4-31 are done. `SCR=/home/nick/.cache/dossier-m4-8vGZ` is kept for the author's review (pages under `$SCR/home/rw`, `$SCR/home/bp` and `$SCR/m/home/repo`). The `BP` clone is at `$SCR/src/bp`, the library clone at `$SCR/src/lib`.
 
 **Bugs found and fixed (each with its test first, own commit).**
 1. `js_project.projects`: a project root below the repository root was not in its own `members`, so Next.js file routes, `package-script` entries and the unsupported-framework Gaps check skipped every `BP` app. The fixture's project is at the root, which hid it. Adapter version 3.
@@ -1276,7 +1276,21 @@ The author does this. **Needed on the machine:** Node 22.13 or later, and npm. Y
 - **M, `prepare` only.** exit 0, adapters `js`, `python`, `repo` present. Reports, render and check not done.
 - **Y.** Passes after fix 2: 64 `public-api` items, all `marked private`; `.` holds `create`, `useStore`, `createStore`, `StoreApi`; `./middleware` holds `persist`, `StateStorage`, `unstable_ssrSafe` and not `ssrSafe`; no `./package.json`, no `types.d.ts` subpath, no unresolved row. The only `js-note` is `unscanned` (`vitest.config.mts`).
 
-**Left.** R.4 and R.5 (write all `BP` reports with the Phase 4 generator pattern in `$SCR/gen`, then F, G, H, L, shots), M reports, render and check, then X, I, E, Z, record, and M4-31. Before the reports, rebuild `BP` once more with `--full` (it was last prepared after fix 1 but before fix 2; fix 2 does not touch `BP`, which declares no API).
+**Later in Phase 5.**
+- **Fix 3, `check_page.SECRET_PATH`.** The browser check flagged `.env.example` as a secret-looking file that the viewer could open, but `gather.SENSITIVE_FILE` exempts example, sample, template and dist files. The check now uses the same exemption (test first, own commit).
+- **Fix 4, `dossier.css`.** A card header with a tier badge and a `partial` badge ran its title under them (found by `check` on the mixed repository). The header now has 10.5 rem of right padding when it holds a `partial` badge. No unit test: the browser check is the test.
+- **R.4, R.5 (`BP`).** All 14 reports written by generators in `$SCR/genbp`. `render` exit 0 with 0 errors and 68 `V2` warnings, none for `[discussionId]` paths. `check` printed `problems: 0` (after fix 3). Block H: 17 extracted entities, 33 `data.entities` rows (16 added by hand), 85 `entry.catalog` rows, 14 components, 0 `partial` badges, 112 blind-spot notes, JS tools `ok`. Block L: `No package here declares a public API.` once, no `t-io-contracts-api` table, no `public-api` item. Hand count: `react-vite` declares 10 routes in `router.tsx` and `entry.catalog` has 10 (`/app` appears twice: the layout and the index child).
+- **M.** Reports written (generator `$SCR/genm`), `render` exit 0, `check` `problems: 0` (after fix 4). The page has a `partial` badge on the component map: the Python adapter found no package because `pyproject.toml` is in `backend/`.
+- **X.** `skeleton.py` exit 0 over the `RW`, `BP`, mixed and Python golden pages.
+- **E.** `OK`, both files 248,233 characters.
+- **I.** Default suite: 1975 passed, 116 skipped (59 s). Slow suite (`DOSSIER_SLOW=1`, about 16 to 29 min): the last full run had 20 failures. Three fail on `main` too or without fix 4: `test_overlapping_paragraphs_are_reported`, `test_each_browser_mutation_makes_a_fail[chart-text-small-chart text]` and G2. The other 17 (all `test_js_adapter_slow.py`) pass when run alone (20 passed), and earlier runs failed in `test_ts_facts_slow.py` and `test_shared_layer.py`, which also pass alone. The cause was `/tmp` filling to 100 % with pytest folders (5 GB) while other work ran; I cleared `/tmp/pytest-of-nick`. A clean full slow run was not repeated.
+- **Z.** `git status --porcelain` of `REPO` matches the saved file; one worktree; `RW` and `BP` clones have no changes.
+
+**Findings for the milestone review.**
+1. `dossier.js.entry.http-route` lists Axios calls such as `api.post('/comments')` as served routes, because `api` is in its receiver list. I dismissed them in the `BP` entry report. MSW handlers (`http.get(...)`) are not found as entry points, so I added the 16 handler routes by hand.
+2. In a repository whose Python code sits below the root (`backend/pyproject.toml`), the Python adapter reports "No Python package was found" and the pages get `partial` badges.
+3. `V2` warnings on `BP` (68) are mostly multi-line type definitions cited by one line, and recipes with no commit.
+4. The `BP` reports are generated and compact. Their prose has not been judged by the author.
 
 ---
 
