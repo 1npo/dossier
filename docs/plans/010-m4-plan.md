@@ -956,7 +956,7 @@ Do not install anything, run the repository's code, or build a dossier. The repo
 
 ### Tasks (Phase 3a)
 
-- [ ] **T-1. Write the truth file.**
+- [x] **T-1. Write the truth file.**
   - Goal: an independent list that the dossier is scored against.
   - Files: `$SCR/truth/rw.json`, which is never committed.
   - Format: `{"entry_points": [{"kind", "key", "where"}], "io": [{"direction": "input"|"output", "category", "key", "where"}]}`. `key` is a short string the matching row must contain, such as `GET /api/orders` or `API_KEY`. `where` is `path:line`.
@@ -983,6 +983,15 @@ Every tracked source and config file was read, and the hash and `SCR` path are r
 On `feat/dossier-m4`, write under "Results (Phase 3a)": the `SCR` path, the hash, the row counts and the date. Record no content from the repository. Tick T-1 and commit: `docs(dossier): record the ground truth hash in plan 010`. Do not merge.
 
 ### Results (Phase 3a)
+
+**Done 2026-11-07, by Opus 5.5.** T-1 is complete.
+
+- `SCR=/home/nick/.cache/dossier-m4-8vGZ`. The truth file is `$SCR/truth/rw.json`, and the clone is `$SCR/src/rw` at the pin.
+- `sha256sum`: `8dd5c9c2fcba32f3a9d4a7313e841b99f4c2b19565de5f8aa8e46958f5d78e03`.
+- Rows: 35 `entry_points`, 42 `io` (20 input, 22 output). The file parses with `python3 -m json.tool`, and every `where` names a line that exists and is not blank.
+- Every tracked source and config file was read in full. The two images were not read. Only the root entry of `package-lock.json` was read, because the rest lists third-party packages.
+- **Independence note.** Before reaching the Phase 3a instruction, this session read lines 1 to 80 and 440 to 1040 of this plan. The only `RW` fact there was D17's statement that its `package.json` declares no public API. That was checked against the source and is true. Nothing else in the list came from the plan.
+- `where` values for test files end with ` (test helper)` after `path:line`. Phase 4's tool should split on the first space.
 
 ## Phase 4: Primary repository and Python golden
 
