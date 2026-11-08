@@ -16,6 +16,7 @@ SHA = "a" * 40
 collect_ignore_glob = ["fixtures/*"]
 PYFIX = Path(__file__).resolve().parent / "fixtures" / "pyrepo"
 JSFIX = Path(__file__).resolve().parent / "fixtures" / "jsrepo"
+CSFIX = Path(__file__).resolve().parent / "fixtures" / "csrepo"
 
 
 class FakeRepo:
@@ -234,6 +235,11 @@ def build_js_repo(dest: Path):
     return _commit_fixture(JSFIX, dest, "jsrepo")
 
 
+def build_cs_repo(dest: Path):
+    """Copy the C# fixture repository (tests/fixtures/csrepo) to `dest` and commit it once on main."""
+    return _commit_fixture(CSFIX, dest, "csrepo")
+
+
 @pytest.fixture
 def py_repo(tmp_path):
     """The Python fixture repository as a git repository with one commit on main."""
@@ -244,3 +250,9 @@ def py_repo(tmp_path):
 def js_repo(tmp_path):
     """The JavaScript fixture repository as a git repository with one commit on main."""
     return build_js_repo(tmp_path)
+
+
+@pytest.fixture
+def cs_repo(tmp_path):
+    """The C# fixture repository as a git repository with one commit on main."""
+    return build_cs_repo(tmp_path)
