@@ -432,6 +432,7 @@ def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None)
         result["counts"].update(c)
     if extract:
         result["gaps"] += js_coverage(extract)
+        result["gaps"] += cs_coverage(extract)
     if tree and extract:  # a dossier made before the extractors has no extract/: nothing to hold it to
         try:
             e, w, g, c = v4(reports, tree, facts)
@@ -445,6 +446,7 @@ def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None)
 
 
 js_coverage = checks_v7.js_coverage
+cs_coverage = checks_v7.cs_coverage
 
 
 def gap_extras(build, reports, extract, cites=None, facts=None, result=None) -> list:

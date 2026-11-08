@@ -22,6 +22,12 @@ ENTRY = {"ep-min-get": ("http-route", "GET /health"), "ep-min-post": ("http-rout
          "ep-target": ("build-target", "default"), "ep-cli": ("cli-command", "sync")}
 
 
+BLIND = {"bs-di": "di-registration", "bs-scan": "di-scan", "bs-convention": "route-convention", "bs-convention-class": "route-convention", "bs-filter": "mvc-filter",
+         "bs-filter-class": "mvc-filter", "bs-group": "route-mount", "bs-route": "string-route", "bs-conventional": "conventional-route",
+         "bs-mediator-send": "mediator-handler", "bs-handler": "mediator-handler", "bs-resolve": "di-resolution", "bs-reflect": "reflection",
+         "bs-flag": "feature-flag", "bs-generator": "source-generator", "bs-partial": "partial-class"}
+
+
 @pytest.fixture(scope="module")
 def found(tmp_path_factory, request):
     from conftest import build_cs_repo
@@ -66,3 +72,12 @@ class TestFixtureMarkers:
 
         for path, line in marks["not-route"]:
             assert not _covering(items["entry_points"], path, line)
+
+
+    @pytest.mark.parametrize("marker,pattern", sorted(BLIND.items()))
+    def test_every_blind_spot_marker_has_its_pattern(self, found, marker, pattern):
+        items, marks = found
+
+        assert marks[marker], marker
+        for path, line in marks[marker]:
+            assert pattern in {b["pattern"] for b in _covering(items["blindspots"], path, line)}, (marker, path, line)

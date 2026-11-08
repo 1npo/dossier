@@ -298,3 +298,20 @@ class TestSemgrep:
 
         assert ctx.tool_status["semgrep"] == {"status": "failed", "reason": "semgrep exploded"}
         assert any(g["kind"] == "cs-project" for g in out["graph"])
+
+
+class TestBlindSpotNotes:
+    def test_a_generated_file_gives_one_codegen_hit_at_its_header(self, cs_repo, tmp_path, monkeypatch):
+        out, _ = extract(cs_repo, tmp_path, monkeypatch)
+
+        got = [(b["path"], b["line"], b["pattern"]) for b in out["blindspots"] if b["pattern"] == "codegen"]
+
+        assert got == [("src/Shop.Data/Migrations/20260101000000_Init.Designer.cs", cs_repo.line_of("src/Shop.Data/Migrations/20260101000000_Init.Designer.cs", "bs-codegen"), "codegen")]
+
+    def test_a_generator_package_gives_a_note_naming_package_and_project(self, cs_repo, tmp_path, monkeypatch):
+        out, _ = extract(cs_repo, tmp_path, monkeypatch)
+
+        names = [n for n, _ in notes(out, "generator")]
+
+        assert all("|" in n for n in names)
+        assert not any(n.startswith("FastEndpoints") for n in names)

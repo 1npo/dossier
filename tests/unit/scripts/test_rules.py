@@ -17,7 +17,8 @@ OTHER_CATEGORIES = {"entry", "blindspot"}
 BLIND_SPOTS = {"dynamic-import", "entry-point-loading", "string-plugin", "decorator-registry", "getattr-dispatch", "django-apps",
                "django-signals", "pytest-fixtures", "codegen", "feature-flag", "computed-subcommand",
                "dynamic-require", "barrel-reexport", "react-context", "hook-wiring", "string-route", "route-mount", "module-federation",
-               "di-registration"}
+               "di-registration", "di-scan", "di-resolution", "reflection", "route-convention", "conventional-route", "mvc-filter", "mediator-handler",
+               "source-generator", "partial-class"}
 
 
 def rule_files():

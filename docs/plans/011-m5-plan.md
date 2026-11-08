@@ -747,7 +747,7 @@ Read section 2, D1, D7 to D10, D12 to D14, and "Results (Phase 1)", especially M
   - Done-check: `... pytest tests/unit/scripts/test_rules.py tests/unit/scripts/test_cs_semgrep.py -q` passes; `DOSSIER_SLOW=1 ... tests/integration/scripts/test_shared_layer.py -q` passes.
   - Commit: `feat(dossier): add the C# semgrep rules with tests`
 
-- [ ] **M5-15. V7 for C#.**
+- [x] **M5-15. V7 for C#.**
   - Goal: D10: blind-spot rules, wording, fixed items.
   - Files: new `rules/csharp/blindspot.yml`, `tests/fixtures/semgrep/csharp/blindspot.cs`; edit `scripts/checks_v7.py`, `scripts/checks.py`, `scripts/cs_adapter.py`, `rules/README.md`, `tests/unit/scripts/test_checks_v7.py`, `tests/unit/scripts/test_checks_gaps.py`, `tests/unit/scripts/test_rules.py`.
   - Interface: `checks_v7.cs_coverage(extract) -> list`; `checks.cs_coverage` alias, called from `checks.validate` after `js_coverage`.
