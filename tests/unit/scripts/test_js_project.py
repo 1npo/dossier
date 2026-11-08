@@ -50,6 +50,13 @@ class TestProjects:
         assert {p["manager"] for p in got} == {"yarn"}
         assert find(got, "apps/nextjs")["files"] == ["apps/nextjs/src/main.tsx"]
 
+    def test_a_project_below_the_root_is_a_member_of_itself(self):
+        tree, read = tree_of({"apps/web/package.json": pkg("web"), "apps/web/yarn.lock": "", "apps/web/src/a.ts": ""})
+
+        got = js_project.projects(tree, read)
+
+        assert find(got, "apps/web")["members"] == ["apps/web"]
+
     def test_npm_workspaces_make_one_project_with_members(self):
         tree, read = tree_of({"package.json": pkg("mono", workspaces=["packages/*"]), "package-lock.json": "{}",
                               "packages/a/package.json": pkg("a"), "packages/a/src/i.ts": "",

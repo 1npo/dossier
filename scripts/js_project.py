@@ -68,7 +68,7 @@ def projects(tree, read) -> list[dict]:
         out[folder] = {"dir": folder, "package": (manifest or {}).get("name") if isinstance((manifest or {}).get("name"), str) else None,
                        "lockfile": lock[0] if lock else None, "manager": manager, "members": [], "files": []}
     def deepest(path, among):
-        return max((r for r in among if _inside(path, r)), key=len, default=None)
+        return max((r for r in among if path == r or _inside(path, r)), key=len, default=None)
 
     for folder in packages:
         owner = deepest(folder, roots)
