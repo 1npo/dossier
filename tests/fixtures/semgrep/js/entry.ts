@@ -127,3 +127,14 @@ app.use(express.static(__dirname + '/assets'));
 server.use('/files', express.static('public'));
 // ok: dossier.js.entry.static-files
 app.use(express.json());
+
+// ruleid: dossier.js.entry.http-route
+api.get('/before-import', handler);
+
+import axios from 'axios';
+const client = axios.create();
+
+// ok: dossier.js.entry.http-route
+api.post('/comments', body);
+// ok: dossier.js.entry.http-route
+api.get('/users', { params });
