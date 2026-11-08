@@ -829,7 +829,7 @@ Read section 2, D4, D9, D10, D13 to D15, and "Results" of Phases 1 and 2. Load t
   - Done-check: `... pytest tests/unit/scripts/test_measured_change.py tests/unit/scripts/test_page_audit.py -q` passes.
   - Commit: `feat(dossier): show knip findings in the dead code card`
 
-- [ ] **M4-20. Where things live, and tooling.**
+- [x] **M4-20. Where things live, and tooling.**
   - Goal: row 31.
   - Files: edit `scripts/measured.py`, `tests/unit/scripts/test_measured.py`.
   - Interface: `_is_config` adds `package.json`, `tsconfig*.json`, `jsconfig.json`, `.env.example` at any depth, `*.config.{js,cjs,mjs,ts}`. `_is_build` adds `package.json` with a `build` script, `vite.config.*`, `next.config.*`, `webpack.config.*`, `rollup.config.*`, `tsup.config.*`, `nx.json`, `project.json`, `turbo.json`. `TOOLS` adds `eslint`, `prettier`, `biome`, `typescript`, `husky`, `lint-staged`, `commitlint`, by their config files. Config inside `package.json` (`eslintConfig`, `prettier`, `lint-staged`) counts, with `package.json` as the file. `_tooling`'s `SHARED` is not changed; a `package.json` key is read through a new small helper.

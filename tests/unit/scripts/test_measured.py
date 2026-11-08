@@ -93,6 +93,74 @@ class TestTooling:
         assert "No formatter or linter configuration was found." in html
 
 
+JS_TREE = {"package.json", "package-lock.json", "tsconfig.json", ".eslintrc.cjs", ".prettierrc", ".husky/pre-commit", ".github/workflows/ci.yml",
+           "nx.json", ".env.example", "apps/web/package.json", "apps/web/tsconfig.app.json", "apps/web/vite.config.ts", "apps/web/.env.example",
+           "apps/web/src/main.tsx", "apps/web/jest.config.js", "libs/util/package.json", "libs/util/src/index.ts"}
+JS_FILES = {
+    "package.json": '{\n  "name": "root",\n  "scripts": {"build": "nx build"},\n  "eslintConfig": {"root": true},\n  "lint-staged": {"*.ts": "eslint"}\n}\n',
+    "apps/web/package.json": '{"name": "web", "scripts": {"build": "vite build"}, "prettier": {"semi": false}}',
+    "libs/util/package.json": '{"name": "util", "scripts": {"test": "jest"}}',
+    ".husky/pre-commit": "npx lint-staged\n",
+    ".github/workflows/ci.yml": "steps:\n- run: yarn eslint .\n- run: yarn tsc --noEmit\n",
+}
+JS_CTX = {"tree": JS_TREE, "extract": {}, "read": JS_FILES.get}
+
+
+class TestJavaScriptReadingMap:
+    def places(self, concern):
+        return [r[1] for r in rows_of(measured.body("reading.map", JS_CTX, Refs())) if r[0] == concern]
+
+    def test_configuration_includes_manifests_tsconfigs_env_examples_and_tool_configs_at_any_depth(self):
+        got = self.places("configuration")
+
+        for p in ("package.json", "tsconfig.json", ".env.example", "apps/web/package.json", "apps/web/tsconfig.app.json", "apps/web/.env.example",
+                  "apps/web/vite.config.ts", "apps/web/jest.config.js", "libs/util/package.json"):
+            assert p in got or any(g.endswith("/") and p.startswith(g) for g in got), p
+
+    def test_build_includes_a_manifest_with_a_build_script_and_build_tool_configs(self):
+        got = self.places("build")
+
+        assert "package.json" in got and "apps/web/package.json" in got and "nx.json" in got and "apps/web/vite.config.ts" in got
+        assert "libs/util/package.json" not in got
+
+    def test_a_python_tree_gives_the_rows_it_gave_before(self):
+        rows = rows_of(measured.body("reading.map", CTX, Refs()))
+
+        assert [r[1] for r in rows if r[0] == "build"] == ["Makefile", "pyproject.toml"]
+        assert [r[1] for r in rows if r[0] == "configuration"] == ["config/", "pyproject.toml"]
+
+
+class TestJavaScriptTooling:
+    def rows(self):
+        return {r[0]: r for r in rows_of(measured.body("conventions.tooling", JS_CTX, Refs()))}
+
+    def test_tools_are_found_by_config_file_at_any_depth(self):
+        got = self.rows()
+
+        assert {"eslint", "prettier", "typescript", "husky", "lint-staged"} <= set(got)
+        assert "tsconfig.json" in got["typescript"][1] and "apps/web/tsconfig.app.json" in got["typescript"][1]
+
+    def test_a_key_in_package_json_counts_and_names_that_file(self):
+        got = self.rows()
+
+        assert "package.json" in got["eslint"][1] and "apps/web/package.json" in got["prettier"][1]
+
+    def test_ci_and_hooks_show_where_a_tool_is_enforced(self):
+        got = self.rows()
+
+        assert ".github/workflows/ci.yml" in got["eslint"][2] and ".github/workflows/ci.yml" in got["typescript"][2]
+        assert "husky" in got["lint-staged"][2]
+        assert got["prettier"][2] == "not enforced in the repository"
+
+    def test_python_tools_still_come_first_and_unchanged(self):
+        assert [r[0] for r in rows_of(measured.body("conventions.tooling", CTX, Refs()))] == ["ruff", "black", "pre-commit"]
+
+    def test_a_package_json_that_is_not_json_is_skipped(self):
+        ctx = {"tree": {"package.json"}, "read": {"package.json": "{ not json"}.get}
+
+        assert "No formatter or linter configuration was found." in measured.body("conventions.tooling", ctx, Refs())
+
+
 class TestViolations:
     GRAPH = [
         {"kind": "import", "path": "a.py", "paths": ["b.py"], "from": "a", "to": "b", "lines": [3]},
