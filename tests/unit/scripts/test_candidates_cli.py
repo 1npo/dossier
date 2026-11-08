@@ -290,8 +290,8 @@ class TestHistorySections:
                             {"kind": "assistant", "path": "", "name": "Claude", "commits": 4, "files": {"src/a.py": 2, "src/b.py": 3}},
                             file_item("src/a.py", 6, owners={"ann@x.org": 9, "bob@x.org": 1}, blame={"ann@x.org": 8}, owner_lines={"ann@x.org": 8}, authors={"ann@x.org": 10}),
                             file_item("src/b.py", 1, owners={"ann@x.org": 1, "bob@x.org": 1})],
-                "symbols": [{"kind": "def", "path": "src/a.py", "line": 1, "name": "legacy_load"}, {"kind": "def", "path": "src/a.py", "line": 5, "name": "run"},
-                            {"kind": "def", "path": "src/b.py", "line": 2, "name": "run"}, {"kind": "def", "path": "src/b.py", "line": 9, "name": "__init__"}],
+                "symbols": [{"kind": "def", "path": "src/a.py", "line": 1, "name": "legacy_load"}, {"kind": "def", "path": "src/a.py", "line": 5, "name": "run", "symbol": "scip-python python pkg 1.0 pkg/a/run()."},
+                            {"kind": "def", "path": "src/b.py", "line": 2, "name": "run", "symbol": "scip-python python pkg 1.0 pkg/b/run()."}, {"kind": "def", "path": "src/b.py", "line": 9, "name": "__init__"}],
                 "graph": [{"kind": "cycle", "modules": ["a", "b"]}], "dead": [{"id": "dd-1"}]}
 
     def text(self, rid, **kw):

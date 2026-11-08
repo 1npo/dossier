@@ -49,6 +49,7 @@ def module_name(path: str, roots=()) -> str:
 
 class PythonAdapter(Adapter):
     name = "python"
+    rules = (RULES,)
     version = "3"
     languages = ("Python",)
     tools = ("grimp", "vulture", "scip-python", "semgrep", "tree-sitter-language-pack")

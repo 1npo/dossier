@@ -112,7 +112,8 @@ VENDOR_SEG = {"node_modules", "vendor", "third_party", "third-party", "thirdpart
 GENERATED_SEG = {"dist", "target", ".next", ".nuxt", "__pycache__", "coverage", "htmlcov", ".pytest_cache",
                  ".mypy_cache", ".gradle"}
 GENERATED_NAME = re.compile(r"(\.min\.(js|css)|\.map|\.pb\.go|\.pb\.gw\.go|_pb2(_grpc)?\.py|\.generated\.|\.g\.dart|\.designer\.cs)$")
-TEST_RE = re.compile(r"(^|/)(tests?|__tests__|specs?|e2e|cypress|playwright)/|(^|/)test_[^/]*\.py$|_test\.(go|py|rb|exs?|c|cc|cpp|zig|rs)$|(^|/)test_[^/]*\.(c|cc|cpp|zig|rs)$|\.(test|spec)\.[jt]sx?$|Tests?\.(java|kt|cs)$")
+E2E_SUPPORT = r"(?!(?:[^/]*/)*(?:(?:helpers?|support|fixtures|utils?|pages?|page-objects?)/|[^/]*\.config\.[cm]?[jt]s$|[^/]*\.json$))"
+TEST_RE = re.compile(r"(^|/)(tests?|__tests__|specs?)/|(^|/)(e2e|cypress|playwright)/" + E2E_SUPPORT + r"|(^|/)test_[^/]*\.py$|_test\.(go|py|rb|exs?|c|cc|cpp|zig|rs)$|(^|/)test_[^/]*\.(c|cc|cpp|zig|rs)$|\.(test|spec|cy)\.[jt]sx?$|Tests?\.(java|kt|cs)$")
 
 SENSITIVE_FILE = re.compile(r"(^|/)(\.env(\.(?!example|sample|template|dist)[^/]+)?|id_rsa|id_dsa|id_ecdsa|id_ed25519|[^/]+\.(pem|key|p12|pfx|jks|keystore|kdbx)|credentials(\.json)?|\.netrc|\.npmrc|\.pypirc|[^/]+\.tfstate(\.backup)?|secrets?\.(ya?ml|json|toml|env))$")
 

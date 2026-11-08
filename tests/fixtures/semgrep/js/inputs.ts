@@ -48,6 +48,10 @@ const token = req.headers.authorization;
 const agent = request.header('user-agent');
 // ruleid: dossier.js.inputs.request-header
 const host = req.get('host');
+// ruleid: dossier.js.inputs.request-header-destructured
+const { authorization } = req.headers;
+// ok: dossier.js.inputs.request-header-destructured
+const { name } = req.body;
 // ok: dossier.js.inputs.request-header
 const body = req.body;
 // ok: dossier.js.inputs.request-header

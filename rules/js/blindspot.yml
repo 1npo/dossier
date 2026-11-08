@@ -62,11 +62,14 @@ rules:
     languages: [js, ts]
     severity: INFO
     metadata: {category: blindspot, pattern: route-mount}
-    patterns:
-      - pattern: $R.use("...", $X)
-      - metavariable-regex:
-          metavariable: $R
-          regex: ^(app|router|server|fastify|api|.*[Rr]outer|.*[Aa]pp)$
+    pattern-either:
+      - patterns:
+          - pattern: $R.use("...", $X)
+          - metavariable-regex:
+              metavariable: $R
+              regex: ^(app|router|server|fastify|api|.*[Rr]outer|.*[Aa]pp)$
+      - pattern: Router(...).use("...", $X)
+      - pattern: $E.Router(...).use("...", $X)
 
   - id: dossier.js.blindspot.module-federation
     message: Code loaded from other builds

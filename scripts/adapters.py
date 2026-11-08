@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import fnmatch
 import functools
+import hashlib
 import json
 import os
 from dataclasses import dataclass, field
@@ -46,6 +47,7 @@ class Adapter:
     version = "1"
     languages: tuple = ()
     tools: tuple = ()
+    rules: tuple = ()  # folders of semgrep rules; a change to any file in them makes an earlier build stale
     loads_repo_code = False
     expected_untracked: tuple = ()
     blind_spots: tuple = ()
@@ -147,8 +149,18 @@ def _write(out: Path, name: str, data: dict) -> None:
     os.replace(tmp, d / f"{name}.json")
 
 
+def rules_hash(folders) -> str:
+    """A digest of every rule file (name and bytes) in `folders`, so a rule change can invalidate a build."""
+    h = hashlib.sha256()
+    for folder in folders:
+        for f in sorted(Path(folder).glob("*.yml")):
+            h.update(f"{f.parent.name}/{f.name}\0".encode() + f.read_bytes() + b"\0")
+    return h.hexdigest()[:16]
+
+
 def _key(adapter, sha, tool_versions):
-    return {"sha": sha, "version": adapter.version, "tools": {t: tool_versions.get(t) for t in adapter.tools}}
+    return {"sha": sha, "version": adapter.version, "tools": {t: tool_versions.get(t) for t in adapter.tools},
+            "rules": rules_hash(adapter.rules)}
 
 
 def _reusable(out: Path, adapter, key) -> bool:
@@ -158,7 +170,7 @@ def _reusable(out: Path, adapter, key) -> bool:
         if sec is None:
             continue
         found = True
-        if {"sha": sec.get("sha"), "version": sec.get("version"), "tools": sec.get("tools")} != key:
+        if {"sha": sec.get("sha"), "version": sec.get("version"), "tools": sec.get("tools"), "rules": sec.get("rules")} != key:
             return False
         if any(t.get("status") != "ok" for t in (sec.get("tool_status") or {}).values()):
             return False

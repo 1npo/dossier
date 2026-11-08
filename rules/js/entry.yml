@@ -14,6 +14,15 @@ rules:
       - metavariable-regex:
           metavariable: $M
           regex: ^(get|post|put|patch|delete|options|head|all)$
+      - pattern-not-inside: |
+          import $A from "axios";
+          ...
+      - pattern-not-inside: |
+          import {...} from "axios";
+          ...
+      - pattern-not-inside: |
+          const $A = require("axios");
+          ...
 
   - id: dossier.js.entry.route-chain
     message: A web route declared with a chain of methods

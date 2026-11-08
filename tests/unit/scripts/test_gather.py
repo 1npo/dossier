@@ -165,3 +165,16 @@ class TestFitRows:
         rows, dropped = gather.fit_rows(self.ROWS, cap)
 
         assert rows == self.ROWS[:1] and dropped == 1
+
+
+class TestTestRe:
+    @pytest.mark.parametrize("path", ["e2e/smoke.spec.ts", "e2e/login.test.ts", "cypress/e2e/home.cy.ts", "e2e/test_login.py",
+                                      "tests/helpers.ts", "src/a.test.ts"])
+    def test_test_files_match(self, path):
+        assert gather.TEST_RE.search(path)
+
+    @pytest.mark.parametrize("path", ["e2e/playwright.config.ts", "e2e/project.json", "e2e/tsconfig.json", "e2e/helpers/login.ts",
+                                      "e2e/support/commands.ts", "e2e/src/pages/home.page.ts", "cypress/support/e2e.ts",
+                                      "apps/web-e2e/cypress.config.ts", "src/app.ts"])
+    def test_e2e_config_and_helpers_do_not_match(self, path):
+        assert not gather.TEST_RE.search(path)

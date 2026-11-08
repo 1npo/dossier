@@ -40,6 +40,24 @@ class TestItems:
 
         assert out["io_candidates"][0]["category"] == "request-header" and out["io_candidates"][0]["detail"] == "authorization"
 
+    def test_a_header_read_in_several_places_is_one_row_per_header(self):
+        results = [result("dossier.js.inputs.request-header", "authorization", category="request-header"),
+                   result("dossier.js.inputs.request-header-destructured", "authorization", category="request-header"),
+                   result("dossier.js.inputs.request-header", "host", category="request-header"),
+                   result("dossier.js.inputs.request-header", "Authorization", category="request-header")]
+
+        out = js_semgrep.items(results)
+
+        assert [r["detail"] for r in out["io_candidates"]] == ["authorization", "host"]
+
+    def test_header_reads_without_a_name_are_all_kept(self):
+        results = [result("dossier.js.inputs.request-header", None, category="request-header"),
+                   result("dossier.js.inputs.request-header", None, category="request-header")]
+
+        out = js_semgrep.items(results)
+
+        assert len(out["io_candidates"]) == 2
+
     def test_server_listen_is_named_listen(self):
         out = js_semgrep.items([result("dossier.js.entry.server-listen", None, "app.listen(3000);", category="entry", kind="server-listen")])
 
