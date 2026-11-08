@@ -94,6 +94,7 @@
     drawIn(section); markTables(section);
     if (section.id === "change") initBlast();
     if (target !== section) {
+      if (target.tagName === "DETAILS") target.open = true;   // an entry inside a card opens when it is the destination
       target.scrollIntoView();
       target.classList.remove("flash"); void target.offsetWidth; target.classList.add("flash");
     } else window.scrollTo(0, 0);
@@ -400,7 +401,7 @@
 
 
   // ---- code viewer: a source marker [n] opens the cited code in a panel on the right. The files are embedded in #code-data.
-  var panel = $("#code-panel"), legend = $("#legend-panel"), codeBody = $("#cp-body"), code = {}, cur = null, pinned = false, isOpen = false, legendOpen = false;
+  var panel = $("#code-panel"), legend = $("#legend-panel"), codeBody = $("#cp-body"), code = {}, cur = null, pinned = false, isOpen = false, legendOpen = false, keysOpen = false, keys = $("#keys-panel");
   try { code = JSON.parse($("#code-data").textContent); } catch (e) {}
   try { pinned = localStorage.getItem("dossier-code-pin") === "1"; } catch (e) {}
   function parseRef(h) { var m = /^#?ref-(.+)-(\d+)$/.exec(h || ""); return m && { rid: m[1], n: +m[2] }; }
@@ -411,15 +412,22 @@
     root.style.setProperty("--code-w-px", w + "px");
   }
   function syncTabs() {   // every report's tab shows whether its panel is open
-    $$(".panel-tab").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.panel === "code" ? isOpen : legendOpen)); });
+    $$(".panel-tab").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.panel === "code" ? isOpen : b.dataset.panel === "keys" ? keysOpen : legendOpen)); });
   }
   function shut(el, on) { el.classList.toggle("shut", on); el.inert = on; }   // not [hidden]: Basecoat's [hidden] is display:none !important, which cannot be animated
   function setLegend(on) {
     if (on && isOpen) setOpen(false);
+    if (on && keysOpen) setKeys(false);
     legendOpen = on; shut(legend, !on); syncTabs();
+  }
+  function setKeys(on) {
+    if (on && isOpen) setOpen(false);
+    if (on && legendOpen) setLegend(false);
+    keysOpen = on; shut(keys, !on); syncTabs();
   }
   function setOpen(on) {
     if (on && legendOpen) setLegend(false);
+    if (on && keysOpen) setKeys(false);
     isOpen = on; shut(panel, !on); syncTabs();
     doc.body.classList.toggle("code-pinned", on && pinned); syncWidth();
   }
@@ -517,9 +525,11 @@
     var open = t.closest("[data-open]");
     if (open) { var k = open.dataset.open.lastIndexOf("-"); openRef(open.dataset.open.slice(0, k), +open.dataset.open.slice(k + 1), null); return; }
     var tab = t.closest(".panel-tab");
-    if (tab) return tab.dataset.panel === "code" ? toggleCode() : setLegend(!legendOpen);
+    if (tab) return tab.dataset.panel === "code" ? toggleCode() : tab.dataset.panel === "keys" ? setKeys(!keysOpen) : setLegend(!legendOpen);
     if (t.closest("#legend-panel")) { if (t.closest("#lg-close")) setLegend(false); return; }
+    if (t.closest("#keys-panel")) { if (t.closest("#ky-close")) setKeys(false); return; }
     if (legendOpen) setLegend(false);
+    if (keysOpen) setKeys(false);
     if (t.closest("#code-panel")) {
       var id = t.closest("button") && t.closest("button").id, src = t.closest("[data-src]");
       if (src) openRef(cur.rid, +src.dataset.src, cur.sup);
@@ -538,7 +548,7 @@
     else if (e.key === "p") setPin(!pinned);
     else if (e.key === "[" && isOpen) step(-1);
     else if (e.key === "]" && isOpen) step(1);
-    else if (e.key === "Escape" && !$(".diagram.expanded")) { if (legendOpen) setLegend(false); else if (isOpen && !pinned) setOpen(false); }
+    else if (e.key === "Escape" && !$(".diagram.expanded")) { if (legendOpen) setLegend(false); else if (keysOpen) setKeys(false); else if (isOpen && !pinned) setOpen(false); }
   });
   window.addEventListener("resize", syncWidth);
   $("#cp-pin").setAttribute("aria-pressed", String(pinned));
@@ -592,34 +602,60 @@
   $("#rail-search").addEventListener("click", function () { setRail(false); input.focus(); input.select(); });
   $("#rail-theme").addEventListener("click", function () { $("#theme-toggle").click(); });
 
-  // ---- keys: b sidebar, j / k next and previous report, g go to a report by number or name
+  // ---- keys: b sidebar, j / k next and previous report, g go to a report, card or entry, ? shortcuts
   var reps = $$("#nav-groups a[data-nav]").map(function (a) { return { id: a.dataset.nav, n: +$(".n", a).textContent, t: $(".t", a).textContent }; });
   function repIdx() { var c = $("#nav-groups a[aria-current=page]"); return c ? reps.findIndex(function (r) { return r.id === c.dataset.nav; }) : 0; }
   function goRep(i) { if (i >= 0 && i < reps.length) location.hash = reps[i].id; }
-  var gt = doc.createElement("dialog"); gt.id = "goto"; gt.setAttribute("aria-label", "Go to a report");
-  gt.innerHTML = '<input type="text" class="input" id="goto-in" placeholder="Go to a report: type a number or a name" autocomplete="off" spellcheck="false" aria-controls="goto-list">' +
+  function plain(el) { var c = el.cloneNode(true); $$(".badge, sup, kbd, button, .card-badges", c).forEach(function (x) { x.remove(); }); return c.textContent.replace(/\s+/g, " ").trim(); }
+  var gall = null;   // every report, card and entry, in page order, built on first use
+  function gindex() {
+    var out = [];
+    reps.forEach(function (r) {
+      out.push({ id: r.id, n: r.n, t: r.t, kind: "report", path: "" });
+      var sec = doc.getElementById(r.id); if (!sec) return;
+      $$(".card[id]", sec).forEach(function (c) {
+        if (c.classList.contains("toc-card")) return;
+        var h = $(":scope > header h2, :scope > header h3", c), ct = h ? plain(h) : ""; if (!ct) return;
+        out.push({ id: c.id, n: r.n, t: ct, kind: "card", path: r.n + " " + r.t });
+        $$("details.entry[id]", c).forEach(function (d) {
+          var sm = $(":scope > summary", d), et = sm ? plain(sm) : ""; if (et) out.push({ id: d.id, n: r.n, t: et, kind: "entry", path: ct });
+        });
+      });
+    });
+    return out;
+  }
+  var gt = doc.createElement("dialog"); gt.id = "goto"; gt.setAttribute("aria-label", "Go to a report, card or entry");
+  gt.innerHTML = '<input type="text" class="input" id="goto-in" placeholder="Go to: a report number, or a name. “5 deta” searches report 5" autocomplete="off" spellcheck="false" aria-controls="goto-list">' +
     '<ul id="goto-list" role="listbox"></ul><p class="goto-keys muted"><kbd>↑</kbd> <kbd>↓</kbd> choose <kbd>Enter</kbd> go <kbd>Esc</kbd> cancel</p>';
   doc.body.appendChild(gt);
-  var gin = $("#goto-in", gt), glist = $("#goto-list", gt), gshown = [], gact = 0;
-  function gmatch(r, q) {
-    if (!q) return true;
-    if (/^\d+$/.test(q)) return String(r.n).indexOf(q.replace(/^0+(?=\d)/, "")) === 0 || String(r.n).padStart(2, "0").indexOf(q) === 0;
-    return r.t.toLowerCase().indexOf(q) >= 0;
+  var gin = $("#goto-in", gt), glist = $("#goto-list", gt), gshown = [], gact = 0, GMAX = 80;
+  function gfind(q) {
+    var m = /^(\d+)(?:\s+(.*))?$/.exec(q);
+    if (!q) return gall.filter(function (it) { return it.kind === "report"; });
+    if (m && m[2] === undefined) {   // a number alone lists the reports that start with it
+      var d = m[1].replace(/^0+(?=\d)/, "");
+      return gall.filter(function (it) { return it.kind === "report" && (String(it.n).indexOf(d) === 0 || String(it.n).padStart(2, "0").indexOf(m[1]) === 0); });
+    }
+    var only = m ? +m[1] : 0, w = (m ? m[2] : q).trim().toLowerCase();   // "5 deta": inside report 5
+    return gall.filter(function (it) { return (!only || it.n === only) && (!w || it.t.toLowerCase().indexOf(w) >= 0 || (only && it.kind === "report")); });
   }
   function gdraw() {
-    var q = gin.value.trim().toLowerCase();
-    gshown = reps.filter(function (r) { return gmatch(r, q); });
+    gshown = gfind(gin.value.trim().toLowerCase());
     gact = Math.min(gact, Math.max(gshown.length - 1, 0));
-    glist.innerHTML = gshown.length ? gshown.map(function (r, i) {
-      return '<li role="option" data-i="' + i + '" aria-selected="' + (i === gact) + '"><span class="n">' + String(r.n).padStart(2, "0") + '</span>' + esc(r.t) + '</li>';
-    }).join("") : '<li class="none">No report matches.</li>';
+    var rows = gshown.slice(0, GMAX).map(function (it, i) {
+      return '<li role="option" class="g-' + it.kind + '" data-i="' + i + '" aria-selected="' + (i === gact) + '"><span class="n k">' + (it.kind === "report" ? String(it.n).padStart(2, "0") : "") +
+        '</span><span class="tt">' + esc(it.t) + '</span>' + (it.path ? '<span class="pp">' + esc(it.path) + '</span>' : "") + '</li>';
+    });
+    if (gshown.length > GMAX) rows.push('<li class="more">' + (gshown.length - GMAX) + ' more. Keep typing to narrow the list.</li>');
+    glist.innerHTML = rows.length ? rows.join("") : '<li class="none">Nothing matches.</li>';
     var a = $("[aria-selected=true]", glist); if (a) a.scrollIntoView({ block: "nearest" });
   }
-  function gopen() { gin.value = ""; gact = Math.max(repIdx(), 0); gdraw(); gt.showModal(); gin.focus(); }
-  function gpick(i) { if (gshown[i]) { gt.close(); location.hash = gshown[i].id; } }
+  function gopen() { if (!gall) gall = gindex(); gin.value = ""; gact = Math.max(repIdx(), 0); gdraw(); gt.showModal(); gin.focus(); }
+  function gpick(i) { var it = gshown[i]; if (!it) return; gt.close(); if (location.hash === "#" + it.id) show(); else location.hash = it.id; }
   gin.addEventListener("input", function () { gact = 0; gdraw(); });
   gin.addEventListener("keydown", function (e) {
-    if (e.key === "ArrowDown") { e.preventDefault(); gact = Math.min(gact + 1, gshown.length - 1); gdraw(); }
+    var last = Math.min(gshown.length, GMAX) - 1;
+    if (e.key === "ArrowDown") { e.preventDefault(); gact = Math.min(gact + 1, last); gdraw(); }
     else if (e.key === "ArrowUp") { e.preventDefault(); gact = Math.max(gact - 1, 0); gdraw(); }
     else if (e.key === "Enter") { e.preventDefault(); gpick(gact); }
   });
@@ -632,6 +668,7 @@
     else if (e.key === "j") goRep(repIdx() + 1);
     else if (e.key === "k") goRep(repIdx() - 1);
     else if (e.key === "g") { e.preventDefault(); gopen(); }
+    else if (e.key === "?") setKeys(!keysOpen);
   });
 
   // ---- calendar zoom
