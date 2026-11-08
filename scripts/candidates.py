@@ -203,7 +203,7 @@ FEEDS = {
     "reading": ("modules", "imports", "entry_points", "test_files"),
     "entry": ("entry_points",),
     "components": ("modules", "imports", "defs"),
-    "interactions": ("modules", "imports", "cycles", "contracts", "ref_edges", "cand:interactions"),
+    "interactions": ("modules", "imports", "cycles", "contracts", "ref_edges", "ui", "cand:interactions"),
     "io": ("cand:io", "entry_points", "public_api"),
     "data": ("models", "cand:data"),
     "behavior": ("test_files", "cand:behavior"),
@@ -232,6 +232,11 @@ def _feed(name, extract):
         return [["def", g["path"], g["symbol"], g.get("public")] for g in extract.get("symbols", []) if g.get("kind") == "def"]
     if name == "ref_edges":
         return [["ref", g["path"], (g.get("paths") or [""])[0]] for g in extract.get("symbols", []) if g.get("kind") == "ref-edge"]
+    if name == "ui":  # a React component and the files it renders; no line numbers
+        drawn: dict = {}
+        for g in _graph(extract, "renders"):
+            drawn.setdefault((g["path"], g["from"]), set()).update(g.get("paths") or [])
+        return [["ui", g["path"], g["name"], sorted(drawn.get((g["path"], g["name"]), ()))] for g in _graph(extract, "ui-component")]
     if name == "public_api":
         return [["api", g["package"], g["subpath"], g["name"], g.get("path")] for g in extract.get("symbols", []) if g.get("kind") == "public-api"]
     if name == "test_files":

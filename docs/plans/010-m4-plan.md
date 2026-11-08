@@ -861,7 +861,7 @@ Read section 2, D4, D9, D10, D13 to D15, and "Results" of Phases 1 and 2. Load t
   - Done-check: `... pytest tests/unit/scripts/test_measured_upgrade.py -q` passes.
   - Commit: `feat(dossier): show the Node runtime in upgrade burden`
 
-- [ ] **M4-23. Partial badges, Gaps and staleness.**
+- [x] **M4-23. Partial badges, Gaps and staleness.**
   - Goal: rows 33 and 36, D14.
   - Files: edit `scripts/candidates.py`, `tests/unit/scripts/test_process.py`, `tests/unit/scripts/test_candidates.py`.
   - Interface: `FEEDS["interactions"]` gains `"ui"`; `_feed("ui")`.
