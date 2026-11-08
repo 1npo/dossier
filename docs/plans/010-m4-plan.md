@@ -853,7 +853,7 @@ Read section 2, D4, D9, D10, D13 to D15, and "Results" of Phases 1 and 2. Load t
   - Done-check: the two test files pass; block E prints `OK`.
   - Commit: `feat(dossier): report the real public API in the contracts card`
 
-- [ ] **M4-22. Upgrade burden (P1).**
+- [x] **M4-22. Upgrade burden (P1).**
   - Goal: row 32.
   - Files: edit `scripts/measured_upgrade.py`, `tests/tools/refresh_eol.py`, `scripts/eol.json`, `tests/unit/scripts/test_measured_upgrade.py`.
   - Interface: Node pinned from `.nvmrc`, `.node-version`, then `engines.node` of the first project. `_cycle` keeps its result for `3.13`, and a new `_major` is used for products whose cycles have no dot. `PACKAGE_PRODUCTS` gains `react` and `next` to `nextjs` if the source has them.

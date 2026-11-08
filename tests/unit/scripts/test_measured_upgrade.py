@@ -67,3 +67,73 @@ class TestShippedSnapshot:
         snap = measured_upgrade.load_snapshot()
 
         assert sorted(snap["products"]) == ["django", "dotnet", "nodejs", "postgresql", "python"] and re.fullmatch(r"\d{4}-\d{2}-\d{2}", snap["as_of"])
+
+
+SNAP_JS = {**SNAP, "products": {**SNAP["products"],
+    "nodejs": [{"cycle": "26", "eol": "2029-04-30", "latest": "26.13.0"}, {"cycle": "22", "eol": "2027-04-30", "latest": "22.22.0"},
+               {"cycle": "18", "eol": "2025-04-30", "latest": "18.20.8"}],
+    "react": [{"cycle": "19", "eol": None, "latest": "19.3.1"}, {"cycle": "18", "eol": None, "latest": "18.3.1"}],
+    "nextjs": [{"cycle": "16", "eol": None, "latest": "16.4.5"}, {"cycle": "14", "eol": "2025-10-26", "latest": "14.2.35"}]}}
+
+
+def jsctx(files=None, deps=(), commit_date="2026-06-01"):
+    files = files or {}
+    return {"facts": {"repo": {"commit_date": commit_date}, "manifests": [], "dependencies": {"deps": list(deps)}},
+            "tree": set(files), "read": files.get, "extract": {}}
+
+
+class TestNodeRow:
+    def test_nvmrc_names_the_runtime(self):
+        got = measured_upgrade.rows(jsctx({".nvmrc": "v22.1.0\n"}), SNAP_JS)
+
+        assert got == [("Node.js", "v22.1.0", "26.13.0 (latest)", "supported until 2027-04-30", ".nvmrc")]
+
+    def test_node_version_file_comes_after_nvmrc_and_before_engines(self):
+        files = {".node-version": "18\n", "package.json": '{"engines": {"node": ">=22"}}'}
+
+        assert measured_upgrade.rows(jsctx(files), SNAP_JS)[0][1:] == ("18", "26.13.0 (latest)", "end of life since 2025-04-30", ".node-version")
+
+    def test_engines_of_the_first_package_is_the_last_resort(self):
+        files = {"package.json": '{"engines": {"node": ">=22"}}', "apps/a/package.json": '{"engines": {"node": ">=18"}}'}
+
+        assert measured_upgrade.rows(jsctx(files), SNAP_JS)[0] == ("Node.js", "engines.node >=22", "26.13.0 (latest)", "supported until 2027-04-30", "package.json")
+
+    def test_a_pin_with_no_number_is_skipped(self):
+        assert measured_upgrade.rows(jsctx({".nvmrc": "lts/iron\n"}), SNAP_JS) == []
+
+    def test_a_repository_with_no_node_pin_has_no_node_row(self):
+        assert measured_upgrade.rows(jsctx({"package.json": "{}"}), SNAP_JS) == []
+
+    def test_python_comes_before_node(self):
+        got = measured_upgrade.rows({**ctx(requires=">=3.10"), "tree": {".nvmrc"}, "read": lambda p: "22" if p == ".nvmrc" else None}, SNAP_JS)
+
+        assert [r[0] for r in got] == ["Python", "Node.js"]
+
+
+class TestFrameworkRows:
+    def test_react_and_next_are_matched_by_major_version(self):
+        deps = [{"n": "react", "v": "^18.2.0"}, {"n": "next", "v": "14.2.0"}]
+
+        got = measured_upgrade.rows(jsctx(deps=deps), SNAP_JS)
+
+        assert [(r[0], r[2], r[3]) for r in got] == [("next", "16.4.5 (latest)", "end of life since 2025-10-26"), ("react", "19.3.1 (latest)", "not in the data")]
+
+    def test_a_dependency_that_is_not_a_version_is_skipped(self):
+        assert measured_upgrade.rows(jsctx(deps=[{"n": "react", "v": "workspace:*"}]), SNAP_JS) == []
+
+    def test_the_same_version_in_two_packages_is_one_row(self):
+        deps = [{"n": "react", "v": "18.2.0"}, {"n": "react", "v": "18.2.0"}]
+
+        assert len(measured_upgrade.rows(jsctx(deps=deps), SNAP_JS)) == 1
+
+    def test_django_still_uses_major_and_minor(self):
+        got = measured_upgrade.rows(ctx(deps=[{"n": "Django", "v": "3.2.1"}]), SNAP_JS)
+
+        assert got[0][2:4] == ("5.2.9 (latest)", "end of life since 2024-04-01")
+
+
+class TestShippedSnapshot:
+    def test_it_knows_the_javascript_products_and_keeps_the_python_ones(self):
+        snap = measured_upgrade.load_snapshot()
+
+        assert {"python", "django", "nodejs", "react", "nextjs"} <= set(snap["products"])
