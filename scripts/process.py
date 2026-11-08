@@ -184,12 +184,15 @@ def run_cell(step, build) -> str:
     return f'<table class="happened"><tbody>{body}</tbody></table>'
 
 
-def tier_line():
+def tier_stats():
+    """Four BANs for the Cards card: how many cards the layout has, and how many are measured by tools, adjudicated (tool candidates sorted by Claude) or read by Claude."""
+    import render  # imported late: render imports this module
+
     cards = [c for s in schema.load_all().values() for c in s["cards"]]
     m = sum(c["tier"] == "M" for c in cards)
     r = sum(c["tier"] == "R" for c in cards)
-    return (f"Of the {len(cards)} cards in this dossier's layout, {m} are measured by tools, {len(cards) - m - r} adjudicated "
-            f"(tool candidates sorted by Claude) and {r} read by Claude.")
+    return render.stats_html([("Cards", str(len(cards)), "in this dossier's layout"), ("Measured", str(m), "by tools"),
+                              ("Adjudicated", str(len(cards) - m - r), "tool candidates sorted by Claude"), ("Read", str(r), "by Claude")])
 
 
 def _status_badges(step, build, badge) -> str:
@@ -216,7 +219,7 @@ def process_body(build) -> str:
     for n, step in enumerate(buildlog.STEPS, 1):
         rows.append([(str(n), n), E(STEP_TEXT[step]), run_cell(step, build), _status_badges(step, build, render.badge)])
     table = render.render_table(["No.", "Step", "What happened", "Status"], rows, None, "t-dossier-process", filterable=False, plain=True, sort=False)
-    return f'{table}<p class="muted">{E(tier_line())}</p>'
+    return table
 
 
 # ------------------------------------------------------------------ records render adds

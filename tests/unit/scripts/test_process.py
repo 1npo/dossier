@@ -56,14 +56,14 @@ EXTRACT = rec("extract", tools=[{"name": "grimp", "version": "3.17"}, {"name": "
 
 
 class TestProcessBody:
-    def test_ten_rows_in_order_and_the_tier_line(self):
+    def test_ten_rows_in_order(self):
         body = process.process_body(build_with(*FULL))
 
         rows = body_rows(body)
         assert len(rows) == len(buildlog.STEPS) == 10
         assert [r[0] for r in rows] == [str(n) for n in range(1, 11)]
         assert rows[0][1].startswith("Pinned the repository") and rows[-1][1].startswith("Rendered the page")
-        assert "are measured by tools" in body
+        assert "tier" not in body
 
     def test_table_has_the_four_columns(self):
         body = process.process_body(build_with(*FULL))
@@ -655,3 +655,11 @@ class TestExtractorsOnReuse:
         details = {"adapters": [{"name": "python", "status": "ok", "tools": {"grimp": {"status": "ok"}}}]}
 
         assert "Extractors: grimp 3.1." in self.line(details, tools=[{"name": "grimp", "version": "3.1"}])
+
+
+class TestTierStats:
+    def test_four_bans_count_the_cards_by_tier(self):
+        html = process.tier_stats()
+
+        assert html.count('class="stat "') == 4
+        assert re.findall(r'<div class="k">([^<]*)</div>', html) == ["Cards", "Measured", "Adjudicated", "Read"]

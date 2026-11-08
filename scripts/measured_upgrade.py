@@ -114,12 +114,12 @@ def card(cid, ctx, refs):
         return None
     r = _render()
     snap = load_snapshot()
-    caption = f'<p class="muted">Data as of {r.E(snap["as_of"])}, from endoflife.date.</p>'
+    caption = measured_change.foot_notes(f"Data as of {snap['as_of']}, from endoflife.date.")
     found = rows(ctx, snap)
     if not found:
-        return caption + measured_change.none_found("No runtime or package with end-of-life data was found.")
+        return measured_change.none_found("No runtime or package with end-of-life data was found.") + caption
     cells = [[r.E(n), r.E(p), r.E(l), r.E(g), r.source_cell(refs, (s, None)) if s else ""] for n, p, l, g, s in found]
-    return caption + r.render_table(["Runtime or package", "Pinned", "Latest or supported", "Gap", "Source"], cells, refs, "t-change-upgrade-burden", plain=True)
+    return r.render_table(["Runtime or package", "Pinned", "Latest or supported", "Gap", "Source"], cells, refs, "t-change-upgrade-burden", plain=True) + caption
 
 
 DRAWN = {"change.upgrade-burden": card}

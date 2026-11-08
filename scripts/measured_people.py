@@ -71,17 +71,6 @@ def bus_factor(ctx):
     return {"bus_factor": n, "top_owner_share": round(100 * owned[0] / total)}
 
 
-def bus_line(ctx):
-    """The sentence above Knowledge concentration, or an empty string when there is no history."""
-    if not measured_change.has_history(ctx):
-        return ""
-    b = bus_factor(ctx)
-    if b["bus_factor"] is None:
-        return '<p class="bus-factor">Bus factor: not known, because no person has lines at this commit.</p>'
-    return (f'<p class="bus-factor">Bus factor: {b["bus_factor"]}. The largest share held by one person is {b["top_owner_share"]}% '
-            "of the lines people wrote. Agents and bots are not counted.</p>")
-
-
 def _key(text):
     return re.sub(r"\s+", " ", re.sub(r"\[\[.*?\]\]", "", str(text)).replace("`", "")).strip().lower()
 

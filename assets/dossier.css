@@ -63,7 +63,7 @@ mark { background: color-mix(in oklab, var(--warn) 30%, transparent); color: inh
 /* page */
 .page { max-width: 80rem; margin: 0 auto; padding: 1.5rem 2rem 4rem; }
 .report { display: flex; flex-direction: column; gap: 1.1rem; } .report[hidden] { display: none; }
-.report-head { position: sticky; top: var(--mh-h, 4.5rem); z-index: 29; margin: 0; padding: .6rem 0 .5rem; background: var(--background); border-bottom: 1px solid var(--border);
+.report-head { position: sticky; top: var(--mh-h, 4.5rem); z-index: 29; margin: 0; padding: .6rem 0 .5rem; background: var(--background); box-shadow: -2px 0 0 var(--background), 2px 0 0 var(--background); border-bottom: 1px solid var(--border);
   display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem 1rem; }
 .rh-text { min-width: 0; } .rh-text h1 { font-size: 1.5rem; } .rh-text .headline { margin: .4rem 0 0; }
 .rh-tabs { flex: none; display: flex; flex-direction: column; gap: .3rem; }
@@ -636,19 +636,15 @@ table.happened { width: 100%; border-collapse: collapse; font-size: .8125rem; }
 /* report 14: the key to the Source column */
 .source-key { margin: .5rem 0 1rem; }
 .source-key div { display: flex; gap: .6rem; align-items: baseline; margin: .2rem 0; } .source-key dt { flex: none; font-weight: 600; } .source-key dd { margin: 0; min-width: 0; }
-/* hotspots: the ranked bars are a bordered table with the same small capital headings and compact rows as the contributor and dependency tables */
+/* hotspots: one table. Commits, lines added, lines removed and complexity are right-aligned; added is green, removed is red. Top 15 hides every row not marked hot-top. */
 .card[data-card="change.hotspots"] [data-hotperiod][hidden] { display: none; }
-.hot-box { margin: .5rem 0 .5rem; }
-.hot-rank { width: 100%; }
-.hot-rank td:first-child, .hot-rank th:first-child { width: 40%; }
-.hot-rank td:nth-child(2) { width: 36%; }
-.hot-rank td:nth-child(n+3), .hot-rank th:nth-child(n+3) { white-space: nowrap; text-align: right; width: 1%; }
-.hot-rank code { overflow-wrap: anywhere; }
-.hb-cell { display: flex; align-items: center; gap: .6rem; }
-.hb-track { flex: 1; min-width: 4rem; height: .6rem; background: var(--muted); border-radius: 99px; overflow: hidden; } .hb-bar { display: block; height: 100%; background: var(--primary); border-radius: 99px; }
-.hb-n { font-variant-numeric: tabular-nums; min-width: 2.5rem; text-align: right; }
-.hb-add { color: var(--ok); } .hb-del { color: var(--bad); }
-.card[data-card="change.cochange"] .cochange-note { margin-top: 1rem; }
+.hot-files td:nth-child(n+3):nth-child(-n+6), .hot-files th:nth-child(n+3):nth-child(-n+6) { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.hot-files td:nth-child(4) { color: var(--ok); } .hot-files td:nth-child(5) { color: var(--bad); }
+.card[data-card="change.hotspots"][data-hotshow="top"] .hot-files tbody tr:not(.hot-top) { display: none; }
+/* the notes at the foot of a measured card: muted, with a bullet between them */
+.card-notes { margin: 1rem 0 0; font-size: .875rem; } .card-notes .dot { margin: 0 .35rem; }
+/* a provenance row under a card's text keeps its distance from the text */
+.card section > :not(:first-child).prov { margin-top: .9rem; }
 /* sidebar brand: logo plus the skill name and version; collapsed, the logo sits above the toggle so the toggle stays the last item of the row */
 .brand { display: flex; align-items: center; gap: .6rem; min-width: 0; color: #000; } .dark .brand { color: #fff; }
 .brand-icon { flex: none; }

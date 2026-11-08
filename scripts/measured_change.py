@@ -33,6 +33,12 @@ def intro(text):
     return f'<p class="muted">{_render().E(text)}</p>'
 
 
+def foot_notes(*lines):
+    """The notes at the bottom of a card, muted, with a bullet between them when there is more than one."""
+    E = _render().E
+    return '<p class="muted card-notes">' + ' <span class="dot" aria-hidden="true">&bull;</span> '.join(f"<span>{E(t)}</span>" for t in lines if t) + "</p>"
+
+
 def none_found(text):
     return f'<p class="muted none-found">{_render().E(text)}</p>'
 
@@ -101,28 +107,7 @@ def mode_buttons(group, label, choices):
             f'<div class="button-group" id="{group}-mode" role="group" aria-labelledby="{group}-l">{btns}</div></div>')
 
 
-BARS_SHOWN = 15
-
-
-def bars(rows):
-    """The files changed most in the last 12 months, longest bar first, as a bordered table: file, commits (a bar and its count), lines added, lines removed."""
-    E, r = _render().E, _render()
-    top = [x for x in rows if x["commits_12m"]][:BARS_SHOWN]
-    if not top:
-        return none_found("No file changed in the 12 months before this commit.")
-    widest = max(x["commits_12m"] for x in top)
-    items = []
-    for x in top:
-        known = x["added_12m"] is not None
-        items.append(f'<tr><td>{r.path_code(x["path"])}</td>'
-                     f'<td><span class="hb-cell"><span class="hb-track"><span class="hb-bar" style="width:{100 * x["commits_12m"] / widest:.1f}%"></span></span>'
-                     f'<span class="hb-n">{x["commits_12m"]:,}</span></span></td>'
-                     + (f'<td class="hb-add">+{x["added_12m"]:,}</td><td class="hb-del">&minus;{x["deleted_12m"]:,}</td></tr>' if known else "<td>-</td><td>-</td></tr>"))
-    more = len([x for x in rows if x["commits_12m"]]) - len(top)
-    head = "".join(f"<th>{h}</th>" for h in ("File", "Commits in the past 12 months", "Lines added", "Lines removed"))
-    tail = f'<p class="muted">The {len(top)} most changed files{f", of {len(top) + more} that changed" if more else ""}. The table below lists every file.</p>'
-    return (f'{tail}<div class="table-container hot-box"><table class="table hot-rank" data-nosort aria-label="Files by commits in the last 12 months">'
-            f'<thead><tr>{head}</tr></thead><tbody>{"".join(items)}</tbody></table></div>')
+TOP_SHOWN = 15
 
 
 def _file_table(cid, rows, refs, period):
@@ -132,7 +117,17 @@ def _file_table(cid, rows, refs, period):
     ordered = rows if period == "12m" else sorted(rows, key=lambda x: (-x["commits"], x["path"]))
     cells = [[r.path_code(x["path"]), r.E(x["component"] or "-"), _num(x[key]), _churn(x["added" + sfx]), _churn(x["deleted" + sfx]),
               _num(x["complexity"]) if x["complexity"] is not None else "-", r.E(x["last"] or "-"), r.source_cell(refs, (x["path"], None))] for x in ordered]
-    return _table(cid, "-files" if period == "12m" else "-files-all", HOTSPOT_FILES, cells, refs)
+    html = _table(cid, "-files" if period == "12m" else "-files-all", HOTSPOT_FILES, cells, refs)
+    html = html.replace('<table class="table"', '<table class="table hot-files"', 1)
+    return _mark_top(html, [x[key] for x in ordered])
+
+
+def _mark_top(html, counts):
+    """Mark the rows of the TOP_SHOWN most changed files that changed at all; the page script hides the other rows until All files is pressed."""
+    head, sep, rest = html.partition("<tbody>")
+    rows = rest.split("<tr>")
+    marked = [rows[0]] + [("<tr class=\"hot-top\">" if i <= TOP_SHOWN and counts[i - 1] else "<tr>") + r for i, r in enumerate(rows[1:], 1)]
+    return head + sep + "".join(marked)
 
 
 def _component_table(cid, rows, catalog, refs, period):
@@ -153,7 +148,7 @@ def hotspots(cid, ctx, refs):
     rows = file_rows(ctx)
     if not rows:
         return None
-    out = [bars(rows), mode_buttons("hotperiod", "Time period", PERIODS)]
+    out = [mode_buttons("hotperiod", "Time period", PERIODS), mode_buttons("hotshow", "Show", (("top", f"Top {TOP_SHOWN}"), ("all", "All files")))]
     catalog = ctx.get("catalog") or []
     files = _by_period(lambda p: _file_table(cid, rows, refs, p))
     if not catalog:
@@ -199,15 +194,15 @@ def cochange(cid, ctx, refs):
     r = _render()
     meta = history_items(ctx, "meta")[0]
     shown = pair_rows(ctx)
-    lead = (f'<p class="muted">Pairs of files that changed together in at least {COCHANGE_MIN} commits ({len(shown)} of {meta.get("pairs_total", len(shown))} pairs). '
-            f'Commits touching more than {gather.BULK_FILES} files are left out.</p>')
-    foot = ('<p class="muted cochange-note">Share is the co-commits as a percentage of the commits of the less-changed file. At 100%, every time '
-            'the less-changed file changed, the other file changed in the same commit.</p>')
+    foot = foot_notes(f"Pairs of files that changed together in at least {COCHANGE_MIN} commits ({len(shown)} of {meta.get('pairs_total', len(shown))} pairs). "
+                      f"Commits touching more than {gather.BULK_FILES} files are left out.",
+                      "Share is the co-commits as a percentage of the commits of the less-changed file. At 100%, every time "
+                      "the less-changed file changed, the other file changed in the same commit.")
     if not shown:
-        return lead + none_found(f"No pair of files changed together in {COCHANGE_MIN} or more commits.") + foot
+        return none_found(f"No pair of files changed together in {COCHANGE_MIN} or more commits.") + foot
     rows = [[r.path_code(p["a"]), r.path_code(p["b"]), _num(p["co_commits"]), (f'{p["share"]}%', p["share"]), r.E(link),
              r.source_cell(refs, (p["a"], None), (p["b"], None))] for p, link in shown]
-    return lead + _table(cid, "", ["A", "B", "Co-commits", "Share", "Linked in code?", "Source"], rows, refs) + foot
+    return _table(cid, "", ["A", "B", "Co-commits", "Share", "Linked in code?", "Source"], rows, refs) + foot
 
 
 # ------------------------------------------------------------------ change.dead-code
@@ -240,11 +235,11 @@ def dead_code(cid, ctx, refs):
     r = _render()
     deps = (ctx.get("facts") or {}).get("dependencies")
     found = dead_rows(extract, deps)
-    lead = intro("Tool output, not checked by a person: some of these may be used in ways the tools cannot see.")
+    foot = foot_notes("Tool output, not checked by a person: some of these may be used in ways the tools cannot see.")
     if not found:
-        return lead + none_found("The tools found nothing unused.")
+        return none_found("The tools found nothing unused.") + foot
     rows = [[r.E(item), r.E(kind), r.E(ev), r.source_cell(refs, (path, line)) if path else ""] for item, kind, ev, path, line in found]
-    return lead + _table(cid, "", ["Item", "Kind", "Evidence", "Source"], rows, refs)
+    return _table(cid, "", ["Item", "Kind", "Evidence", "Source"], rows, refs) + foot
 
 
 # ------------------------------------------------------------------ change.in-flight
@@ -255,14 +250,15 @@ def in_flight(cid, ctx, refs):
         return None
     r = _render()
     branches = history_items(ctx, "branch")
-    lead = intro("Compared with the pinned commit. Issue and pull request content is not in the repository and is unknown.")
+    notes = ["Compared with the pinned commit. Issue and pull request content is not in the repository and is unknown."]
+    if branches and not any(b["remote"] for b in branches):
+        notes.append("This repository has no remote branches, so these are local branches.")
+    foot = foot_notes(*notes)
     if not branches:
-        return lead + none_found("There are no branches other than the default branch.")
-    if not any(b["remote"] for b in branches):
-        lead += intro("This repository has no remote branches, so these are local branches.")
+        return none_found("There are no branches other than the default branch.") + foot
     rows = [[r.E(b["ref"]), r.E(f'{b["date"]} {b["sha"][:7]}'), r.E(f'{b["ahead"]} ahead, {b["behind"]} behind'), r.E(b["author"]),
              refs.mark(["commit:" + b["sha"]])] for b in branches]
-    return lead + _table(cid, "", ["Branch", "Last commit", "Ahead/behind", "Author", "Source"], rows, refs)
+    return _table(cid, "", ["Branch", "Last commit", "Ahead/behind", "Author", "Source"], rows, refs) + foot
 
 
 DRAWN = {"change.hotspots": hotspots, "change.cochange": cochange, "change.dead-code": dead_code, "change.in-flight": in_flight}
