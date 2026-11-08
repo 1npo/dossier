@@ -837,7 +837,7 @@ Read section 2, D4, D9, D10, D13 to D15, and "Results" of Phases 1 and 2. Load t
   - Done-check: `... pytest tests/unit/scripts/test_measured.py -q` passes; block E prints `OK`.
   - Commit: `feat(dossier): find JavaScript config, build and tooling files`
 
-- [ ] **M4-21. The React table.**
+- [x] **M4-21. The React table.**
   - Goal: D9's card, with V11 and V12.
   - Files: edit `scripts/measured_graph.py`, `scripts/measured_tables.py`, `scripts/page_audit.py`, `tests/unit/scripts/test_measured.py`, `tests/unit/scripts/test_page_audit.py`. `check_layout.py` needs no edit: `interactions.graph` always holds tables, and its checks already walk every table on the page. `SCRIPT_TABLE_CARDS` (`check_layout.py:29`) lists cards that must show a table; this card is not one of them because the new table is optional.
   - Interface: `measured_tables.react_components(cid, extract, group, refs) -> str`; table id `t-interactions-graph-react`. `_measured_counts` adds it to `interactions.graph` when `ui-component` items exist.

@@ -377,3 +377,36 @@ class TestAddedColumnNames:
         html = page(make_cites, e)
 
         assert re.findall(r"<th[^>]*>([^<]*)</th>", html)[-3:] == ["Source", "Basis", "Citations"]
+
+
+class TestReactTableAudit:
+    GRAPH = [
+        {"kind": "ui-component", "path": "src/Button.tsx", "line": 3, "name": "Button", "exported": True, "hooks": [], "provides": [], "consumes": []},
+        {"kind": "ui-component", "path": "src/App.tsx", "line": 5, "name": "App", "exported": True, "hooks": ["useState"], "provides": [], "consumes": []},
+        {"kind": "ui-component", "path": "src/App.tsx", "line": 20, "name": "Footer", "exported": False, "hooks": [], "provides": [], "consumes": []},
+        {"kind": "renders", "path": "src/App.tsx", "paths": ["src/Button.tsx"], "from": "App", "to": "Button"},
+    ]
+
+    def check(self, drop_row=False):
+        import measured
+
+        class Refs:
+            def mark(self, cites):
+                return ""
+
+        ctx = {"extract": {"graph": self.GRAPH}, "tree": set()}
+        html = measured.body("interactions.graph", ctx, Refs())
+        if drop_row:
+            body = html[html.index("<tbody>", html.index('id="t-interactions-graph-react"')):]
+            html = html.replace(re.search(r"<tr>.*?</tr>", body, re.S).group(0), "", 1)
+        cards = {}
+        for n in page_audit.parse(f'<div class="card" data-card="interactions.graph">{html}</div>').walk():
+            if "data-card" in n.attrs:
+                cards.setdefault(n.attrs["data-card"], []).append(n)
+        return page_audit._check_measured(cards, ctx, html)
+
+    def test_a_complete_table_has_no_error(self):
+        assert self.check() == []
+
+    def test_a_missing_row_is_an_error(self):
+        assert self.check(drop_row=True) == ["V11: interactions.graph: table t-interactions-graph-react has 2 rows, expected 3."]

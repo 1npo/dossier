@@ -112,8 +112,11 @@ def _graph(cid, ctx, refs):
     extract = ctx.get("extract") or {}
     if "graph" not in extract:
         return None
+    react = ""
+    if any(g.get("kind") == "ui-component" for g in extract["graph"]):  # only for a repository that has React components
+        react = measured_tables.heading("Every React component") + measured_tables.react_components(cid, extract, refs)
     if not _imports(extract):
-        return '<p class="muted">No imports between modules were found.</p>'
+        return '<p class="muted">No imports between modules were found.</p>' + react
     rows, roots = ctx.get("catalog") or [], package_roots(extract)
     group = _group_of(extract, rows, roots)
     imports = [(g["path"], g["paths"][0]) for g in _imports(extract)]
@@ -123,7 +126,8 @@ def _graph(cid, ctx, refs):
     return (measured_tables.heading(f"Imports between {kind}s")
             + measured_tables.component_edges(cid, imports, group, refs, kind)
             + measured_tables.heading("Every module import")
-            + measured_tables.module_imports(cid, _imports(extract), group, refs, kind))
+            + measured_tables.module_imports(cid, _imports(extract), group, refs, kind)
+            + react)
 
 
 def _map(cid, ctx, refs):

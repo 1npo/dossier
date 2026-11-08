@@ -281,6 +281,84 @@ class TestDependencyGraph:
         assert "No imports between modules were found." in measured.body("interactions.graph", {"extract": {"graph": []}}, Refs())
 
 
+UI_GRAPH = [
+    {"kind": "module", "module": "src/App", "short": "App", "path": "src/App.tsx", "language": "js", "package": None, "is_package": False},
+    {"kind": "module", "module": "src/Button", "short": "Button", "path": "src/Button.tsx", "language": "js", "package": None, "is_package": False},
+    {"kind": "import", "path": "src/App.tsx", "paths": ["src/Button.tsx"], "from": "src/App", "to": "src/Button", "lines": [1]},
+    {"kind": "ui-component", "path": "src/Button.tsx", "line": 3, "name": "Button", "exported": True, "hooks": [], "provides": [], "consumes": []},
+    {"kind": "ui-component", "path": "src/App.tsx", "line": 5, "name": "App", "exported": True, "hooks": ["useState", "useAuth"],
+     "provides": ["ThemeContext"], "consumes": ["UserContext"]},
+    {"kind": "ui-component", "path": "src/App.tsx", "line": 20, "name": "Footer", "exported": False, "hooks": [], "provides": [], "consumes": []},
+    {"kind": "renders", "path": "src/App.tsx", "paths": ["src/Button.tsx"], "from": "App", "to": "Button"},
+    {"kind": "renders", "path": "src/App.tsx", "paths": ["src/App.tsx"], "from": "App", "to": "Footer"},
+]
+REACT_ID = "t-interactions-graph-react"
+
+
+class TestReactTable:
+    def html(self, graph=UI_GRAPH, refs=None):
+        return measured.body("interactions.graph", {"extract": {"graph": graph}}, refs or Refs())
+
+    def test_one_row_per_component_sorted_by_file_then_name(self):
+        rows = rows_of(table_html(self.html(), REACT_ID))
+
+        assert [(r[0], r[1]) for r in rows] == [("App", "src/App.tsx"), ("Footer", "src/App.tsx"), ("Button", "src/Button.tsx")]
+
+    def test_columns_are_those_of_the_plan(self):
+        head = re.findall(r"<th(?:\s[^>]*)?>([^<]*)", table_html(self.html(), REACT_ID))
+
+        assert head == ["Component", "File", "Renders", "Rendered by", "Hooks", "Context", "Source"]
+
+    def test_renders_and_rendered_by_come_from_the_renders_items(self):
+        rows = {r[0]: r for r in rows_of(table_html(self.html(), REACT_ID))}
+
+        assert rows["App"][2] == "Button, Footer" and rows["App"][3] == "-"
+        assert rows["Button"][2] == "-" and rows["Button"][3] == "App"
+        assert rows["Footer"][3] == "App"
+
+    def test_hooks_and_context_are_listed(self):
+        rows = {r[0]: r for r in rows_of(table_html(self.html(), REACT_ID))}
+
+        assert rows["App"][4] == "useAuth, useState"
+        assert rows["App"][5] == "provides ThemeContext; uses UserContext"
+        assert rows["Button"][4] == "-" and rows["Button"][5] == "-"
+
+    def test_the_source_column_cites_the_definition_line(self):
+        rows = {r[0]: r for r in rows_of(table_html(self.html(refs=MarkedRefs()), REACT_ID))}
+
+        assert rows["Button"][6] == "[src/Button.tsx:3]"
+
+    def test_the_table_follows_the_module_table_under_its_own_heading(self):
+        html = self.html()
+
+        assert html.index("Every module import") < html.index("Every React component") < html.index(REACT_ID)
+
+    def test_components_without_any_import_are_still_listed(self):
+        graph = [g for g in UI_GRAPH if g["kind"] != "import"]
+
+        html = self.html(graph)
+
+        assert REACT_ID in html and "No imports between modules were found." in html
+
+    def test_a_repository_with_no_components_draws_what_it_drew_before(self):
+        html = self.html([g for g in UI_GRAPH if g["kind"] not in ("ui-component", "renders")])
+
+        assert REACT_ID not in html and "React" not in html
+
+    def test_repository_text_is_escaped(self):
+        graph = UI_GRAPH + [{"kind": "ui-component", "path": "src/x.tsx", "line": 1, "name": "<b>X</b>", "exported": True, "hooks": [], "provides": [], "consumes": []}]
+
+        assert "<b>X</b>" not in self.html(graph)
+
+    def test_a_tag_named_differently_from_its_definition_is_matched_by_file_when_the_file_has_one_component(self):
+        graph = [g for g in UI_GRAPH if g["kind"] != "renders"] + [
+            {"kind": "renders", "path": "src/App.tsx", "paths": ["src/Button.tsx"], "from": "App", "to": "Btn"}]
+
+        rows = {r[0]: r for r in rows_of(table_html(self.html(graph), REACT_ID))}
+
+        assert rows["Button"][3] == "App"
+
+
 class TestJavaScriptAreas:
     EXTRACT = {"graph": [{"kind": "source-root", "path": "apps/react-vite/package.json", "root": "apps"},
                          {"kind": "source-root", "path": "apps/nextjs/package.json", "root": "apps"},

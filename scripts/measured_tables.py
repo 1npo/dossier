@@ -36,3 +36,38 @@ def module_imports(cid: str, items: list, group: dict, refs, kind: str) -> str:
         rows.append([r.E(group.get(g["path"], "-")), r.E(group.get(g["paths"][0], "-")), r.E(g["from"]), r.E(g["to"]),
                      (str(max(len(lines), 1)), max(len(lines), 1)), places])
     return r.render_table([f"From {kind}", f"To {kind}", "From", "To", "Imports", "Source"], rows, refs, "t-" + cid.replace(".", "-") + "-edges", plain=True)
+
+
+REACT_COLUMNS = ["Component", "File", "Renders", "Rendered by", "Hooks", "Context", "Source"]
+
+
+def _names(values) -> str:
+    return ", ".join(sorted(set(values))) or "-"
+
+
+def react_components(cid: str, extract: dict, refs) -> str:
+    """Every React component with what it renders, what renders it, its hooks and its context, from the `ui-component` and `renders` items."""
+    r = _render()
+    graph = extract.get("graph", [])
+    comps = sorted((g for g in graph if g.get("kind") == "ui-component"), key=lambda g: (g["path"], g["name"], g.get("line") or 0))
+    in_file: dict = {}
+    for c in comps:
+        in_file.setdefault(c["path"], []).append(c)
+    drawn: dict = {}
+    for e in (g for g in graph if g.get("kind") == "renders" and g.get("paths")):
+        here = in_file.get(e["paths"][0], [])
+        named = [c for c in here if c["name"] == e["to"]]
+        target = named[0] if named else here[0] if len(here) == 1 else None  # a renamed import still points at the file's only component
+        if target is not None:
+            drawn.setdefault((e["path"], e["from"]), []).append((target["path"], target["name"]))
+    rendered_by: dict = {}
+    for (path, name), targets in drawn.items():
+        for t in targets:
+            rendered_by.setdefault(t, []).append(name)
+    rows = []
+    for c in comps:
+        key = (c["path"], c["name"])
+        context = [f"provides {x}" for x in sorted(set(c.get("provides") or []))] + [f"uses {x}" for x in sorted(set(c.get("consumes") or []))]
+        rows.append([r.E(c["name"]), r.path_code(c["path"]), r.E(_names(n for _, n in drawn.get(key, []))), r.E(_names(rendered_by.get(key, []))),
+                     r.E(_names(c.get("hooks") or [])), r.E("; ".join(context) or "-"), r.source_cell(refs, (c["path"], c.get("line")))])
+    return r.render_table(REACT_COLUMNS, rows, refs, "t-" + cid.replace(".", "-") + "-react", plain=True)
