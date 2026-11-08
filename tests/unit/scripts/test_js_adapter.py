@@ -79,7 +79,7 @@ class TestAdapterShape:
         a = js_adapter.JsAdapter()
 
         assert (a.name, a.version, a.languages, a.loads_repo_code, a.expected_untracked) == (
-            "js", "1", ("JavaScript", "TypeScript"), False, ("**/node_modules/**",))
+            "js", "2", ("JavaScript", "TypeScript"), False, ("**/node_modules/**",))
         assert a.tools == ("dependency-cruiser", "knip", "scip-typescript", "typescript", "semgrep", "tree-sitter-language-pack")
 
 
