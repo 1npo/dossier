@@ -929,6 +929,10 @@ Commit on `feat/dossier-m4`. Do not merge. Write "Results (Phase 3)" and commit:
 
 ### Results (Phase 3)
 
+**Summary.** M4-18 to M4-26 are done; nothing was cut (M4-22 was done). Fast suite: 1945 passed, 116 skipped. Slow suite (`--basetemp` under `~/.cache`, G2 deselected): 2056 passed, 2 failed, both unrelated to M4: `test_overlapping_paragraphs_are_reported` (also fails on `main`) and `test_each_browser_mutation_makes_a_fail[chart-text-small]`, whose mutation looks for a `chart-scroll` hotspot chart that the post-M3 rework no longer draws (not checked on `main`; none of the M4 commits touch it). Both join G2 for the author. Block E printed `OK` after M4-18, M4-20, M4-21, M4-21a and M4-22. `m4_page` has 0 problems in the browser check and the page audit.
+
+**Deviations.** (1) `react_components(cid, extract, refs)` has no `group` argument; nothing would use it. (2) The React and public API counts are registered before the `has_history` gate in `page_audit._measured_counts`, so V11 checks them without history; the `io.contracts` count is only registered when there are names to list. (3) M4-22: `refresh_eol.py --add` was added so only react and nextjs were fetched; Python, Django and `as_of` data are unchanged. React has no end-of-life dates, so its gap reads "not in the data". (4) The mixed-repository test keeps PYFIX at the repository root, not under `backend/`: **finding:** the Python adapter reads `pyproject.toml` at the repository root only, so Python code in a subfolder gives no modules (not changed here; for the author). (5) Tooling "enforced where" looks for a tool's name in CI files and hooks only, so a CI step that runs `yarn lint` shows eslint as not enforced. (6) Components, `candidates` text: JS projects are listed by source root, with a module count. (7) Commit identity: the first nine Phase 3 commits were made under the user's name by mistake and were re-authored as Claude before anything was pushed.
+
 ---
 
 ## Phase 3a: Ground truth for the primary repository
