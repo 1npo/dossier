@@ -575,6 +575,7 @@
   }
   var railOn = false; try { railOn = localStorage.getItem("dossier-rail") === "1"; } catch (e) {}
   setRail(railOn);
+  requestAnimationFrame(function () { requestAnimationFrame(function () { root.classList.add("anim"); }); });   // animate only after the first paint
   railBtn.addEventListener("click", function () { setRail(!root.classList.contains("rail")); });
   $("#rail-search").addEventListener("click", function () { setRail(false); input.focus(); input.select(); });
   $("#rail-theme").addEventListener("click", function () { $("#theme-toggle").click(); });
