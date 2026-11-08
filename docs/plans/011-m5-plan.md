@@ -699,7 +699,7 @@ Read section 2, D1, D7 to D10, D12 to D14, and "Results (Phase 1)", especially M
 
 ### Tasks (Phase 2)
 
-- [ ] **M5-9. Declarations with tree-sitter.**
+- [x] **M5-9. Declarations with tree-sitter.**
   - Goal: D14's `declarations`, the base of everything else.
   - Files: new `scripts/cs_queries.py`, `tests/unit/scripts/test_cs_queries.py`, `tests/integration/scripts/test_cs_queries_slow.py`.
   - Interface: `declarations(ts, files) -> dict`; `assemble(matches_by_file) -> dict` (pure, so unit tests use hand-made matches).
