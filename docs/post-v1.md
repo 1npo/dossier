@@ -14,3 +14,10 @@ The TS and C# results in 1.0.0 are measured on public repositories, because the 
 ## Python projects in subfolders
 
 The Python adapter reads `pyproject.toml` at the repository root only. In a repository whose Python lives in a subfolder (for example `backend/` beside a `frontend/`), it finds no modules, so the graph, the dead-code rows and the other measured cards for that code stay empty. The JS adapter does not have this limit: it finds `package.json` files at any depth. M4 left the Python adapter alone because its output had to stay identical, and its mixed-language test keeps the Python fixture at the root. A fix would look for `pyproject.toml` (and `setup.py`, `requirements.txt`) below the root, treat each as a source root the way the JS adapter does, and keep the root-level result unchanged. Found in Phase 3 of M4 ([plans/010-m4-plan.md](plans/010-m4-plan.md), "Results (Phase 3)").
+
+## Findings deferred from the M4 review
+
+- `candidates` hides the names of Nx targets and package scripts (found on `RW`).
+- MSW mock handlers (`http.get(...)`) are not detected as entry points (found on `BP`; the `BP` reports list them by hand). Axios calls are fixed separately in M4's follow-up.
+
+Ruled on 2026-11-08 in [plans/010-m4-plan.md](plans/010-m4-plan.md), "Results (Phase 5)".

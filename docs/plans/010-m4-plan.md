@@ -1292,6 +1292,23 @@ The author does this. **Needed on the machine:** Node 22.13 or later, and npm. Y
 3. `V2` warnings on `BP` (68) are mostly multi-line type definitions cited by one line, and recipes with no commit.
 4. The `BP` reports are generated and compact. Their prose has not been judged by the author.
 
+**Rulings on the findings (2026-11-08).** Written by Sonnet 5.5 and proposed to the author, who said "Yes" to recording them without reviewing each one; change any row before it is acted on. Numbers are the findings from Phases 4, 4b and 5, in that order. The author did not check the `RW` or `BP` pages, and the scratch folder was deleted.
+
+| # | Finding | Ruling | Why |
+|---|---|---|---|
+| P4-1 | Route-mount rule misses `Router().use('/api', api)` | **fix** | Gaps stays silent about a route prefix, so every listed route path may be wrong |
+| P4-2, 4b-2 | No rule for `req.headers.authorization`; `request-header` gives one hit per use, not per header | **fix** | One rule change: add the pattern and report one row per header |
+| P4-3 | `candidates` hides Nx target and package script names | defer | Reports can still name them; `post-v1.md` |
+| P4-4 | `change` "Same name defined more than once" lists locals and object keys | **fix** | Noise in a tool output, cheap to filter |
+| P4-5 | e2e config and helpers counted as test files | **fix** | Skews test counts and the health page |
+| P4-6, P5-3 | `V2` warns on names in prose and on multi-line citations | drop | A warning, not an error; `problems: 0` on every repository |
+| P4-7, P5-2 | Python in subfolders unsupported | defer | Already in `post-v1.md` ("Python projects in subfolders") |
+| 4b-1 | Rule changes do not invalidate a build unless the adapter version moves | **fix** | A stale build can survive a rule fix; put a hash of the rule files in the build key |
+| P5-1 | Axios `api.post(...)` counted as served routes; MSW handlers missed | **fix** Axios, defer MSW | Axios gives false entry points; MSW only adds missing mock routes |
+| P5-4 | `BP` prose not judged | drop | The author does not plan to read `BP`; it is the React check, not a quality target |
+
+**One fix session is left before M5:** Sonnet, rows marked **fix** (P4-1, P4-2 with 4b-2, P4-4, P4-5, 4b-1, Axios in P5-1). Each needs a failing test first. The deferred rows go to `post-v1.md`. The clean full slow run is still not repeated; the fix session runs it with `--basetemp` outside `/tmp`, and the three known failures (`test_overlapping_paragraphs_are_reported`, `chart-text-small`, G2) stay recorded as failing without these changes.
+
 ---
 
 ## 6. Verification
