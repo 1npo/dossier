@@ -43,6 +43,21 @@ class TestEntries:
 
         assert [(r["subpath"], r["file"]) for r in got] == [("./utils/deep/x", "packages/lib/src/utils/deep/x.ts"), ("./utils/fmt", "packages/lib/src/utils/fmt.ts")]
 
+    def test_a_wildcard_over_built_files_maps_back_to_sources_through_tsconfig_paths_or_src(self):
+        files = {"p/package.json", "p/src/index.ts", "p/src/middleware.ts", "p/src/middleware/persist.ts"}
+        exports = {"./*": {"import": {"default": "./esm/*.mjs"}, "default": {"default": "./*.js"}}}
+
+        got = js_api.entries({"dir": "p", "manifest": {"name": "z", "exports": exports}}, files, {"paths": {"z/*": ["./src/*.ts"]}})
+
+        assert [r["subpath"] for r in got] == ["./index", "./middleware", "./middleware/persist"]
+
+    def test_a_wildcard_skips_files_of_a_nested_package(self):
+        files = {"package.json", "x.js", "examples/demo/package.json", "examples/demo/y.js"}
+
+        got = js_api.entries({"dir": "", "manifest": {"name": "z", "exports": {"./*": "./*.js"}}}, files, {})
+
+        assert [r["subpath"] for r in got] == ["./x"]
+
     def test_a_wildcard_over_built_files_maps_back_to_sources(self):
         got = rows({"exports": {"./u/*": "./dist/utils/*.js"}})
 

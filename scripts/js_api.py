@@ -76,6 +76,21 @@ def _map_target(target: str, subpath: str, name: str, folder: str, tracked: set,
     return _first_tracked(tries, tracked)
 
 
+def _stands_for(target: str, subpath: str, name: str, folder: str, tracked: set, options: dict, source: str) -> bool:
+    """True when `target` maps to `source` by a tsconfig `paths` entry or by swapping its first folder for `src/`, and by nothing looser."""
+    spec = name + subpath[1:]
+    for key, values in (options.get("paths") or {}).items():
+        star = key.endswith("*")
+        if (star and spec.startswith(key[:-1])) or key == spec:
+            rest = spec[len(key) - 1:] if star else ""
+            base = options.get("baseUrl") or "."
+            if _first_tracked([_norm(folder, posixpath.join(base, v.replace("*", rest))) for v in values], tracked) == source:
+                return True
+    parts = posixpath.relpath(_norm(folder, target), folder or ".").split("/")
+    swapped = _norm(folder, "src/" + "/".join(parts[1:] if len(parts) > 1 else parts))
+    return _first_tracked([swapped], tracked) == source
+
+
 def _walk(value, found: list) -> None:
     """Every target string in a conditions value, in order, depth first."""
     if isinstance(value, str):
@@ -98,8 +113,19 @@ def _expand(pattern: str, key: str, name: str, folder: str, tracked: set, option
     out_dir, root_dir = options.get("outDir"), options.get("rootDir")
     regex = re.compile("^" + re.escape(_norm(folder, pattern)).replace(r"\*", "(.+)") + "$")
     prefix = folder + "/" if folder else ""
+    nested = {posixpath.dirname(t) + "/" for t in tracked if posixpath.basename(t) == "package.json" and posixpath.dirname(t) + "/" != prefix}
     for f in sorted(tracked):
         if not f.startswith(prefix) or DECL.search(f) or not f.endswith(SOURCE_EXT):
+            continue
+        if any(f.startswith(n) and len(n) > len(prefix) for n in nested):
+            continue
+        stem = posixpath.splitext(f[len(prefix):])[0]
+        stems = {stem, stem[4:] if stem.startswith("src/") else stem}
+        if root_dir is not None and stem.startswith(root_dir.strip("./") + "/"):
+            stems.add(stem[len(root_dir.strip("./")) + 1:])
+        via = next((r for r in sorted(stems) if _stands_for(pattern.replace("*", r), key.replace("*", r), name, folder, tracked, options, f)), None)
+        if via is not None:
+            results.append((key.replace("*", via), f))
             continue
         shapes = [f]
         if out_dir is not None and root_dir is not None and f.startswith(_norm(folder, root_dir) + "/"):
