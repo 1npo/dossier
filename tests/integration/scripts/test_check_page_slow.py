@@ -366,3 +366,50 @@ class TestNewTablesOnTheM4Page:
         errs = page_audit.audit(broken, {}, extract, facts, measured=measured)
 
         assert any("t-interactions-graph-react" in e and "59 rows, expected 60" in e for e in errs)
+
+
+import m5_page  # noqa: E402
+
+M5_CARDS = ("io.contracts", "change.dead-code", "data.entities", "data.relationships", "change.upgrade-burden")
+
+
+@pytest.fixture(scope="module")
+def m5(tmp_path_factory):
+    """A page holding what M5 adds (80 public names, three friend lines, 20 EF entities, unreferenced types, .NET rows), built once: (page, env)."""
+    base = tmp_path_factory.mktemp("m5")
+    page = m5_page.make(base)
+    env = {**os.environ, "DOSSIER_HOME": str(base / "home"), "DOSSIER_CONFIG": str(base / "cfg.json"), "DOSSIER_CACHE": str(base / "cache")}
+    return page, env
+
+
+class TestNewTablesOnTheM5Page:
+    def test_the_page_draws_the_api_table_the_friend_lines_and_the_dotnet_rows(self, m5):
+        text = m5[0].read_text()
+
+        assert 'id="t-io-contracts-api"' in text and text.count("(InternalsVisibleTo)") == 3
+        assert ">.NET<" in text and "TargetFramework net10.0" in text and "Entity19" in text
+
+    def test_the_browser_check_names_no_new_table(self, m5):
+        page, env = m5
+
+        done = check(page, env)
+
+        named = [line for line in fails(done) if any(cid in line for cid in M5_CARDS)]
+        assert named == [] and done.returncode == 0, done.stdout[-1500:]
+
+    def test_the_page_audit_accepts_every_new_table(self, m5):
+        import candidates
+        import page_audit
+        import render
+
+        page, _ = m5
+        out = page.parent
+        facts = json.loads((out / "facts.json").read_text())
+        facts["dependencies"] = json.loads((out / "dependencies.json").read_text())
+        reports = {p.stem: json.loads(p.read_text()) for p in (out / "reports").glob("*.json")}
+        extract = candidates.load(out)
+        measured = render.measured_ctx({"cites": render.Cites(facts), "extract": extract}, reports, facts)
+
+        errs = page_audit.audit(page.read_text(), reports, extract, facts, measured=measured)
+
+        assert [e for e in errs if any(cid in e for cid in M5_CARDS)] == []

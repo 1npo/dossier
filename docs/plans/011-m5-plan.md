@@ -969,7 +969,7 @@ Read section 2, D8, D15 to D19, and "Results" of Phases 1 to 3. Load the skills 
   - Done-check: `... pytest tests/unit/scripts/test_measured_upgrade.py -q` passes.
   - Commit: `feat(dossier): show the .NET target frameworks in upgrade burden`
 
-- [ ] **M5-27. Test page, skeleton and mixed fixture.**
+- [x] **M5-27. Test page, skeleton and mixed fixture.**
   - Goal: V11 and V12 on what is new, without a real repository.
   - Files: new `tests/tools/m5_page.py`, `tests/integration/scripts/test_mixed_cs_slow.py`; edit `tests/integration/scripts/test_check_page_slow.py`.
   - Interface: `m5_page.make(tmp) -> Path`, in the style of `m4_page.py`, with 80 `public-api` items from C#, three friend lines, 20 EF entities, C# dead rows and `.NET` upgrade rows.
