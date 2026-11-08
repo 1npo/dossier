@@ -87,7 +87,7 @@ class TestHotspots:
         rows = cells(draw("change.hotspots", ctx(items, TREE)), "t-change-hotspots-files")
 
         assert measured_change.HOTSPOT_FILES[2:5] == ["Commits", "Lines added", "Lines removed"] and "Lines" not in measured_change.HOTSPOT_FILES
-        assert [r[3:5] for r in rows if r[0] == items[1]["path"]] == [["30", "4"]] and rows[-1][3:5] == ["-", "-"]
+        assert [r[3:5] for r in rows if r[0] == items[1]["path"]] == [["+30", "\u22124"]] and rows[-1][3:5] == ["-", "-"]
 
     def test_no_column_name_mentions_a_time_frame(self):
         assert not [c for c in measured_change.HOTSPOT_FILES + measured_change.HOTSPOT_COMPONENTS if "month" in c or "all" in c.lower()]
@@ -104,7 +104,7 @@ class TestHotspots:
         recent, ever = cells(html, "t-change-hotspots-files"), cells(html, "t-change-hotspots-files-all")
         assert [r[2] for r in recent[:2]] == ["5", "5"] and [r[0] for r in ever[:2]] == ["src/a.py", "src/b.py"]
         assert [r[2] for r in ever[:3]] == ["9", "6", "3"] and [r for r in ever if r[0] == "src/a.py"][0][2] == "9"
-        assert [r[3:5] for r in ever if r[0] == "src/a.py"] == [["300", "40"]]
+        assert [r[3:5] for r in ever if r[0] == "src/a.py"] == [["+300", "\u221240"]]
         assert cells(html, "t-change-hotspots-components-all")[0][:3] == ["core", "4", "18"]
 
     def test_one_file_table_with_the_top_rows_marked_and_a_top_all_toggle(self):
@@ -245,5 +245,5 @@ class TestCochangeCard:
     def test_the_card_has_no_cluster_view_and_the_share_note_is_at_the_end(self):
         html = draw("change.cochange", self.c(("a.py", "b.py", 5, 80), ("b.py", "c.py", 4, 60), ("a.py", "c.py", 4, 70)))
 
-        assert "cluster" not in html and "data-cc" not in html and html.rstrip().endswith("changed in the same commit.</span></p>")
+        assert "cluster" not in html and "data-cc" not in html and html.rstrip().endswith("changed in the same commit.</li></ul>") and html.count("<li>") == 2
         assert "Share is" not in html.split("<table")[0]
