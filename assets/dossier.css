@@ -262,7 +262,8 @@ body.col-dragging { cursor: col-resize; user-select: none; }
   --tk-nt: oklch(.8 .12 20); --tk-na: oklch(.82 .1 90); --tk-no: oklch(.8 .12 330); --tk-gd: oklch(.8 .13 25); --tk-gi: oklch(.8 .12 155); --tk-gh: var(--foreground); }
 .code-panel { position: fixed; top: 0; right: 0; bottom: 0; z-index: 55; width: min(90ch, 100vw); display: flex; flex-direction: column; background: var(--card); color: var(--card-foreground);
   border-left: 1px solid var(--border); box-shadow: -8px 0 24px rgb(0 0 0 / .18); font-family: var(--font-mono, ui-monospace, Menlo, Consolas, monospace); font-size: .8125rem; }
-.code-panel[hidden] { display: none; }
+.code-panel { transition: transform .25s cubic-bezier(.4, 0, .2, 1), visibility 0s linear 0s, box-shadow .25s ease; }
+.code-panel[hidden] { display: flex; transform: translateX(100%); visibility: hidden; pointer-events: none; box-shadow: none; transition: transform .25s cubic-bezier(.4, 0, .2, 1), visibility 0s linear .25s, box-shadow .25s ease; }
 .code-pinned .code-panel { box-shadow: none; }
 .code-panel > header { padding: .7rem .9rem .6rem; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: .5rem; }
 .cp-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .75rem; min-width: 0; }
@@ -286,7 +287,7 @@ body.col-dragging { cursor: col-resize; user-select: none; }
 .cp-keys { padding: .45rem .9rem; border-top: 1px solid var(--border); font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif); font-size: .75rem; display: flex; flex-wrap: wrap; gap: .25rem .5rem; align-items: center; }
 /* reference buttons stay inside the line, so they never change the spacing of the list */
 .refs li .ref-btn { margin-left: .4rem; height: 1.25rem; min-height: 0; padding: 0 .5rem; font-size: .75rem; line-height: 1; vertical-align: baseline; position: relative; top: -.05em; }
-main { transition: margin-right .15s ease; }
+main { transition: margin-right .25s cubic-bezier(.4, 0, .2, 1); }
 .code-pinned main { margin-right: var(--code-w-px, 0px); }
 @media print { .code-panel, .rh-tabs { display: none !important; } .report-head { position: static; } main { margin-right: 0 !important; } }
 
@@ -306,6 +307,11 @@ main { transition: margin-right .15s ease; }
   html.rail .sidebar nav > footer { padding: .6rem 0; justify-content: center; }
   html.rail #rail-toggle .chev { transform: scaleX(-1); }
 }
+
+/* sidebar collapse: --sidebar-width is a registered length so the nav width and the main margin both animate. html.anim is added after first paint so the saved state does not animate on load */
+@property --sidebar-width { syntax: "<length>"; inherits: true; initial-value: 18.5rem; }
+html.anim { transition: --sidebar-width .25s cubic-bezier(.4, 0, .2, 1); }
+@media (prefers-reduced-motion: reduce) { html.anim, main, .code-panel, .code-panel[hidden] { transition: none !important; } }
 
 /* commit calendar */
 .cc.ph { visibility: hidden; }
