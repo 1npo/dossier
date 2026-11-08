@@ -109,7 +109,7 @@ CONTRAST_JS = r"""
 
 SECRET_PATH = r"(^|/)(\.env(\.(?!example|sample|template|dist)[^/]+)?|id_rsa|id_ed25519|[^/]+\.(pem|key|p12|pfx))$"
 
-PANEL_JS = "() => { const p = document.getElementById('code-panel'); return !p.hidden && p.getBoundingClientRect().width > 0; }"
+PANEL_JS = "() => { const p = document.getElementById('code-panel'); return !p.classList.contains('shut') && p.getBoundingClientRect().width > 0; }"
 COUNT_JS = "() => document.getElementById('cp-count').textContent"
 WIDTH_JS = """() => { const p = document.getElementById('code-panel'), s = document.createElement('span');
   s.style.cssText = 'position:absolute;visibility:hidden;width:90ch'; p.appendChild(s);
