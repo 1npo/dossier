@@ -1,11 +1,13 @@
 import base64
 import hashlib
 import io
+import types
 import zipfile
 
 import pytest
 
 import cs_scip
+import scip_read
 import shared_tools
 import toolcheck
 
@@ -127,3 +129,238 @@ class TestDoctorText:
         text = toolcheck.format_text(report)
 
         assert "scip-dotnet 0.2.16 from a hash-checked NuGet package" in text
+
+
+PKG = "scip-dotnet nuget . . "
+
+
+def occ(symbol, roles=1, line=0):
+    return {"range": [line, 0, line, 5], "symbol": PKG + symbol, "roles": roles, "enclosing_range": [line, 0, line + 2, 1]}
+
+
+def doc(path, *occurrences):
+    return {"path": path, "occurrences": list(occurrences), "symbols": []}
+
+
+def types_of(*pairs):
+    """decls for disambiguate: {path: {"types": [...]}} from (path, name, partial) triples."""
+    out: dict = {}
+    for path, name, partial in pairs:
+        out.setdefault(path, {"types": []})["types"].append(
+            {"name": name, "kind": "class", "partial": partial, "modifiers": ["public"], "members": [], "line": 1, "end_line": 9, "outer": None, "namespace": "N"})
+    return out
+
+
+class TestJoin:
+    def test_first_seen_document_wins(self):
+        a = {"documents": [doc("x.cs", occ("N/A#"))]}
+        b = {"documents": [doc("x.cs", occ("N/B#")), doc("y.cs")]}
+
+        joined = cs_scip.join([a, b])
+
+        assert [d["path"] for d in joined["documents"]] == ["x.cs", "y.cs"]
+        assert joined["documents"][0]["occurrences"][0]["symbol"].endswith("N/A#")
+
+    def test_documents_that_are_not_tracked_are_dropped(self):
+        a = {"documents": [doc("src/x.cs"), doc("src/obj/Debug/x.g.cs")]}
+
+        joined = cs_scip.join([a], tree={"src/x.cs"})
+
+        assert [d["path"] for d in joined["documents"]] == ["src/x.cs"]
+
+
+class TestDisambiguate:
+    def two_docs(self, symbol="N/Item#"):
+        return {"documents": [doc("a.cs", occ(symbol)), doc("b.cs", occ(symbol), occ(symbol, roles=0, line=3))]}
+
+    def test_partial_type_defined_in_two_files_is_kept(self):
+        index = {"documents": [doc("a.cs", occ("N/Totals#")), doc("b.cs", occ("N/Totals#"))]}
+
+        out, count = cs_scip.disambiguate(index, types_of(("a.cs", "Totals", True), ("b.cs", "Totals", True)))
+
+        assert count == 0 and out["documents"][1]["occurrences"][0]["symbol"] == PKG + "N/Totals#"
+
+    def test_member_of_a_partial_type_defined_twice_is_kept(self):
+        index = {"documents": [doc("a.cs", occ("N/Totals#Run().")), doc("b.cs", occ("N/Totals#Run()."))]}
+
+        _, count = cs_scip.disambiguate(index, types_of(("a.cs", "Totals", True), ("b.cs", "Totals", True)))
+
+        assert count == 0
+
+    def test_same_name_in_two_different_types_becomes_local_and_is_counted(self):
+        index = self.two_docs()
+
+        out, count = cs_scip.disambiguate(index, types_of(("a.cs", "Item", False), ("b.cs", "Item", False)))
+
+        symbols = {o["symbol"] for d in out["documents"] for o in d["occurrences"]}
+        assert count == 1 and all(s.startswith("local ambiguous-") for s in symbols)
+
+    def test_partial_in_one_file_only_is_still_ambiguous(self):
+        index = self.two_docs()
+
+        _, count = cs_scip.disambiguate(index, types_of(("a.cs", "Item", True), ("b.cs", "Item", False)))
+
+        assert count == 1
+
+    def test_ambiguous_symbols_give_no_defs_after_reduce(self):
+        out, _ = cs_scip.disambiguate(self.two_docs(), types_of(("a.cs", "Item", False), ("b.cs", "Item", False)))
+
+        assert scip_read.reduce(out) == []
+
+    def test_symbol_defined_once_is_untouched(self):
+        index = {"documents": [doc("a.cs", occ("N/A#")), doc("b.cs", occ("N/A#", roles=0))]}
+
+        out, count = cs_scip.disambiguate(index, types_of(("a.cs", "A", False)))
+
+        assert count == 0 and out == index
+
+
+def item(symbol, path="a.cs", line=3, name=None):
+    return {"kind": "def", "path": path, "line": line, "end_line": line + 1, "name": name or symbol, "symbol": PKG + symbol, "type": "class", "public": True, "refs": 0}
+
+
+class TestFinishSymbols:
+    def decls(self):
+        return {"a.cs": {"types": [{"name": "Secret", "kind": "class", "modifiers": ["internal"], "line": 3, "end_line": 9, "attributes": [], "outer": None,
+                                    "partial": False, "namespace": "N", "params": [], "members": []},
+                                   {"name": "Order", "kind": "class", "modifiers": ["public"], "line": 11, "end_line": 20, "attributes": [], "outer": None,
+                                    "partial": False, "namespace": "N", "params": [], "members": []}]}}
+
+    def test_parameter_definitions_are_dropped(self):
+        rows = [item("N/Order#Greet().(name)", line=12), item("N/Order#Greet().", line=12)]
+
+        out = cs_scip.finish_symbols(rows, self.decls(), set())
+
+        assert [r["symbol"] for r in out] == [PKG + "N/Order#Greet()."]
+
+    def test_type_parameter_definitions_are_dropped(self):
+        out = cs_scip.finish_symbols([item("N/Order#[T]", line=11), item("N/Order#", line=11)], self.decls(), set())
+
+        assert [r["symbol"] for r in out] == [PKG + "N/Order#"]
+
+    def test_public_flag_comes_from_the_declaration(self):
+        rows = [item("N/Secret#", line=3, name="Secret"), item("N/Order#", line=11, name="Order")]
+
+        out = {r["name"]: r["public"] for r in cs_scip.finish_symbols(rows, self.decls(), set())}
+
+        assert out == {"Secret": False, "Order": True}
+
+    def test_definition_with_no_matching_declaration_is_not_public(self):
+        out = cs_scip.finish_symbols([item("N/Ghost#", path="z.cs", name="Ghost")], self.decls(), set())
+
+        assert out[0]["public"] is False
+
+    def test_definitions_in_generated_files_are_dropped(self):
+        out = cs_scip.finish_symbols([item("N/Order#", line=11, name="Order")], self.decls(), {"a.cs"})
+
+        assert out == []
+
+    def test_reference_edges_pass_through(self):
+        edge = {"kind": "ref-edge", "path": "a.cs", "paths": ["b.cs"], "count": 2}
+
+        assert cs_scip.finish_symbols([edge], self.decls(), set()) == [edge]
+
+
+class TestFallbackDefs:
+    def decls(self):
+        t = {"name": "Order", "kind": "class", "modifiers": ["public"], "line": 3, "end_line": 9, "attributes": [], "outer": None, "partial": False,
+             "namespace": "Shop.Core", "params": [],
+             "members": [{"name": "Total", "kind": "method", "modifiers": ["public"], "line": 5, "end_line": 6, "attributes": [], "params": []},
+                         {"name": "Total", "kind": "method", "modifiers": ["public"], "line": 7, "end_line": 8, "attributes": [], "params": []}]}
+        return {"a.cs": {"types": [t]}, "g.cs": {"types": [{**t, "name": "Gen"}]}}
+
+    def test_symbols_have_no_line_numbers(self):
+        rows = cs_scip.fallback_defs(self.decls(), {"g.cs"})
+
+        assert [r["symbol"] for r in rows] == ["cs Shop.Core/Order#", "cs Shop.Core/Order#Total"]
+
+    def test_rows_are_marked_as_tree_sitter_with_no_references(self):
+        row = cs_scip.fallback_defs(self.decls(), {"g.cs"})[0]
+
+        assert (row["kind"], row["via"], row["refs"], row["public"], row["type"], row["name"]) == ("def", "tree-sitter", 0, True, "class", "Order")
+
+    def test_generated_files_give_nothing(self):
+        assert cs_scip.fallback_defs(self.decls(), {"g.cs", "a.cs"}) == []
+
+
+class FakeRun:
+    def __init__(self, tmp_path, returncode=0, out="", err="", write=True):
+        self.tmp, self.rc, self.out, self.err, self.write = tmp_path, returncode, out, err, write
+        self.calls = []
+
+    def __call__(self, cmd, **kw):
+        self.calls.append((cmd, kw))
+        if self.write:
+            target = cmd[cmd.index("--output") + 1]
+            open(target, "wb").write(b"x")
+        o, e = self.tmp / "out.txt", self.tmp / "err.txt"
+        o.write_text(self.out)
+        e.write_text(self.err)
+        return types.SimpleNamespace(returncode=self.rc, timed_out=self.rc is None, stdout=o, stderr=e)
+
+
+class TestScipDotnetIndex:
+    def test_command_has_the_working_directory_the_output_and_no_restore(self, tmp_path):
+        run = FakeRun(tmp_path)
+        area = tmp_path / "area"
+
+        path, rc, _ = cs_scip.ScipDotnet(run, "/x/scip-dotnet.dll", 60).index(tmp_path / "co", "Shop.slnx", area, 2)
+
+        cmd, kw = run.calls[0]
+        assert cmd[:4] == ["dotnet", "/x/scip-dotnet.dll", "index", "Shop.slnx"]
+        assert cmd[cmd.index("--working-directory") + 1] == str(tmp_path / "co") and "--skip-dotnet-restore" in cmd
+        assert path == area / "scip" / "cs-2.scip" and rc == 0
+        assert (kw["profile"], kw["cwd"], kw["timeout"]) == ("restricted", tmp_path / "co", 60)
+
+    def test_log_joins_stdout_and_stderr(self, tmp_path):
+        run = FakeRun(tmp_path, out="Failure: a", err="warn b")
+
+        _, _, log = cs_scip.ScipDotnet(run, "d", 1).index(tmp_path, "x.slnx", tmp_path / "area", 0)
+
+        assert "Failure: a" in log and "warn b" in log
+
+    def test_old_index_is_removed_first(self, tmp_path):
+        area = tmp_path / "area"
+        (area / "scip").mkdir(parents=True)
+        (area / "scip" / "cs-0.scip").write_bytes(b"old")
+        run = FakeRun(tmp_path, returncode=1, write=False)
+
+        path, _, _ = cs_scip.ScipDotnet(run, "d", 1).index(tmp_path, "x.slnx", area, 0)
+
+        assert not path.exists()
+
+
+class TestFailure:
+    def written(self, tmp_path, size=1):
+        p = tmp_path / "i.scip"
+        p.write_bytes(b"x" * size)
+        return p
+
+    def test_exit_one_is_a_failure_with_the_last_line(self, tmp_path):
+        assert cs_scip.failure(1, "a\nboom\n", tmp_path / "none.scip") == "boom"
+
+    def test_exit_one_prefers_the_first_failure_line(self, tmp_path):
+        assert cs_scip.failure(1, "x\nFailure: bad project\nlast", tmp_path / "n.scip") == "Failure: bad project"
+
+    def test_timeout_is_a_failure(self, tmp_path):
+        assert "too long" in cs_scip.failure(None, "", self.written(tmp_path))
+
+    def test_missing_index_is_a_failure(self, tmp_path):
+        assert cs_scip.failure(0, "", tmp_path / "none.scip") == "scip-dotnet finished without writing an index."
+
+    def test_empty_index_is_a_failure(self, tmp_path):
+        assert cs_scip.failure(0, "", self.written(tmp_path, 0)) == "scip-dotnet finished without writing an index."
+
+    def test_clean_run_is_not_a_failure(self, tmp_path):
+        assert cs_scip.failure(0, "fine", self.written(tmp_path)) is None
+
+    def test_exit_zero_with_failure_lines_is_not_a_hard_failure(self, tmp_path):
+        assert cs_scip.failure(0, "Failure: x", self.written(tmp_path)) is None
+
+
+class TestSoftFailure:
+    def test_first_failure_line_is_returned_without_its_label(self):
+        assert cs_scip.soft_failure("ok\nFailure: App.csproj could not load\nFailure: other") == "App.csproj could not load"
+
+    def test_no_failure_lines_gives_none(self):
+        assert cs_scip.soft_failure("all good") is None

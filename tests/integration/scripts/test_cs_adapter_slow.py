@@ -65,12 +65,14 @@ class TestCSharpSection:
         assert {"di-registration", "codegen", "mediator-handler"} <= {i["pattern"] for i in _items(extraction, "blindspots")}
         assert {"db-connect", "env-var", "global-state"} <= {i["category"] for i in _items(extraction, "io_candidates")}
 
-    def test_symbols_and_dead_are_empty_until_scip_dotnet_arrives(self, extraction):
-        assert _items(extraction, "symbols") == [] and _items(extraction, "dead") == []
+    def test_symbols_hold_scip_defs_and_the_public_api_and_dead_waits_for_its_task(self, extraction):
+        kinds = {i["kind"] for i in _items(extraction, "symbols")}
 
-    def test_tree_sitter_and_semgrep_are_ok_and_scip_dotnet_is_skipped(self, extraction):
+        assert {"def", "public-api"} <= kinds and _items(extraction, "dead") == []
+
+    def test_every_tool_is_ok(self, extraction):
         cs = next(a for a in extraction.record["details"]["adapters"] if a["name"] == "csharp")
 
         assert set(cs["tools"]) == {"scip-dotnet", "semgrep", "tree-sitter-language-pack"}
         assert cs["tools"]["tree-sitter-language-pack"]["status"] == "ok" and cs["tools"]["semgrep"]["status"] == "ok"
-        assert cs["tools"]["scip-dotnet"]["status"] == "skipped"
+        assert cs["tools"]["scip-dotnet"]["status"] == "ok"

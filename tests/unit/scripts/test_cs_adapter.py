@@ -3,7 +3,9 @@ from types import SimpleNamespace
 
 import adapters
 import cs_adapter
+import cs_scip
 import cs_sdk
+import scip_fake
 from adapters import OUTPUTS
 
 
@@ -26,8 +28,9 @@ def context(cs_repo, tmp_path, trusted=True):
                            repo_name="csrepo", tool_status={})
 
 
-def extract(cs_repo, tmp_path, monkeypatch, trusted=True, sdks=("10.0.403",)):
+def extract(cs_repo, tmp_path, monkeypatch, trusted=True, sdks=("10.0.403",), plan=None):
     monkeypatch.setattr(cs_sdk, "list_sdks", lambda path=None: list(sdks))
+    scip_fake.install(monkeypatch, plan or {})
     ctx = context(cs_repo, tmp_path, trusted)
     return cs_adapter.CSharpAdapter().extract(ctx), ctx
 
@@ -100,11 +103,12 @@ class TestNotes:
 
 
 class TestToolStatus:
-    def test_trusted_with_sdk_defers_the_tools_not_built_yet_to_a_later_task(self, cs_repo, tmp_path, monkeypatch):
-        _, ctx = extract(cs_repo, tmp_path, monkeypatch)
+    def test_trusted_with_sdk_and_an_index_makes_every_tool_ok(self, cs_repo, tmp_path, monkeypatch):
+        plan = {"Shop.slnx": (0, "", {"src/Shop.Core/Order.cs": [("Shop/Thing#", 1, 0)]})}
 
-        assert {t: s["status"] for t, s in ctx.tool_status.items()} == {"scip-dotnet": "skipped", "semgrep": "ok", "tree-sitter-language-pack": "ok"}
-        assert ctx.tool_status["scip-dotnet"]["reason"] == "Arrives in a later task."
+        _, ctx = extract(cs_repo, tmp_path, monkeypatch, plan=plan)
+
+        assert {t: s["status"] for t, s in ctx.tool_status.items()} == {"scip-dotnet": "ok", "semgrep": "ok", "tree-sitter-language-pack": "ok"}
 
     def test_untrusted_ref_gives_the_trust_reason_for_scip_dotnet(self, cs_repo, tmp_path, monkeypatch):
         _, ctx = extract(cs_repo, tmp_path, monkeypatch, trusted=False)
@@ -127,6 +131,73 @@ class TestToolStatus:
 
         assert ctx.tool_status["semgrep"] == {"status": "ok", "reason": None}
         assert ctx.tool_status["tree-sitter-language-pack"]["status"] == "ok"
+
+
+class TestScip:
+    def run(self, cs_repo, tmp_path, monkeypatch, plan, **kw):
+        out, ctx = extract(cs_repo, tmp_path, monkeypatch, plan=plan, **kw)
+        return out, ctx
+
+    def test_every_target_is_indexed_and_defs_come_from_the_index(self, cs_repo, tmp_path, monkeypatch):
+        files = {"src/Shop.Core/Order.cs": [("Shop.Core/Order#", 1, 2)], "src/Shop.Api/Program.cs": [("Shop.Core/Order#", 8, 3)]}
+        out, _ = self.run(cs_repo, tmp_path, monkeypatch, {"Shop.slnx": (0, "", files)})
+
+        kinds = {(s["kind"], s["name"] if s["kind"] == "def" else s["paths"][0]) for s in out["symbols"] if s["kind"] in ("def", "ref-edge")}
+
+        assert ("def", "Order") in kinds and ("ref-edge", "src/Shop.Core/Order.cs") in kinds
+
+    def test_exit_code_one_leaves_the_fallback_defs_and_fails_the_tool(self, cs_repo, tmp_path, monkeypatch):
+        monkeypatch.setattr(cs_scip, "fallback_defs", lambda decls, generated: [{"kind": "def", "via": "tree-sitter"}])
+        out, ctx = self.run(cs_repo, tmp_path, monkeypatch, {"Shop.slnx": (1, "boom", None)})
+
+        assert ctx.tool_status["scip-dotnet"] == {"status": "failed", "reason": "boom"}
+        assert any(s["kind"] == "def" and s.get("via") == "tree-sitter" for s in out["symbols"])
+
+    def test_failure_lines_keep_the_documents_and_fail_the_tool(self, cs_repo, tmp_path, monkeypatch):
+        files = {"src/Shop.Core/Order.cs": [("Shop.Core/Order#", 1, 2)]}
+        out, ctx = self.run(cs_repo, tmp_path, monkeypatch, {"Shop.slnx": (0, "Failure: Shop.Api.csproj could not load", files)})
+
+        assert ctx.tool_status["scip-dotnet"] == {"status": "failed", "reason": "scip-dotnet could not load every project: Shop.Api.csproj could not load"}
+        assert any(s["kind"] == "def" and "via" not in s for s in out["symbols"])
+        assert notes(out, "msbuild") == [("Shop.Api.csproj could not load", "Shop.slnx")]
+
+    def test_zero_documents_after_dropping_untracked_files_is_a_failure(self, cs_repo, tmp_path, monkeypatch):
+        plan = {"Shop.slnx": (0, "", {"src/Shop.Core/obj/Debug/x.g.cs": [("N/X#", 1, 0)]})}
+
+        _, ctx = self.run(cs_repo, tmp_path, monkeypatch, plan)
+
+        assert ctx.tool_status["scip-dotnet"]["status"] == "failed"
+
+    def test_one_failing_target_does_not_stop_the_others(self, cs_repo, tmp_path, monkeypatch):
+        plan = {"Shop.slnx": (1, "boom", None), "tools/Legacy/Legacy.csproj": (0, "", {"tools/Legacy/Program.cs": [("L/P#", 1, 0)]})}
+
+        out, ctx = self.run(cs_repo, tmp_path, monkeypatch, plan)
+
+        assert ctx.tool_status["scip-dotnet"]["reason"] == "boom"
+        assert any(s["kind"] == "def" and s["name"] == "P" for s in out["symbols"])
+
+    def test_untrusted_ref_never_runs_the_tool_and_lists_declarations(self, cs_repo, tmp_path, monkeypatch):
+        out, _ = self.run(cs_repo, tmp_path, monkeypatch, {}, trusted=False)
+
+        assert scip_fake.FakeScipDotnet.seen == []
+
+    def test_files_missing_from_the_index_are_counted(self, cs_repo, tmp_path, monkeypatch):
+        plan = {"Shop.slnx": (0, "", {"src/Shop.Core/Order.cs": [("Shop.Core/Order#", 1, 2)]})}
+
+        out, _ = self.run(cs_repo, tmp_path, monkeypatch, plan)
+
+        assert any(n for n in out["graph"] if n.get("note") == "unindexed" and int(n["name"]) > 5)
+
+    def test_no_runtime_gives_the_runtime_reason(self, cs_repo, tmp_path, monkeypatch):
+        monkeypatch.setattr(cs_sdk, "list_sdks", lambda path=None: ["10.0.403"])
+        scip_fake.install(monkeypatch, {})
+        monkeypatch.setattr(cs_sdk, "list_runtime_majors", lambda path=None: [6])
+        monkeypatch.setattr(cs_scip, "tool_dll", lambda folder, majors: None)
+        ctx = context(cs_repo, tmp_path)
+
+        cs_adapter.CSharpAdapter().extract(ctx)
+
+        assert ctx.tool_status["scip-dotnet"] == {"status": "skipped", "reason": cs_adapter.NO_RUNTIME}
 
 
 def _d(namespaces, types, usings=(), idents=()):

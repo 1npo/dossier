@@ -42,7 +42,7 @@ def is_public(decl: dict, outers: list, partial_parts: list) -> bool:
     return _own_public(decl, container)
 
 
-def _chain(t: dict, by_name: dict) -> list:
+def chain(t: dict, by_name: dict) -> list:
     """The enclosing types of `t` in the same file, outermost first."""
     chain, seen, name = [], {t["name"]}, t.get("outer")
     while name and name not in seen and name in by_name:
@@ -52,30 +52,30 @@ def _chain(t: dict, by_name: dict) -> list:
     return chain
 
 
-def _parts(files: dict) -> dict:
+def partial_parts(files: dict) -> dict:
     """Every part of each partial type, by (namespace, dotted name)."""
     parts: dict = {}
     for decls in files.values():
         by_name = {t["name"]: t for t in decls["types"]}
         for t in decls["types"]:
             if t.get("partial"):
-                parts.setdefault(_key(t, by_name), []).append(t)
+                parts.setdefault(key(t, by_name), []).append(t)
     return parts
 
 
-def _key(t: dict, by_name: dict) -> tuple:
-    names = [o["name"] for o in _chain(t, by_name)] + [t["name"]]
+def key(t: dict, by_name: dict) -> tuple:
+    names = [o["name"] for o in chain(t, by_name)] + [t["name"]]
     return t.get("namespace"), ".".join(names)
 
 
 def line_flags(decls: dict, parts: dict | None = None) -> list:
     """[(name, line, end_line, public)] for every type and member of one file, for the `public` flag on `def` items."""
     by_name = {t["name"]: t for t in decls["types"]}
-    parts = parts if parts is not None else _parts({"": decls})
+    parts = parts if parts is not None else partial_parts({"": decls})
     out = []
     for t in decls["types"]:
-        outers = _chain(t, by_name)
-        same = parts.get(_key(t, by_name), [])
+        outers = chain(t, by_name)
+        same = parts.get(key(t, by_name), [])
         out.append((t["name"], t["line"], t["end_line"], is_public(t, outers, same)))
         for m in t["members"]:
             out.append((m["name"], m["line"], m["end_line"], is_public(m, outers + [t], same)))
@@ -126,8 +126,8 @@ def _project_rows(p: dict, decls: dict, generated: set, parts: dict) -> list:
             continue
         by_name = {t["name"]: t for t in decls[path]["types"]}
         for t in decls[path]["types"]:
-            outers = _chain(t, by_name)
-            same = parts.get(_key(t, by_name), [])
+            outers = chain(t, by_name)
+            same = parts.get(key(t, by_name), [])
             dotted = ".".join([o["name"] for o in outers] + [t["name"]])
             if not is_public(t, outers, same):
                 continue
@@ -136,10 +136,10 @@ def _project_rows(p: dict, decls: dict, generated: set, parts: dict) -> list:
                 seen.add((dotted, ""))
                 out.append({**base, "path": path, "line": t["line"], "name": dotted, "symbol_kind": t["kind"]})
             for name, word, line, ms in _member_rows(t):
-                key = (dotted, name)
-                if key in seen or not any(is_public(m, outers + [t], same) and _reachable(m, t) for m in ms):
+                member_key = (dotted, name)
+                if member_key in seen or not any(is_public(m, outers + [t], same) and _reachable(m, t) for m in ms):
                     continue
-                seen.add(key)
+                seen.add(member_key)
                 out.append({**base, "path": path, "line": line, "name": f"{dotted}.{name}", "symbol_kind": word, "audience": _audience(ms[0])})
     return out
 
@@ -147,7 +147,7 @@ def _project_rows(p: dict, decls: dict, generated: set, parts: dict) -> list:
 def items(projects: list, decls: dict, generated) -> tuple:
     """(`public-api` symbols, `cs-note` items, [{"project", "friend"}]) for the packable projects."""
     generated = set(generated)
-    parts = _parts({f: d for f, d in decls.items() if f not in generated})
+    parts = partial_parts({f: d for f, d in decls.items() if f not in generated})
     symbols, notes, friends = [], [], []
     for p in projects:
         if "language" in p or not p.get("packable") or p.get("test"):

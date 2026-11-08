@@ -9,6 +9,8 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
+import cs_api
+import scip_read
 from shared_tools import ToolError
 
 SUPPORTED_MAJORS = (10, 9, 8)
@@ -79,3 +81,137 @@ def tool_dll(folder, runtime_majors) -> Path | None:
             if dll.exists():
                 return dll
     return None
+
+
+KIND_TYPE = {"method": "method", "constructor": "method", "property": "variable", "field": "variable", "event": "variable", "enum-member": "variable"}
+
+
+def _text(path) -> str:
+    try:
+        return Path(path).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
+class ScipDotnet:
+    """Runs scip-dotnet on one solution or project and writes the index outside the checkout (D11)."""
+
+    def __init__(self, run, dll, timeout: float):
+        self.run, self.dll, self.timeout = run, str(dll), timeout
+
+    def index(self, checkout, target: str, area, n: int) -> tuple:
+        """(index path, exit code or None on timeout, the log: stdout then stderr). The caller decides whether it counts as a failure."""
+        out = Path(area) / "scip"
+        out.mkdir(parents=True, exist_ok=True)
+        dest = out / f"cs-{n}.scip"
+        dest.unlink(missing_ok=True)
+        cmd = ["dotnet", self.dll, "index", target, "--working-directory", str(checkout), "--output", str(dest), "--skip-dotnet-restore"]
+        r = self.run(cmd, cwd=Path(checkout), stage="cs-scip", profile="restricted", timeout=self.timeout)
+        return dest, r.returncode, _text(r.stdout) + "\n" + _text(r.stderr)
+
+
+def _lines(log: str) -> list:
+    return [line.strip() for line in log.splitlines() if line.strip()]
+
+
+def soft_failure(log: str) -> str | None:
+    """The first `Failure:` line of the log without its label, or None. scip-dotnet exits 0 after these, with the projects it could load."""
+    for line in _lines(log):
+        if line.startswith("Failure:"):
+            return line[len("Failure:"):].strip()
+    return None
+
+
+def failure(returncode, log: str, index_path) -> str | None:
+    """Why a run produced nothing usable (D11), or None. A run that exits 0 with `Failure:` lines is not a failure here; see `soft_failure`."""
+    if returncode is None:
+        return "scip-dotnet took too long and was stopped."
+    if returncode != 0:
+        lines = _lines(log)
+        return next((line for line in lines if line.startswith("Failure:")), lines[-1] if lines else f"scip-dotnet stopped with exit code {returncode}.")
+    path = Path(index_path)
+    if not path.is_file() or path.stat().st_size == 0:
+        return "scip-dotnet finished without writing an index."
+    return None
+
+
+def join(indexes: list, tree=None) -> dict:
+    """One index from several. A path seen twice keeps its first document. With `tree`, documents for untracked files (obj/, bin/) are dropped."""
+    seen, docs = set(), []
+    for index in indexes:
+        for d in index["documents"]:
+            if d["path"] in seen or (tree is not None and d["path"] not in tree):
+                continue
+            seen.add(d["path"])
+            docs.append(d)
+    return {"documents": docs}
+
+
+def _type_name(symbol: str) -> str | None:
+    names = [name for name, suffix in scip_read.descriptors(symbol) if suffix == "#"]
+    return names[-1] if names else None
+
+
+def disambiguate(index: dict, decls: dict) -> tuple:
+    """scip-dotnet keeps only the last namespace segment, so two types can share a symbol. A symbol defined in two files is kept when every
+    one of them declares a `partial` type of that name; otherwise all its occurrences become `local ambiguous-N`, which `reduce` skips."""
+    defined: dict = {}
+    for d in index["documents"]:
+        for o in d["occurrences"]:
+            if o["roles"] & scip_read.DEFINITION and not o["symbol"].startswith("local "):
+                defined.setdefault(o["symbol"], set()).add(d["path"])
+    partial = {path: {t["name"] for t in f.get("types", ()) if t.get("partial")} for path, f in decls.items()}
+    renamed: dict = {}
+    for symbol, paths in sorted(defined.items()):
+        name = _type_name(symbol)
+        if len(paths) > 1 and not (name and all(name in partial.get(p, ()) for p in paths)):
+            renamed[symbol] = f"local ambiguous-{len(renamed)}"
+    if not renamed:
+        return index, 0
+    docs = [{**d, "occurrences": [{**o, "symbol": renamed.get(o["symbol"], o["symbol"])} for o in d["occurrences"]],
+             "symbols": [{**s, "symbol": renamed.get(s["symbol"], s["symbol"])} for s in d["symbols"]]} for d in index["documents"]]
+    return {"documents": docs}, len(renamed)
+
+
+def _flag(flags: list, name: str, line: int) -> bool:
+    inside = [f for f in flags if f[1] <= line <= f[2]]
+    named = [f for f in inside if f[0] == name] or inside
+    return min(named, key=lambda f: f[2] - f[1])[3] if named else False
+
+
+def finish_symbols(items: list, decls: dict, generated) -> list:
+    """Drop parameter and type-parameter definitions and definitions in generated files; set `public` from the declarations (D15)."""
+    parts = cs_api.partial_parts({p: d for p, d in decls.items() if p not in generated})
+    flags: dict = {}
+    out = []
+    for it in items:
+        if it["kind"] == "def":
+            if it["symbol"].endswith((")", "]")) or it["path"] in generated:
+                continue
+            if it["path"] not in flags:
+                flags[it["path"]] = cs_api.line_flags(decls[it["path"]], parts) if it["path"] in decls else []
+            it = {**it, "public": _flag(flags[it["path"]], it["name"], it["line"])}
+        out.append(it)
+    return out
+
+
+def fallback_defs(decls: dict, generated) -> list:
+    """One `def` per declaration when scip-dotnet did not run. Symbols carry no line number, so the digest is stable between such builds."""
+    live = {p: d for p, d in decls.items() if p not in generated}
+    parts = cs_api.partial_parts(live)
+    out, seen = [], set()
+    for path in sorted(live):
+        by_name = {t["name"]: t for t in live[path]["types"]}
+        for t in live[path]["types"]:
+            chain = cs_api.chain(t, by_name)
+            dotted = ".".join([o["name"] for o in chain] + [t["name"]])
+            base = f"cs {t.get('namespace') or ''}/{dotted}#"
+            same = parts.get(cs_api.key(t, by_name), [])
+            rows = [(base, t["name"], "class", t, chain)] + [(base + m["name"], m["name"], KIND_TYPE.get(m["kind"], "variable"), m, chain + [t]) for m in t["members"]]
+            for symbol, name, kind, decl, outers in rows:
+                if symbol in seen:
+                    continue
+                seen.add(symbol)
+                out.append({"kind": "def", "path": path, "line": decl["line"], "end_line": decl["end_line"], "name": name, "symbol": symbol, "type": kind,
+                            "public": cs_api.is_public(decl, outers, same), "refs": 0, "via": "tree-sitter"})
+    return out

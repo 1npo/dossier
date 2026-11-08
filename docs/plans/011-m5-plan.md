@@ -817,7 +817,7 @@ Read section 2, D2, D3, D11, D15, D17 and "Results" of Phases 1 and 2. **If the 
 
 ### Tasks (Phase 3)
 
-- [ ] **M5-16. Run and read scip-dotnet.**
+- [x] **M5-16. Run and read scip-dotnet.**
   - Goal: D11.
   - Files: edit `scripts/cs_scip.py`, `scripts/cs_adapter.py`, `tests/unit/scripts/test_cs_scip.py`; new `tests/integration/scripts/test_scip_cs_slow.py`.
   - Interface: `ScipDotnet(run, dll, timeout).index(checkout, target, area, n) -> (Path, log_text)`; `failure(returncode, log_text, index_path) -> str | None`; `disambiguate(index, decls) -> (index, count)`; `join(indexes) -> dict`; `finish_symbols(items, decls, generated) -> list`; `fallback_defs(decls, generated) -> list`.

@@ -7,21 +7,25 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import config
 import cs_api
 import cs_entries
 import cs_graph
 import cs_models
 import cs_project
 import cs_queries
+import cs_scip
 import cs_sdk
 import cs_semgrep
 import cs_tests
+import scip_read
+import toolcheck
 from adapters import OUTPUTS, Adapter
 from gather import TEST_RE
 
 RULES = Path(__file__).resolve().parent.parent / "rules" / "csharp"
 NOT_TRUSTED = "The ref is not trusted, so scip-dotnet did not run. Use --allow-ref to run it."
-LATER = "Arrives in a later task."
+NO_RUNTIME = "scip-dotnet needs the .NET 8, 9 or 10 runtime, and none is installed."
 RAZOR_EXTS = (".razor", ".cshtml")
 GENERATOR_PACKAGES = ("Riok.Mapperly", "Mediator.SourceGenerator", "CommunityToolkit.Mvvm", "Refit", "StronglyTypedId", "Vogen")
 
@@ -159,6 +163,65 @@ class CSharpAdapter(Adapter):
     def _skipped(ctx, tool: str, reason: str) -> None:
         ctx.tool_status[tool] = {"status": "skipped", "reason": reason}
 
+    @staticmethod
+    def _fallback(out, st, why: str, ctx, status: str = "skipped") -> None:
+        """scip-dotnet did not give symbols: record why, and list the declarations from tree-sitter instead (D11)."""
+        ctx.tool_status["scip-dotnet"] = {"status": status, "reason": why}
+        out["symbols"] += cs_scip.fallback_defs(st.get("decls", {}), st.get("generated", set()))
+
+    def _install(self, ctx, timeout):
+        """(ScipDotnet client, None) or (None, (status, reason))."""
+        tool = next(t for t in toolcheck.load_tools()["tools"] if t["id"] == "scip-dotnet")
+        try:
+            folder = cs_scip.ensure_installed(ctx.area.parent, tool, timeout)
+        except Exception as e:  # a failed download must not stop the other tools
+            return None, ("failed", (str(e).splitlines() or [type(e).__name__])[0])
+        dll = cs_scip.tool_dll(folder, cs_sdk.list_runtime_majors())
+        return (cs_scip.ScipDotnet(ctx.run, dll, timeout), None) if dll else (None, ("skipped", NO_RUNTIME))
+
+    @staticmethod
+    def _run_targets(ctx, scip, targets) -> tuple:
+        """(decoded indexes, problems, msbuild notes). One failing target does not stop the others."""
+        indexes, problems, notes = [], [], []
+        for n, target in enumerate(targets):
+            try:
+                path, code, log = scip.index(ctx.checkout, target, ctx.area, n)
+                bad = cs_scip.failure(code, log, path)
+                if bad:
+                    problems.append(bad)
+                    continue
+                indexes.append(scip_read.decode(path.read_bytes()))
+            except Exception as e:  # a bad index must not stop the other targets
+                problems.append((str(e).splitlines() or [type(e).__name__])[0])
+                continue
+            soft = cs_scip.soft_failure(log)
+            if soft:
+                problems.append(f"scip-dotnet could not load every project: {soft}")
+                notes.append({"kind": "cs-note", "path": target, "note": "msbuild", "name": soft})
+        return indexes, problems, notes
+
+    def _scip(self, ctx, out, result, st, gate) -> None:
+        """Symbols and references with scip-dotnet, or the tree-sitter fallback when it could not run or gave nothing (D11)."""
+        if gate:
+            return self._fallback(out, st, gate, ctx)
+        scip, problem = self._install(ctx, config.timeouts()["tool"])
+        if problem:
+            return self._fallback(out, st, problem[1], ctx, problem[0])
+        indexes, problems, notes = self._run_targets(ctx, scip, result["targets"])
+        out["graph"] += notes
+        index = cs_scip.join(indexes, ctx.tree)
+        if not index["documents"]:
+            return self._fallback(out, st, problems[0] if problems else "scip-dotnet wrote an index with no documents.", ctx, "failed")
+        decls = st.get("decls", {})
+        index, ambiguous = cs_scip.disambiguate(index, decls)
+        out["symbols"] += cs_scip.finish_symbols(scip_read.reduce(index), decls, st.get("generated", set()))
+        indexed = {d["path"] for d in index["documents"]}
+        missing = sorted(f for p in result["projects"] if "language" not in p for f in p["files"] if f not in indexed and f not in st.get("generated", ()))
+        for note, count, path in (("ambiguous-symbol", ambiguous, "."), ("unindexed", len(missing), missing[0] if missing else ".")):
+            if count:
+                out["graph"].append({"kind": "cs-note", "path": path, "note": note, "name": str(count)})
+        ctx.tool_status["scip-dotnet"] = {"status": "failed", "reason": problems[0]} if problems else {"status": "ok", "reason": None}
+
     def extract(self, ctx) -> dict:
         out = {o: [] for o in OUTPUTS}
         read = self._reader(ctx)
@@ -172,9 +235,5 @@ class CSharpAdapter(Adapter):
             decls = {f: d for f, d in st["decls"].items() if f not in st["generated"]}
             out["entry_points"] += (cs_entries.controller_routes(decls) + cs_entries.program_entries(result, decls)
                                     + cs_entries.class_entries(decls) + cs_entries.function_entries(decls))
-        gate = self._scip_gate(ctx, read)
-        for tool in self.tools:
-            if tool not in ctx.tool_status:
-                reason = gate if tool == "scip-dotnet" and gate else LATER
-                ctx.tool_status[tool] = {"status": "skipped", "reason": reason}
+        self._scip(ctx, out, result, st, self._scip_gate(ctx, read))
         return out
