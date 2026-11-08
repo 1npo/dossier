@@ -707,7 +707,7 @@ Read section 2, D1, D7 to D10, D12 to D14, and "Results (Phase 1)", especially M
   - Done-check: both test files pass, the second with `DOSSIER_SLOW=1`.
   - Commit: `feat(dossier): read C# declarations, usings and attributes with tree-sitter`
 
-- [ ] **M5-10. Module items, type-use graph and namespace cycles.**
+- [x] **M5-10. Module items, type-use graph and namespace cycles.**
   - Goal: D8 and D12.
   - Files: new `scripts/cs_graph.py`, `tests/unit/scripts/test_cs_graph.py`; edit `scripts/cs_adapter.py`, `scripts/cs_queries.py` (complexity).
   - Interface: `module_items(projects, decls, complexity, generated) -> list`; `type_uses(decls, projects, test_files) -> (import items, test edges, ambiguous count)`; `namespace_cycles(import items, decls) -> list`.

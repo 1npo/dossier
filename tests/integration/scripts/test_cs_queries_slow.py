@@ -62,3 +62,10 @@ class TestDeclarationsOnTheFixture:
 
     def test_every_file_asked_for_has_an_entry(self, decls):
         assert all(isinstance(v, dict) and "types" in v for v in decls.values()) and len(decls) > 30
+
+
+class TestComplexityOnTheFixture:
+    def test_a_file_with_branches_has_a_number_and_a_plain_one_has_zero(self, ts):
+        got = cs_queries.complexity(ts, ["src/Shop.Api/Services/OrderService.cs", "src/Shop.Core/Totals.A.cs"])
+
+        assert got["src/Shop.Api/Services/OrderService.cs"] > 0 and got["src/Shop.Core/Totals.A.cs"] == 0

@@ -18,6 +18,8 @@ QUERY = "\n".join(
     + ["(namespace_declaration) @ns", "(file_scoped_namespace_declaration) @ns", "(using_directive) @using",
        "(attribute_list) @attrlist", "(global_statement) @global", "(identifier) @ident", "(qualified_name) @qualified"])
 
+COMPLEXITY_Q = ("[(if_statement) (for_statement) (foreach_statement) (while_statement) (do_statement) (switch_section) (switch_expression_arm) "
+                "(catch_clause) (conditional_expression) (binary_expression operator: [\"&&\" \"||\" \"??\"])] @branch")
 MODIFIERS = {"public", "private", "protected", "internal", "static", "abstract", "sealed", "partial", "readonly", "const", "virtual",
              "override", "async", "new", "extern", "unsafe", "volatile", "required", "file", "ref"}
 KINDS = {"class": "class", "struct": "struct", "interface": "interface", "enum": "enum", "record": "record"}
@@ -312,3 +314,12 @@ def declarations(ts, files: list) -> dict:
     for m in ts.query("csharp", names, QUERY) if names else []:
         by_file.setdefault(m["path"], []).append(m)
     return assemble(by_file)
+
+
+def complexity(ts, files: list) -> dict:
+    """{path: number of branch nodes}. Every `.cs` file asked for gets a number."""
+    counts = {p: 0 for p in files if p.endswith(".cs")}
+    for m in ts.query("csharp", list(counts), COMPLEXITY_Q) if counts else []:
+        if m["path"] in counts:
+            counts[m["path"]] += 1
+    return counts

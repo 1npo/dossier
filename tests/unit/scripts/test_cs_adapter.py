@@ -100,11 +100,11 @@ class TestNotes:
 
 
 class TestToolStatus:
-    def test_trusted_with_sdk_defers_every_tool_to_a_later_task(self, cs_repo, tmp_path, monkeypatch):
+    def test_trusted_with_sdk_defers_the_tools_not_built_yet_to_a_later_task(self, cs_repo, tmp_path, monkeypatch):
         _, ctx = extract(cs_repo, tmp_path, monkeypatch)
 
-        assert {t: s["status"] for t, s in ctx.tool_status.items()} == {t: "skipped" for t in cs_adapter.CSharpAdapter.tools}
-        assert all(s["reason"] == "Arrives in a later task." for s in ctx.tool_status.values())
+        assert {t: s["status"] for t, s in ctx.tool_status.items()} == {"scip-dotnet": "skipped", "semgrep": "skipped", "tree-sitter-language-pack": "ok"}
+        assert all(s["reason"] == "Arrives in a later task." for t, s in ctx.tool_status.items() if t != "tree-sitter-language-pack")
 
     def test_untrusted_ref_gives_the_trust_reason_for_scip_dotnet(self, cs_repo, tmp_path, monkeypatch):
         _, ctx = extract(cs_repo, tmp_path, monkeypatch, trusted=False)
@@ -126,3 +126,68 @@ class TestToolStatus:
         _, ctx = extract(cs_repo, tmp_path, monkeypatch, trusted=False, sdks=())
 
         assert ctx.tool_status["semgrep"]["reason"] == "Arrives in a later task."
+
+
+def _d(namespaces, types, usings=(), idents=()):
+    return {"namespaces": [{"name": n} for n in namespaces], "types": types, "qualified": [], "idents": {i: [5] for i in idents},
+            "usings": [{"name": u, "global": False, "static": False, "alias": None} for u in usings], "top_level": False,
+            "assembly_attributes": []}
+
+
+def _ty(name, ns):
+    return {"name": name, "namespace": ns, "partial": False}
+
+
+def with_decls(monkeypatch, table):
+    import cs_queries
+    monkeypatch.setattr(cs_queries, "declarations", lambda ts, files: {f: table.get(f, _d([], [])) for f in files})
+    monkeypatch.setattr(cs_queries, "complexity", lambda ts, files: {f: 3 for f in files})
+
+
+ORDER, SERVICE = "src/Shop.Core/Order.cs", "src/Shop.Api/Services/OrderService.cs"
+TESTS = "tests/Shop.Tests/OrdersTests.cs"
+
+
+class TestGraph:
+    def _run(self, cs_repo, tmp_path, monkeypatch):
+        with_decls(monkeypatch, {ORDER: _d(["Shop.Core"], [_ty("Order", "Shop.Core")]),
+                                 SERVICE: _d(["Shop.Api.Services"], [_ty("OrderService", "Shop.Api.Services")], ["Shop.Core"], ["Order"]),
+                                 TESTS: _d(["Shop.Tests"], [_ty("OrdersTests", "Shop.Tests")], ["Shop.Core"], ["Order"])})
+        return extract(cs_repo, tmp_path, monkeypatch)
+
+    def test_module_items_exist_for_source_files_and_not_for_test_files(self, cs_repo, tmp_path, monkeypatch):
+        out, _ = self._run(cs_repo, tmp_path, monkeypatch)
+        modules = {g["path"]: g for g in out["graph"] if g["kind"] == "module"}
+
+        assert ORDER in modules and TESTS not in modules
+        assert modules[ORDER]["project"] == "src/Shop.Core/Shop.Core.csproj" and modules[ORDER]["complexity"] == 3
+        assert modules["src/Shop.Data/Migrations/20260101000000_Init.Designer.cs"]["generated"] is True
+        assert modules[ORDER]["generated"] is False
+
+    def test_a_type_use_makes_an_import_item(self, cs_repo, tmp_path, monkeypatch):
+        out, _ = self._run(cs_repo, tmp_path, monkeypatch)
+
+        imports = [g for g in out["graph"] if g["kind"] == "import"]
+
+        assert [(i["path"], i["paths"], i["via"]) for i in imports] == [(SERVICE, [ORDER], "type-use")]
+
+    def test_a_tree_sitter_failure_marks_the_tool_failed_and_still_gives_projects(self, cs_repo, tmp_path, monkeypatch):
+        import cs_queries
+
+        def boom(ts, files):
+            raise RuntimeError("grammar missing\nmore")
+        monkeypatch.setattr(cs_queries, "declarations", boom)
+
+        out, ctx = extract(cs_repo, tmp_path, monkeypatch)
+
+        assert ctx.tool_status["tree-sitter-language-pack"] == {"status": "failed", "reason": "grammar missing"}
+        assert any(g["kind"] == "cs-project" for g in out["graph"]) and not any(g["kind"] == "module" for g in out["graph"])
+
+    def test_ambiguous_names_make_a_note(self, cs_repo, tmp_path, monkeypatch):
+        with_decls(monkeypatch, {"src/Shop.Core/Order.cs": _d(["Shop.Core"], [_ty("Item", "Shop.Core")]),
+                                 "src/Shop.Core/Customer.cs": _d(["Shop.Core.Other"], [_ty("Item", "Shop.Core.Other")]),
+                                 SERVICE: _d(["Shop.Api"], [], ["Shop.Core", "Shop.Core.Other"], ["Item"])})
+
+        out, _ = extract(cs_repo, tmp_path, monkeypatch)
+
+        assert notes(out, "ambiguous-name")[0][0] == "1"
