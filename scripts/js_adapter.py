@@ -29,7 +29,7 @@ CRUISE_CONFIGS = tuple(f".dependency-cruiser.{e}" for e in ("js", "cjs", "mjs", 
 
 class JsAdapter(Adapter):
     name = "js"
-    version = "2"
+    version = "3"
     languages = ("JavaScript", "TypeScript")
     tools = ("dependency-cruiser", "knip", "scip-typescript", "typescript", "semgrep", "tree-sitter-language-pack")
     expected_untracked = ("**/node_modules/**",)
