@@ -977,7 +977,7 @@ Read section 2, D8, D15 to D19, and "Results" of Phases 1 to 3. Load the skills 
   - Done-check: `DOSSIER_SLOW=1 ... test_mixed_cs_slow.py test_check_page_slow.py -q --basetemp=$HOME/.cache/dossier-m5-slow` passes, except the known failure in `test_check_page_slow.py`.
   - Commit: `test(dossier): check the C# tables in a browser and build a mixed fixture`
 
-- [ ] **M5-28. Prompts.**
+- [x] **M5-28. Prompts.**
   - Goal: tell Claude what the C# extractors give it, and what static analysis could not see.
   - Files: edit `prompts/method.md`, `prompts/reports.md`, `SKILL.md`, `tests/unit/scripts/test_prompts.py`.
   - Steps:

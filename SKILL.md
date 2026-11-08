@@ -25,7 +25,7 @@ Run `DOSSIER version` and show the output.
 Run `DOSSIER home [dir]`. With no directory it shows the current home. Dossiers are saved under `<home>/<repo-name>/`.
 
 ### `/dossier doctor [repo]`
-Run `DOSSIER doctor <repo>` and show the output. It lists the tools this repository needs, which are installed, and how to install the missing ones. It installs nothing.
+Run `DOSSIER doctor <repo>` and show the output. It lists the tools this repository needs, which are installed, and how to install the missing ones. It installs nothing. For C# repositories it also checks for the .NET SDK that the repository asks for (its `global.json`, or 8 or later); without it, the C# symbol and reference data is missing.
 
 Show the output as it is printed, in a code block, line for line. Do not summarize, reword or reorder it, and do not drop a line. The last line, `skill: <commit> (clean|dirty|UNMERGED ...)`, says which version of this skill ran and whether it has uncommitted changes. It is the line the user most needs, so always include it. After the block you may add one sentence, for example to say what `dirty` means (uncommitted changes under the skill folder) or to tell the user to run `/dossier build`. Before replying, check that your reply contains a line starting `skill:`.
 

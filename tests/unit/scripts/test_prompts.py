@@ -154,7 +154,7 @@ class TestJavaScriptGuidance:
             assert tool in line
 
     def test_the_method_speaks_of_javascript_projects_beside_python_packages(self):
-        assert "the Python packages or JavaScript projects" in self.method
+        assert "the Python packages, JavaScript projects or C# projects" in self.method
 
     def test_a_route_is_written_with_its_full_path(self):
         section = self.section("entry.catalog")
@@ -198,3 +198,57 @@ class TestJavaScriptGuidance:
 
     def test_a_paragraph_covers_repositories_with_more_than_one_language(self):
         assert "Repositories with more than one language" in self.guide
+
+
+class TestCSharpGuidance:
+    guide = (PROMPTS / "reports.md").read_text(encoding="utf-8")
+    method = (PROMPTS / "method.md").read_text(encoding="utf-8")
+    skill = (Path(__file__).resolve().parents[3] / "SKILL.md").read_text(encoding="utf-8")
+
+    def section(self, card_id):
+        return self.guide.split(f"(`{card_id}`)", 1)[1].split("###", 1)[0]
+
+    def test_the_method_names_scip_dotnet_and_links_by_the_types_a_file_uses(self):
+        assert "scip-dotnet for C#" in self.method and "linked by the types they use" in self.method
+
+    def test_the_components_step_names_csharp_projects(self):
+        assert "the Python packages, JavaScript projects or C# projects" in self.method
+
+    def test_entry_routes_are_written_as_the_attributes_say_with_their_prefix_source(self):
+        section = self.section("entry.catalog")
+
+        assert "`route-convention`" in section and "`route-mount`" in section and "`conventional-route`" in section
+        assert "ApiPrefix" in section and "Hosted services" in section
+
+    def test_data_entities_name_what_the_csharp_tool_includes_and_leaves_out(self):
+        section = self.section("data.entities")
+
+        assert "EF Core entities, owned types, Dapper rows" in section and "DTOs" in section
+
+    def test_components_keep_two_csharp_projects_apart(self):
+        section = self.section("components.catalog")
+
+        assert "never put two projects' files in one component unless one references the other" in section
+
+    def test_contracts_give_one_row_per_csharp_library_with_an_api(self):
+        assert "one `io.contracts` row per library" in self.section("io.contracts")
+
+    def test_flows_say_what_dependency_injection_hides(self):
+        section = self.section("interactions.flows")
+
+        assert "dependency injection" in section and "`inferred`" in section
+
+    def test_technologies_list_the_csharp_idioms(self):
+        section = self.section("reading.technologies")
+
+        assert "dependency injection lifetimes" in section and "source generators" in section
+
+    def test_the_mixed_language_paragraph_names_csharp(self):
+        paragraph = next(l for l in self.guide.splitlines() if l.startswith("**Repositories with more than one language"))
+
+        assert "C#" in paragraph
+
+    def test_doctor_says_the_dotnet_sdk_is_needed_for_csharp(self):
+        section = self.skill.split("### `/dossier doctor [repo]`", 1)[1].split("###", 1)[0]
+
+        assert ".NET SDK" in section and "C#" in section
