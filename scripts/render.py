@@ -1939,7 +1939,7 @@ def render_html(facts, reports, state, history, version, cites, build=None, cove
     out = load_asset(ASSETS / "template.html")
     for k, v in {"TITLE": E(f"{mh['name']} dossier"), "CSS": css, "NAV": groups, "RAIL": rail, "MASTHEAD": head, "REPORTS": pages, "MERMAID": mermaid,
                  "BASECOAT_JS": load_asset(VENDOR / "basecoat.min.js"), "JS": load_asset(ASSETS / "dossier.js"),
-                 "NAME": E(mh["name"]), "SHORT": E(mh["short"]), "CODE": viewer.embed(files, windows),
+                 "SKILLVER": E(str(version)), "NAME": E(mh["name"]), "SHORT": E(mh["short"]), "CODE": viewer.embed(files, windows),
                  "CAL": jsn(calendar_data(facts)), "FACTS": jsn({k: {"t": v[0], "x": v[1]} for k, v in FACT_INFO.items()})}.items():
         out = out.replace(f"<!--@{k}-->", v)
     return out, gaps
