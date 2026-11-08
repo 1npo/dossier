@@ -84,7 +84,8 @@ def number_flow_notes(reports: Path) -> None:
         f.write_text(json.dumps(data))
 
 
-def make(tmp: Path) -> Path:
+def make(tmp: Path, extend=None) -> Path:
+    """Render the page. `extend(out, sha, source)`, when given, runs after the M3 extractor output is written and before the render."""
     home = Path(tmp) / "home"
     shutil.copytree(FIX, home / "encamp")
     for p in (home / "encamp").rglob("*"):
@@ -115,6 +116,8 @@ def make(tmp: Path) -> Path:
     for rid, cards in NA_CARDS.items():
         entries = [{"card": c, "na": "The fixture page does not write this card.", "cite": ["facts:history"]} for c in cards]
         (out / "reports" / f"{rid}.json").write_text(json.dumps({"report": rid, "cards": entries}))
+    if extend:
+        extend(out, sha, source)
     done = run("render", str(TOP), "--allow-errors")
     assert done.returncode == 0, done.stdout[-600:] + done.stderr[-600:]
     return out / "dossier-encamp.html"

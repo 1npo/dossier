@@ -869,7 +869,7 @@ Read section 2, D4, D9, D10, D13 to D15, and "Results" of Phases 1 and 2. Load t
   - Done-check: `... pytest tests/unit/scripts/test_process.py tests/unit/scripts/test_candidates.py -q` passes.
   - Commit: `test(dossier): cover partial badges and staleness for JavaScript tools`
 
-- [ ] **M4-24. Test page, skeleton check, mixed fixture.**
+- [x] **M4-24. Test page, skeleton check, mixed fixture.**
   - Goal: V11 and V12 on what is new, without a real repository, and a mechanical check of spec 11 item 2.
   - Files: new `tests/tools/m4_page.py`, `tests/tools/skeleton.py`, `tests/unit/scripts/test_skeleton.py`, `tests/integration/scripts/test_mixed_slow.py`; edit `tests/integration/scripts/test_check_page_slow.py`.
   - Interface: `m4_page.make(tmp) -> Path`, in the style of `m3_page.py`, adding 60 `ui-component` items, a Prisma model set and knip rows. `skeleton.py PAGE [PAGE...]`: prints, per page, the ordered list of (report, card id, title, tier), and exits 1 unless all pages match. It uses `report_section.cards`.
