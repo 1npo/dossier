@@ -1263,7 +1263,20 @@ The author does this. **Needed on the machine:** Node 22.13 or later, and npm. Y
 
 ### Results (Phase 5)
 
+**In progress (2026-11-07, Sonnet 5.5, `feat/dossier-m4`).** M4-29 to M4-31 are NOT done. `SCR=/home/nick/.cache/dossier-m4-8vGZ` (use `source $SCR/env.sh`; put `~/.local/share/fnm/node-versions/v26.13.0/installation/bin` first on `PATH`). The `BP` clone is at `$SCR/src/bp`, the library clone at `$SCR/src/lib`, and the mixed repository at `$SCR/m`.
+
+**Bugs found and fixed (each with its test first, own commit).**
+1. `js_project.projects`: a project root below the repository root was not in its own `members`, so Next.js file routes, `package-script` entries and the unsupported-framework Gaps check skipped every `BP` app. The fixture's project is at the root, which hid it. Adapter version 3.
+2. `js_api._expand`: a wildcard export with a built target (`./*.js`, no `outDir`) matched nothing, so zustand lost `./middleware` and the other subpaths. It now maps back through tsconfig `paths` or the `src/` swap, and skips files of nested packages. Adapter version 4. The deviation from D17 is that nested-package files are skipped.
+
 ### Verification results (Phase 5)
+
+**Done so far.**
+- **R.1 to R.3.** `doctor` ok. `prepare $BP --ref $BP_PIN --full --restore yes`: exit 0, 162 s, six tools `ok`, three yarn restores `ok` (54 s, 18 s, 23 s). Three projects, three `source-root` items. After fix 1: 11 `ui-route` (react-vite, paths resolved through `paths.*`), 28 `http-route` (including `/app/discussions/[discussionId]` and `/public/discussions/[discussionId]` for both Next apps), 36 `package-script`, 6 `server-listen`.
+- **M, `prepare` only.** exit 0, adapters `js`, `python`, `repo` present. Reports, render and check not done.
+- **Y.** Passes after fix 2: 64 `public-api` items, all `marked private`; `.` holds `create`, `useStore`, `createStore`, `StoreApi`; `./middleware` holds `persist`, `StateStorage`, `unstable_ssrSafe` and not `ssrSafe`; no `./package.json`, no `types.d.ts` subpath, no unresolved row. The only `js-note` is `unscanned` (`vitest.config.mts`).
+
+**Left.** R.4 and R.5 (write all `BP` reports with the Phase 4 generator pattern in `$SCR/gen`, then F, G, H, L, shots), M reports, render and check, then X, I, E, Z, record, and M4-31. Before the reports, rebuild `BP` once more with `--full` (it was last prepared after fix 1 but before fix 2; fix 2 does not touch `BP`, which declares no API).
 
 ---
 
