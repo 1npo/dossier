@@ -622,9 +622,9 @@ table.happened { width: 100%; border-collapse: collapse; font-size: .8125rem; }
 
 /* legend panel: reuses the code panel's frame */
 .legend-panel { font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif); width: min(32rem, 100vw); }
-.lg-body { padding: .8rem .9rem; line-height: 1.5; } .lg-body h3 { font-size: .9375rem; margin: .8rem 0 0; } .lg-body h3:first-child { margin-top: 0; } .lg-body p { margin: .1rem 0 .5rem; }
-.legend-list { margin: 0; display: grid; gap: .5rem; } .legend-list > div { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr); gap: .75rem; align-items: baseline; }
-.legend-list dt { margin: 0; } .legend-list dd { margin: 0; }
+.lg-body { padding: 1.1rem 1.25rem 1.5rem; line-height: 1.55; } .lg-body h3 { font-size: .9375rem; margin: 1.75rem 0 0; } .lg-body h3:first-child { margin-top: 0; } .lg-body p { margin: .25rem 0 1rem; }
+.legend-list { margin: 0; display: grid; gap: .9rem; } .legend-list > div { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); gap: 1rem; align-items: start; }
+.legend-list dt { margin: 0; padding-top: .1rem; } .legend-list dd { margin: 0; }
 .cp-empty { padding: 1.5rem .9rem; font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif); color: var(--muted-foreground); } .cp-empty[hidden] { display: none; }
 .code-panel.empty .cp-nav, .code-panel.empty #cp-goto, .code-panel.empty .cp-title { display: none; } .code-panel.empty .cp-body { flex: 0; }
 :root { --dossier-css-end: 1; }
