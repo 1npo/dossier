@@ -11,13 +11,17 @@ import gather
 import graphs
 
 
+# A `]` may sit inside the path (a Next.js `[id]` folder); `]]` ends the citation.
+CITED_PATH = re.compile(r"\[\[((?:(?!\]\]).)+?)(?::[\d\-]+)?(?:\|[^\]]*)?\]\]")
+
+
 def parse_paths(cell: str) -> list:
     """['src/app/', 'scripts/*.sh'] from a `Paths` cell such as "`src/app/`, `scripts/*.sh`".
     Entries are split on commas and newlines; backticks are dropped, and a `[[path:lines|label]]` citation becomes its path."""
     found = []
     for part in re.split(r"[,\n]+", cell or ""):
         part = part.strip().strip("`").strip()
-        m = re.fullmatch(r"\[\[([^\]|]+?)(?::[\d\-]+)?(?:\|[^\]]*)?\]\]", part)
+        m = CITED_PATH.fullmatch(part)
         part = m.group(1) if m else part
         if part:
             found.append(part)
@@ -29,10 +33,14 @@ def match_score(path: str, pattern: str):
     directory, and a deeper directory beats a shallower one."""
     if pattern == path:
         return (3, len(pattern))
-    if any(c in pattern for c in "*?["):
-        return (2, len(pattern)) if fnmatch.fnmatch(path, pattern) else None
     folder = pattern.rstrip("/")
-    return (1, folder.count("/") + 1) if folder and path.startswith(folder + "/") else None
+    directory = (1, folder.count("/") + 1) if folder and path.startswith(folder + "/") else None
+    if any(c in pattern for c in "*?["):
+        # `[` may be a character class (`src/[ab].py`) or part of a folder name (`apps/a/[id]/`): try both.
+        if fnmatch.fnmatch(path, pattern) or fnmatch.fnmatch(path, pattern.replace("[", "[[]")):
+            return (2, len(pattern))
+        return directory
+    return directory
 
 
 def component_of(path: str, rows: list) -> tuple:
@@ -120,6 +128,10 @@ def component_candidates(tree, extract: dict, facts: dict) -> dict:
     groups: dict = {}
     for mod, label in sorted(labels.items()):
         groups.setdefault(label, set()).add(path_of[mod].rsplit("/", 1)[0] if "/" in path_of[mod] else ".")
-    return {"folders": [folders[k] for k in sorted(folders)],
-            "packages": [{"package": p, "modules": sum(1 for m in modules if m["module"] == p or m["module"].startswith(p + "."))} for p in keep],
-            "communities": [{"label": k, "folders": sorted(v)} for k, v in sorted(groups.items()) if len(v) > 0]}
+    out = {"folders": [folders[k] for k in sorted(folders)],
+           "packages": [{"package": p, "modules": sum(1 for m in modules if m["module"] == p or m["module"].startswith(p + "."))} for p in keep],
+           "communities": [{"label": k, "folders": sorted(v)} for k, v in sorted(groups.items()) if len(v) > 0]}
+    roots = sorted({g["root"] for g in extract.get("graph", []) if g.get("kind") == "source-root" and g.get("root")})
+    if roots:  # JavaScript and TypeScript projects; Python-only repositories have none, so their result is unchanged
+        out["projects"] = [{"root": r, "modules": sum(1 for m in modules if m["path"].startswith(r + "/"))} for r in roots]
+    return out

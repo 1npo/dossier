@@ -39,9 +39,10 @@ def _label(text: str) -> str:
 
 
 def package_roots(extract: dict) -> list:
-    """Folders of the top-level Python packages, longest first (`src/cannalerts`)."""
+    """Folders of the top-level Python packages and the JavaScript source roots, longest first (`src/cannalerts`, `apps`)."""
     roots = {m["path"].rsplit("/", 1)[0] for m in extract.get("graph", [])
              if m.get("kind") == "module" and m.get("is_package") and m.get("package") == m.get("module") and "/" in m["path"]}
+    roots |= {g["root"] for g in extract.get("graph", []) if g.get("kind") == "source-root" and g.get("root")}
     return sorted(roots, key=lambda r: (-len(r), r))
 
 

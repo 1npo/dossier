@@ -72,6 +72,18 @@ class TestResolver:
         assert self.resolver(rows).modules(("W", "Web")) == {"app.web.text"}
 
 
+class TestResolverShortNames:
+    EXTRACT = {"graph": [
+        {"kind": "module", "path": "src/routes/index.ts", "module": "src/routes/index", "short": "routes", "package": None, "is_package": False, "language": "js"},
+        {"kind": "module", "path": "src/store.ts", "module": "src/store", "short": "store", "package": None, "is_package": False, "language": "js"}]}
+
+    def test_a_node_named_by_the_short_name_resolves(self):
+        assert checks_v3.Resolver(self.EXTRACT, []).modules(("R", "routes")) == {"src/routes/index"}
+
+    def test_python_modules_still_resolve_by_their_last_dotted_part(self):
+        assert checks_v3.Resolver(EXTRACT, []).modules(("s", "store")) == {"app.store"}
+
+
 class TestV3:
     def test_arrow_backed_by_an_import_passes(self):
         _, warnings, gaps, counts, unbacked = checks_v3.v3(reports("flowchart TD\n A[app.cli] --> B[app.store]"), EXTRACT)

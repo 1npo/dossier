@@ -813,7 +813,7 @@ Read section 2, D4, D9, D10, D13 to D15, and "Results" of Phases 1 and 2. Load t
 
 ### Tasks (Phase 3)
 
-- [ ] **M4-18. Components, areas and names.**
+- [x] **M4-18. Components, areas and names.**
   - Goal: rows 13, 16 and 30, and D4's readers.
   - Files: edit `scripts/components.py`, `scripts/measured_graph.py`, `scripts/checks_v3.py`, `scripts/checks.py`, `scripts/candidates.py`, `tests/unit/scripts/test_components.py`, `test_measured.py`, `test_checks_v3.py`, `test_checks_v2.py`, `test_candidates_cli.py`.
   - Interface: `match_score` tests the literal directory prefix before treating `[` as a glob. `parse_paths` accepts `]` inside a `[[...]]` path. `measured_graph.package_roots` adds `source-root` items' `root`. `checks.JS_WORDS = {"const", "let", "var", "function", "async", "await", "undefined", "this", "new", "typeof", "interface", "type", "enum", "Promise", "Array", "Object", "string", "number", "boolean"}`, skipped by V2 only when a `module` item has `language: "js"`.

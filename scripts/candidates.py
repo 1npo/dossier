@@ -324,8 +324,12 @@ def text(rid: str, extract: dict, reports: dict, facts: dict, *, only_open: bool
         c = d["components"]
         out.append("== Folders with source files ==")
         out += [f"{f['path']}  ({f['files']} files, {f['lines']} lines)" for f in c["folders"]]
-        out.append("== Python packages ==")
-        out += [f"{p['package']}  ({p['modules']} modules)" for p in c["packages"]]
+        if c["packages"] or "projects" not in c:
+            out.append("== Python packages ==")
+            out += [f"{p['package']}  ({p['modules']} modules)" for p in c["packages"]]
+        if "projects" in c:
+            out.append("== JavaScript and TypeScript projects ==")
+            out += [f"{p['root']}  ({p['modules']} modules)" for p in c["projects"]]
         out.append("== Import communities (folders that import each other most) ==")
         out += [f"{x['label']}: {', '.join(x['folders'])}" for x in c["communities"]]
     if "catalog" in d:

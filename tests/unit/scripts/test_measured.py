@@ -213,6 +213,25 @@ class TestDependencyGraph:
         assert "No imports between modules were found." in measured.body("interactions.graph", {"extract": {"graph": []}}, Refs())
 
 
+class TestJavaScriptAreas:
+    EXTRACT = {"graph": [{"kind": "source-root", "path": "apps/react-vite/package.json", "root": "apps"},
+                         {"kind": "source-root", "path": "apps/nextjs/package.json", "root": "apps"},
+                         {"kind": "source-root", "path": "package.json", "root": ""}]}
+
+    def test_package_roots_include_the_source_roots(self):
+        assert measured_graph.package_roots(self.EXTRACT) == ["apps"]
+
+    def test_each_app_is_an_area_below_the_apps_folder(self):
+        roots = measured_graph.package_roots(self.EXTRACT)
+
+        assert measured_graph.component_area(["apps/react-vite/src/"], roots) == "react-vite"
+
+    def test_python_roots_are_unchanged(self):
+        extract = {"graph": [{"kind": "module", "path": "src/cannalerts/__init__.py", "module": "cannalerts", "package": "cannalerts", "is_package": True}]}
+
+        assert measured_graph.package_roots(extract) == ["src/cannalerts"]
+
+
 class TestComponentArea:
     ROOTS = ["src/cannalerts"]
 

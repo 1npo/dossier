@@ -174,6 +174,28 @@ class TestComponentCandidates:
         assert got and all(c["folders"] for c in got)
 
 
+class TestJavaScriptSection:
+    JS = {"graph": [{"kind": "source-root", "path": "apps/web/package.json", "root": "apps"},
+                    {"kind": "module", "module": "apps/web/src/main", "short": "main", "path": "apps/web/src/main.tsx", "package": None,
+                     "is_package": False, "language": "js"}]}
+
+    def text(self, extract):
+        return candidates.text("components", extract, {}, {}, tree={"apps/web/src/main.tsx"})
+
+    def test_javascript_projects_are_listed(self):
+        out = self.text(self.JS)
+
+        assert "== JavaScript and TypeScript projects ==" in out and "apps  (1 modules)" in out
+
+    def test_the_python_heading_is_left_out_when_only_javascript_exists(self):
+        assert "== Python packages ==" not in self.text(self.JS)
+
+    def test_a_python_repository_prints_what_it_printed_before(self):
+        out = self.text(TestComponentCandidates.EXTRACT)
+
+        assert "== Python packages ==" in out and "JavaScript and TypeScript" not in out
+
+
 class TestCatalogEdges:
     ROWS = [{"name": "API", "paths": ["src/app/api/"]}, {"name": "Core", "paths": ["src/app/core.py"]}]
     EXTRACT = TestComponentCandidates.EXTRACT
