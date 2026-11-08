@@ -50,11 +50,11 @@ mark { background: color-mix(in oklab, var(--warn) 30%, transparent); color: inh
 /* sticky header */
 .masthead { position: sticky; top: 0; z-index: 30; background: var(--background); border-bottom: 1px solid var(--border); }
 .masthead-inner { max-width: 80rem; margin: 0 auto; padding: .8rem 2rem .7rem; }
-.mh-row { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem 1rem; }
+.mh-row { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem 1.25rem; }
 .mh-row h1 { font-size: 1.25rem; } .mh-row #menu-toggle { display: none; }
 .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: .75rem; color: var(--muted-foreground); }
-.chips { display: inline-flex; flex-wrap: wrap; gap: .4rem; } 
-.mh-row2 { display: flex; align-items: baseline; gap: .5rem 2rem; flex-wrap: wrap; margin-top: .15rem; }
+.chips { display: inline-flex; flex-wrap: wrap; gap: .5rem; align-items: center; } 
+.mh-row2 { display: flex; align-items: baseline; gap: .5rem 2rem; flex-wrap: wrap; margin-top: .45rem; }
 .lede { color: var(--muted-foreground); margin: 0; flex: 1 1 20rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .badge { font-size: .75rem; }
 
@@ -63,7 +63,7 @@ mark { background: color-mix(in oklab, var(--warn) 30%, transparent); color: inh
 .report { display: flex; flex-direction: column; gap: 1.1rem; } .report[hidden] { display: none; }
 .report-head { position: sticky; top: var(--mh-h, 4.5rem); z-index: 29; margin: 0; padding: .6rem 0 .5rem; background: var(--background); border-bottom: 1px solid var(--border);
   display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem 1rem; }
-.rh-text { min-width: 0; } .rh-text h1 { font-size: 1.5rem; } .rh-text .headline { margin: .15rem 0 0; }
+.rh-text { min-width: 0; } .rh-text h1 { font-size: 1.5rem; } .rh-text .headline { margin: .4rem 0 0; }
 .rh-tabs { flex: none; display: flex; flex-direction: column; gap: .3rem; }
 .panel-tab { display: inline-flex; align-items: center; justify-content: space-between; gap: .5rem; min-width: 5.5rem; padding: .25rem .6rem; border: 1px solid var(--border); border-radius: var(--radius);
   background: var(--card); color: var(--foreground); font: inherit; font-size: .8125rem; font-weight: 600; cursor: pointer; }
@@ -263,7 +263,7 @@ body.col-dragging { cursor: col-resize; user-select: none; }
 .code-panel { position: fixed; top: 0; right: 0; bottom: 0; z-index: 55; width: min(90ch, 100vw); display: flex; flex-direction: column; background: var(--card); color: var(--card-foreground);
   border-left: 1px solid var(--border); box-shadow: -8px 0 24px rgb(0 0 0 / .18); font-family: var(--font-mono, ui-monospace, Menlo, Consolas, monospace); font-size: .8125rem; }
 .code-panel { transition: transform .25s cubic-bezier(.4, 0, .2, 1), visibility 0s linear 0s, box-shadow .25s ease; }
-.code-panel[hidden] { display: flex; transform: translateX(100%); visibility: hidden; pointer-events: none; box-shadow: none; transition: transform .25s cubic-bezier(.4, 0, .2, 1), visibility 0s linear .25s, box-shadow .25s ease; }
+.code-panel.shut { transform: translateX(100%); visibility: hidden; pointer-events: none; box-shadow: none; transition: transform .25s cubic-bezier(.4, 0, .2, 1), visibility 0s linear .25s, box-shadow .25s ease; }
 .code-pinned .code-panel { box-shadow: none; }
 .code-panel > header { padding: .7rem .9rem .6rem; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: .5rem; }
 .cp-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .75rem; min-width: 0; }
@@ -308,10 +308,10 @@ main { transition: margin-right .25s cubic-bezier(.4, 0, .2, 1); }
   html.rail #rail-toggle .chev { transform: scaleX(-1); }
 }
 
-/* sidebar collapse: --sidebar-width is a registered length so the nav width and the main margin both animate. html.anim is added after first paint so the saved state does not animate on load */
-@property --sidebar-width { syntax: "<length>"; inherits: true; initial-value: 18.5rem; }
+/* sidebar collapse: --sidebar-width is a registered length (initial-value must be px: rem is not computationally independent and the rule is dropped) so the nav width and the main margin both animate. html.anim is added after first paint so the saved state does not animate on load */
+@property --sidebar-width { syntax: "<length>"; inherits: true; initial-value: 296px; }
 html.anim { transition: --sidebar-width .25s cubic-bezier(.4, 0, .2, 1); }
-@media (prefers-reduced-motion: reduce) { html.anim, main, .code-panel, .code-panel[hidden] { transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { html.anim, main, .code-panel, .code-panel.shut { transition: none !important; } }
 
 /* commit calendar */
 .cc.ph { visibility: hidden; }

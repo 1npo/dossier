@@ -413,13 +413,14 @@
   function syncTabs() {   // every report's tab shows whether its panel is open
     $$(".panel-tab").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.panel === "code" ? isOpen : legendOpen)); });
   }
+  function shut(el, on) { el.classList.toggle("shut", on); el.inert = on; }   // not [hidden]: Basecoat's [hidden] is display:none !important, which cannot be animated
   function setLegend(on) {
     if (on && isOpen) setOpen(false);
-    legendOpen = on; legend.hidden = !on; syncTabs();
+    legendOpen = on; shut(legend, !on); syncTabs();
   }
   function setOpen(on) {
     if (on && legendOpen) setLegend(false);
-    isOpen = on; panel.hidden = !on; syncTabs();
+    isOpen = on; shut(panel, !on); syncTabs();
     doc.body.classList.toggle("code-pinned", on && pinned); syncWidth();
   }
   function setEmpty(on) {   // nothing is cited in this report: say so instead of showing code
