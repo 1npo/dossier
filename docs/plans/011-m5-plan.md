@@ -570,7 +570,7 @@ Read section 2, section 3, D1 to D7, D20 and sections 7 and 8. Load the skills i
   - Done-check: `... pytest tests/unit/scripts/test_cs_project.py -q` passes.
   - Commit: `feat(dossier): find C# solutions and projects at any depth`
 
-- [ ] **M5-6. Restore NuGet packages in any project folder.**
+- [x] **M5-6. Restore NuGet packages in any project folder.**
   - Goal: D5.
   - Files: edit `scripts/tools.json`, `scripts/restore.py`, `tests/unit/scripts/test_restore.py`, `tests/integration/scripts/test_hygiene.py`.
   - Interface: `{project}` token expansion in `restore.run`; the SDK gate before nuget plans.
@@ -671,6 +671,8 @@ Run 2026-11-08 by Sonnet 5.5 on branch `feat/dossier-m5` (from `main` at `7e5b7f
 **M5-4.** `sandbox.ALLOWED_NAMES` gains the six names; `build_env` sets the five fixed values for every profile and passes `DOTNET_ROOT` only when the parent has it. All seven names were confirmed in the docs (M5-1 step 2). The fixed names are set on every sandboxed call, including Python and JS ones (`build_env` knows no language); they only matter to `dotnet`. `test_hygiene.py` passes unchanged.
 
 **M5-5.** `cs_project.py` (D7). Choices a reader might not expect: `packages.lock.json` presence is read from the raw tracked list because `gather.noise_reason` treats lock files as noise; `package_id` falls back to the assembly name for a packable project; `source_roots` skips a project whose root would be the repository root (consumers ignore empty roots); `frameworks_named` uses D9's Gaps list exactly (MediatR is supported, so it is not named). 36 tests.
+
+**M5-6.** The `nuget` restore entry is enabled, nested, with `{project}`, `-p:NuGetAudit=false`, `--disable-build-servers`. `restore.plans` adds a `projects` list to a plan only when its command has the token; `restore.run` expands it, fails a plan whose lock file is not beside exactly one project file, skips every nuget plan with the SDK reason (one check per `run`, via new `cs_sdk.problem_for(checkout, path)` which reads the checkout's `global.json` files), and maps `NETSDK1147` to the workload reason. `test_hygiene.py` now uses a made-up disabled ecosystem. The slow hygiene test ran for real (not skipped): the restore succeeded, only allowlisted names reached the child, `obj/project.assets.json` was written inside the checkout, and `~/.nuget`, `~/.dotnet` and `~/.local/share/NuGet` kept their modification times. With no packages in the project, nothing lands under `<area>/cache/nuget`, so that part of the plan's step 4 cannot be observed by this test (M5-1 saw it work with `RW`). Suite after: 2088 passed, 118 skipped (the slow test is skipped in the default run).
 
 
 ---

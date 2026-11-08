@@ -476,12 +476,18 @@
   {
    "ecosystem": "nuget",
    "lockfile": "packages.lock.json",
+   "nested": true,
+   "enabled": true,
    "command": [
     "dotnet",
     "restore",
-    "--locked-mode"
+    "{project}",
+    "--locked-mode",
+    "-p:NuGetAudit=false",
+    "--disable-build-servers",
+    "-v",
+    "minimal"
    ],
-   "enabled": false,
    "source": "https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-restore"
   }
  ]

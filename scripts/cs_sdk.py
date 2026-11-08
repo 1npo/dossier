@@ -7,6 +7,7 @@ import json
 import re
 import shutil
 import subprocess
+from pathlib import Path
 
 import gather
 
@@ -138,3 +139,18 @@ def list_sdks(path: str | None = None) -> list[str]:
 
 def list_runtime_majors(path: str | None = None) -> list[int]:
     return runtime_majors(_dotnet(["--list-runtimes"], path))
+
+
+def problem_for(checkout, path: str | None = None) -> str | None:
+    """The reason no restore can run in this checkout (no SDK, or none that its global.json accepts), else None."""
+    root = Path(checkout)
+    listed = subprocess.run(["git", "-C", str(root), "ls-files", "-z", "--", "global.json", "**/global.json"], capture_output=True)
+    names = [n for n in listed.stdout.decode("utf-8", "replace").split("\0") if n] if listed.returncode == 0 else \
+        [str(f.relative_to(root)) for f in root.rglob("global.json")]
+
+    def read(name):
+        try:
+            return (root / name).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return None
+    return problem(list_sdks(path), requirements(names, read))

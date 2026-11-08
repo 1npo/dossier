@@ -1,15 +1,19 @@
 import json
 import os
+import shutil
 import subprocess
 import time
+from pathlib import Path
 
 import pytest
 
 import buildlog
+import cs_sdk
 import process
 import restore
 import sandbox
 import stages
+import toolcheck
 import workarea
 
 FORBIDDEN = {"SSH_AUTH_SOCK": "forbidden-ssh", "GIT_AUTHOR_NAME": "forbidden-git", "AWS_SECRET_ACCESS_KEY": "forbidden-aws",
@@ -147,7 +151,7 @@ class TestFailures:
     def test_disabled_ecosystem_is_skipped_with_a_reason(self, stage):
         area, co = stage
 
-        res = restore.run([{"ecosystem": "nuget", "lockfile": "x", "command": ["false"], "enabled": False}], area=area, checkout=co, timeout=5)
+        res = restore.run([{"ecosystem": "futurepm", "lockfile": "x", "command": ["false"], "enabled": False}], area=area, checkout=co, timeout=5)
 
         assert res[0]["status"] == "skipped" and "later version" in res[0]["reason"]
 
@@ -180,3 +184,27 @@ class TestNpmInstallScripts:
         subprocess.run(["npm", "ci", "--no-audit", "--no-fund"], cwd=project, check=True, capture_output=True)
 
         assert (project / "ran").exists()
+
+
+@pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs the real .NET SDK: set DOSSIER_SLOW=1")
+@pytest.mark.skipif(shutil.which("dotnet") is None or not cs_sdk.list_sdks(), reason="needs the .NET SDK (dotnet --list-sdks is empty)")
+class TestNugetRestoreHygiene:
+    def test_locked_restore_runs_in_the_project_folder_with_only_allowed_names(self, tmp_path):
+        co = tmp_path / "co"
+        (co / "Lib").mkdir(parents=True)
+        (co / "Lib/Lib.csproj").write_text('<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework>'
+                                           '<RestorePackagesWithLockFile>true</RestorePackagesWithLockFile></PropertyGroup></Project>')
+        (co / "Lib/packages.lock.json").write_text('{"version": 1, "dependencies": {"net10.0": {}}}')
+        (co / "Lib/A.cs").write_text("class A {}\n")
+        area = tmp_path / "cache" / "repo"
+        tree = frozenset({"Lib/Lib.csproj", "Lib/packages.lock.json", "Lib/A.cs"})
+        plans = restore.plans(tree, toolcheck.load_tools())
+        real = [Path.home() / ".nuget", Path.home() / ".dotnet", Path.home() / ".local/share/NuGet"]
+        before = [p.stat().st_mtime_ns if p.exists() else None for p in real]
+
+        res = restore.run([p for p in plans if p["ecosystem"] == "nuget"], area=area, checkout=co, timeout=600)
+
+        assert [r["status"] for r in res] == ["ok"], res[0]["reason"]
+        assert set(res[0]["env_names"]) <= sandbox.ALLOWED_NAMES
+        assert (co / "Lib/obj/project.assets.json").exists()
+        assert [p.stat().st_mtime_ns if p.exists() else None for p in real] == before
