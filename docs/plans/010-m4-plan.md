@@ -1001,7 +1001,7 @@ Read section 2, section 6 and "Results" of Phases 1 to 3. Load the skills in sec
 
 ### Tasks (Phase 4)
 
-- [ ] **M4-27. The ground truth comparison tool.**
+- [x] **M4-27. The ground truth comparison tool.**
   - Goal: score a dossier against the truth file that Opus wrote in Phase 3a (D18).
   - Files: new `tests/tools/ground_truth.py` and its unit test. It holds no data from `RW`; the test uses made-up rows.
   - Interface: `ground_truth.py TRUTH REPORTS_DIR` prints recall, precision and each disagreement, and with `--review FILE` writes them there. A truth row matches when a row of the home card contains its `key`.
