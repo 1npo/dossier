@@ -877,7 +877,7 @@ Read section 2, D4, D9, D10, D13 to D15, and "Results" of Phases 1 and 2. Load t
   - Done-check: `DOSSIER_SLOW=1 ... test_mixed_slow.py test_check_page_slow.py -q` passes.
   - Commit: `test(dossier): check the new tables in a browser and compare card skeletons`
 
-- [ ] **M4-25. Prompts.**
+- [x] **M4-25. Prompts.**
   - Goal: tell Claude what the JS extractors give it.
   - Files: edit `prompts/method.md`, `prompts/reports.md`, `SKILL.md`, `tests/unit/scripts/test_prompts.py`.
   - Interface: text only.

@@ -210,7 +210,7 @@ Here is a complete report file with a table card, an `entries` card, a second ta
 
 ## Tool findings: keep, merge, dismiss
 
-Before the code is read, tools (grimp, vulture, scip-python, semgrep, tree-sitter, and a scan of Dockerfiles, Makefiles, CI files and systemd units) have already listed what they found: entry points, inputs and outputs, data models, tests, imports and unused code. Run
+Before the code is read, tools (grimp, vulture, scip-python for Python; dependency-cruiser, knip, scip-typescript and a script on the TypeScript compiler for JavaScript and TypeScript; semgrep, tree-sitter, and a scan of Dockerfiles, Makefiles, CI files and systemd units) have already listed what they found: entry points, inputs and outputs, data models, tests, imports and unused code. Run
 
 ```
 DOSSIER candidates <repo> --report <id>
@@ -381,7 +381,7 @@ Example: the `io` report. The first row keeps one finding, the second merges two
 
 The report `components` is written around a catalog of components, and `render` checks that every tracked source file belongs to exactly one of them.
 
-1. Run `DOSSIER candidates <repo> --report components`. It lists the folders that hold source files, the Python packages, and groups of modules that import each other a lot (communities), with their sizes.
+1. Run `DOSSIER candidates <repo> --report components`. It lists the folders that hold source files, the Python packages or JavaScript projects, and groups of modules that import each other a lot (communities), with their sizes.
 2. Draft the catalog from those candidates. Merge small folders, split a large one, and give each component a plain name. Fill the `Paths` cell with the component's folders, files or globs in backticks, separated by commas (`src/app/alerts/`, `scripts/*.sh`). The most specific pattern wins when two overlap; a file matched equally well by two components is an error.
 3. Check what you drafted: write it to `reports/components.json`, then run `DOSSIER candidates <repo> --report components --catalog reports/components.json`. It prints the size of each component, the imports between your components (use them for `Depends on` and `Used by`) and every source file that is in no component.
 4. A file that really belongs to no component (documentation, a licence, a generated folder) goes in the catalog entry's `unassigned` list, each with a reason: `"unassigned": [{"paths": "docs/, LICENSE", "reason": "Documentation, not code."}]`.
