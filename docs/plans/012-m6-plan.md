@@ -564,7 +564,7 @@ Read section 2, D9, D10, D18 and "Results (Phase 1)". Load the skills in section
   - Done-check: `... pytest tests/unit/scripts/test_pylibfixture.py -q` passes.
   - Commit: `test(dossier): add the Python library fixture`
 
-- [ ] **M6-16. Work out a Python library's public API.**
+- [x] **M6-16. Work out a Python library's public API.**
   - Goal: D10.
   - Files: new `scripts/py_api.py`, `tests/unit/scripts/test_py_api.py`.
   - Interface: `is_library(project, read) -> bool`; `distribution_name(project, read) -> str`; `items(project, roots, tree, read) -> (symbols, notes)`.
