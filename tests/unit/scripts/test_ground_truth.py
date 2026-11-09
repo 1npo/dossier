@@ -113,6 +113,16 @@ class TestSharedKeysAndCitations:
         r = reports(tmp_path, outputs=[["response", "201 on create", "[[A.cs:1-2]]"]])
         assert ground_truth.score(t, r)["output"]["recall"] == 1.0
 
+    def test_a_citation_label_is_visible_text_and_matches(self, tmp_path):
+        t = truth(tmp_path, entry=["src/App/Program.cs"])
+        r = reports(tmp_path, entry=[["program", "[[src/App/Program.cs:12-97|src/App/Program.cs]]"]])
+        assert ground_truth.score(t, r)["entry"]["recall"] == 1.0
+
+    def test_a_citation_target_does_not_match_when_it_has_a_different_label(self, tmp_path):
+        t = truth(tmp_path, entry=["src/App/Program.cs"])
+        r = reports(tmp_path, entry=[["program", "[[src/App/Program.cs:12-97|Program.cs]]"]])
+        assert ground_truth.score(t, r)["entry"]["missed"] == ["src/App/Program.cs"]
+
     def test_unmatched_rows_keep_their_citations(self, tmp_path):
         t = truth(tmp_path, entry=["GET /a"])
         r = reports(tmp_path, entry=[["route", "GET /z", "[[A.cs:1-2]]"]])

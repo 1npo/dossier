@@ -24,12 +24,12 @@ def _norm(text) -> str:
     return str(text).replace("`", "")
 
 
-_CITATION = re.compile(r"\[\[.*?\]\]")
+_CITATION = re.compile(r"\[\[([^\]|]*?)(?:\|([^\]]*))?\]\]")
 
 
 def _text(row: str) -> str:
-    """The row without its `[[file:lines]]` citations, which are not claims (`201` must not match `...:171-201`)."""
-    return _CITATION.sub("", row)
+    """The row with each `[[target|label]]` citation cut to its label, which the reader sees; targets are not claims (`201` must not match `...:171-201`)."""
+    return _CITATION.sub(lambda m: m.group(2) or "", row)
 
 
 def card_rows(reports: Path, card_id: str) -> list[str]:
