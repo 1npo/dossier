@@ -46,6 +46,39 @@ class TestMakefileTargets:
         assert repo_adapter.makefile_targets("Makefile", "all:\n\techo a: b\n") [0]["name"] == "all"
 
 
+class TestCiTriggers:
+    PATH = ".github/workflows/ci.yml"
+
+    def got(self, text):
+        return [(e["line"], e["name"]) for e in repo_adapter.workflow_entries(self.PATH, text, triggers=True) if e["kind"] == "ci-trigger"]
+
+    def test_inline_list(self):
+        assert self.got("name: x\n\non: [push, pull_request]\njobs: {}\n") == [(3, "push"), (3, "pull_request")]
+
+    def test_block_form_gives_each_event_its_own_line_and_leaves_schedule_to_the_cron_row(self):
+        text = "on:\n  push:\n    branches: [main]\n  pull_request:\n  schedule:\n    - cron: '0 6 * * 1'\n  workflow_dispatch:\njobs:\n  a:\n    push: no\n"
+        assert self.got(text) == [(2, "push"), (4, "pull_request"), (7, "workflow_dispatch")]
+
+    def test_single_event_and_quoted_key(self):
+        assert self.got("on: push\n") == [(1, "push")]
+        assert self.got("'on':\n  workflow_call:\n") == [(2, "workflow_call")]
+
+    def test_trigger_entry_has_the_full_set_of_fields(self):
+        e = [e for e in repo_adapter.workflow_entries(self.PATH, "name: Build and Test\non: [push]\n", triggers=True) if e["kind"] == "ci-trigger"][0]
+        assert (e["rule"], e["trigger"], e["target"], e["end_line"]) == ("repo.ci-trigger", "When `push` happens on GitHub", "Build and Test", 2)
+
+    def test_off_by_default_so_other_languages_are_unchanged(self):
+        assert [e for e in repo_adapter.workflow_entries(self.PATH, "on: [push]\n") if e["kind"] == "ci-trigger"] == []
+
+    def test_gitlab_files_have_no_triggers(self):
+        assert [e for e in repo_adapter.workflow_entries(".gitlab-ci.yml", "on: [push]\n", triggers=True)] == []
+
+    def test_adapter_emits_them_only_for_a_repository_with_csharp(self, tmp_path):
+        files = {".github/workflows/ci.yml": "on: [push]\n", "a.txt": "x\n"}
+        assert repo_adapter.wants_triggers(frozenset(files)) is False
+        assert repo_adapter.wants_triggers(frozenset({*files, "src/A.cs"})) is True
+
+
 class TestWorkflowEntries:
     GITHUB = ('on:\n  schedule:\n    - cron: "0 3 * * *"  # nightly\njobs:\n  t:\n    steps:\n      - run: pytest -q  # tests\n'
               '      - run: ruff check .\n      - run: |\n          echo hi\n          make test\n      - run: make lint\n')
@@ -250,5 +283,5 @@ class TestTestCommand:
     def test_other_commands_are_not(self, command):
         assert not repo_adapter.TEST_COMMAND.search(command)
 
-    def test_the_adapter_version_changed_with_the_pattern(self):
-        assert repo_adapter.RepoAdapter.version == "4"
+    def test_the_adapter_version_changed_with_the_pattern_and_the_triggers(self):
+        assert repo_adapter.RepoAdapter.version == "5"

@@ -16,7 +16,7 @@ RULES_ALL = Path(__file__).resolve().parent.parent / "rules" / "all"
 MAX_BYTES = 1_000_000
 TEST_COMMAND = re.compile(r"\b(pytest|tox|nox|jest|vitest|mocha)\b|make test\b|\bplaywright test\b|\bcypress run\b|\b(npm|yarn|pnpm)( run)? test\b|\bnx test\b|\bdotnet test\b")
 NOT_COLUMN = ("primary", "foreign", "constraint", "unique", "key", "check", "index", "exclude")
-TRIGGERS = {"container": "When the container starts", "make-target": "Running `make {name}`", "ci-schedule": "On the schedule `{name}`",
+TRIGGERS = {"container": "When the container starts", "make-target": "Running `make {name}`", "ci-schedule": "On the schedule `{name}`", "ci-trigger": "When `{name}` happens on GitHub",
             "shebang-script": "When the script is run", "systemd-unit": "When the system service starts"}
 
 
@@ -47,9 +47,45 @@ def _strip_comment(value: str) -> str:
     return re.sub(r"\s+#.*$", "", value).strip().strip("\"'")
 
 
-def workflow_entries(path: str, text: str) -> list:
-    """`ci-schedule` entry points and `ci-command` test commands from a GitHub or GitLab CI file."""
-    found, lines, block_indent = [], text.splitlines(), None
+EVENT = re.compile(r"\s*([a-z_]+)\s*:")
+
+
+def wants_triggers(tree) -> bool:
+    """`ci-trigger` rows are written for repositories with C# only: Python and JS dossiers stay as they were (plan 011, M5-33)."""
+    return any(p.endswith(".cs") for p in tree)
+
+
+def workflow_triggers(path: str, text: str) -> list:
+    """One `ci-trigger` per event under a GitHub workflow's top-level `on:` (push, pull_request, workflow_dispatch...). `schedule`
+    is left to the cron rows."""
+    if "/.github/workflows/" not in "/" + path:
+        return []
+    lines = text.splitlines()
+    name = next((m.group(1).strip().strip("\"'") for m in (re.match(r"name:\s*(.+)$", ln) for ln in lines) if m), path)
+    found = []
+    for n, line in enumerate(lines, 1):
+        m = re.match(r"""['"]?on['"]?:\s*(.*)$""", line)
+        if not m:
+            continue
+        events, rest = [], _strip_comment(m.group(1))
+        if rest:
+            events = [(n, e.strip().strip("\"'")) for e in rest.strip("[]").split(",")]
+        else:
+            for k in range(n, len(lines)):
+                sub = lines[k]
+                if sub.strip() and not sub.startswith((" ", "\t")):
+                    break
+                ev = EVENT.match(sub)
+                if ev and (len(sub) - len(sub.lstrip())) == (len(lines[n]) - len(lines[n].lstrip())):
+                    events.append((k + 1, ev.group(1)))
+        found += [entry(path, ln, "ci-trigger", ev, name, f"on: {ev}") | {"end_line": ln} for ln, ev in events if ev and ev != "schedule"]
+        break
+    return found
+
+
+def workflow_entries(path: str, text: str, triggers: bool = False) -> list:
+    """`ci-schedule` entry points and `ci-command` test commands from a GitHub or GitLab CI file; with `triggers`, also `ci-trigger`."""
+    found, lines, block_indent = (workflow_triggers(path, text) if triggers else []), text.splitlines(), None
     for n, line in enumerate(lines, 1):
         indent = len(line) - len(line.lstrip())
         if block_indent is not None:
@@ -184,13 +220,14 @@ def _executable_files(checkout: Path, sha: str) -> list:
 class RepoAdapter(Adapter):
     name = "repo"
     rules = (RULES_ALL,)
-    version = "4"
+    version = "5"
     languages = ("*",)
     tools = ("semgrep",)
 
     def extract(self, ctx) -> dict:
         out = {"entry_points": [], "models": [], "tests": [], "blindspots": []}
         executable = set(_executable_files(ctx.checkout, ctx.sha))
+        with_triggers = wants_triggers(ctx.tree)
         for path in sorted(ctx.tree):
             if gather.noise_reason(path):
                 continue
@@ -206,7 +243,7 @@ class RepoAdapter(Adapter):
             elif base in ("Makefile", "makefile", "GNUmakefile") or base.endswith(".mk"):
                 found = makefile_targets(path, text)
             elif base == ".gitlab-ci.yml" or "/.github/workflows/" in "/" + path:
-                found = workflow_entries(path, text)
+                found = workflow_entries(path, text, triggers=with_triggers)
             elif base.endswith(".service"):
                 found = systemd_units(path, text)
             elif base.endswith(".sql"):
