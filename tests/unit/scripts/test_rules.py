@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 import candidates
+import checks_v7
 
 SKILL = Path(__file__).resolve().parents[3]
 RULES = SKILL / "rules"
@@ -19,6 +20,8 @@ BLIND_SPOTS = {"dynamic-import", "entry-point-loading", "string-plugin", "decora
                "dynamic-require", "barrel-reexport", "react-context", "hook-wiring", "string-route", "route-mount", "module-federation",
                "di-registration", "di-scan", "di-resolution", "reflection", "route-convention", "conventional-route", "mvc-filter", "mediator-handler",
                "source-generator", "partial-class"}
+
+RULELESS = set()   # BLIND_SPOTS ids with no rule, each with a reason: none today
 
 
 def rule_files():
@@ -89,6 +92,21 @@ class TestRuleFiles:
         found = {r["pattern"] for f, r in cases() if r["category"] == "blindspot"}
 
         assert found == BLIND_SPOTS
+
+    def test_every_pattern_named_by_a_rule_has_fixed_gaps_wording(self):
+        found = {r["pattern"] for f, r in cases() if r["category"] == "blindspot"}
+
+        assert found <= set(checks_v7.BLIND_SPOTS)
+
+    def test_every_gaps_wording_has_a_rule_or_a_reason(self):
+        found = {r["pattern"] for f, r in cases() if r["category"] == "blindspot"}
+
+        assert set(checks_v7.BLIND_SPOTS) - found == RULELESS
+
+    def test_the_python_blind_spots_include_the_route_and_barrel_patterns(self):
+        python = {r["pattern"] for f, r in cases() if f.parent.name == "python" and r["category"] == "blindspot"}
+
+        assert {"string-route", "route-mount", "barrel-reexport"} <= python
 
     def test_every_category_of_the_design_has_a_rule(self):
         found = {r["category"] for _, r in cases()}

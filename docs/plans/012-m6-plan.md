@@ -805,7 +805,7 @@ Read section 2, D8, D11, D12, D18 and "Results" of Phases 1 to 3. Load the skill
   - Done-check: the test file passes.
   - Commit: `feat(dossier): list push and pull request triggers for every language`
 
-- [ ] **M6-33. The cross-language blind-spot checks.**
+- [x] **M6-33. The cross-language blind-spot checks.**
   - Goal: D11's table, held by tests.
   - Files: `tests/unit/scripts/test_rules.py`, `tests/unit/scripts/test_checks_v7.py`.
   - Steps: tests: every pattern named in `rules/*/blindspot.yml` has a `BLIND_SPOTS` entry; every `BLIND_SPOTS` id has at least one rule (or is listed in a fixed `RULELESS` set with a reason: none today); the runtime-configuration item appears exactly once in an extract with Python, JS and C# modules.

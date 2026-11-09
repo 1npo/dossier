@@ -160,3 +160,17 @@ class TestCSharpCoverage:
         gaps = checks.validate({}, cs_extract({"note": "framework", "name": "Carter"}))["gaps"]
 
         assert any("written for Carter" in g["statement"] for g in gaps) and any(g["statement"] == checks_v7.CS_LINKS for g in gaps)
+
+
+class TestRuntimeConfigurationItem:
+    def test_a_mixed_extract_gets_it_exactly_once(self):
+        modules = [MODULE, {**MODULE, "path": "web/a.ts", "language": "js"}, {**MODULE, "path": "Api/A.cs", "language": "csharp"}]
+
+        _, _, gaps, _ = checks_v7.v7({"blindspots": [], "graph": modules})
+
+        assert [g["statement"] for g in gaps].count(checks_v7.RUNTIME_CONFIG) == 1
+
+    def test_an_extract_without_modules_does_not_get_it(self):
+        _, _, gaps, _ = checks_v7.v7({"blindspots": [], "graph": []})
+
+        assert gaps == []
