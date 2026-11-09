@@ -1395,7 +1395,7 @@ Read section 2, section 6 and "Results" of Phases 1 to 5b. Load the skills in se
   - Done-check: results recorded under "Verification results (Phase 6)".
   - Commit: `docs(dossier): record the M5 verification on the breadth repository`
 
-- [ ] **M5-35. Run blocks M, Y, X, I, E and Z.**
+- [x] **M5-35. Run blocks M, Y, X, I, E and Z.**
   - Goal: the fixture mixed build, the library's public API, card skeletons, the suites.
   - Files: this plan only.
   - Done-check: as those blocks say.
@@ -1446,9 +1446,9 @@ The author does this. **Needed on the machine:** the .NET SDK 10.0.403, Node 22.
 
 ### Results (Phase 6)
 
-Started 2026-11-08 by Sonnet 5.5 on `feat/dossier-m5`, `SCR=/home/nick/.cache/dossier-m5-vWDO`. **Stopped at a saved state (cut line): M5-34 is not finished, because block W step 4 (writing all `CA` reports) was not started.** Not merged. M5-34 and M5-35 stay unticked.
+Started 2026-11-08 by Sonnet 5.5 on `feat/dossier-m5`, `SCR=/home/nick/.cache/dossier-m5-vWDO`. M5-34 and M5-35 are done and ticked. **Not merged: M5-36 waits for the author's go-ahead.**
 
-Done: block W steps 1 to 3 (`prepare --full` on `CA` and candidates for the five report groups), block Y, block E. Left: block W steps 4 and 5 (`CA` reports, render, check, H, shots), block M, blocks X, I and Z, and M5-36.
+Done: blocks W, M, Y, X, E, I and Z. Left: M5-36 (merge).
 
 **Findings for the milestone review (Phase 6 so far)**
 1. **No Aspire `framework` note for `CA`.** The plan expects `Aspire.Hosting.AppHost`. `src/AppHost/AppHost.csproj` uses `<Project Sdk="Aspire.AppHost.Sdk/13.6.4">` and has no `PackageReference` to that package, and `cs_project.frameworks_named` reads package references only. So the app host is `program-main` with no Gaps note that Aspire wires its services. Fix idea: also read the project's `Sdk` attribute. Not fixed: a rule-precision change, not a crash.
@@ -1468,6 +1468,11 @@ Date 2026-11-08, branch `feat/dossier-m5`, model Sonnet 5.5. SDK 10.0.403.
 - **Finding 5: `Infrastructure.IntegrationTests` and the other test projects show `0 files`** in the component candidates; the tests extractor does find their files, so only the project listing count is odd. Not fixed.
 - **Y.** Exit 0; scip-dotnet `ok`; 33 `public-api` items, all package and subpath `Ardalis.GuardClauses`, audience `packable` (31) or `packable, obsolete` (2). Holds `Guard`, `Guard.Against`, `IGuardClause`, `NotFoundException`, `ValidatedNotNullAttribute`, and `GuardClauseExtensions.Null` (2 overloads, across `Guard.cs`, `GuardAgainstNullExtensions.cs` and the other partial files). Holds none of `CallerArgumentExpressionAttribute`, `JetBrains.Annotations` or anything under `test/`; no private constructor. Both items of `GuardAgainstExpressionExtensionsDeprecated.cs` end `, obsolete`. **Pass.**
 - **E.** `OK` (248,746 characters on both sides); worktree removed, one worktree left.
+
+- **M (mixed fixture).** `CSFIX` as `backend/` and `JSFIX`'s `packages/web` as `frontend/`, one commit, `prepare --full --no-restore` (46 s, exit 0, `csharp`, `js` and `repo` sections). All 14 reports written from the candidates (`$SCR/gen/m/mixed.py`, generated rows with short plain text; the fixture is synthetic). Render 3 rounds (errors: citation past the end of `Program.cs`, entity fields missing, `backend/Dockerfile` in no component), then exit 0. `dossier check`: `problems: 0`. Rows from both languages (`entry.catalog` 28, including four React routes and C# rows), process card names scip-dotnet, dependency-cruiser, knip, semgrep and tree-sitter. **Pass.**
+- **X.** `skeleton.py` over RW, CA, the mixed page and the Python golden page: exit 0.
+- **I.** Default: 2631 passed, 274 skipped (68 s). Slow (`--basetemp=$HOME/.cache/dossier-m5-slow`, removed afterwards; 22 min 54 s): 3 failed, only the three known ones; 2901 passed, 1 skipped.
+- **Z.** `cannalerts` status unchanged; one worktree; `RW`, `CA` and `LIB` clones clean; no tracked change in `SKILL`. `$SCR` kept: `/home/nick/.cache/dossier-m5-vWDO` (CA page `home/ca/dossier-ca.html`, mixed page `m/home/repo/dossier-repo.html`).
 
 **Deviations.** `D` and the section 6 variables are in a sourced file in the session scratchpad (`env.sh`, copied from the Phase 5 one); block E used the `"${E:?}"` form as in Phase 5.
 
