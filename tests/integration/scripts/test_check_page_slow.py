@@ -174,6 +174,18 @@ class TestRelationshipDiagramsDraw:
         assert not [r for r in rows if r["failed"]], rows
 
 
+class TestSequenceActors:
+    def test_an_actor_label_is_readable_in_both_themes(self, rendered_page, tmp_path):
+        page, env = rendered_page
+        src = "sequenceDiagram\n  actor Reader as Someone reading\n  participant A as cli\n  Reader->>A: asks\n  A-->>Reader: answers"
+        injected = tmp_path / "actor.html"
+        injected.write_text(broken_pages.inject_diagrams(page.read_text(), [("Injected actor", src)]))
+
+        done = check(injected, env)
+
+        assert not [ln for ln in done.stdout.splitlines() if "contrast" in ln and "Someone reading" in ln], done.stdout[-800:]
+
+
 class TestLayoutChecks:
     def probe(self, rendered_page, tmp_path, mutation=None, width=1500, **kw):
         page, env = rendered_page
