@@ -1,0 +1,72 @@
+rules:
+  - id: dossier.csharp.entry.minimal-route
+    message: A web route declared with a minimal API
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: entry, kind: http-route, detail: '\.(Map(?:Get|Post|Put|Delete|Patch|Methods)?\(\s*"[^"]*)'}
+    pattern-either:
+      - pattern: $R.MapGet("...", ...)
+      - pattern: $R.MapPost("...", ...)
+      - pattern: $R.MapPut("...", ...)
+      - pattern: $R.MapDelete("...", ...)
+      - pattern: $R.MapPatch("...", ...)
+      - pattern: $R.MapMethods("...", ...)
+      - pattern: $R.Map("...", ...)
+
+  - id: dossier.csharp.entry.fallback-route
+    message: A catch-all web route declared with a minimal API
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: entry, kind: http-route, detail: '\.(MapFallback)'}
+    pattern-either:
+      - pattern: $R.MapFallback(...)
+      - pattern: $R.MapFallbackToFile(...)
+
+  - id: dossier.csharp.entry.map-hub
+    message: A SignalR hub
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: entry, kind: signalr-hub, detail: 'MapHub<[^>]*>\(\s*"([^"]*)'}
+    pattern: $R.MapHub<$T>("...", ...)
+
+  - id: dossier.csharp.entry.map-grpc
+    message: A gRPC service
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: entry, kind: grpc-service, detail: 'MapGrpcService<\s*([\w.]+)'}
+    pattern: $R.MapGrpcService<$T>()
+
+  - id: dossier.csharp.entry.add-hosted
+    message: A hosted service added to the host
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: entry, kind: hosted-service, detail: 'AddHostedService<\s*([\w.]+)'}
+    pattern: $S.AddHostedService<$T>(...)
+
+  - id: dossier.csharp.entry.hangfire
+    message: A recurring Hangfire job
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: entry, kind: scheduled-job, detail: 'AddOrUpdate(?:<[^>]*>)?\(\s*"([^"]*)'}
+    pattern-either:
+      - pattern: RecurringJob.AddOrUpdate("...", ...)
+      - pattern: RecurringJob.AddOrUpdate<$T>("...", ...)
+
+  - id: dossier.csharp.entry.cli-command
+    message: A command-line command
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: entry, kind: cli-command, detail: '(?:new Command\(|AddCommand<[^>]*>\(|\[(?:Verb|Command)\()\s*"([^"]*)'}
+    pattern-either:
+      - pattern: new Command("...", ...)
+      - pattern: $A.AddCommand<$T>("...")
+      - pattern-regex: (?m)^[ \t]*\[(?:Verb|Command)\(\s*"[^"]*"
+
+  - id: dossier.csharp.entry.bullseye-target
+    message: A build target
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: entry, kind: build-target, detail: '(?:Target|Task)\(\s*"([^"]*)'}
+    pattern-either:
+      - pattern: Target("...", ...)
+      - pattern: Task("...", ...)

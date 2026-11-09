@@ -83,6 +83,12 @@ class TestResolverShortNames:
     def test_python_modules_still_resolve_by_their_last_dotted_part(self):
         assert checks_v3.Resolver(EXTRACT, []).modules(("s", "store")) == {"app.store"}
 
+    def test_a_csharp_node_resolves_through_the_file_stem(self):
+        extract = {"graph": [{"kind": "module", "path": "src/Shop.Api/OrderService.cs", "module": "src/Shop.Api/OrderService",
+                              "short": "OrderService", "language": "csharp"}]}
+
+        assert checks_v3.Resolver(extract, []).modules(("O", "OrderService")) == {"src/Shop.Api/OrderService"}
+
 
 class TestV3:
     def test_arrow_backed_by_an_import_passes(self):

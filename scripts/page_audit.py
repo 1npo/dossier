@@ -243,6 +243,11 @@ def _check_measured(cards: dict, m, page: str) -> list:
                 errs.append(f"V11: {cid}: the table {tid} is not drawn.")
                 continue
             errs += _check_table(cid, tid, found[0], cols, rows, False)
+    if "io.contracts" in cards and "Not yet generated" not in cards["io.contracts"][0].text():
+        want = len(measured_tables.friend_lines(m.get("extract") or {}))
+        got = sum(1 for p in cards["io.contracts"][0].find("p") if "(InternalsVisibleTo)" in p.text())
+        if got != want:
+            errs.append(f"V11: io.contracts: the InternalsVisibleTo lines: {got} lines, expected {want}.")
     if "change.blast-radius" in cards and any(t[0] == "t-change-blast-radius" for t in _measured_counts(m).get("change.blast-radius", [])):
         want = _measured_counts(m)["change.blast-radius"][0][1]
         raw = re.search(r'<script type="application/json" id="blast-data">(.*?)</script>', page, re.S)

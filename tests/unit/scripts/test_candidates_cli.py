@@ -196,6 +196,34 @@ class TestJavaScriptSection:
         assert "== Python packages ==" in out and "JavaScript and TypeScript" not in out
 
 
+class TestCSharpSection:
+    CS = {"graph": [{"kind": "cs-project", "path": "src/Shop.Api/Shop.Api.csproj", "name": "Shop.Api", "sdk": "Microsoft.NET.Sdk.Web",
+                     "output_type": "Exe", "frameworks": ["net10.0"], "test": False, "packable": False, "references": []},
+                    {"kind": "cs-project", "path": "tests/Shop.Tests/Shop.Tests.csproj", "name": "Shop.Tests", "sdk": "Microsoft.NET.Sdk",
+                     "output_type": "Library", "frameworks": ["net10.0"], "test": True, "packable": False, "references": []},
+                    {"kind": "source-root", "path": "src/Shop.Api/Shop.Api.csproj", "root": "src"},
+                    {"kind": "module", "module": "src/Shop.Api/A", "short": "A", "path": "src/Shop.Api/A.cs", "project": "src/Shop.Api/Shop.Api.csproj",
+                     "language": "csharp"},
+                    {"kind": "module", "module": "src/Shop.Api/B", "short": "B", "path": "src/Shop.Api/B.cs", "project": "src/Shop.Api/Shop.Api.csproj",
+                     "language": "csharp"}]}
+
+    def text(self, extract):
+        return candidates.text("components", extract, {}, {}, tree={"src/Shop.Api/A.cs", "src/Shop.Api/B.cs"})
+
+    def test_one_line_is_printed_per_project(self):
+        out = self.text(self.CS).splitlines()
+
+        i = out.index("== C# projects ==")
+        assert out[i + 1] == "src/Shop.Api/Shop.Api.csproj  (SDK Microsoft.NET.Sdk.Web, Exe, 2 files)"
+        assert out[i + 2] == "tests/Shop.Tests/Shop.Tests.csproj  (SDK Microsoft.NET.Sdk, Library, test project, 0 files)"
+
+    def test_a_csharp_source_root_is_not_listed_as_a_javascript_project(self):
+        assert "JavaScript and TypeScript" not in self.text(self.CS)
+
+    def test_a_python_extract_prints_no_csharp_heading(self):
+        assert "C# projects" not in candidates.text("components", TestComponentCandidates.EXTRACT, {}, {})
+
+
 class TestCatalogEdges:
     ROWS = [{"name": "API", "paths": ["src/app/api/"]}, {"name": "Core", "paths": ["src/app/core.py"]}]
     EXTRACT = TestComponentCandidates.EXTRACT

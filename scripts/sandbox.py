@@ -20,7 +20,8 @@ NETWORK = ("HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "SSL_CERT_FILE", "REQUESTS_C
 ALLOWED_NAMES = frozenset({
     "PATH", *PASS_THROUGH, "HOME", "TMPDIR", "XDG_CACHE_HOME", "XDG_CONFIG_HOME", *NETWORK,
     "DOTNET_CLI_TELEMETRY_OPTOUT", "DOTNET_NOLOGO", "UV_CACHE_DIR", "npm_config_cache", "NUGET_PACKAGES",
-    "DOTNET_CLI_HOME", "PIP_CACHE_DIR", "npm_config_userconfig", "UV_PYTHON_INSTALL_DIR",
+    "DOTNET_CLI_HOME", "DOTNET_ROOT", "MSBUILDDISABLENODEREUSE", "DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE",
+    "DOTNET_GENERATE_ASPNET_CERTIFICATE", "DOTNET_ADD_GLOBAL_TOOLS_TO_PATH", "DOTNET_SKIP_FIRST_TIME_EXPERIENCE", "PIP_CACHE_DIR", "npm_config_userconfig", "UV_PYTHON_INSTALL_DIR",
     "GH_CONFIG_DIR", "GH_PROMPT_DISABLED", "GH_NO_UPDATE_NOTIFIER",
     "YARN_CACHE_FOLDER", "YARN_GLOBAL_FOLDER", "YARN_ENABLE_TELEMETRY",
 })
@@ -83,11 +84,13 @@ def build_env(area: Path, *, profile: str = "restricted", ecosystem: str | None 
     parent = os.environ if parent is None else parent
     home = area / "home"
     env: dict[str, str] = {"PATH": _host_path(parent)}
-    for k in (*PASS_THROUGH, *NETWORK):
+    for k in (*PASS_THROUGH, *NETWORK, "DOTNET_ROOT"):
         if k in parent:
             env[k] = parent[k]
     env.update(HOME=str(home), TMPDIR=str(home / "tmp"), XDG_CACHE_HOME=str(home / ".cache"),
-               XDG_CONFIG_HOME=str(home / ".config"), DOTNET_CLI_TELEMETRY_OPTOUT="1", DOTNET_NOLOGO="1")
+               XDG_CONFIG_HOME=str(home / ".config"), DOTNET_CLI_TELEMETRY_OPTOUT="1", DOTNET_NOLOGO="1",
+               MSBUILDDISABLENODEREUSE="1", DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE="1", DOTNET_GENERATE_ASPNET_CERTIFICATE="false",
+               DOTNET_ADD_GLOBAL_TOOLS_TO_PATH="false", DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1")
     cache = area / "cache"
     env.update(npm_config_cache=str(cache / "npm"), NUGET_PACKAGES=str(cache / "nuget"),
                DOTNET_CLI_HOME=str(cache / "dotnet"), PIP_CACHE_DIR=str(cache / "pip"),

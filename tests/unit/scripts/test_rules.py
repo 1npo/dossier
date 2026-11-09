@@ -17,7 +17,8 @@ OTHER_CATEGORIES = {"entry", "blindspot"}
 BLIND_SPOTS = {"dynamic-import", "entry-point-loading", "string-plugin", "decorator-registry", "getattr-dispatch", "django-apps",
                "django-signals", "pytest-fixtures", "codegen", "feature-flag", "computed-subcommand",
                "dynamic-require", "barrel-reexport", "react-context", "hook-wiring", "string-route", "route-mount", "module-federation",
-               "di-registration"}
+               "di-registration", "di-scan", "di-resolution", "reflection", "route-convention", "conventional-route", "mvc-filter", "mediator-handler",
+               "source-generator", "partial-class"}
 
 
 def rule_files():
@@ -55,13 +56,13 @@ def cases():
 
 def target_of(rule_file: Path) -> Path:
     folder = TARGETS / rule_file.parent.name
-    return next((folder / (rule_file.stem + ext) for ext in (".py", ".ts", ".tsx") if (folder / (rule_file.stem + ext)).exists()),
+    return next((folder / (rule_file.stem + ext) for ext in (".py", ".ts", ".tsx", ".cs") if (folder / (rule_file.stem + ext)).exists()),
                 folder / (rule_file.stem + ".py"))
 
 
 class TestRuleFiles:
     def test_there_are_rule_files_for_every_scope(self):
-        assert {f.parent.name for f in rule_files()} == {"python", "all", "js"}
+        assert {f.parent.name for f in rule_files()} == {"python", "all", "js", "csharp"}
 
     @pytest.mark.parametrize("file,rule", cases(), ids=lambda v: v["id"] if isinstance(v, dict) else v.name)
     def test_id_starts_with_dossier_and_the_scope(self, file, rule):

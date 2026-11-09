@@ -12,7 +12,7 @@ A report is as long as its content. Never merge items to shorten a table; the pa
 
 The page also shows measured tables from `facts.json` (languages, environment variables, secret scan, code ownership). Do not repeat those tables. Refer to them with `[[facts:...]]` and add what only reading the code can tell.
 
-**Repositories with more than one language.** The cards are the same as for any other repository, and the rows cover every language. Say which language a row belongs to only where it matters, for example in an entry point or a component that exists in both.
+**Repositories with more than one language.** The cards are the same as for any other repository, and the rows cover every language. Say which language a row belongs to only where it matters, for example in an entry point or a component that exists in both. This applies to Python, JavaScript, TypeScript and C# alike: a C# project and a JavaScript app are separate components, and each gets its own rows.
 
 ## entry
 
@@ -22,7 +22,9 @@ Report 04: Entry points. Question: *Where does execution start?*
 
 Every way execution can start. Decide about each finding: console scripts, `__main__` modules, CLI commands (one row per command, and mark `added: true` when no tool found it), HTTP routes (one row per route group), scheduled jobs, queue consumers, container commands, CI schedules, Makefile targets, systemd units, shebang scripts. `Starts at` names the function or file.
 
-In JavaScript and TypeScript repositories the findings also include package bins, package scripts, `main` entries, Nx targets and UI routes. Write a route's full path: add any prefix that a `route-mount` finding shows, so a router mounted under `/api` is `GET /api/tags` and not `GET /tags`. Keep one row per entry point. Package scripts are entry points. A script that only wraps another one may be merged with it only when both have the same `path` and `name`; otherwise dismiss it with a reason.
+In JavaScript and TypeScript repositories the findings also include package bins, package scripts, `main` entries, Nx targets and UI routes. Write a route's full path: add any prefix that a `route-mount` finding shows, so a router mounted under `/api` is `GET /api/tags` and not `GET /tags`. Keep one row per entry point. Package scripts are entry points.
+
+In C#, controller routes are written as the attributes say. Add any prefix that a `route-convention`, `route-mount` or `conventional-route` finding shows, and say where it comes from (for example a convention reading `ApiPrefix` from configuration). One row per route. Hosted services, functions, consumers and build targets are entry points. A script that only wraps another one may be merged with it only when both have the same `path` and `name`; otherwise dismiss it with a reason.
 
 Shape: a table with columns Kind, Name, Triggered by, Starts at, Notes.
 
@@ -44,7 +46,7 @@ Drawn by code from the tool findings. **Do not write this card:** leave it out o
 
 ### Component catalog (`components.catalog`)
 
-One row per component, drafted from the component candidates (see "Components" in `method.md`). `Paths` lists the component's folders, files or globs in backticks. `Depends on`, `Used by` and `Size` are measured and drawn by code: write `-` in those three cells. List files that belong to no component in the entry's `unassigned` list. A repository of several apps gets one component per folder with a clear job; do not merge apps into one component. `Public surface` names what the component offers to other packages, or says that it is internal.
+One row per component, drafted from the component candidates (see "Components" in `method.md`). `Paths` lists the component's folders, files or globs in backticks. `Depends on`, `Used by` and `Size` are measured and drawn by code: write `-` in those three cells. List files that belong to no component in the entry's `unassigned` list. A repository of several apps gets one component per folder with a clear job; do not merge apps into one component. In C#, a project is a natural boundary: one component may hold one project or a folder of one, and never put two projects' files in one component unless one references the other. `Public surface` names what the component offers to other packages, or says that it is internal.
 
 Shape: a table with columns Component, Paths, Responsibility, Public surface, Depends on, Used by, Size.
 
@@ -82,7 +84,7 @@ Drawn by code from the tool findings. **Do not write this card:** leave it out o
 
 ### Key flows (`interactions.flows`)
 
-One sequence diagram for each kind of entry point, each followed by numbered notes (one per step of the diagram), and more wherever a flow teaches something the others do not. Name each participant after a real module or component. `render` checks that every arrow has an import or a call behind it (V3).
+One sequence diagram for each kind of entry point, each followed by numbered notes (one per step of the diagram), and more wherever a flow teaches something the others do not. Name each participant after a real module or component. `render` checks that every arrow has an import or a call behind it (V3). In C#, dependency injection, mediator handlers, filters and conventions decide what runs, and the tools cannot follow them. When a flow passes through one, say so in the step's note and mark the arrow `inferred`.
 
 Shape: diagram blocks, each followed by one text block of numbered lines (`1. ...`, `2. ...`) or one list block, with at least two steps.
 
@@ -130,7 +132,7 @@ Tool findings that arrive here (home card): stdout, file-write, outbound-call, m
 
 Written agreements with other systems: OpenAPI, protobuf, GraphQL and JSON-schema files, public exports, route tables, client SDK use. Consumers outside the repository are `unknown` unless declared.
 
-Shape: a table with columns Contract, Direction, Counterparty, Schema location, Versioning. One row per contract and direction. The page draws a table of the real public API of each package below your rows (what other packages can import); never copy it. Write one row per package that has such an API, as `offered`. `Direction` is exactly `offered` (this repository publishes it) or `consumed` (this repository relies on it); `summary.json` joins repositories on that word, and `render` fails on anything else.
+Shape: a table with columns Contract, Direction, Counterparty, Schema location, Versioning. One row per contract and direction. The page draws a table of the real public API of each package below your rows (what other packages can import); never copy it (it covers C# libraries too). Write one row per package that has such an API, as `offered`; in C#, that is one `io.contracts` row per library with an API. `Direction` is exactly `offered` (this repository publishes it) or `consumed` (this repository relies on it); `summary.json` joins repositories on that word, and `render` fails on anything else.
 
 ## data
 
@@ -138,7 +140,7 @@ Report 08: Data model. Question: *What data exists, and what is true about it?*
 
 ### Entities and types (`data.entities`)
 
-Every entity the code defines: dataclasses, Pydantic and ORM models, SQL tables, typed dictionaries, enums, and in TypeScript interfaces, object types, enums, Prisma models and ORM classes (the tool leaves out `Props` types). Decide about each finding (migrations are not entities). One row per entity: `Fields` lists every field by name, and `Owner component` names a catalog component.
+Every entity the code defines: dataclasses, Pydantic and ORM models, SQL tables, typed dictionaries, enums, and in TypeScript interfaces, object types, enums, Prisma models and ORM classes (the tool leaves out `Props` types); in C#, EF Core entities, owned types, Dapper rows and the enums they use (the tool leaves out DTOs, records used as messages and view models; add one only when a store holds it). Decide about each finding (migrations are not entities). One row per entity: `Fields` lists every field by name, and `Owner component` names a catalog component.
 
 Shape: a table with columns Name, Kind, Fields, Defined in, Owner component.
 
@@ -382,7 +384,7 @@ Shape: a table with columns Term, Meaning, Where it lives.
 
 ### Technologies and idioms (`reading.technologies`)
 
-Each language, framework and library with a role in the code (from the manifests and imports), what it does here, and the idiom a newcomer needs to know (DI container, ORM style, state management; for React, the state, routing and data-fetching idioms).
+Each language, framework and library with a role in the code (from the manifests and imports), what it does here, and the idiom a newcomer needs to know (DI container, ORM style, state management; for React, the state, routing and data-fetching idioms; for C#, dependency injection lifetimes, the EF Core `DbContext`, options binding, middleware order, mediator pipelines and source generators).
 
 Shape: a table with columns Technology, Role here, Idiom to know.
 

@@ -1,0 +1,160 @@
+rules:
+  - id: dossier.csharp.blindspot.di-registration
+    message: Services are registered with a dependency injection container
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: blindspot, pattern: di-registration}
+    patterns:
+      - pattern-either:
+          - pattern: $S.$M(...)
+          - pattern: $S.$M<$T>(...)
+          - pattern: $S.$M<$T1, $T2>(...)
+      - metavariable-regex:
+          metavariable: $M
+          regex: ^(Try)?Add(Keyed)?(Scoped|Transient|Singleton)$
+
+  - id: dossier.csharp.blindspot.di-scan
+    message: Services are registered by scanning assemblies
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: blindspot, pattern: di-scan}
+    patterns:
+      - pattern-either:
+          - pattern: $S.$M(...)
+          - pattern: $S.$M<$T>(...)
+      - metavariable-regex:
+          metavariable: $M
+          regex: ^(Scan|RegisterAssemblyTypes|AddValidatorsFromAssembly|AddValidatorsFromAssemblyContaining|RegisterServicesFromAssembly|AddMediator|AddAutoMapper)$
+
+  - id: dossier.csharp.blindspot.di-resolution
+    message: Objects are fetched from the dependency injection container
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: blindspot, pattern: di-resolution}
+    pattern-either:
+      - pattern: $P.GetService<$T>()
+      - pattern: $P.GetRequiredService<$T>()
+      - pattern: $P.GetKeyedService<$T>(...)
+      - pattern: $P.GetRequiredKeyedService<$T>(...)
+      - pattern: ActivatorUtilities.CreateInstance(...)
+      - pattern: ActivatorUtilities.CreateInstance<$T>(...)
+      - pattern-regex: \[(?:FromServices|FromKeyedServices)\b[^\]]*\]
+
+  - id: dossier.csharp.blindspot.reflection
+    message: Code is found or called through reflection
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: blindspot, pattern: reflection}
+    pattern-either:
+      - pattern: Activator.CreateInstance(...)
+      - pattern: Activator.CreateInstance<$T>()
+      - pattern: Type.GetType(...)
+      - pattern: $A.GetTypes()
+      - pattern: $A.GetExportedTypes()
+      - pattern: $T.GetMethod(...)
+      - pattern: $T.GetProperty(...)
+      - pattern: Assembly.Load(...)
+      - pattern: Assembly.LoadFrom(...)
+
+  - id: dossier.csharp.blindspot.route-convention
+    message: Routes are changed by an MVC convention
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: blindspot, pattern: route-convention}
+    pattern-either:
+      - pattern: $O.Conventions.Add(...)
+      - pattern-regex: (?m)^[^\n/]*\b(?:class|record)\s+\w+[^\n{]*:[^\n{]*\b(?:IApplicationModelConvention|IControllerModelConvention|IActionModelConvention|IRouteTemplateProvider)\b
+
+  - id: dossier.csharp.blindspot.conventional-route
+    message: Controller actions are reached through a route template
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: blindspot, pattern: conventional-route}
+    pattern-either:
+      - pattern: $E.MapControllerRoute(...)
+      - pattern: $E.MapDefaultControllerRoute()
+      - pattern: $E.MapAreaControllerRoute(...)
+
+  - id: dossier.csharp.blindspot.mvc-filter
+    message: Filters run before or after requests
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: blindspot, pattern: mvc-filter}
+    pattern-either:
+      - pattern: $O.Filters.Add<$T>(...)
+      - pattern: $O.Filters.Add(...)
+      - pattern: $B.AddEndpointFilter(...)
+      - pattern: $B.AddEndpointFilter<$T>()
+      - pattern-regex: \[(?:ServiceFilter|TypeFilter)\b[^\]]*\]
+      - pattern-regex: (?m)^[^\n/]*\b(?:class|record)\s+\w+[^\n{]*:[^\n{]*\b(?:IActionFilter|IAsyncActionFilter|IResultFilter|IExceptionFilter|IAuthorizationFilter|IEndpointFilter|ActionFilterAttribute)\b
+
+  - id: dossier.csharp.blindspot.mediator-handler
+    message: Requests are passed to their handlers by a mediator library
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: blindspot, pattern: mediator-handler}
+    pattern-either:
+      - pattern-regex: (?m)^[^\n/]*\b(?:class|record)\s+\w+[^\n{]*:[^\n{]*\b(?:IRequestHandler|INotificationHandler|IPipelineBehavior|IStreamRequestHandler|ICommandHandler|IQueryHandler)<
+      - patterns:
+          - pattern-either:
+              - pattern: $M.Send(...)
+              - pattern: $M.Publish(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: (?i)^.*(mediator|sender|publisher)$
+
+  - id: dossier.csharp.blindspot.source-generator
+    message: Code is generated at build time
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: blindspot, pattern: source-generator}
+    pattern-either:
+      - pattern-regex: (?m)^[ \t]*\[(?:Mapper|LoggerMessage|GeneratedRegex|JsonSerializable|GeneratedComInterface|LibraryImport)\b[^\]]*\]
+      - pattern-regex: (?m)^[ \t]*(?:(?:public|private|internal|protected|static|extern|unsafe|async)[ \t]+)*partial[ \t]+(?!class\b|record\b|struct\b|interface\b)[^\n(=;{]+\([^\n)]*\)[ \t]*;
+
+  - id: dossier.csharp.blindspot.partial-class
+    message: A type is split across files with partial
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: blindspot, pattern: partial-class}
+    pattern-regex: (?m)^[ \t]*(?:\w+[ \t]+)*partial[ \t]+(?:class|record|struct|interface)\b
+
+  - id: dossier.csharp.blindspot.codegen
+    message: A file generated by a tool
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: blindspot, pattern: codegen}
+    pattern-regex: <auto-generated
+
+  - id: dossier.csharp.blindspot.feature-flag
+    message: Behaviour is switched by a feature flag
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: blindspot, pattern: feature-flag}
+    pattern-either:
+      - pattern-regex: \b(?:IFeatureManager|IVariantFeatureManager)\b
+      - pattern-regex: \[FeatureGate\b[^\]]*\]
+      - patterns:
+          - pattern: $F.IsEnabledAsync(...)
+          - metavariable-regex:
+              metavariable: $F
+              regex: (?i)^.*feature.*$
+
+  - id: dossier.csharp.blindspot.string-route
+    message: A route whose path is not a string literal
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: blindspot, pattern: string-route}
+    patterns:
+      - pattern: $R.$M($P, ...)
+      - pattern-not: $R.$M("...", ...)
+      - metavariable-regex:
+          metavariable: $M
+          regex: ^Map(Get|Post|Put|Delete|Patch|Methods)$
+
+  - id: dossier.csharp.blindspot.route-mount
+    message: Routes are mounted under a prefix
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: blindspot, pattern: route-mount}
+    pattern: $R.MapGroup(...)

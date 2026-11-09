@@ -294,6 +294,15 @@ JS_WORDS = frozenset({"const", "let", "var", "function", "async", "await", "unde
                       "enum", "Promise", "Array", "Object", "string", "number", "boolean"})
 
 
+# Words that are language syntax or built-in names in C#. Skipped only when a module is C#.
+CS_WORDS = frozenset({"var", "string", "int", "bool", "void", "async", "await", "Task", "new", "this", "null", "public", "private", "protected",
+                      "internal", "static", "class", "record", "interface", "namespace", "using"})
+
+
+def has_csharp(graph) -> bool:
+    return any(g.get("kind") == "module" and g.get("language") == "csharp" for g in graph or ())
+
+
 def module_inputs(graph) -> tuple:
     """(module names for V2, whether any module is JavaScript or TypeScript). A JS module is also known by its `short` name."""
     mods = [g for g in graph or () if g.get("kind") == "module"]
@@ -321,14 +330,14 @@ def _span_found(span: str, text: str) -> bool:
     return "." in s and s.rstrip("()").rsplit(".", 1)[1] in text
 
 
-def v2(reports: dict, cites, files: set, modules=(), js: bool = False) -> tuple[list, list, list, dict]:
+def v2(reports: dict, cites, files: set, modules=(), js: bool = False, csharp: bool = False) -> tuple[list, list, list, dict]:
     """A name in backticks in a statement appears in the code the statement cites (D9). Warnings only.
 
     File names and module names (by their full dotted name or a suffix of it) are not looked for in the code.
     """
     warnings, gaps = [], []
     known = module_names(modules)
-    skip = SKIP_WORDS | JS_WORDS if js else SKIP_WORDS
+    skip = SKIP_WORDS | (JS_WORDS if js else frozenset()) | (CS_WORDS if csharp else frozenset())
     for rid, rep in sorted(reports.items()):
         title = (schema.load(rid) or {}).get("title", rid)
         for c in render.claims_of(rid, rep or {}):
@@ -409,7 +418,7 @@ def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None)
     if cites:
         try:
             names, js = module_inputs((extract or {}).get("graph", []))
-            e, w, g, c = v2(reports, cites, set(tree or ()), names, js)
+            e, w, g, c = v2(reports, cites, set(tree or ()), names, js, has_csharp((extract or {}).get("graph", [])))
             result["warnings"] += w
             result["gaps"] += g
             result["counts"].update(c)
@@ -432,6 +441,7 @@ def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None)
         result["counts"].update(c)
     if extract:
         result["gaps"] += js_coverage(extract)
+        result["gaps"] += cs_coverage(extract)
     if tree and extract:  # a dossier made before the extractors has no extract/: nothing to hold it to
         try:
             e, w, g, c = v4(reports, tree, facts)
@@ -445,6 +455,7 @@ def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None)
 
 
 js_coverage = checks_v7.js_coverage
+cs_coverage = checks_v7.cs_coverage
 
 
 def gap_extras(build, reports, extract, cites=None, facts=None, result=None) -> list:

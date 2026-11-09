@@ -12,6 +12,7 @@ disagreement there for a person to rule on. This tool holds no data of its own a
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -21,6 +22,14 @@ LABEL = {"entry": "entry points", "input": "inputs", "output": "outputs"}
 
 def _norm(text) -> str:
     return str(text).replace("`", "")
+
+
+_CITATION = re.compile(r"\[\[([^\]|]*?)(?:\|([^\]]*))?\]\]")
+
+
+def _text(row: str) -> str:
+    """The row with each `[[target|label]]` citation cut to its label, which the reader sees; targets are not claims (`201` must not match `...:171-201`)."""
+    return _CITATION.sub(lambda m: m.group(2) or "", row)
 
 
 def card_rows(reports: Path, card_id: str) -> list[str]:
@@ -41,12 +50,17 @@ def card_rows(reports: Path, card_id: str) -> list[str]:
 
 
 def _side(truth_rows: list[dict], dossier_rows: list[str], precision: bool) -> dict:
+    """One entry per truth row, so rows sharing a key keep their own `where`. `where` maps a key to all its lines, in order."""
     keys = [(t["key"], t.get("where", "")) for t in truth_rows]
-    matched = [k for k, _ in keys if any(_norm(k) in r for r in dossier_rows)]
-    missed = [k for k, _ in keys if k not in matched]
-    unmatched = [r for r in dossier_rows if not any(_norm(k) in r for k, _ in keys)]
-    out = {"matched": matched, "missed": missed, "unmatched": unmatched, "where": dict(keys),
-           "recall": len(matched) / len(keys) if keys else None}
+    texts = [_text(r) for r in dossier_rows]
+    hit = [any(_norm(k) in t for t in texts) for k, _ in keys]
+    where: dict = {}
+    for k, w in keys:
+        where.setdefault(k, []).append(w)
+    unmatched = [r for r, t in zip(dossier_rows, texts) if not any(_norm(k) in t for k, _ in keys)]
+    out = {"matched": [k for (k, _), h in zip(keys, hit) if h], "missed": [k for (k, _), h in zip(keys, hit) if not h],
+           "missed_where": [w for (_, w), h in zip(keys, hit) if not h], "unmatched": unmatched, "where": where,
+           "recall": sum(hit) / len(keys) if keys else None}
     if precision:
         out["precision"] = (len(dossier_rows) - len(unmatched)) / len(dossier_rows) if dossier_rows else None
     return out
@@ -81,7 +95,7 @@ def review(result: dict) -> str:
     for side in ("entry", "input", "output"):
         s = result[side]
         out += [f"## {LABEL[side]}", "", f"### Missed by the dossier ({len(s['missed'])})", ""]
-        out += [f"- `{k}` (truth: {s['where'].get(k, '')})" for k in s["missed"]] or ["- none"]
+        out += [f"- `{k}` (truth: {w})" for k, w in zip(s["missed"], s["missed_where"])] or ["- none"]
         out += ["", f"### In the dossier but not in the truth ({len(s['unmatched'])})", ""]
         out += [f"- {r}" for r in s["unmatched"]] or ["- none"]
         out.append("")

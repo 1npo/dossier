@@ -1,0 +1,119 @@
+rules:
+  - id: dossier.csharp.outputs.stdout
+    message: Writes to the console
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: stdout}
+    pattern-either:
+      - pattern: Console.WriteLine(...)
+      - pattern: Console.Write(...)
+      - pattern: Console.Error.WriteLine(...)
+
+  - id: dossier.csharp.outputs.file-write
+    message: Writes a file
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: file-write}
+    pattern-either:
+      - pattern: File.WriteAllText(...)
+      - pattern: File.WriteAllTextAsync(...)
+      - pattern: File.AppendAllText(...)
+      - pattern: File.AppendAllTextAsync(...)
+      - pattern: File.WriteAllBytes(...)
+      - pattern: File.WriteAllBytesAsync(...)
+      - pattern: File.Create(...)
+      - pattern: new StreamWriter(...)
+
+  - id: dossier.csharp.outputs.outbound-call
+    message: Calls another service
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: outbound-call}
+    patterns:
+      - pattern-either:
+          - pattern: new HttpClient(...)
+          - pattern: $S.AddHttpClient(...)
+          - pattern: $F.CreateClient(...)
+          - pattern: new SmtpClient(...)
+          - pattern: new BlobServiceClient(...)
+          - pattern: new AmazonS3Client(...)
+          - patterns:
+              - pattern-either:
+                  - pattern: $H.GetAsync(...)
+                  - pattern: $H.PostAsync(...)
+                  - pattern: $H.PutAsync(...)
+                  - pattern: $H.DeleteAsync(...)
+                  - pattern: $H.SendAsync(...)
+                  - pattern: $H.GetFromJsonAsync(...)
+                  - pattern: $H.GetFromJsonAsync<$T>(...)
+                  - pattern: $H.PostAsJsonAsync(...)
+                  - pattern: $H.PutAsJsonAsync(...)
+                  - pattern: $H.GetStringAsync(...)
+              - metavariable-regex:
+                  metavariable: $H
+                  regex: (?i)^.*(http|client).*$
+
+  - id: dossier.csharp.outputs.message-produce
+    message: Sends a message
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: message-produce}
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: $B.Publish(...)
+                  - pattern: $B.Send(...)
+              - metavariable-regex:
+                  metavariable: $B
+                  regex: (?i)^.*(bus|endpoint|producer|publisher)$
+          - pattern: $P.ProduceAsync(...)
+          - pattern: $C.BasicPublish(...)
+          - pattern: $S.SendMessageAsync(...)
+
+  - id: dossier.csharp.outputs.exit-code
+    message: Sets the exit code
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: exit-code}
+    pattern-either:
+      - pattern: Environment.Exit(...)
+      - pattern: Environment.ExitCode = $X
+
+  - id: dossier.csharp.outputs.error-response
+    message: Returns an error response
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: error-response}
+    patterns:
+      - pattern-either:
+          - pattern: BadRequest(...)
+          - pattern: NotFound(...)
+          - pattern: Unauthorized(...)
+          - pattern: Forbid(...)
+          - pattern: Conflict(...)
+          - pattern: UnprocessableEntity(...)
+          - pattern: Problem(...)
+          - pattern: ValidationProblem(...)
+          - patterns:
+              - pattern: StatusCode($N, ...)
+              - metavariable-comparison:
+                  metavariable: $N
+                  comparison: $N >= 400
+          - patterns:
+              - pattern-either:
+                  - pattern: Results.$M(...)
+                  - pattern: TypedResults.$M(...)
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: ^(BadRequest|NotFound|Unauthorized|Forbid|Conflict|UnprocessableEntity|Problem|ValidationProblem)$
+          - patterns:
+              - pattern: $C.Response.StatusCode = $N
+              - metavariable-comparison:
+                  metavariable: $N
+                  comparison: $N >= 400
+          - patterns:
+              - pattern: throw new $E(...)
+              - metavariable-regex:
+                  metavariable: $E
+                  regex: (?:^.*(Http|Api|Rest)Exception$)|(?:^(NotFound|BadRequest|Unauthorized|Forbidden|Conflict|Validation).*Exception$)

@@ -60,6 +60,27 @@ def _node_pin(ctx):
     return None, None
 
 
+DOTNET_FRAMEWORK = re.compile(r"^(?:net(\d+)\.0(?:-[\w.]+)?|netcoreapp(3\.1))$")
+
+
+def _dotnet_rows(ctx, snap, today) -> list:
+    """One row per distinct target framework of the non-test C# projects (D19), naming the first project (by path) that sets it."""
+    if "dotnet" not in snap["products"]:
+        return []
+    cycles = snap["products"]["dotnet"]
+    first: dict = {}
+    for g in sorted((g for g in (ctx.get("extract") or {}).get("graph", []) if g.get("kind") == "cs-project" and not g.get("test")), key=lambda g: g["path"]):
+        for framework in g.get("frameworks") or []:
+            first.setdefault(framework, g["path"])
+    out = []
+    for framework, path in sorted(first.items(), key=lambda kv: (kv[1], kv[0])):
+        m = DOTNET_FRAMEWORK.match(framework)
+        if m:
+            gap, _ = _gap(cycles, m.group(1) or m.group(2), today)
+            out.append((".NET", f"TargetFramework {framework}", f"{cycles[0]['latest']} (latest)", gap, path))
+    return out
+
+
 def _gap(cycles, cycle, today):
     entry = next((c for c in cycles if c["cycle"] == cycle), None)
     if not entry or not entry.get("eol"):
@@ -94,6 +115,7 @@ def rows(ctx, snapshot=None):
         cycles = snap["products"]["nodejs"]
         gap, _ = _gap(cycles, _major(node), today)
         out.append(("Node.js", node, f"{cycles[0]['latest']} (latest)", gap, node_source))
+    out += _dotnet_rows(ctx, snap, today)
     deps = (facts.get("dependencies") or {}).get("deps") or []
     seen = set()
     for d in sorted(deps, key=lambda d: d["n"]):

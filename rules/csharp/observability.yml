@@ -1,0 +1,55 @@
+rules:
+  - id: dossier.csharp.observability.log
+    message: Writes a log entry
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: log}
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: $L.LogInformation(...)
+                  - pattern: $L.LogWarning(...)
+                  - pattern: $L.LogError(...)
+                  - pattern: $L.LogDebug(...)
+                  - pattern: $L.LogTrace(...)
+                  - pattern: $L.LogCritical(...)
+                  - pattern: $L.Log(...)
+              - metavariable-regex:
+                  metavariable: $L
+                  regex: (?i)^(?:.*\.)?_*(?:\w*logger|log\w*)$
+          - pattern: Log.Information(...)
+          - pattern: Log.Warning(...)
+          - pattern: Log.Error(...)
+          - pattern: Log.Debug(...)
+          - pattern: Log.Fatal(...)
+          - pattern: Log.Verbose(...)
+          - pattern: new LoggerConfiguration()
+          - pattern: $S.AddSerilog(...)
+          - pattern: $S.UseSerilog(...)
+          - pattern-regex: (?m)^[ \t]*\[LoggerMessage\b[^\]]*\]
+
+  - id: dossier.csharp.observability.metric
+    message: Records a metric
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: metric}
+    pattern-either:
+      - pattern: new Meter(...)
+      - pattern: $M.CreateCounter<$T>(...)
+      - pattern: $M.CreateHistogram<$T>(...)
+      - pattern: $M.CreateUpDownCounter<$T>(...)
+      - pattern: $M.CreateObservableGauge<$T>(...)
+
+  - id: dossier.csharp.observability.trace
+    message: Records a trace
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: trace}
+    pattern-either:
+      - pattern: new ActivitySource(...)
+      - pattern: $S.StartActivity(...)
+      - pattern: $B.AddOpenTelemetry(...)
+      - pattern: $B.AddApplicationInsightsTelemetry(...)
+      - pattern: SentrySdk.Init(...)
+      - pattern: $B.UseSentry(...)

@@ -490,6 +490,46 @@ class TestCoverageItemsJavaScript:
         assert got and "too old (20.19.2; it needs 22.13.0)" in got[0]
 
 
+class TestPartialCardsCSharp:
+    SELF = TestPartialCards.SELF + [{"id": "scip-dotnet"}, {"id": "dependency-cruiser"}, {"id": "scip-typescript"}]
+
+    def tools(self, missing=()):
+        return rec("tools", details={"self_installing": self.SELF, "missing": list(missing), "languages": []})
+
+    def extract(self, cs=None, js=None):
+        adapters = [{"name": "csharp", "status": "ok", "tools": cs or {}}, {"name": "js", "status": "ok", "tools": js or {}}]
+        return rec("extract", details={"adapters": adapters})
+
+    def test_a_skipped_scip_dotnet_marks_its_three_cards_with_the_reason(self):
+        cs = {"scip-dotnet": {"status": "skipped", "reason": "The .NET SDK is missing."}}
+
+        got = process.partial_cards(build_with(self.tools(), self.extract(cs=cs)))
+
+        assert got == {c: "Made without scip-dotnet: The .NET SDK is missing." for c in ("components.catalog", "interactions.flows", "interactions.graph")}
+
+    def test_the_gaps_item_for_a_skipped_scip_dotnet_is_written_once(self):
+        cs = {"scip-dotnet": {"status": "skipped", "reason": "The .NET SDK is missing."}}
+
+        got = [i["statement"] for i in process.coverage_items(build_with(self.extract(cs=cs)))]
+
+        assert got == ["The tool scip-dotnet did not finish, so the cards that use it are marked partial: The .NET SDK is missing."]
+
+    def test_in_a_mixed_build_a_missing_sdk_badges_only_the_csharp_tool(self):
+        cs = {"scip-dotnet": {"status": "skipped", "reason": "The .NET SDK is missing."}}
+        js = {"scip-typescript": {"status": "ok"}, "dependency-cruiser": {"status": "ok"}}
+
+        got = process.partial_cards(build_with(self.tools(), self.extract(cs=cs, js=js)))
+
+        assert got and all(v == "Made without scip-dotnet: The .NET SDK is missing." for v in got.values())
+
+    def test_a_missing_dotnet_gives_the_existing_host_gaps_item(self):
+        host = [{"id": "dotnet", "status": "missing", "install": "brew install dotnet"}]
+
+        got = [i["statement"] for i in process.coverage_items(build_with(rec("tools", details={"host": host, "languages": []})))]
+
+        assert got == ["The tool dotnet was not installed, so this build ran without it. Install it with: brew install dotnet"]
+
+
 class TestCheckLine:
     def line(self, **counts):
         build = build_with(rec("check", part="render", by="render", counts={"citations": 4, "unresolved": 1, "errors": 0, **counts}))

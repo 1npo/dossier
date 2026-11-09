@@ -11,10 +11,13 @@ import re
 from pathlib import Path
 
 import config
+import cs_sdk
 import gather
 import js_tools
 import sandbox
 
+PROJECT_EXTS = (".csproj", ".fsproj", ".vbproj")
+WORKLOAD_FAILURE = re.compile(r"NETSDK1147")
 AUTH_FAILURE = re.compile(r"\b(401|403)\b|E401|E403|Unauthori[sz]ed|authentication (failed|required)|could not authenticate|NU1301", re.I)
 
 
@@ -41,8 +44,11 @@ def plans(tree, tools: dict, checkout=None) -> list[dict]:
     for r in tools["restore"]:
         for folder in _lock_folders(tree, r["lockfile"], bool(r.get("nested"))):
             command = r["berry_command"] if r.get("berry_command") and _is_berry(checkout, folder) else r["command"]
-            out.append({"ecosystem": r["ecosystem"], "lockfile": f"{folder}/{r['lockfile']}" if folder else r["lockfile"],
-                        "command": list(command), "enabled": r["enabled"], "dir": folder, "auth": r.get("auth", r["ecosystem"])})
+            plan = {"ecosystem": r["ecosystem"], "lockfile": f"{folder}/{r['lockfile']}" if folder else r["lockfile"],
+                    "command": list(command), "enabled": r["enabled"], "dir": folder, "auth": r.get("auth", r["ecosystem"])}
+            if any("{project}" in w for w in command):
+                plan["projects"] = sorted(f for f in tree if f.endswith(PROJECT_EXTS) and f.rpartition("/")[0] == folder)
+            out.append(plan)
     return out
 
 
@@ -78,7 +84,7 @@ def decide(plans, *, state, answer, no_restore, trust, allow_ref) -> dict:
 
 
 def run(plans, *, area, checkout, timeout, parent=None) -> list[dict]:
-    results, tools_folder = [], None
+    results, tools_folder, sdk_problem, sdk_checked = [], None, None, False
     for p in plans:
         eco, folder = p["ecosystem"], p.get("dir", "")
         base = {"ecosystem": eco, "command": p["command"], "seconds": 0.0, "env_names": [], "log": None, "dir": folder}
@@ -87,7 +93,22 @@ def run(plans, *, area, checkout, timeout, parent=None) -> list[dict]:
             results.append({**base, "status": "skipped",
                             "reason": f"Installing {eco} dependencies arrives in a later version of dossier."})
             continue
+        if eco == "nuget":
+            if not sdk_checked:
+                sdk_problem, sdk_checked = cs_sdk.problem_for(checkout, (parent or {}).get("PATH")), True
+            if sdk_problem:
+                results.append({**base, "status": "skipped", "reason": sdk_problem})
+                continue
         command = list(p["command"])
+        project = None
+        if any("{project}" in w for w in command):
+            found = p.get("projects", [])
+            if len(found) != 1:
+                results.append({**base, "status": "failed", "reason": f"The lock file {p['lockfile']} is not beside exactly one project file, "
+                                                                      f"so it was not used.{where}"})
+                continue
+            project = found[0]
+            command = [w.replace("{project}", project.rsplit("/", 1)[-1]) for w in command]
         if any("{js_tools}" in word for word in command):
             try:
                 if tools_folder is None:
@@ -108,7 +129,9 @@ def run(plans, *, area, checkout, timeout, parent=None) -> list[dict]:
             results.append({**base, "status": "ok", "reason": None})
         else:
             err = r.stderr.read_text(errors="replace") if r.stderr.exists() else ""
-            if AUTH_FAILURE.search(err):
+            if project and WORKLOAD_FAILURE.search(err):
+                reason = f"Restoring {project} needs a .NET workload, and dossier does not install workloads.{where}"
+            elif AUTH_FAILURE.search(err):
                 auth = p.get("auth", eco)
                 reason = (f"Installing {eco} dependencies failed because the package registry refused the credentials. "
                           f"Add the variables or files it needs to registry_auth.{auth} in {config.path()}.{where}")

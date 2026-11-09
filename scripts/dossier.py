@@ -164,7 +164,7 @@ def cmd_doctor(a):
     else:
         top = toplevel(a.repo)
         sha = subprocess.run(["git", "-C", top, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
-        report = toolcheck.preflight(toolcheck.languages_at(top, sha))
+        report = toolcheck.preflight_at(top, sha)
     skill = buildlog.skill_state(ROOT)
     if a.json:
         print(json.dumps(dict(report, skill=skill), indent=1))

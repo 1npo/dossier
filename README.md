@@ -92,6 +92,8 @@ The commit calendars (on Overview and Contributors) open on days and zoom out to
 
 TypeScript, JavaScript and React repositories have full support from version 0.9.0, and need Node 22.13 or later.
 
+C# repositories have full support from version 0.10.0. They need the .NET SDK that the repository's `global.json` asks for (8 or later when there is none); without it, dossier builds the C# cards from the source text alone and marks them partial.
+
 Requires Claude Code and [uv](https://docs.astral.sh/uv/), which installs Pygments for `dossier.py` on demand. Without Pygments the code is shown without colors, and `build` prints a warning. The page check in `build` uses Playwright, which `uv` installs on demand; the first run also needs `uv run --with playwright python -m playwright install chromium`.
 
 ```sh

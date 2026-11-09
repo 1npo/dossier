@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="..\Shop.Core\Shop.Core.csproj" />
+    <ProjectReference Include="..\Shop.Data\Shop.Data.csproj" />
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="MediatR" />
+    <PackageReference Include="Polly" />
+    <PackageReference Include="Hangfire.Core" />
+    <PackageReference Include="MassTransit" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker" />
+    <PackageReference Include="Riok.Mapperly" />
+    <PackageReference Include="Microsoft.FeatureManagement" />
+    <PackageReference Include="FastEndpoints" />
+  </ItemGroup>
+</Project>

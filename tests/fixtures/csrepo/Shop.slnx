@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="src/Shop.Api/Shop.Api.csproj" />
+  <Project Path="src/Shop.Core/Shop.Core.csproj" />
+  <Project Path="src/Shop.Data/Shop.Data.csproj" />
+  <Project Path="tests/Shop.Tests/Shop.Tests.csproj" />
+  <Project Path="tests/Shop.NUnitTests/Shop.NUnitTests.csproj" />
+  <Project Path="build/build.csproj" />
+</Solution>

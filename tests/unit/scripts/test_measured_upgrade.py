@@ -137,3 +137,57 @@ class TestShippedSnapshot:
         snap = measured_upgrade.load_snapshot()
 
         assert {"python", "django", "nodejs", "react", "nextjs"} <= set(snap["products"])
+
+
+DOTNET_SNAP = {"as_of": "2026-11-05", "source": "x", "products": {
+    "dotnet": [{"cycle": "10", "eol": "2028-11-14", "latest": "10.0.13"}, {"cycle": "9", "eol": "2026-11-10", "latest": "9.0.21"},
+               {"cycle": "8", "eol": "2026-11-10", "latest": "8.0.32"}]}}
+
+
+def csctx(*projects, commit_date="2026-06-01"):
+    graph = [{"kind": "cs-project", "path": path, "name": path, "frameworks": list(frameworks), "test": test}
+             for path, frameworks, test in projects]
+    return {"facts": {"repo": {"commit_date": commit_date}, "manifests": []}, "read": lambda p: None, "extract": {"graph": graph}}
+
+
+class TestDotnetRows:
+    def test_a_supported_framework_gives_a_row_with_its_end_date(self):
+        got = measured_upgrade.rows(csctx(("src/A/A.csproj", ["net10.0"], False)), DOTNET_SNAP)
+
+        assert got == [(".NET", "TargetFramework net10.0", "10.0.13 (latest)", "supported until 2028-11-14", "src/A/A.csproj")]
+
+    def test_a_framework_past_its_end_of_life_says_since_when_at_a_later_commit_date(self):
+        got = measured_upgrade.rows(csctx(("src/A/A.csproj", ["net8.0"], False), commit_date="2026-12-01"), DOTNET_SNAP)
+
+        assert got[0][3] == "end of life since 2026-11-10"
+
+    def test_a_platform_suffix_is_ignored_for_the_cycle(self):
+        got = measured_upgrade.rows(csctx(("src/A/A.csproj", ["net8.0-windows"], False)), DOTNET_SNAP)
+
+        assert got[0][1] == "TargetFramework net8.0-windows" and got[0][3] == "supported until 2026-11-10"
+
+    def test_standard_and_old_frameworks_give_no_row(self):
+        projects = [("a/A.csproj", ["netstandard2.0"], False), ("b/B.csproj", ["net48"], False), ("c/C.csproj", ["netcoreapp2.1"], False)]
+
+        assert measured_upgrade.rows(csctx(*projects), DOTNET_SNAP) == []
+
+    def test_test_projects_give_no_row(self):
+        assert measured_upgrade.rows(csctx(("t/T.csproj", ["net10.0"], True)), DOTNET_SNAP) == []
+
+    def test_one_row_per_distinct_framework_naming_the_first_project(self):
+        projects = [("b/B.csproj", ["net10.0", "net8.0"], False), ("a/A.csproj", ["net10.0"], False)]
+
+        got = measured_upgrade.rows(csctx(*projects), DOTNET_SNAP)
+
+        assert [(r[1], r[4]) for r in got] == [("TargetFramework net10.0", "a/A.csproj"), ("TargetFramework net8.0", "b/B.csproj")]
+
+    def test_the_dotnet_rows_follow_the_python_and_node_rows(self):
+        c = ctx(requires=">=3.10")
+        c["extract"] = csctx(("src/A/A.csproj", ["net10.0"], False))["extract"]
+
+        got = measured_upgrade.rows(c, {**SNAP, "products": {**SNAP["products"], **DOTNET_SNAP["products"]}})
+
+        assert [r[0] for r in got] == ["Python", ".NET"]
+
+    def test_a_python_context_gives_the_rows_it_gave(self):
+        assert [r[0] for r in measured_upgrade.rows(ctx(requires=">=3.10"), SNAP)] == ["Python"]

@@ -1,5 +1,6 @@
 import pytest
 
+import cs_sdk
 import js_tools
 import restore
 import sandbox
@@ -15,6 +16,11 @@ NODE_TOOLS = {"restore": [
      "command": ["node", "{js_tools}/yarn.js", "install", "--frozen-lockfile"], "berry_command": ["node", "{js_tools}/berry.js", "--immutable"]},
     {"ecosystem": "pnpm", "lockfile": "pnpm-lock.yaml", "nested": True, "enabled": True, "auth": "npm",
      "command": ["node", "{js_tools}/pnpm.mjs", "install", "--store-dir", "{pnpm_store}"]},
+]}
+NUGET_TOOLS = {"restore": [
+    *NODE_TOOLS["restore"][:2],
+    {"ecosystem": "nuget", "lockfile": "packages.lock.json", "nested": True, "enabled": True,
+     "command": ["dotnet", "restore", "{project}", "--locked-mode"]},
 ]}
 TRUSTED = {"trusted": True, "why": "tag v1", "default_branch": None}
 UNTRUSTED = {"trusted": False, "why": "not a tag and not on the default branch main", "default_branch": "main"}
@@ -67,6 +73,27 @@ class TestNestedPlans:
 
     def test_without_a_checkout_yarn_is_classic(self):
         assert restore.plans(frozenset({"yarn.lock"}), NODE_TOOLS)[0]["command"][1] == "{js_tools}/yarn.js"
+
+
+class TestNugetPlans:
+    def test_a_lock_file_in_three_folders_gives_three_plans(self):
+        tree = frozenset({"a/packages.lock.json", "a/a.csproj", "b/packages.lock.json", "b/b.csproj", "c/packages.lock.json", "c/c.csproj"})
+
+        got = restore.plans(tree, NUGET_TOOLS)
+
+        assert [(p["ecosystem"], p["dir"]) for p in got] == [("nuget", "a"), ("nuget", "b"), ("nuget", "c")]
+
+    def test_the_plan_lists_the_project_files_beside_its_lock_file(self):
+        tree = frozenset({"a/packages.lock.json", "a/a.csproj", "a/b.fsproj", "z/z.csproj", "a/sub/s.csproj"})
+
+        got = restore.plans(tree, NUGET_TOOLS)
+
+        assert got[0]["projects"] == ["a/a.csproj", "a/b.fsproj"]
+
+    def test_plans_without_the_token_carry_no_project_list(self):
+        got = restore.plans(frozenset({"uv.lock", "package-lock.json"}), NUGET_TOOLS)
+
+        assert all("projects" not in p for p in got)
 
 
 class TestRestored:
@@ -149,6 +176,81 @@ class TestRunNested:
         res = restore.run(self.plan(["true"], eco="npm"), area=area, checkout=co, timeout=30)
 
         assert res[0]["status"] == "ok"
+
+
+class TestRunNuget:
+    @pytest.fixture
+    def stage(self, tmp_path, monkeypatch):
+        area, co = tmp_path / "cache" / "repo", tmp_path / "co"
+        (co / "src/App").mkdir(parents=True)
+        monkeypatch.setattr(cs_sdk, "problem_for", lambda checkout, path=None: None)
+        return area, co
+
+    def plan(self, command, projects=("src/App/App.csproj",), dir_="src/App"):
+        return [{"ecosystem": "nuget", "lockfile": "src/App/packages.lock.json", "command": command, "enabled": True,
+                 "dir": dir_, "auth": "nuget", "projects": list(projects)}]
+
+    def test_the_token_becomes_the_one_project_file_name_and_the_command_runs_in_its_folder(self, stage):
+        area, co = stage
+
+        res = restore.run(self.plan(["sh", "-c", 'pwd > "$HOME/where"; echo "$0" > "$HOME/tok"', "{project}"]), area=area, checkout=co, timeout=30)
+
+        assert res[0]["status"] == "ok"
+        assert (area / "home/tok").read_text().strip() == "App.csproj"
+        assert (area / "home/where").read_text().strip() == str(co / "src/App")
+
+    def test_two_project_files_beside_one_lock_file_fail_the_plan(self, stage):
+        area, co = stage
+
+        res = restore.run(self.plan(["false", "{project}"], projects=("src/App/a.csproj", "src/App/b.csproj")), area=area, checkout=co, timeout=30)
+
+        assert res[0]["status"] == "failed"
+        assert res[0]["reason"].startswith("The lock file src/App/packages.lock.json is not beside exactly one project file, so it was not used.")
+
+    def test_no_project_file_fails_the_plan(self, stage):
+        area, co = stage
+
+        res = restore.run(self.plan(["false", "{project}"], projects=()), area=area, checkout=co, timeout=30)
+
+        assert res[0]["status"] == "failed" and "not beside exactly one project file" in res[0]["reason"]
+
+    def test_an_sdk_problem_skips_every_nuget_plan_and_runs_nothing(self, stage, monkeypatch):
+        area, co = stage
+        monkeypatch.setattr(cs_sdk, "problem_for", lambda checkout, path=None: "The .NET SDK is not installed.")
+        plans = self.plan(["sh", "-c", 'touch "$HOME/ran"', "{project}"]) * 2
+
+        res = restore.run(plans, area=area, checkout=co, timeout=30)
+
+        assert [(r["status"], r["reason"]) for r in res] == [("skipped", "The .NET SDK is not installed.")] * 2
+        assert not (area / "home/ran").exists()
+
+    def test_the_sdk_is_checked_once_and_not_for_other_ecosystems(self, stage, monkeypatch):
+        area, co = stage
+        calls = []
+        monkeypatch.setattr(cs_sdk, "problem_for", lambda checkout, path=None: calls.append(1))
+        other = [{"ecosystem": "python", "lockfile": "uv.lock", "command": ["true"], "enabled": True, "dir": ""}]
+
+        restore.run(other, area=area, checkout=co, timeout=30)
+        restore.run(self.plan(["true"]) * 2, area=area, checkout=co, timeout=30)
+
+        assert len(calls) == 1
+
+    def test_a_workload_error_gets_the_workload_reason(self, stage):
+        area, co = stage
+
+        res = restore.run(self.plan(["sh", "-c", "echo 'error NETSDK1147: To build this project, workloads must be installed' >&2; exit 1", "{project}"]),
+                          area=area, checkout=co, timeout=30)
+
+        assert res[0]["status"] == "failed"
+        assert res[0]["reason"] == "Restoring src/App/App.csproj needs a .NET workload, and dossier does not install workloads. (in src/App)"
+
+    def test_a_feed_that_refuses_credentials_names_registry_auth_nuget(self, stage):
+        area, co = stage
+
+        res = restore.run(self.plan(["sh", "-c", "echo 'error NU1301: Unable to load the service index' >&2; exit 1", "{project}"]),
+                          area=area, checkout=co, timeout=30)
+
+        assert "registry_auth.nuget" in res[0]["reason"]
 
 
 class TestDecide:

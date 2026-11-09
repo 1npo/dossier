@@ -207,6 +207,8 @@ details.deps { margin: .5rem 0; } details.deps summary { cursor: pointer; overfl
 .mermaid-host .edgeLabel rect { fill: #f3f4f6 !important; }
 .mermaid-host .edgeLabel .label text, .mermaid-host .edgeLabel text { fill: #111827 !important; }
 .mermaid-host .edgeLabel span { padding: 0; }
+/* a sequence `actor` is a stick figure whose name sits on the page itself, not on a pastel box, so it follows the theme */
+html.dark .mermaid-host g.actor-man text, html.dark .mermaid-host g.actor-man tspan { fill: #f3f4f6 !important; }
 /* the page styles <p> as a block with margins; inside a diagram label that pushes the text out of its clipping box */
 .mermaid-host foreignObject p { display: inline !important; margin: 0 !important; }
 .panel section > h3 { margin: 1.25rem 0 .6rem; } .panel section > h3:first-child { margin-top: 0; }

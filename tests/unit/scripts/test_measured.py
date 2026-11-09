@@ -5,6 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2].parent / "scripts"))
 import measured  # noqa: E402
+import measured_cs  # noqa: E402
 import measured_graph  # noqa: E402
 
 
@@ -159,6 +160,81 @@ class TestJavaScriptTooling:
         ctx = {"tree": {"package.json"}, "read": {"package.json": "{ not json"}.get}
 
         assert "No formatter or linter configuration was found." in measured.body("conventions.tooling", ctx, Refs())
+
+
+CS_TREE = {"global.json", "NuGet.Config", "Directory.Build.props", "Shop.sln", "build.cake", ".config/dotnet-tools.json", ".csharpierrc.json", ".editorconfig",
+           "stylecop.json", "src/Api/Api.csproj", "src/Api/appsettings.json", "src/Api/appsettings.Development.json", "src/Api/Properties/launchSettings.json",
+           "tests/Api.Tests/Api.Tests.csproj", "tests/Api.Tests/test.runsettings", "src/Data/Migrations/001_Init.cs", ".github/workflows/ci.yml", ".globalconfig",
+           "src/Api/Program.cs"}
+CS_FILES = {
+    "Directory.Build.props": "<Project><PropertyGroup><EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild></PropertyGroup></Project>",
+    "src/Api/Api.csproj": "<Project>\n<ItemGroup><PackageReference Include=\"StyleCop.Analyzers\" Version=\"1.0\" /></ItemGroup></Project>",
+    ".config/dotnet-tools.json": '{\n "tools": {\n  "csharpier": {"version": "1"}}}',
+    ".github/workflows/ci.yml": "steps:\n- run: dotnet format --verify-no-changes\n- run: dotnet csharpier --check .\n",
+}
+CS_CTX = {"tree": CS_TREE, "extract": {"models": [{"kind": "migration", "path": "src/Data/Migrations/001_Init.cs"}]}, "read": CS_FILES.get}
+
+
+class TestCSharpFiles:
+    def test_config_files_are_found_at_any_depth_and_any_case(self):
+        for p in ("global.json", "nuget.config", "NuGet.Config", "src/A/appsettings.json", "src/A/appsettings.Production.json", "src/A/Properties/launchSettings.json",
+                  "Directory.Build.props", "Directory.Build.targets", "Directory.Packages.props", "t/x.runsettings", ".config/dotnet-tools.json"):
+            assert measured_cs.is_config(p), p
+
+        assert not measured_cs.is_config("src/A/Program.cs") and not measured_cs.is_config("src/appsettings.cs")
+
+    def test_build_files_are_solutions_projects_and_cake(self):
+        for p in ("Shop.sln", "Shop.slnx", "src/A/A.csproj", "build.cake"):
+            assert measured_cs.is_build(p), p
+
+        assert not measured_cs.is_build("src/A/A.cs")
+
+
+class TestCSharpReadingMap:
+    def places(self, concern):
+        return [r[1] for r in rows_of(measured.body("reading.map", CS_CTX, Refs())) if r[0] == concern]
+
+    def test_configuration_and_build_include_the_dotnet_files(self):
+        config, build = self.places("configuration"), self.places("build")
+
+        assert "global.json" in config and "Directory.Build.props" in config and "NuGet.Config" in config
+        assert "Shop.sln" in build and "build.cake" in build and "src/Api/Api.csproj" in build
+
+    def test_the_ef_migrations_folder_appears(self):
+        assert self.places("migrations") == ["src/Data/Migrations/"]
+
+
+class TestCSharpTooling:
+    def rows(self):
+        return {r[0]: r for r in rows_of(measured.body("conventions.tooling", CS_CTX, Refs()))}
+
+    def test_each_tool_is_found_by_its_file_or_key(self):
+        got = self.rows()
+
+        assert ".csharpierrc.json" in got["csharpier"][1] and ".config/dotnet-tools.json" in got["csharpier"][1]
+        assert "Directory.Build.props" in got["dotnet-format"][1]
+        assert "stylecop.json" in got["StyleCop"][1] and "src/Api/Api.csproj" in got["StyleCop"][1]
+        assert ".globalconfig" in got[".globalconfig"][1]
+
+    def test_ci_shows_where_dotnet_format_and_csharpier_are_enforced(self):
+        got = self.rows()
+
+        assert ".github/workflows/ci.yml" in got["dotnet-format"][2] and ".github/workflows/ci.yml" in got["csharpier"][2]
+        assert got["StyleCop"][2] == "not enforced in the repository"
+
+    def test_dotnet_format_needs_the_editorconfig_and_the_setting(self):
+        ctx = {"tree": {".editorconfig", "Directory.Build.props"}, "read": {"Directory.Build.props": "<Project/>"}.get}
+        rows = {r[0] for r in rows_of(measured.body("conventions.tooling", ctx, Refs()))}
+
+        assert "dotnet-format" not in rows and "editorconfig" in rows
+
+    def test_a_csharpier_entry_needs_the_tools_file_to_name_it(self):
+        ctx = {"tree": {".config/dotnet-tools.json"}, "read": {".config/dotnet-tools.json": '{"tools": {"dotnet-ef": {}}}'}.get}
+
+        assert "No formatter or linter configuration was found." in measured.body("conventions.tooling", ctx, Refs())
+
+    def test_python_and_javascript_trees_give_the_rows_they_gave(self):
+        assert [r[0] for r in rows_of(measured.body("conventions.tooling", CTX, Refs()))] == ["ruff", "black", "pre-commit"]
 
 
 class TestViolations:
@@ -412,6 +488,47 @@ class TestPublicApi:
         item = dict(API_ITEMS[0], name="<i>x</i>")
 
         assert "<i>x</i>" not in self.html([item])
+
+
+CS_API = [
+    {"kind": "public-api", "path": "src/Lib/Guard.cs", "line": 5, "name": "Guard.Against", "symbol_kind": "property", "package": "Lib", "subpath": "Lib.Guards",
+     "audience": "packable"},
+    {"kind": "public-api", "path": "src/Lib/Guard.cs", "line": 3, "name": "Guard", "symbol_kind": "class", "package": "Lib", "subpath": "Lib.Guards", "audience": "packable"},
+    {"kind": "public-api", "path": "src/Lib/Root.cs", "line": 2, "name": "Root", "symbol_kind": "class", "package": "Lib", "subpath": "", "audience": "packable, obsolete"},
+]
+CS_GRAPH = [{"kind": "module", "module": "src/Lib/Guard", "path": "src/Lib/Guard.cs", "language": "csharp"},
+            {"kind": "cs-project", "path": "src/Lib/Lib.csproj", "name": "Lib", "packable": True, "friends": ["Lib.Tests", "Lib.Bench"]},
+            {"kind": "cs-project", "path": "src/Web/Web.csproj", "name": "Web", "packable": False, "friends": ["Web.Tests"]}]
+
+
+class TestCSharpPublicApi:
+    def html(self, items=CS_API, graph=CS_GRAPH):
+        import measured_tables
+
+        return measured_tables.public_api({"extract": {"symbols": list(items), "graph": list(graph)}}, Refs())
+
+    def test_rows_are_ordered_by_package_namespace_and_name_with_the_namespace_as_import_path(self):
+        rows = rows_of(table_html(self.html(), API_ID))
+
+        assert [(r[0], r[1], r[2]) for r in rows] == [("Lib", "Lib", "Root"), ("Lib", "Lib.Guards", "Guard"), ("Lib", "Lib.Guards", "Guard.Against")]
+        assert rows[0][5] == "packable, obsolete"
+
+    def test_a_friend_line_follows_the_table_for_each_packable_project_and_friend(self):
+        html = self.html()
+        lines = re.findall(r'<p class="muted">([^<]*)</p>', html.split("</table>")[-1])
+
+        assert lines == ["Lib lets Lib.Bench use its internal names (InternalsVisibleTo).", "Lib lets Lib.Tests use its internal names (InternalsVisibleTo)."]
+
+    def test_friend_lines_for_a_project_that_is_not_packable_are_left_out(self):
+        assert "Web.Tests" not in self.html()
+
+    def test_a_csharp_repository_with_no_packable_project_says_no_package_declares_an_api(self):
+        graph = [dict(g, packable=False) if g["kind"] == "cs-project" else g for g in CS_GRAPH]
+
+        assert "No package here declares a public API." in self.html([], graph)
+
+    def test_a_repository_with_no_javascript_or_csharp_draws_nothing(self):
+        assert self.html([], [{"kind": "module", "module": "a", "path": "a.py"}]) == ""
 
 
 class TestJavaScriptAreas:

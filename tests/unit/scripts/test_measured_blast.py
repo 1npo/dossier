@@ -98,3 +98,38 @@ class TestCard:
         html = measured.body("change.blast-radius", c, Refs())
 
         assert "No import graph was extracted, so only co-changing files are shown." in html
+
+
+def cs_module(path):
+    return {"kind": "module", "path": path, "module": path[:-3], "short": path.rsplit("/", 1)[-1][:-3], "language": "csharp"}
+
+
+def cs_use(a, b):
+    return {"kind": "import", "path": a, "paths": [b], "from": a[:-3], "to": b[:-3], "via": "type-use"}
+
+
+class TestCSharpData:
+    def csctx(self):
+        extract = {"graph": [cs_module("src/Core/Order.cs"), cs_module("src/Core/Cart.cs"), cs_module("src/Api/Checkout.cs"),
+                             cs_use("src/Core/Cart.cs", "src/Core/Order.cs"), cs_use("src/Api/Checkout.cs", "src/Core/Cart.cs")],
+                   "tests": [{"kind": "test-file", "path": "tests/OrderTests.cs", "paths": ["src/Core/Order.cs"]}],
+                   "history": [{"kind": "meta"}, {"kind": "pair", "a": "src/Core/Core.csproj", "b": "src/Core/Order.cs", "co_commits": 5, "share": 50, "path": "src/Core/Order.cs"}]}
+        tree = {"src/Core/Order.cs", "src/Core/Cart.cs", "src/Api/Checkout.cs", "src/Core/Core.csproj", "src/Api/Index.razor", "tests/OrderTests.cs"}
+        return {"extract": extract, "tree": tree, "catalog": [], "facts": {}}
+
+    def test_the_blast_radius_of_a_type_holds_the_files_that_use_it_and_the_tests_that_name_it(self):
+        d = measured_blast.data(self.csctx())
+        i = d["files"].index("src/Core/Order.cs")
+
+        assert {d["files"][j] for j in decode(d["dep"][i], len(d["files"]))} == {"src/Core/Cart.cs", "src/Api/Checkout.cs"}
+        assert d["direct"][i] == 1 and [d["tests"][t] for t in d["ft"][i]] == ["tests/OrderTests.cs"]
+
+    def test_a_project_file_has_co_change_rows_and_no_graph_row(self):
+        d = measured_blast.data(self.csctx())
+
+        assert "src/Core/Core.csproj" not in d["files"] and d["co"]["src/Core/Core.csproj"] == [["src/Core/Order.cs", 5]]
+
+    def test_a_razor_file_is_in_no_graph_and_not_a_listed_file(self):
+        d = measured_blast.data(self.csctx())
+
+        assert "src/Api/Index.razor" not in d["files"] and all(f.endswith(".cs") for f in d["files"])
