@@ -94,6 +94,8 @@ def js_coverage(extract: dict) -> list:
 CS_LINKS = "C# file links come from type names in the text; uses through extension methods, var, reflection or dependency injection are not linked."
 CS_DEAD = ("C# dead code is listed only for internal types that nothing references; a class found by reflection or registered by scanning "
            "can be listed wrongly, so check before removing anything.")
+CS_NUGET_UNUSED = ("Unused NuGet packages are not listed: a package is often used through extension methods, analysers or build files "
+                   "that no import names.")
 CS_NOTES = {  # note -> (report, how to confirm, statement with {name} / {a} / {b})
     "framework": ("entry", KNOWN_LIMIT, "Routes and handlers written for {name} are not detected, so check the entry points by hand."),
     "no-lock": ("dossier", KNOWN_LIMIT, "The packages of {name} were not installed, because it has no packages.lock.json and dossier installs only from lock files."),
@@ -118,6 +120,7 @@ def cs_coverage(extract: dict) -> list:
     if any(g.get("kind") == "module" and g.get("language") == "csharp" for g in graph):
         items.append({"kind": "coverage", "report": "change", "statement": STALE_FLAGS.format(language="C#"), "how_to_confirm": KNOWN_LIMIT})
         items.append({"kind": "coverage", "report": "interactions", "statement": CS_LINKS, "how_to_confirm": KNOWN_LIMIT})
+        items.append({"kind": "coverage", "report": "change", "statement": CS_NUGET_UNUSED, "how_to_confirm": KNOWN_LIMIT})
     for note in sorted((g for g in graph if g.get("kind") == "cs-note"), key=lambda g: (g["note"], g["name"])):
         if note["note"] not in CS_NOTES:
             continue

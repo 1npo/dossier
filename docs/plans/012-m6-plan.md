@@ -407,7 +407,7 @@ Read sections 2 to 4, D2 to D6, D18 and D20. Load the skills in section 2. Then:
   - Done-check: `uv run --with pytest --with pygments python -m pytest tests/unit/scripts/test_cs_project.py tests/unit/scripts/test_cs_adapter.py tests/unit/scripts/test_csfixture.py -q` passes; `DOSSIER_SLOW=1 ... tests/integration/scripts/test_cs_adapter_slow.py -q --basetemp=$HOME/.cache/dossier-m6-slow` passes.
   - Commit: `fix(dossier): read the Aspire SDK named in a C# project file`
 
-- [ ] **M6-2. Leave unused NuGet packages out of dead code.**
+- [x] **M6-2. Leave unused NuGet packages out of dead code.**
   - Goal: D3, first bullet.
   - Files: `scripts/measured_change.py`, `scripts/checks_v7.py` (the fixed item in `cs_coverage`), `tests/unit/scripts/test_measured_change.py`, `tests/unit/scripts/test_checks_v7.py`.
   - Steps: (1) Tests: a `dependencies` blob with one NuGet and one npm unused row gives only the npm row; the Gaps item appears once with a C# module and not without one; Python and JS rows unchanged (assert today's lists). (2) Implement.

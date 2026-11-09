@@ -114,7 +114,14 @@ class TestCSharpCoverage:
     def test_a_csharp_module_gives_the_stale_flags_and_file_link_items_only_for_csharp(self):
         got = checks_v7.cs_coverage(cs_extract())
 
-        assert [(g["report"], g["statement"]) for g in got] == [("change", "Stale feature flags and unused routes are not detected for C#."), ("interactions", checks_v7.CS_LINKS)]
+        assert [(g["report"], g["statement"]) for g in got] == [("change", "Stale feature flags and unused routes are not detected for C#."), ("interactions", checks_v7.CS_LINKS),
+                                                            ("change", checks_v7.CS_NUGET_UNUSED)]
+
+    def test_the_unused_nuget_item_appears_once_with_a_csharp_module(self):
+        got = [g for g in checks_v7.cs_coverage(cs_extract()) if g["statement"] == checks_v7.CS_NUGET_UNUSED]
+
+        assert [(g["report"], g["how_to_confirm"]) for g in got] == [("change", checks_v7.KNOWN_LIMIT)]
+        assert not [g for g in checks_v7.cs_coverage(cs_extract(module=False)) if g["statement"] == checks_v7.CS_NUGET_UNUSED]
 
     def test_no_csharp_module_gives_nothing(self):
         assert checks_v7.cs_coverage(cs_extract(module=False)) == []
