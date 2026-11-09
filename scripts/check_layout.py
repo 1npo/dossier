@@ -6,7 +6,7 @@ For each report, at each window size, in each theme, one script runs in the page
     that a parent clips without letting it scroll counts as sticking out: the reader cannot reach it);
   - no icon is drawn larger than 48 px;
   - every piece of text in every diagram, and in every chart (`.chart-scroll`), is at least 11 px tall;
-  - diagram budgets: at most 12 nodes in a flowchart, 10 participants in a sequence diagram, 12 entities in an ER diagram
+  - diagram budgets: at most 12 nodes and 30 edges in a flowchart, 10 participants in a sequence diagram, 12 entities in an ER diagram
     (the diagrams code splits into areas are exempt: they are marked data-budget="area");
   - every flow diagram of Key flows and Startup has numbered notes under it;
   - every card whose layout has a table, and that has content, shows a table;
@@ -20,6 +20,7 @@ import schema
 
 SIZES = ((1500, 1000), (400, 900))
 MIN_TEXT_PX, MAX_ICON_PX, MAX_FLOW_NODES, MAX_PARTICIPANTS, MAX_ENTITIES, MIN_OVERLAP_PX2 = 11, 48, 12, 10, 12, 4
+MAX_FLOW_EDGES = 30  # Mermaid 12 draws each flowchart edge as `path.flowchart-link`
 NOTE_CARDS = ("interactions.flows", "entry.startup")
 # Report 02 keeps its pre-1.0 layout (plan 008, A6), and at 400 px its heat-map legend is cut off 15 px short of the end. The sideways check
 # skips these cards so that a dossier can pass; every other check still applies to them. Recorded for the author in plan 008, Results.
@@ -82,6 +83,7 @@ LAYOUT_JS = r"""(arg) => {
       if (h > 0 && (min === null || h < min)) min = h;
     }
     if (min !== null && min < arg.minText) add(dia, cardOf(host) + ' / ' + title + ': the smallest text is ' + Math.round(min * 10) / 10 + ' px tall (at least ' + arg.minText + ' px)', 6);
+    if ((svg.getAttribute('aria-roledescription') || '').startsWith('flowchart') && svg.querySelectorAll('path.flowchart-link').length > arg.maxEdges) add(dia, cardOf(host) + ' / ' + title + ': ' + svg.querySelectorAll('path.flowchart-link').length + ' edges (at most ' + arg.maxEdges + ')', 6);
     if (host.dataset.budget === 'area') continue;
     const kind = svg.getAttribute('aria-roledescription') || '';
     const count = (sel) => svg.querySelectorAll(sel).length;
@@ -142,7 +144,7 @@ def table_cards() -> list:
 
 
 def arguments() -> dict:
-    return {"scrollers": SCROLLERS, "maxIcon": MAX_ICON_PX, "minText": MIN_TEXT_PX, "maxNodes": MAX_FLOW_NODES, "maxParticipants": MAX_PARTICIPANTS,
+    return {"scrollers": SCROLLERS, "maxIcon": MAX_ICON_PX, "minText": MIN_TEXT_PX, "maxNodes": MAX_FLOW_NODES, "maxEdges": MAX_FLOW_EDGES, "maxParticipants": MAX_PARTICIPANTS,
             "maxEntities": MAX_ENTITIES, "frozen": FROZEN_CARDS, "noteCards": list(NOTE_CARDS), "tableCards": table_cards(), "minOverlap": MIN_OVERLAP_PX2}
 
 

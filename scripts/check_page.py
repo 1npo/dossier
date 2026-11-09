@@ -467,6 +467,56 @@ def check_theme(browser, path, scheme, shots):
     return problems, counter[0]
 
 
+GRAPH_VIEW_JS = r"""(card) => {
+  const h = document.querySelector('[data-card="' + card + '"] .igraph .mermaid-host'), svg = h && h.querySelector('svg');
+  if (!svg) return null;
+  let min = null;
+  for (const el of svg.querySelectorAll('*')) {
+    if (!Array.from(el.childNodes).some(n => n.nodeType === 3 && n.textContent.trim())) continue;
+    const t = el.getBoundingClientRect().height;
+    if (t > 0 && (min === null || t < min)) min = t;
+  }
+  return { nodes: svg.querySelectorAll('g.node').length, edges: svg.querySelectorAll('path.flowchart-link').length, min: min, failed: h.classList.contains('failed') };
+}"""
+
+
+def check_graphs(page, tag):
+    """V12 for the interactive graphs (D7) of the report that is shown: every view in the select is drawn in turn and its nodes, edges and
+    smallest text are measured, then a button of the root view is clicked and must open its view. Returns one line per problem."""
+    out = []
+    for card in page.eval_on_selector_all(".report:not([hidden]) .igraph", "els => els.map(e => e.closest('[data-card]').dataset.card)"):
+        sel = f'[data-card="{card}"] .igraph'
+        has_views = page.evaluate("s => { const d = document.querySelector(s + ' script.igraph-data'); try { return JSON.parse(d.textContent).length > 0; } catch (e) { return false; } }", sel)
+        if not has_views:
+            out.append(f"{card}: the graph has no views")
+            continue
+        values = page.eval_on_selector_all(sel + " .igraph-select option", "els => els.map(e => [e.value, e.textContent])")
+        for value, title in values:
+            page.select_option(sel + " .igraph-select", value)
+            page.wait_for_function("([s, v]) => document.querySelector(s + ' .igraph-select').value === v && document.querySelector(s + ' .mermaid-host').dataset.done", arg=[sel, value], timeout=20000)
+            got = page.evaluate(GRAPH_VIEW_JS, card)
+            if got is None or got["failed"]:
+                out.append(f'{card}: the graph view "{title}" was not drawn')
+                continue
+            if got["nodes"] > check_layout.MAX_FLOW_NODES:
+                out.append(f'{card}: the graph view "{title}" has {got["nodes"]} nodes (at most {check_layout.MAX_FLOW_NODES})')
+            if got["edges"] > check_layout.MAX_FLOW_EDGES:
+                out.append(f'{card}: the graph view "{title}" has {got["edges"]} edges (at most {check_layout.MAX_FLOW_EDGES})')
+            if got["min"] is not None and got["min"] < check_layout.MIN_TEXT_PX:
+                out.append(f'{card}: the graph view "{title}": the smallest text is {round(got["min"], 1)} px tall (at least {check_layout.MIN_TEXT_PX} px)')
+        page.select_option(sel + " .igraph-select", values[0][0])
+        page.wait_for_function("s => document.querySelector(s + ' .mermaid-host').dataset.done", arg=sel, timeout=20000)
+        button = page.query_selector(sel + " .igraph-open [data-open]")
+        if button:
+            target, label = button.get_attribute("data-open"), button.text_content().strip()
+            button.click()
+            try:
+                page.wait_for_function("([s, v]) => document.querySelector(s + ' .igraph-select').value === v", arg=[sel, target], timeout=3000)
+            except Exception:  # noqa: BLE001
+                out.append(f'{card}: the button "{label}" does not open its view')
+    return out
+
+
 def check_layouts(browser, path, scheme):
     """V12: every report at each window size, in this theme (see check_layout.py)."""
     problems, args = [], check_layout.arguments()
@@ -483,6 +533,8 @@ def check_layouts(browser, path, scheme):
             page.wait_for_timeout(150)
             got = safe(f"{scheme} {width}px", f"layout of {rid}", check_layout.check_report, page, args)
             problems += [line if line.startswith("[") else f"[{scheme} {width}px] {rid} / {line}" for line in got]
+            got = safe(f"{scheme} {width}px", f"graphs of {rid}", check_graphs, page, f"{scheme} {width}px")
+            problems += [f"[{scheme} {width}px] {rid} / {line}" for line in got]
         ctx.close()
     return problems
 

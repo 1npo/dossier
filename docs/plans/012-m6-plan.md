@@ -665,7 +665,7 @@ Read section 2, D7, D14, D15 and "Results" of Phases 1 and 2. Load the skills in
   - Done-check: the test file passes.
   - Commit: `feat(dossier): check that the graph views hold every component and module`
 
-- [ ] **M6-22. V12 for the graph views, and the 30-edge budget.**
+- [x] **M6-22. V12 for the graph views, and the 30-edge budget.**
   - Goal: D7's per-view checks; section 3, row 3.
   - Files: `scripts/check_layout.py`, `scripts/check_page.py`, `tests/integration/scripts/test_check_page_slow.py`.
   - Interface: `MAX_FLOW_EDGES = 30` (count drawn edges in a flowchart SVG; confirm the element Mermaid 12.2.0 uses for an edge path on a drawn page first, and record it); `check_page.check_graphs(page, scheme) -> list`, run in each theme at both widths: for every view in the select, draw it, then count nodes and edges and the smallest text size.

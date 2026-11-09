@@ -484,3 +484,23 @@ class TestInteractiveGraph:
         got = self.probe(patched, env)
 
         assert got["root"]["caption"] == "Links with fewer than 2 imports are hidden in this view (1 of 40 shown). Every link is in the tables below."
+
+    def test_the_page_passes_the_browser_check_with_every_view_drawn(self, small):
+        page, env = small
+
+        done = check(page, env)
+
+        assert done.returncode == 0, done.stdout[-1500:]
+
+    def test_a_flowchart_with_thirty_one_edges_fails_the_edge_budget(self, small, tmp_path):
+        page, env = small
+        names = [f"n{i}" for i in range(12)]
+        pairs = [(a, b) for a in names for b in names if a < b][:31]
+        src = "flowchart LR\n" + "\n".join(f"  {a} --> {b}" for a, b in pairs)
+        broken = tmp_path / "edges.html"
+        broken.write_text(broken_pages.inject_diagrams(page.read_text(), [("Injected flow", src)]))
+
+        done = check(broken, env)
+
+        assert done.returncode == 1
+        assert any("31 edges (at most 30)" in line for line in done.stdout.splitlines()), done.stdout[-1500:]
