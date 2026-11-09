@@ -556,7 +556,7 @@ Read section 2, D9, D10, D18 and "Results (Phase 1)". Load the skills in section
   - Done-check: `DOSSIER_SLOW=1 ... tests/integration/scripts/test_mixed_pysub_slow.py -q --basetemp=$HOME/.cache/dossier-m6-slow` passes.
   - Commit: `test(dossier): build a repository whose Python lives in backend`
 
-- [ ] **M6-15. The Python library fixture.**
+- [x] **M6-15. The Python library fixture.**
   - Goal: known answers for D10.
   - Files: new `tests/fixtures/pylib/**`, `tests/unit/scripts/test_pylibfixture.py`; `tests/conftest.py` (`PYLIB`, `build_pylib_repo`).
   - Content (original code, each file under 40 lines, markers `# @<name>`): `typedlib/` (src layout: `pyproject.toml` with hatchling, `[project] name = "typedlib"`, `[project.entry-points."demo.plugins"] fast = "typedlib.plugins:Fast"`; `src/typedlib/__init__.py` with `__all__ = ["parse", "Config", "VERSION"]` and `from ._core import parse, Config` (`@api-reexport`), `VERSION = "1"`, a private `_helper`; `src/typedlib/_core.py` defining `parse` (`@api-parse`) and `Config` (`@api-config`); `src/typedlib/plugins.py` (no `__all__`) with `class Fast` (`@api-fast`), `def _hidden`, `if TYPE_CHECKING: from typing import Any` and `Alias = int`; `src/typedlib/py.typed`; `src/typedlib/plugins.pyi`); `flatlib/` (flat layout: `pyproject.toml` with flit, no scripts; `flatlib/__init__.py` with `from .one import *` and `from .two import *` and no `__all__`; `one.py` with `__all__ = ["a"]` and `def a`, `def b`; `two.py` with no `__all__`, `def c`, `def _d`); `app/` (`pyproject.toml` with `[project.scripts] run = "app.main:main"`, no `py.typed`; `app/main.py`); `badlib/` (`pyproject.toml`; `badlib/__init__.py` with `__all__ = names()`).
