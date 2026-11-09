@@ -1401,7 +1401,7 @@ Read section 2, section 6 and "Results" of Phases 1 to 5b. Load the skills in se
   - Done-check: as those blocks say.
   - Commit: `docs(dossier): record the M5 mixed, library and skeleton checks`
 
-- [ ] **M5-36. Merge and hand over.**
+- [x] **M5-36. Merge and hand over.**
   - Goal: the milestone review can start.
   - Files: this plan.
   - Steps: (1) Tick and record. (2) Follow `git-workflow`: `git merge --no-ff feat/dossier-m5` into `main`, push `main`, delete the branch. (3) Tell the author the procedure below.
@@ -1446,9 +1446,9 @@ The author does this. **Needed on the machine:** the .NET SDK 10.0.403, Node 22.
 
 ### Results (Phase 6)
 
-Started 2026-11-08 by Sonnet 5.5 on `feat/dossier-m5`, `SCR=/home/nick/.cache/dossier-m5-vWDO`. M5-34 and M5-35 are done and ticked. **Not merged: M5-36 waits for the author's go-ahead.**
+Started 2026-11-08 by Sonnet 5.5 on `feat/dossier-m5`, `SCR=/home/nick/.cache/dossier-m5-vWDO`. M5-34, M5-35 and M5-36 are done and ticked. The author approved the merge on 2026-11-09; `feat/dossier-m5` is merged into `main` with `--no-ff`.
 
-Done: blocks W, M, Y, X, E, I and Z. Left: M5-36 (merge).
+Done: blocks W, M, Y, X, E, I and Z, and the merge. Left: the author's milestone review (hand-over above).
 
 **Findings for the milestone review (Phase 6 so far)**
 1. **No Aspire `framework` note for `CA`.** The plan expects `Aspire.Hosting.AppHost`. `src/AppHost/AppHost.csproj` uses `<Project Sdk="Aspire.AppHost.Sdk/13.6.4">` and has no `PackageReference` to that package, and `cs_project.frameworks_named` reads package references only. So the app host is `program-main` with no Gaps note that Aspire wires its services. Fix idea: also read the project's `Sdk` attribute. Not fixed: a rule-precision change, not a crash.
