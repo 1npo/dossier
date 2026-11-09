@@ -791,7 +791,7 @@ Read section 2, D8, D11, D12, D18 and "Results" of Phases 1 to 3. Load the skill
   - Done-check: as M6-29.
   - Commit: `feat(dossier): find Python packages that pass names on with star imports`
 
-- [ ] **M6-31. Container and compose environment variables.**
+- [x] **M6-31. Container and compose environment variables.**
   - Goal: D12's second bullet. Cut item 2 in D20.
   - Files: `scripts/repo_adapter.py` (version up by one with M6-32), `tests/unit/scripts/test_repo_adapter.py`.
   - Steps: tests for `ENV A=1 B=2`, `ENV A 1`, `ARG V`, `ARG V=1`, a multi-line `ENV` with `\`, compose `environment:` as a list and as a map, `env_file:` as a string and a list, a service with neither; no value is stored; Python and JS fixtures: record the new items as D18 allows.
