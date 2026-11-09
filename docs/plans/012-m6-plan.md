@@ -748,7 +748,7 @@ Read section 2, D8, D11, D12, D18 and "Results" of Phases 1 to 3. Load the skill
 
 ### Tasks (Phase 4)
 
-- [ ] **M6-25. Sample claims for the verifier.**
+- [x] **M6-25. Sample claims for the verifier.**
   - Goal: D8's sampling.
   - Files: new `scripts/verify.py`, `tests/unit/scripts/test_verify.py`.
   - Interface: `eligible(reports, cites) -> {rid: [claim]}`; `sample(eligible, seed, per_report) -> [item]`; `excerpt(cites, cite) -> str`; `check_results(sample_record, results) -> list[str]` (problems).
