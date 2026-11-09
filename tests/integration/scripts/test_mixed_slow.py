@@ -19,8 +19,7 @@ LANGS = ["Python", "TypeScript", "JavaScript", "JSON", "Shell", "YAML"]
 def mixed(tmp_path_factory):
     """One extraction of a Python repository with a TypeScript frontend in `frontend/`, as D13 describes (plan 010).
 
-    The plan put PYFIX under `backend/`, but the Python adapter reads `pyproject.toml` at the repository root only, so it would find no
-    modules there. PYFIX therefore stays at the root.
+    PYFIX stays at the root here. `test_mixed_pysub_slow.py` covers the same Python code under `backend/`.
     """
     base = tmp_path_factory.mktemp("mixed")
     parts = base / "parts"

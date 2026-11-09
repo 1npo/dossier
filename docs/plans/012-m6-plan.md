@@ -549,7 +549,7 @@ Read section 2, D9, D10, D18 and "Results (Phase 1)". Load the skills in section
   - Done-check: `... pytest tests/unit/scripts/test_restore.py -q` passes.
   - Commit: `feat(dossier): restore Python projects that have their own uv.lock`
 
-- [ ] **M6-14. The mixed fixture with Python in a subfolder.**
+- [x] **M6-14. The mixed fixture with Python in a subfolder.**
   - Goal: the test of record for D9.
   - Files: new `tests/integration/scripts/test_mixed_pysub_slow.py`; `tests/conftest.py` (a `build_mixed_pysub_repo(dest)` helper: `PYFIX` under `backend/`, `JSFIX/packages/web` under `frontend/`, one commit).
   - Steps: assert: `python` and `js` sections exist; grimp `ok` (not `No Python package was found`); module names are those of `PYFIX` built alone (same set), with paths under `backend/`; `console-script` entries cite `backend/pyproject.toml`; no `partial` card for grimp; ids unique; `candidates --report components` prints `== Python packages ==` with `[backend]`.

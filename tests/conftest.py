@@ -240,6 +240,15 @@ def build_cs_repo(dest: Path):
     return _commit_fixture(CSFIX, dest, "csrepo")
 
 
+def build_mixed_pysub_repo(dest: Path):
+    """PYFIX under `backend/` and the JS fixture's web package under `frontend/`, committed once on main as `mixedsub`."""
+    parts = Path(dest) / "parts"
+    shutil.copytree(PYFIX, parts / "backend", ignore=shutil.ignore_patterns("__pycache__", "node_modules"))
+    shutil.copytree(JSFIX / "packages" / "web", parts / "frontend", ignore=shutil.ignore_patterns("node_modules"))
+    (parts / "backend" / "scripts" / "seed.sh").chmod(0o755)
+    return _commit_fixture(parts, dest, "mixedsub")
+
+
 @pytest.fixture
 def py_repo(tmp_path):
     """The Python fixture repository as a git repository with one commit on main."""
