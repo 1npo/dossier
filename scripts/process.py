@@ -352,6 +352,27 @@ HISTORY_CARDS = ("change.hotspots", "change.cochange", "change.blast-radius", "c
 OWNER_CARDS = ("contributors.ask", "contributors.concentration")
 
 
+REPO_LANGUAGES = ("Dockerfile", "Makefile", "SQL")  # read by the repo adapter and have no imports to graph
+NOGRAPH_CARDS = ("reading.order", "components.map", "components.catalog", "interactions.graph", "interactions.violations", "interactions.flows",
+                 "change.blast-radius", "change.dead-code")
+
+
+def nograph_cards(build, facts) -> dict:
+    """Card id -> tip for the cards a static graph feeds, when a Tier B language has no graph tool in this version (D5). Empty otherwise.
+
+    Different from `partial`: that means a Tier A tool did not run in this build; this means no tool exists for the language."""
+    mine = {(r["step"], r.get("part")): r for r in (build or {}).get("records", []) if r.get("by") == "prepare"}
+    seen = (mine.get(("tools", None)) or {}).get("details") or {}
+    names = [l["name"] for l in seen.get("languages", []) if l.get("tier") == "B" and l["name"] not in REPO_LANGUAGES]
+    if not names:
+        return {}
+    files = {l["name"]: l.get("files", 0) for l in (facts or {}).get("languages", [])}
+    ranked = sorted(names, key=lambda n: (-files.get(n, 0), n))
+    shown = ", ".join(f"{n} ({files.get(n, 0)} {'file' if files.get(n, 0) == 1 else 'files'})" for n in ranked)
+    tip = f"No import or call graph was made for {shown}. Their files are in the tables but have no links."
+    return {card: tip for card in NOGRAPH_CARDS}
+
+
 def partial_cards(build, tools=None) -> dict:
     """Card id -> why it was made without one of its tools (D7). Empty without a build record."""
     if not build:

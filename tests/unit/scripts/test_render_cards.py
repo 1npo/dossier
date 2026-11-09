@@ -428,3 +428,20 @@ class TestContributorCardsFilledByCode:
         html = render.render_card(sch, self.entry(), refs(make_cites), "contributors", {"extract": {}})
 
         assert "bus-factor" not in html
+
+
+def test_nograph_badge_follows_the_partial_badge(make_cites):
+    ctx = {"partial": {"x.tab": "Made without grimp: boom."}, "nograph": {"x.tab": "No import or call graph was made for Shell (4 files). Their files are in the tables but have no links."}}
+    h = render.render_card(SCH["cards"][0], {"card": "x.tab", "blocks": [tbl()]}, refs(make_cites), "x", ctx)
+
+    assert h.index('class="badge tier') < h.index('class="badge partial"') < h.index('class="badge nograph"')
+    assert "Shell (4 files)" in h and ">no static graph<" in h
+
+
+def test_nograph_badge_alone_and_none_when_absent(make_cites):
+    only = render.render_card(SCH["cards"][0], {"card": "x.tab", "blocks": [tbl()]}, refs(make_cites), "x", {"nograph": {"x.tab": "tip"}})
+    none = render.render_card(SCH["cards"][0], {"card": "x.tab", "blocks": [tbl()]}, refs(make_cites), "x", {"nograph": {"y.tab": "tip"}})
+    plain = render.render_card(SCH["cards"][0], {"card": "x.tab", "blocks": [tbl()]}, refs(make_cites), "x", {})
+
+    assert 'class="badge nograph"' in only and "badge partial" not in only
+    assert none == plain and "nograph" not in plain

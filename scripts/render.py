@@ -889,15 +889,19 @@ def partial_badge(reason):
     return f'<span class="badge partial" data-variant="outline" tabindex="0" data-tip="{E(reason)}" data-tip-kind="note">partial</span>' if reason else ""
 
 
+def nograph_badge(tip):
+    return f'<span class="badge nograph" data-variant="outline" tabindex="0" data-tip="{E(tip)}" data-tip-kind="note">no static graph</span>' if tip else ""
+
+
 def badges(*items):
     """The badges of a card, in its upper right corner."""
     return f'<div class="card-badges">{"".join(items)}</div>' if any(items) else ""
 
 
-def schema_card(card, body, extra="", partial=None):
+def schema_card(card, body, extra="", partial=None, nograph=None):
     shade = "fact" if card["tier"] == "M" else "llm"
     return (f'<div class="card block {shade}{extra}" id="{card_dom_id(card["id"])}" data-card="{card["id"]}">'
-            f'<header><h3>{E(card["title"])}</h3>{badges(tier_badge(card["tier"]), partial_badge(partial))}</header><section>{body}</section></div>')
+            f'<header><h3>{E(card["title"])}</h3>{badges(tier_badge(card["tier"]), partial_badge(partial), nograph_badge(nograph))}</header><section>{body}</section></div>')
 
 
 def placeholder_body(card):
@@ -1024,11 +1028,12 @@ def candidate_footer(card, entry, fed):
 def render_card(card, entry, refs, rid, ctx=None):
     tid = "t-" + card_dom_id(card["id"])[2:]
     partial = ((ctx or {}).get("partial") or {}).get(card["id"])
+    nograph = ((ctx or {}).get("nograph") or {}).get(card["id"])
     if card["writer"] == "script":
         drawn = measured.body(card["id"], ctx or {}, refs)
-        return schema_card(card, drawn if drawn is not None else placeholder_body(card), partial=partial)
+        return schema_card(card, drawn if drawn is not None else placeholder_body(card), partial=partial, nograph=nograph)
     if not isinstance(entry, dict) or entry.get("pending"):
-        return schema_card(card, placeholder_body(card), partial=partial)
+        return schema_card(card, placeholder_body(card), partial=partial, nograph=nograph)
     try:
         if "na" in entry:
             body = na_body(entry, refs)
@@ -1052,7 +1057,7 @@ def render_card(card, entry, refs, rid, ctx=None):
         body += candidate_footer(card, entry, (ctx or {}).get("fed", {}).get(card["id"], 0))
     except (KeyError, TypeError, AttributeError):
         pass  # V6 and V5 report the real error
-    return schema_card(card, body, partial=partial)
+    return schema_card(card, body, partial=partial, nograph=nograph)
 
 
 RISK_SOURCE_KEY = (("extractor", "A tool found it: static analysis, the dependency scan or the git history. Tool output is not checked by a person."),
@@ -1933,7 +1938,7 @@ def render_html(facts, reports, state, history, version, cites, build=None, cove
     fed = {c: len(v) for rid, _, _ in REPORTS for c, v in candidates.for_report(rid, extract or {}).items()}
     ctx = {"cites": cites, "gaps": gaps, "history": history, "built": built, "version": version, "build": build,
            "extract": extract or {}, "fed": fed, "checks": checks or {},
-           "partial": process.partial_cards(build) if build else {}}
+           "partial": process.partial_cards(build) if build else {}, "nograph": process.nograph_cards(build, facts) if build else {}}
     mh = masthead(facts, reports)
     build = lambda: "".join(build_page(rid, reports, facts, state, ctx) for rid, _, _ in REPORTS)
     pages = build()

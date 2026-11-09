@@ -703,3 +703,37 @@ class TestTierStats:
 
         assert html.count('class="stat "') == 4
         assert re.findall(r'<div class="k">([^<]*)</div>', html) == ["Cards", "Measured", "Adjudicated", "Read"]
+
+
+def langs(*pairs):
+    return build_with(rec("tools", details={"languages": [{"name": n, "tier": t} for n, t in pairs], "missing": []}))
+
+
+def facts_of(**files):
+    return {"languages": [{"name": n, "kind": "code", "files": c} for n, c in files.items()]}
+
+
+class TestNoGraphCards:
+    def test_a_tier_b_language_badges_the_eight_graph_cards_and_the_tip_names_it(self):
+        got = process.nograph_cards(langs(("Python", "A"), ("Shell", "B"), ("SQL", "B")), facts_of(Python=9, Shell=4, SQL=2))
+
+        assert set(got) == set(process.NOGRAPH_CARDS) and len(got) == 8
+        tip = got["components.map"]
+        assert tip == "No import or call graph was made for Shell (4 files). Their files are in the tables but have no links."
+
+    def test_languages_are_listed_by_file_count_then_name_with_one_file_singular(self):
+        got = process.nograph_cards(langs(("Rust", "B"), ("Shell", "B"), ("Lua", "B")), facts_of(Rust=1, Shell=4, Lua=1))
+
+        assert got["reading.order"].startswith("No import or call graph was made for Shell (4 files), Lua (1 file), Rust (1 file).")
+
+    def test_the_languages_the_repo_adapter_reads_give_no_badge(self):
+        assert process.nograph_cards(langs(("Dockerfile", "B"), ("Makefile", "B"), ("SQL", "B")), facts_of(Dockerfile=1, Makefile=1, SQL=3)) == {}
+
+    def test_tier_a_only_and_no_build_give_nothing(self):
+        assert process.nograph_cards(langs(("Python", "A")), facts_of(Python=3)) == {}
+        assert process.nograph_cards(None, {}) == {}
+
+    def test_the_gaps_line_is_unchanged_for_every_tier_b_language(self):
+        got = [i["statement"] for i in process.coverage_items(langs(("Shell", "B"), ("SQL", "B"), ("Python", "A")))]
+
+        assert got == ["Shell has basic support only: no import or call graph is extracted for it.", "SQL has basic support only: no import or call graph is extracted for it."]

@@ -450,7 +450,7 @@ Read sections 2 to 4, D2 to D6, D18 and D20. Load the skills in section 2. Then:
   - Done-check: the test passes.
   - Commit: `test(dossier): check that candidates names Nx targets and package scripts`
 
-- [ ] **M6-8. "No static graph" badges.**
+- [x] **M6-8. "No static graph" badges.**
   - Goal: D5.
   - Files: `scripts/process.py`, `scripts/render.py`, `assets/dossier.css`, `tests/unit/scripts/test_process.py`, `tests/unit/scripts/test_render_cards.py`; new `tests/integration/scripts/test_tierb_slow.py`.
   - Interface: `process.REPO_LANGUAGES`, `process.NOGRAPH_CARDS`, `process.nograph_cards(build, facts) -> dict`; `render.nograph_badge(tip)`; `schema_card(..., nograph=None)`.
