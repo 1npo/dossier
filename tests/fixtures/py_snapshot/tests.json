@@ -1,0 +1,38 @@
+[
+ {
+  "kind": "config",
+  "path": "pyproject.toml",
+  "settings": {
+   "fail_under": 80
+  },
+  "tool": "coverage"
+ },
+ {
+  "kind": "config",
+  "path": "pyproject.toml",
+  "settings": {
+   "testpaths": [
+    "tests"
+   ]
+  },
+  "tool": "pytest"
+ },
+ {
+  "classes": 0,
+  "fixtures": 1,
+  "framework": "pytest",
+  "imports": [
+   "shopcart.core"
+  ],
+  "kind": "test-file",
+  "mocks": 1,
+  "path": "tests/test_core.py",
+  "paths": [
+   "src/shopcart/core.py"
+  ],
+  "skips": 1,
+  "test_kind": "unit",
+  "tests": 3,
+  "xfails": 0
+ }
+]

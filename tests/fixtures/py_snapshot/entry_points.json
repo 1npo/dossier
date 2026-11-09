@@ -1,0 +1,80 @@
+[
+ {
+  "end_line": 7,
+  "group": "epg-64be03ce",
+  "id": "ep-8f99867b",
+  "kind": "console-script",
+  "line": 7,
+  "name": "shopcart",
+  "path": "pyproject.toml",
+  "rule": "python.console-script",
+  "snippet": "shopcart = shopcart.cli:main",
+  "target": "shopcart.cli:main",
+  "trigger": "the `shopcart` command"
+ },
+ {
+  "end_line": 3,
+  "group": "epg-4262eb2e",
+  "id": "ep-c4b63626",
+  "kind": "main-module",
+  "line": 3,
+  "name": "shopcart",
+  "path": "src/shopcart/__main__.py",
+  "rule": "python.main-module",
+  "snippet": "python -m shopcart",
+  "target": "shopcart.__main__",
+  "trigger": "running `python -m shopcart`"
+ },
+ {
+  "end_line": 8,
+  "group": "epg-7f7c1c86",
+  "id": "ep-ff14dbb9",
+  "kind": "http-route",
+  "line": 6,
+  "name": "/cart",
+  "path": "src/shopcart/api.py",
+  "rule": "dossier.python.entry.http-route",
+  "snippet": "@app.route(\"/cart\")  # @ep-route",
+  "target": "shopcart.api:cart",
+  "trigger": "a web request to `/cart`"
+ },
+ {
+  "end_line": 13,
+  "group": "epg-7f7c1c86",
+  "id": "ep-a00ae7e5",
+  "kind": "http-route",
+  "line": 11,
+  "name": "/health",
+  "path": "src/shopcart/api.py",
+  "rule": "dossier.python.entry.http-route",
+  "snippet": "@app.get(\"/health\")  # @ep-route2",
+  "target": "shopcart.api:health",
+  "trigger": "a web request to `/health`"
+ },
+ {
+  "end_line": 11,
+  "group": "epg-2af0b5bb",
+  "id": "ep-da90d2ea",
+  "kind": "cli-command",
+  "line": 11,
+  "name": "seed",
+  "path": "src/shopcart/cli.py",
+  "rule": "dossier.python.entry.argparse-subcommand",
+  "snippet": "commands.add_parser(\"seed\", help=\"load sample data\")  # @ep-subcommand",
+  "target": "src/shopcart/cli.py",
+  "trigger": "the `seed` command"
+ },
+ {
+  "end_line": 18,
+  "group": "epg-17afe0b2",
+  "id": "ep-a0698f23",
+  "kind": "main-guard",
+  "line": 17,
+  "name": "__main__",
+  "path": "src/shopcart/cli.py",
+  "rule": "dossier.python.entry.main-guard",
+  "snippet": "if __name__ == \"__main__\":  # @ep-guard",
+  "target": "src/shopcart/cli.py",
+  "trigger": "running `src/shopcart/cli.py` as a script"
+ }
+]

@@ -526,7 +526,7 @@ Read section 2, D9, D10, D18 and "Results (Phase 1)". Load the skills in section
 
 ### Tasks (Phase 2)
 
-- [ ] **M6-11. Snapshot today's Python output, then find Python projects.**
+- [x] **M6-11. Snapshot today's Python output, then find Python projects.**
   - Goal: D9's project rule, with the root result frozen first.
   - Files: new `scripts/py_project.py`, `tests/unit/scripts/test_py_project.py`, `tests/integration/scripts/test_py_root_unchanged_slow.py`.
   - Interface: `projects(tree, read) -> [{"dir", "manifests": [...], "files": [...]}]`.

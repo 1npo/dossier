@@ -1,0 +1,78 @@
+[
+ {
+  "bases": [],
+  "end_line": 10,
+  "fields": [
+   {
+    "line": 9,
+    "name": "sku",
+    "ref": null,
+    "type": "str"
+   },
+   {
+    "line": 10,
+    "name": "price",
+    "ref": null,
+    "type": "float"
+   }
+  ],
+  "group": "mdg-49b0fcc9",
+  "id": "md-e3454af2",
+  "kind": "dataclass",
+  "line": 8,
+  "name": "Item",
+  "path": "src/shopcart/models.py",
+  "rule": "dataclass",
+  "snippet": "class Item:  # @model-item"
+ },
+ {
+  "bases": [
+   "Enum"
+  ],
+  "end_line": 14,
+  "fields": [
+   {
+    "line": 14,
+    "name": "OPEN",
+    "ref": null,
+    "type": null
+   }
+  ],
+  "group": "mdg-656e9b03",
+  "id": "md-dcd5a2ab",
+  "kind": "enum",
+  "line": 13,
+  "name": "Status",
+  "path": "src/shopcart/models.py",
+  "rule": "enum",
+  "snippet": "class Status(Enum):  # @model-status"
+ },
+ {
+  "bases": [
+   "BaseModel"
+  ],
+  "end_line": 19,
+  "fields": [
+   {
+    "line": 18,
+    "name": "items",
+    "ref": "Item",
+    "type": "list[Item]"
+   },
+   {
+    "line": 19,
+    "name": "status",
+    "ref": "Status",
+    "type": "Status"
+   }
+  ],
+  "group": "mdg-d3971bae",
+  "id": "md-2a29d3b9",
+  "kind": "pydantic",
+  "line": 17,
+  "name": "Order",
+  "path": "src/shopcart/models.py",
+  "rule": "pydantic",
+  "snippet": "class Order(BaseModel):  # @model-order"
+ }
+]

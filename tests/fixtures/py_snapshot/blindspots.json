@@ -1,0 +1,42 @@
+[
+ {
+  "end_line": 7,
+  "group": "bsg-0c52be25",
+  "id": "bs-d14aa6a1",
+  "line": 7,
+  "path": "src/shopcart/plugins.py",
+  "pattern": "dynamic-import",
+  "rule": "dossier.python.blindspot.dynamic-import",
+  "snippet": "return importlib.import_module(name)  # @bs-import"
+ },
+ {
+  "end_line": 11,
+  "group": "bsg-e5fcb183",
+  "id": "bs-2a3ebadb",
+  "line": 11,
+  "path": "src/shopcart/plugins.py",
+  "pattern": "getattr-dispatch",
+  "rule": "dossier.python.blindspot.getattr-dispatch",
+  "snippet": "return getattr(obj, name)()  # @bs-getattr"
+ },
+ {
+  "end_line": 20,
+  "group": "bsg-6819b3a5",
+  "id": "bs-659ac557",
+  "line": 18,
+  "path": "src/shopcart/plugins.py",
+  "pattern": "decorator-registry",
+  "rule": "dossier.python.blindspot.decorator-registry",
+  "snippet": "@register  # @bs-registry"
+ },
+ {
+  "end_line": 10,
+  "group": "bsg-68d1a74e",
+  "id": "bs-d6d02377",
+  "line": 8,
+  "path": "tests/test_core.py",
+  "pattern": "pytest-fixtures",
+  "rule": "dossier.python.blindspot.pytest-fixtures",
+  "snippet": "@pytest.fixture  # @bs-fixture"
+ }
+]
