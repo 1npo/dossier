@@ -712,6 +712,32 @@ Commit on `feat/dossier-m6`. Do not merge or bump. Write "Results (Phase 3)" and
 
 ### Results (Phase 3)
 
+Done 2026-11-09 by Sonnet on `feat/dossier-m6`; M6-18 to M6-24 all done, nothing cut. No answers in sections 8 and 9 differed from the defaults.
+
+**Suites.** Start (end of Phase 2): default 2671 passed, 1 skipped. End: default **2708 passed, 1 skipped**; slow (`--basetemp=$HOME/.cache/dossier-m6-slow`) **3 failed, 3122 passed in 46 min 38 s**, the three known failures only (`test_overlapping_paragraphs_are_reported`, `chart-text-small`, G2). Block E printed `OK` after M6-19, M6-20, M6-21 and at the end (248,746 characters on both sides); the script is in the session scratchpad, not committed. I did not run it after M6-22 to M6-24: they touch no `render.py`, `measured*.py`, CSS or JS file.
+
+**Commits and the graph range (D7, Q1).** `cb16140` M6-18, `9320722` M6-19, `307bfa0` M6-20, `e0fe374` M6-21, `814b820` M6-22, `4fa9167` M6-23, `f2f0694` M6-24. **The graph work is these seven commits, M6-18 to M6-24.** Removability was tested in a throwaway worktree: `git revert f2f0694 4fa9167 814b820 e0fe374 307bfa0 9320722 cb16140` (newest first) applies with no conflict and leaves **2671 passed, 1 skipped**, the Phase 2 count, so the tables and every other check stand. Reverting oldest first conflicts in `test_check_page_slow.py`, so use that order.
+
+**Decisions recorded.**
+- Views (`graph_views.py`, 184 lines). A view's neighbours are the nodes at the focus's own level (other areas for an area view, other components for a component view). They are separate nodes while the view stays within 12 nodes, else one `{n} other {areas|components|modules}` node. Folding into groups starts at 12 children, or 11 when the view has neighbours (room for the `other` node); more than 120 children fold again (groups of groups). A group's view shows its members, one `other` node for the rest of the focus's children and one for outside neighbours (at most 12 nodes). Added two things the plan did not name: `views(..., kinds=, labels=)` (a `labels` map lets an area and a component share a name; `kinds` names the levels, so a repository without a catalog says `module`), and `"ext": true` on a node that stands for a neighbour, which V11 needs to tell a view's own nodes from its neighbours.
+- Node ids in the data are `i_<name>`, `g_<label>`, `x_<name>` and `other_...`, made with `measured_graph.mermaid_id` (late import: it imports this module).
+- Weights: `components.map` counts imports between components (as `graphs.aggregate` does); `interactions.graph` counts imports between two files, so a component's view shows its modules.
+- `interactions.graph` lists only the components that take part in an import, as its tables do; `components.map` lists every catalog component and `unassigned`.
+- Mermaid 12.2.0 draws a flowchart edge as `path.flowchart-link` (in `g.edgePaths`) and a node as `g.node` with the DOM id `dm<N>-flowchart-<id>-<n>`; the script matches that. `MAX_FLOW_EDGES = 30` applies to every flowchart, including the area-split diagrams. `dossier check` on the M5 test page: `problems: 0`.
+- V11 (`page_audit._check_graphs`): the leaves a card must reach are every catalog component (`components.map`) and every file in an import (`interactions.graph`). When a leaf is missing it reports only that, because the link check needs whole views. A card with no imports has no graph and needs no views.
+- V12: `check_graphs(page, tag)` takes a label like `light 1500px` instead of the bare theme, and runs inside `check_layouts` for each report, so it covers both themes at both widths. It also fails `the graph has no views` and `the button "Open X" does not open its view`.
+- The five mutations are in `broken_pages.py`; each fails its check with the line D15 names: `the graph has no views`, `13 nodes (at most 12)`, `does not open its view`, V11 `graph views leave out ...`, and an `overlap` line with a `badge`. The badge test adds badges to the M3 page first (`nograph_badges_added`) and uses the layout probe, because the M3 page has none of its own.
+- `m6_page.make` (D14): 60 components over 15 areas (`src/pkg/areaNN/compN/modN.py`, made-up paths: the repository has too few folders to make 15 areas), 400 modules, 1,200 imports, a pin record 3 commits behind, 40 Python `public-api` items, Rust and Shell Tier B badges (the fixture already counts 614 Shell files). **The three verifier Gaps items are not in it yet:** they need `verify-record` from Phase 4, which adds them to this helper. The page is 15 MB; `check` takes 8 minutes on it, and drawing about 95 views at four sizes is most of that.
+- The first draft of the node regex missed the render id prefix (`dm1-flowchart-...`), which left every node without a click handler; the browser test found it.
+
+**Reading the shots (M6-24).** `check_page` saves shots at 1500 px only, so there are none at 400 px; the 400 px width is checked by the V12 numbers, not by eye. Report 05 root view: two group nodes, `area00 … area09 (10)` and `area10 … unassigned (6)`, joined by two arrows of 96 imports each; no edge crosses, no label is cut. Report 06 root view: the same with `area10 … area14 (5)`. Light theme: the edge label sits on the line with no box behind it, still readable; dark theme: a white box behind the label. Reading the other 94 views by eye was not done; V12 measured them.
+
+**Findings for the milestone review.**
+- The root view of a 15-area repository is two group nodes, which says little. Folding at 12 is the plan's rule; if the author finds it hollow, the rule to change is `GROUP_SIZE`/`MAX_NODES` in `graph_views.py`.
+- Each view carries its Mermaid source as well as its nodes and edges, so the data is about three times what it needs. The m6 page's two cards hold 19 and 76 views. Phases 6 to 8 should record the size on `RW` and `CA`.
+- Light-theme edge labels have no background (above).
+- Left in `~/.cache` for the author to delete: `dossier-m6-AYXZ`, `-VjkX`, `-XsFF`, `-yJfw`, `-ut4W`, `-shots`, `-slow`. A safety check refused my `rm -rf` of a scratch folder, so I did not remove them.
+
 ---
 
 ## Phase 4: `--verify`, blind spots and repository inputs
