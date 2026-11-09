@@ -429,7 +429,7 @@ Read sections 2 to 4, D2 to D6, D18 and D20. Load the skills in section 2. Then:
   - Done-check: the unit test passes; the slow test passes.
   - Commit: `fix(dossier): drop C# references between projects that do not reference each other`
 
-- [ ] **M6-5. Bullseye names and C# project file counts.**
+- [x] **M6-5. Bullseye names and C# project file counts.**
   - Goal: D3, fourth bullet.
   - Files: `scripts/cs_semgrep.py`, `scripts/candidates.py`, `tests/unit/scripts/test_cs_semgrep.py`, `tests/unit/scripts/test_candidates_cli.py`.
   - Steps: (1) Tests: a `Target(\n    "test",\n    ...)` hit gets name `test`; a test project with three `.cs` files prints `3 files`; a C#-only extract prints no `== Python packages ==` heading; Python and JS texts unchanged (assert today's). (2) Implement.

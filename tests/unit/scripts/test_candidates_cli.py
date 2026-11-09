@@ -208,14 +208,26 @@ class TestCSharpSection:
                      "language": "csharp"}]}
 
     def text(self, extract):
-        return candidates.text("components", extract, {}, {}, tree={"src/Shop.Api/A.cs", "src/Shop.Api/B.cs"})
+        return candidates.text("components", extract, {}, {}, tree={"src/Shop.Api/A.cs", "src/Shop.Api/B.cs", "tests/Shop.Tests/A.cs",
+                                                                    "tests/Shop.Tests/B.cs", "tests/Shop.Tests/C.cs"})
 
     def test_one_line_is_printed_per_project(self):
         out = self.text(self.CS).splitlines()
 
         i = out.index("== C# projects ==")
         assert out[i + 1] == "src/Shop.Api/Shop.Api.csproj  (SDK Microsoft.NET.Sdk.Web, Exe, 2 files)"
-        assert out[i + 2] == "tests/Shop.Tests/Shop.Tests.csproj  (SDK Microsoft.NET.Sdk, Library, test project, 0 files)"
+        assert out[i + 2] == "tests/Shop.Tests/Shop.Tests.csproj  (SDK Microsoft.NET.Sdk, Library, test project, 3 files)"
+
+    def test_a_nested_project_does_not_take_its_parents_files(self):
+        extract = {"graph": [{"kind": "cs-project", "path": "a/A.csproj", "name": "A", "sdk": "S", "output_type": "Library", "test": False},
+                             {"kind": "cs-project", "path": "a/inner/I.csproj", "name": "I", "sdk": "S", "output_type": "Library", "test": False}]}
+
+        out = candidates.text("components", extract, {}, {}, tree={"a/x.cs", "a/inner/y.cs", "a/inner/z.cs", "a/readme.md"})
+
+        assert "a/A.csproj  (SDK S, Library, 1 files)" in out and "a/inner/I.csproj  (SDK S, Library, 2 files)" in out
+
+    def test_a_csharp_only_extract_prints_no_python_packages_heading(self):
+        assert "== Python packages ==" not in self.text(self.CS)
 
     def test_a_csharp_source_root_is_not_listed_as_a_javascript_project(self):
         assert "JavaScript and TypeScript" not in self.text(self.CS)

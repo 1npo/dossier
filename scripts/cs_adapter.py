@@ -136,7 +136,7 @@ class CSharpAdapter(Adapter):
         owner = {f: p["path"] for p in result["projects"] if "language" not in p for f in p["files"]}
         builders = {p["path"] for p in result["projects"] if "language" not in p and {"bullseye", "cake.frosting"} & {x.lower() for x in p["packages"]}}
         try:
-            found = cs_semgrep.items(ctx.semgrep.scan(RULES, scan), owner.get, builders)
+            found = cs_semgrep.items(ctx.semgrep.scan(RULES, scan), owner.get, builders, self._reader(ctx))
         except Exception as e:  # one tool failing must not stop the others
             return self._failed(ctx, "semgrep", e)
         ctx.tool_status["semgrep"] = {"status": "ok", "reason": None}

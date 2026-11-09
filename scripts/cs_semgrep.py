@@ -24,7 +24,19 @@ def route_name(detail: str | None, snippet: str) -> str:
     return f"{verb.upper() if verb and verb != 'Methods' else 'ANY'} {found.group(2)}"
 
 
-def items(results: list, project_of=None, build_projects=None) -> dict:
+TARGET_NAME_RE = re.compile(r'Target\(\s*"([^"]*)"')
+
+
+def _target_name(read, path: str, line: int):
+    """The first string literal after `Target(` in the 5 lines from `line`, for a target whose name sits on a later line than the call."""
+    text = read(path) if read else None
+    if not text:
+        return None
+    found = TARGET_NAME_RE.search("\n".join(text.splitlines()[line - 1:line + 4]))
+    return found.group(1) if found else None
+
+
+def items(results: list, project_of=None, build_projects=None, read=None) -> dict:
     """{"entry_points": [...], "io_candidates": [...], "blindspots": [...]} from `Semgrep.scan` results.
 
     `project_of(path)` names the project file a source file belongs to. A `build-target` is kept only in a project in `build_projects`
@@ -39,6 +51,8 @@ def items(results: list, project_of=None, build_projects=None) -> dict:
         elif family == "entry":
             kind = meta["kind"]
             name = route_name(r.get("detail"), r["snippet"]) if kind == "http-route" else r.get("detail") or r["snippet"]
+            if kind == "build-target" and (not name or name == r["snippet"]):
+                name = _target_name(read, r["path"], r["start_line"]) or name
             project = project_of(r["path"]) if project_of else None
             if kind == "build-target" and build_projects is not None and project not in build_projects:
                 continue
