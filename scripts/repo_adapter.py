@@ -50,11 +50,6 @@ def _strip_comment(value: str) -> str:
 EVENT = re.compile(r"\s*([a-z_]+)\s*:")
 
 
-def wants_triggers(tree) -> bool:
-    """`ci-trigger` rows are written for repositories with C# only: Python and JS dossiers stay as they were (plan 011, M5-33)."""
-    return any(p.endswith(".cs") for p in tree)
-
-
 def workflow_triggers(path: str, text: str) -> list:
     """One `ci-trigger` per event under a GitHub workflow's top-level `on:` (push, pull_request, workflow_dispatch...). `schedule`
     is left to the cron rows."""
@@ -83,9 +78,9 @@ def workflow_triggers(path: str, text: str) -> list:
     return found
 
 
-def workflow_entries(path: str, text: str, triggers: bool = False) -> list:
-    """`ci-schedule` entry points and `ci-command` test commands from a GitHub or GitLab CI file; with `triggers`, also `ci-trigger`."""
-    found, lines, block_indent = (workflow_triggers(path, text) if triggers else []), text.splitlines(), None
+def workflow_entries(path: str, text: str) -> list:
+    """`ci-trigger` and `ci-schedule` entry points and `ci-command` test commands from a GitHub or GitLab CI file."""
+    found, lines, block_indent = workflow_triggers(path, text), text.splitlines(), None
     for n, line in enumerate(lines, 1):
         indent = len(line) - len(line.lstrip())
         if block_indent is not None:
@@ -291,7 +286,6 @@ class RepoAdapter(Adapter):
     def extract(self, ctx) -> dict:
         out = {"entry_points": [], "models": [], "tests": [], "blindspots": [], "io_candidates": []}
         executable = set(_executable_files(ctx.checkout, ctx.sha))
-        with_triggers = wants_triggers(ctx.tree)
         for path in sorted(ctx.tree):
             if gather.noise_reason(path):
                 continue
@@ -310,7 +304,7 @@ class RepoAdapter(Adapter):
             elif base in ("Makefile", "makefile", "GNUmakefile") or base.endswith(".mk"):
                 found = makefile_targets(path, text)
             elif base == ".gitlab-ci.yml" or "/.github/workflows/" in "/" + path:
-                found = workflow_entries(path, text, triggers=with_triggers)
+                found = workflow_entries(path, text)
             elif base.endswith(".service"):
                 found = systemd_units(path, text)
             elif base.endswith(".sql"):

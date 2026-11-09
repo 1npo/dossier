@@ -798,7 +798,7 @@ Read section 2, D8, D11, D12, D18 and "Results" of Phases 1 to 3. Load the skill
   - Done-check: the test file passes.
   - Commit: `feat(dossier): read environment variables from Dockerfiles and compose files`
 
-- [ ] **M6-32. CI triggers for every language.**
+- [x] **M6-32. CI triggers for every language.**
   - Goal: D12's first bullet.
   - Files: `scripts/repo_adapter.py`, `tests/unit/scripts/test_repo_adapter.py`, `tests/integration/scripts/test_py_adapter_slow.py` and `test_js_adapter_slow.py` only if they assert the `repo` section (record each edit).
   - Steps: test: a Python-only tree with a workflow `on: [push, pull_request]` gets two `ci-trigger` rows. Remove `wants_triggers`. Record the before and after `repo` item counts for `PYFIX` and `JSFIX`.

@@ -50,7 +50,7 @@ class TestCiTriggers:
     PATH = ".github/workflows/ci.yml"
 
     def got(self, text):
-        return [(e["line"], e["name"]) for e in repo_adapter.workflow_entries(self.PATH, text, triggers=True) if e["kind"] == "ci-trigger"]
+        return [(e["line"], e["name"]) for e in repo_adapter.workflow_entries(self.PATH, text) if e["kind"] == "ci-trigger"]
 
     def test_inline_list(self):
         assert self.got("name: x\n\non: [push, pull_request]\njobs: {}\n") == [(3, "push"), (3, "pull_request")]
@@ -64,19 +64,22 @@ class TestCiTriggers:
         assert self.got("'on':\n  workflow_call:\n") == [(2, "workflow_call")]
 
     def test_trigger_entry_has_the_full_set_of_fields(self):
-        e = [e for e in repo_adapter.workflow_entries(self.PATH, "name: Build and Test\non: [push]\n", triggers=True) if e["kind"] == "ci-trigger"][0]
+        e = [e for e in repo_adapter.workflow_entries(self.PATH, "name: Build and Test\non: [push]\n") if e["kind"] == "ci-trigger"][0]
         assert (e["rule"], e["trigger"], e["target"], e["end_line"]) == ("repo.ci-trigger", "When `push` happens on GitHub", "Build and Test", 2)
 
-    def test_off_by_default_so_other_languages_are_unchanged(self):
-        assert [e for e in repo_adapter.workflow_entries(self.PATH, "on: [push]\n") if e["kind"] == "ci-trigger"] == []
-
     def test_gitlab_files_have_no_triggers(self):
-        assert [e for e in repo_adapter.workflow_entries(".gitlab-ci.yml", "on: [push]\n", triggers=True)] == []
+        assert [e for e in repo_adapter.workflow_entries(".gitlab-ci.yml", "on: [push]\n")] == []
 
-    def test_adapter_emits_them_only_for_a_repository_with_csharp(self, tmp_path):
-        files = {".github/workflows/ci.yml": "on: [push]\n", "a.txt": "x\n"}
-        assert repo_adapter.wants_triggers(frozenset(files)) is False
-        assert repo_adapter.wants_triggers(frozenset({*files, "src/A.cs"})) is True
+    def test_python_only_repository_gets_a_row_for_each_event(self, tmp_path):
+        wf = tmp_path / ".github" / "workflows"
+        wf.mkdir(parents=True)
+        (wf / "ci.yml").write_text("name: CI\non: [push, pull_request]\njobs: {}\n")
+        (tmp_path / "app.py").write_text("x = 1\n")
+        ctx = SimpleNamespace(checkout=tmp_path, sha="HEAD", tree=frozenset({".github/workflows/ci.yml", "app.py"}), semgrep=FakeSemgrep(), tool_status={})
+
+        out = repo_adapter.RepoAdapter().extract(ctx)
+
+        assert [(e["kind"], e["name"]) for e in out["entry_points"]] == [("ci-trigger", "push"), ("ci-trigger", "pull_request")]
 
 
 class TestDockerfileVariables:
@@ -327,7 +330,8 @@ class TestExtract:
         assert got == {("container", "Dockerfile", py_repo.line_of("Dockerfile", "ep-docker") + 1),
                        ("make-target", "Makefile", py_repo.line_of("Makefile", "ep-make")),
                        ("ci-schedule", ".github/workflows/ci.yml", py_repo.line_of(".github/workflows/ci.yml", "ep-cron")),
-                       ("shebang-script", "scripts/seed.sh", 1)}
+                       ("shebang-script", "scripts/seed.sh", 1),
+                       ("ci-trigger", ".github/workflows/ci.yml", 3)}
 
     def test_sql_table_is_an_entity(self, out):
         assert [(m["name"], m["kind"]) for m in out["models"]] == [("orders", "sql-table")]
