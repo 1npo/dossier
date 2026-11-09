@@ -61,6 +61,21 @@ class TestScore:
         s = ground_truth.score(t, r)
         assert s["entry"]["recall"] is None and s["entry"]["precision"] is None
 
+    def test_csharp_route_and_double_underscore_key_rows_match(self, tmp_path):
+        t = tmp_path / "truth.json"
+        t.write_text(json.dumps({
+            "entry_points": [{"kind": "http-route", "key": "GET /api/x", "where": "src/Api/XController.cs:12"}],
+            "io": [{"direction": "input", "category": "environment variables", "key": "Jwt__Key",
+                    "where": "tests/Api.Tests/Helper.cs:7 (test helper)"}]}))
+        r = reports(tmp_path, entry=[["http route", "`GET /api/x`", "`src/Api/XController.cs:12`"]],
+                    inputs=[["config key", "`Jwt:Key` (env `Jwt__Key`)", "`src/Api/Program.cs:5`"]])
+
+        s = ground_truth.score(t, r)
+
+        assert s["entry"]["recall"] == 1.0 and s["entry"]["precision"] == 1.0
+        assert s["input"]["recall"] == 1.0
+        assert s["input"]["where"]["Jwt__Key"] == "tests/Api.Tests/Helper.cs:7 (test helper)"
+
     def test_a_missing_card_counts_as_no_rows(self, tmp_path):
         t = truth(tmp_path, entry=["GET /a"])
         d = tmp_path / "reports"

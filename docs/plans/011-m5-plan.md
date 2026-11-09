@@ -1128,7 +1128,7 @@ Read section 2, section 6 and "Results" of Phases 1 to 4. Load the skills in sec
 
 ### Tasks (Phase 5)
 
-- [ ] **M5-31. The ground truth tool for C#.**
+- [x] **M5-31. The ground truth tool for C#.**
   - Goal: score the C# dossier with the M4 tool.
   - Files: `tests/tools/ground_truth.py` and its unit test, only if a test shows the tool cannot read C# rows (for example `where` values with spaces); otherwise none.
   - Steps: (1) Run the existing unit test. (2) Add one made-up C# case (a `GET /api/x` row, an `Jwt__Key` row) to the test, and fix the tool only if that case fails. (3) `sha256sum $SCR/truth/rw.json` must equal the hash in "Results (Phase 4a)".
