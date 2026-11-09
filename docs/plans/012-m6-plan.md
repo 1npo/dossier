@@ -443,7 +443,7 @@ Read sections 2 to 4, D2 to D6, D18 and D20. Load the skills in section 2. Then:
   - Done-check: the test passes; block E prints `OK`.
   - Commit: `fix(dossier): mark only single references as foreign keys`
 
-- [ ] **M6-7. Prove candidate names are shown.**
+- [x] **M6-7. Prove candidate names are shown.**
   - Goal: D4.
   - Files: `tests/unit/scripts/test_candidates_cli.py` (and `scripts/candidates.py` only if the test fails).
   - Steps: the test of D4. Record in "Results" whether it passed at once; M6-39 then removes P4-3 from `post-v1.md`.

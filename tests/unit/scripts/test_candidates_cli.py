@@ -122,6 +122,17 @@ class TestText:
         assert got[1] == f"{group}  dossier.python.input.env-var  a.py  (2 hits: lines 3, 9)"
         assert got[2] == f"    {extract['io_candidates'][0]['id']}  a.py:3  os.getenv(\"A\")"
 
+    def test_an_nx_target_and_a_package_script_are_printed_with_their_names(self):
+        eps = candidates.assign_ids("entry_points", [
+            {"path": "apps/api/project.json", "line": 4, "end_line": 4, "kind": "nx-target", "name": "api:build", "rule": "dossier.js.entry.nx-target",
+             "snippet": "nx build"},
+            {"path": "package.json", "line": 7, "end_line": 7, "kind": "package-script", "name": "start:dev", "rule": "dossier.js.entry.package-script",
+             "snippet": "node server.js"}])
+
+        text = candidates.text("entry", {"entry_points": eps}, {}, {})
+
+        assert "nx build  [api:build]" in text and "node server.js  [start:dev]" in text
+
     def test_open_only_lists_the_undecided_and_nothing_when_all_are_decided(self):
         extract = build_extract()
         text = candidates.text("io", extract, reports_for(extract), {}, only_open=True)
