@@ -737,3 +737,13 @@ class TestNoGraphCards:
         got = [i["statement"] for i in process.coverage_items(langs(("Shell", "B"), ("SQL", "B"), ("Python", "A")))]
 
         assert got == ["Shell has basic support only: no import or call graph is extracted for it.", "SQL has basic support only: no import or call graph is extracted for it."]
+
+
+class TestRazorIsNotALanguage:
+    def test_a_razor_file_gives_no_language_row_and_no_tier_b_item(self):
+        import gather
+
+        assert gather.lang_of("Views/Home/Index.razor") is None
+        assert gather.lang_of("Pages/Counter.razor") is None
+        assert process.nograph_cards(langs(("C#", "A")), facts_of(**{"C#": 3})) == {}
+        assert process.coverage_items(langs(("C#", "A"))) == []

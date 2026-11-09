@@ -458,7 +458,7 @@ Read sections 2 to 4, D2 to D6, D18 and D20. Load the skills in section 2. Then:
   - Done-check: the three test files pass (the slow one with `DOSSIER_SLOW=1`); block E prints `OK`.
   - Commit: `feat(dossier): badge the graph cards when a language has no static graph`
 
-- [ ] **M6-9. Record the Tier B and Razor decisions.**
+- [x] **M6-9. Record the Tier B and Razor decisions.**
   - Goal: D5's last two bullets, so later phases do not reopen them.
   - Files: this plan ("Results (Phase 1)") and `tests/unit/scripts/test_process.py`.
   - Steps: a test that a `.razor` file gives no language row and no Tier B item (pins today's behaviour); write the two decisions under "Results".
