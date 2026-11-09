@@ -542,7 +542,7 @@ Read section 2, D9, D10, D18 and "Results (Phase 1)". Load the skills in section
   - Done-check: the unit tests pass; the root snapshot test passes; `test_py_adapter_slow.py` passes unedited.
   - Commit: `feat(dossier): analyse each Python project in its own folder`
 
-- [ ] **M6-13. Restore nested uv projects.**
+- [x] **M6-13. Restore nested uv projects.**
   - Goal: D9's restore bullet.
   - Files: `scripts/tools.json`, `tests/unit/scripts/test_restore.py`.
   - Steps: tests: `backend/uv.lock` gives a plan with `dir` `backend`; root `uv.lock` unchanged; npm, yarn, pnpm and nuget plans unchanged (asserted). Implement (`"nested": true`).

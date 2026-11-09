@@ -411,6 +411,7 @@
   {
    "ecosystem": "python",
    "lockfile": "uv.lock",
+   "nested": true,
    "command": [
     "uv",
     "sync",
