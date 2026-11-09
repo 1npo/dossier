@@ -445,3 +445,39 @@ def test_nograph_badge_alone_and_none_when_absent(make_cites):
 
     assert 'class="badge nograph"' in only and "badge partial" not in only
     assert none == plain and "nograph" not in plain
+
+
+# ------------------------------------------------------------------ the freshness tile (M6-10)
+
+
+def about(make_cites, build):
+    import types
+
+    facts = {"chunks": {"files": 3, "chunk_count": 1, "mode": "single", "budget": 100, "total_tokens": 900}, "files": {"excluded": {}}}
+    ctx = {"cites": types.SimpleNamespace(status={}), "built": "2026-11-09 10:00 UTC", "version": "1.0.0", "build": build}
+    return render.panel_dossier(facts, {}, {}, ctx, refs(make_cites))
+
+
+FRESH = {"ref_kind": "branch", "compared_with": "origin/main", "source": "remote", "remote_sha": "b" * 40, "behind": 3, "ahead": 0,
+         "checked_at": "2026-11-09 10:00", "reason": None}
+
+
+def test_the_about_card_draws_the_freshness_tile_first(make_cites):
+    build = {"records": [{"step": "pin", "by": "prepare", "status": "ok", "details": {"freshness": FRESH}}]}
+
+    h = about(make_cites, build)
+
+    assert h.index(">Freshness<") < h.index(">Statements<")
+    assert "3 commits behind" in h and "origin/main is at bbbbbbb" in h
+
+
+def test_the_about_card_says_not_known_when_the_build_has_no_pin_freshness(make_cites):
+    h = about(make_cites, {"records": [{"step": "pin", "by": "prepare", "status": "ok", "details": {}}]})
+
+    assert ">Freshness<" in h and "Not known" in h
+
+
+def test_nine_tiles_make_three_columns():
+    h = render.stats_html([(str(i), "v", "") for i in range(9)])
+
+    assert "repeat(3," in h

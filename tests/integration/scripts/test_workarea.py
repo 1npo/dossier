@@ -1,5 +1,6 @@
 import json
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -113,3 +114,83 @@ class TestClean:
         a = workarea.area_for("x", "/one", "r1", tmp_path)
 
         assert workarea.clean(a, tmp_path) is True and not a.exists()
+
+
+class TestFreshness:
+    """Real git: a bare remote three commits ahead of a clone that is pinned at an older commit (D6)."""
+
+    ENV = {"GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null", "GIT_AUTHOR_NAME": "T", "GIT_AUTHOR_EMAIL": "t@x.io",
+           "GIT_COMMITTER_NAME": "T", "GIT_COMMITTER_EMAIL": "t@x.io"}
+
+    @staticmethod
+    def git(cwd, *args):
+        import os
+
+        r = subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True, env={**os.environ, **TestFreshness.ENV})
+        assert r.returncode == 0, r.stderr
+        return r.stdout.strip()
+
+    @pytest.fixture
+    def repos(self, tmp_path):
+        bare, work, clone = tmp_path / "remote.git", tmp_path / "work", tmp_path / "clone"
+        subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(bare)], check=True)
+        subprocess.run(["git", "clone", "-q", str(bare), str(work)], check=True, capture_output=True)
+        for i in range(4):
+            (work / "f.txt").write_text(f"{i}\n")
+            self.git(work, "add", "-A")
+            self.git(work, "commit", "-qm", f"c{i}")
+            if i == 0:
+                self.git(work, "push", "-q", "origin", "HEAD:main")
+                subprocess.run(["git", "clone", "-q", str(bare), str(clone)], check=True, capture_output=True)
+        self.git(work, "push", "-q", "origin", "HEAD:main")
+        self.git(clone, "fetch", "-q", "origin")
+        return bare, clone, self.git(clone, "rev-parse", "HEAD")
+
+    @staticmethod
+    def runner(tmp_path, cwd):
+        import functools
+
+        import sandbox
+
+        return functools.partial(sandbox.run, area=tmp_path / "area", cwd=Path(cwd), profile="restricted")
+
+    def test_online_the_clone_is_three_behind(self, repos, tmp_path):
+        _, clone, pin = repos
+
+        rec = workarea.freshness(str(clone), pin, "main", self.runner(tmp_path, clone))
+
+        assert (rec["source"], rec["behind"], rec["ahead"], rec["compared_with"]) == ("remote", 3, 0, "origin/main")
+
+    def test_a_remote_that_cannot_be_reached_falls_back_to_the_last_fetch(self, repos, tmp_path):
+        bare, clone, pin = repos
+        self.git(clone, "remote", "set-url", "origin", str(tmp_path / "missing.git"))
+
+        rec = workarea.freshness(str(clone), pin, "main", self.runner(tmp_path, clone))
+
+        assert (rec["source"], rec["behind"]) == ("tracking", 3) and rec["checked_at"]
+
+    def test_a_commit_made_only_in_the_clone_is_ahead(self, repos, tmp_path):
+        _, clone, _ = repos
+        (clone / "g.txt").write_text("x\n")
+        self.git(clone, "add", "-A")
+        self.git(clone, "commit", "-qm", "local")
+        pin = self.git(clone, "rev-parse", "HEAD")
+
+        rec = workarea.freshness(str(clone), pin, "main", self.runner(tmp_path, clone))
+
+        assert (rec["ahead"], rec["behind"]) == (1, 3)
+
+    def test_a_pinned_commit_with_no_ref_is_compared_with_the_default_branch(self, repos, tmp_path):
+        _, clone, pin = repos
+
+        rec = workarea.freshness(str(clone), pin, pin, self.runner(tmp_path, clone))
+
+        assert (rec["ref_kind"], rec["compared_with"], rec["behind"]) == ("commit", "origin/main", 3)
+
+    def test_the_repository_is_not_written(self, repos, tmp_path):
+        _, clone, pin = repos
+        before = status(clone)
+
+        workarea.freshness(str(clone), pin, "main", self.runner(tmp_path, clone))
+
+        assert status(clone) == before and self.git(clone, "rev-parse", "HEAD") == pin

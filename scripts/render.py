@@ -1111,8 +1111,40 @@ class Raw(str):
     """Markup that is already safe to place in the page."""
 
 
+def _plural(n, one, many):
+    return f"{n} {one if n == 1 else many}"
+
+
+def freshness_tile(rec):
+    """(label, value, note) of the Freshness tile (D6) from the pin record's `freshness`; the words are fixed so the page and the tests agree."""
+    label = "Freshness"
+    if not rec:
+        return label, "Not known", "This build did not record it."
+    known = rec.get("source") in ("remote", "tracking") and rec.get("remote_sha")
+    if not known:
+        return label, "Not known", rec.get("reason") or "It could not be worked out."
+    where, short = rec.get("compared_with") or "the remote", rec["remote_sha"][:7]
+    when = (f"checked {rec['checked_at']} UTC" if rec.get("checked_at") else "checked just now") if rec["source"] == "remote" else (
+        f"as of the last fetch on {rec['checked_at']}" if rec.get("checked_at") else "as of the last fetch")
+    if rec.get("ref_kind") == "tag":
+        name = where.split(" ", 1)[-1]
+        same = rec.get("behind") == 0 and rec.get("ahead") == 0
+        if same:
+            return label, f"Tag {name}", "still points at this commit on origin"
+        return label, f"Tag {name} moved", f"origin now has it at {short}"
+    behind, ahead = rec.get("behind"), rec.get("ahead")
+    if behind is None or ahead is None:
+        return label, "Not known", rec.get("reason") or "The newer commits have not been fetched."
+    if behind:
+        note = f"{where} is at {short}, {when}"
+        return label, f"{_plural(behind, 'commit', 'commits')} behind", note + (f"; {_plural(ahead, 'pinned commit is', 'pinned commits are')} not on it" if ahead else "")
+    if ahead:
+        return label, f"Not on {where}", f"{_plural(ahead, 'pinned commit is', 'pinned commits are')} not on {where}"
+    return label, "Up to date", f"with {where}, {when}"
+
+
 def stats_html(items):
-    cols = 3 if len(items) == 6 else 4 if len(items) == 8 else min(len(items), 5)
+    cols = 3 if len(items) in (6, 9) else 4 if len(items) == 8 else min(len(items), 5)
     return f'<div class="stats" style="grid-template-columns:repeat({cols},minmax(0,1fr))">' + "".join(
         f'<div class="stat {extra[0] if extra else ""}"><div class="k">{k if isinstance(k, Raw) else E(k)}</div><div class="v">{v if isinstance(v, Raw) else E(v)}</div>{f'<div class="s">{E(s)}</div>' if s else ""}</div>' for k, v, s, *extra in items) + "</div>"
 
@@ -1684,7 +1716,9 @@ def panel_dossier(facts, reports, state, ctx, refs):
     c = facts["chunks"]
     skipped = sum(facts["files"]["excluded"].values())
     chunks = f"{fmt(c['chunk_count'])} chunk{'' if c['chunk_count'] == 1 else 's'}"
-    tiles = stats_html([("Statements", fmt(len(allc)), f"across {sum(1 for x in REPORTS if x[2])} reports"),
+    pin = next((r for r in (ctx.get("build") or {}).get("records", []) if r.get("step") == "pin"), None)
+    tiles = stats_html([freshness_tile(((pin or {}).get("details") or {}).get("freshness")),
+                        ("Statements", fmt(len(allc)), f"across {sum(1 for x in REPORTS if x[2])} reports"),
                         ("Confirmed", fmt(n["confirmed"]), f"{100 * n['confirmed'] / total:.0f}% stated in the code"),
                         ("Inferred", fmt(n["inferred"]), f"{100 * n['inferred'] / total:.0f}% reasoned from context"),
                         ("Unknown", fmt(n["unknown"]), f"{100 * n['unknown'] / total:.0f}% not found"),

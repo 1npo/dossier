@@ -465,7 +465,7 @@ Read sections 2 to 4, D2 to D6, D18 and D20. Load the skills in section 2. Then:
   - Done-check: the test passes.
   - Commit: `test(dossier): pin that Razor files are not a language`
 
-- [ ] **M6-10. The freshness BAN.**
+- [x] **M6-10. The freshness BAN.**
   - Goal: D6.
   - Files: `scripts/workarea.py`, `scripts/stages.py`, `scripts/render.py` (`panel_dossier`), `scripts/page_audit.py`, `tests/unit/scripts/test_workarea.py` (create if absent), `tests/unit/scripts/test_render.py`, `tests/unit/scripts/test_page_audit.py`, `tests/unit/scripts/test_candidates.py`, `tests/integration/scripts/test_workarea.py`.
   - Interface: `workarea.freshness(top, sha, ref, run, timeout=15) -> dict` (D6's record; `run` is `sandbox.run` with `area` bound, replaced by a fake in unit tests); `render.freshness_tile(rec) -> (label, value, note)`.

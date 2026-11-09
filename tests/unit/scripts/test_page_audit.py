@@ -468,3 +468,23 @@ class TestPublicApiOnTheContractsCard:
         e = self.authored()
 
         assert page(make_cites, e, ctx={"extract": {"symbols": [], "graph": []}}) == page(make_cites, e)
+
+
+class TestFreshnessTile:
+    PIN = {"records": [{"step": "pin", "by": "prepare", "status": "ok", "details": {}}]}
+
+    def test_a_build_with_a_pin_needs_the_tile(self):
+        html = '<div data-card="dossier.about"><div class="stats"><div class="stat"><div class="k">Statements</div></div></div></div>'
+
+        assert page_audit.audit(html, {}, whole_page=False, build=self.PIN) == ["V11: dossier.about: the Freshness tile is not drawn."]
+
+    def test_the_tile_satisfies_it(self):
+        html = '<div data-card="dossier.about"><div class="stats"><div class="stat"><div class="k">Freshness</div></div></div></div>'
+
+        assert page_audit.audit(html, {}, whole_page=False, build=self.PIN) == []
+
+    def test_no_build_or_no_pin_record_asks_for_nothing(self):
+        html = '<div data-card="dossier.about"></div>'
+
+        assert page_audit.audit(html, {}, whole_page=False, build=None) == []
+        assert page_audit.audit(html, {}, whole_page=False, build={"records": []}) == []

@@ -267,6 +267,15 @@ def _check_unfinished(cards: dict) -> list:
             if cid.startswith(("change.", "contributors.")) and cid not in render.CUT_CARDS and "Not yet generated" in v[0].text()]
 
 
+def _check_freshness(cards: dict, build) -> list:
+    """V11: a build with a pin record shows the Freshness tile in `dossier.about` (D6)."""
+    if not any(r.get("step") == "pin" for r in (build or {}).get("records", [])) or "dossier.about" not in cards:
+        return []
+    if any(k.text().strip() == "Freshness" for k in cards["dossier.about"][0].find(cls="k")):
+        return []
+    return ["V11: dossier.about: the Freshness tile is not drawn."]
+
+
 def audit(page: str, reports: dict, extract=None, facts=None, whole_page=True, build=None, measured=None) -> list:
     """V11 errors for the page `page` (or any HTML holding the cards): [] when it draws everything its sources hold."""
     root = parse(page)
@@ -299,6 +308,7 @@ def audit(page: str, reports: dict, extract=None, facts=None, whole_page=True, b
             elif len(_rows(table[0])) != rows:
                 errs.append(f"V11: {cid}: the table has {len(_rows(table[0]))} rows, expected {rows}.")
     errs += _check_unfinished(cards)
+    errs += _check_freshness(cards, build)
     if measured is not None:
         errs += _check_measured(cards, measured, page)
     return errs

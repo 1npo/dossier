@@ -264,7 +264,7 @@ def cmd_prepare(a):
                            options={"allow_missing": a.allow_missing, "no_restore": a.no_restore, "allow_ref": a.allow_ref,
                                     "submodules": a.submodules, "full": a.full})
     try:
-        pin = stages.stage_pin(build, top, a.ref, sha)
+        pin = stages.stage_pin(build, top, a.ref, sha, area)
         report = stages.stage_tools(build, top, sha, opts)
         tree = stages.tree_at(top, sha)
         copy = stages.stage_copy(build, top, sha, area, state, opts, tree, pin["trust"])

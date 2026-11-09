@@ -8,6 +8,7 @@ import json
 import os
 import shutil
 import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 
 import config
@@ -113,6 +114,80 @@ def trusted(top: str, sha: str) -> dict:
     if _ok(top, "merge-base", "--is-ancestor", sha, ref):
         return {"trusted": True, "why": f"reachable from the default branch {short}", "default_branch": short}
     return {"trusted": False, "why": f"not a tag and not on the default branch {short}", "default_branch": short}
+
+
+def _remote_target(top: str, sha: str, ref: str):
+    """(ref_kind, compared_with, remote, remote ref, tag name or None) for the ref `prepare` was given, or None when it has no remote counterpart."""
+    full = git(top, "rev-parse", "--symbolic-full-name", ref, check=False).strip()
+    if ref == "HEAD":
+        full = git(top, "symbolic-ref", "--quiet", "HEAD", check=False).strip()
+    remotes = git(top, "remote", check=False).split()
+    if full.startswith("refs/tags/"):
+        name = full[len("refs/tags/"):]
+        return "tag", f"tag {name}", "origin", full, name
+    if full.startswith("refs/remotes/"):
+        remote, _, branch = full[len("refs/remotes/"):].partition("/")
+        return "remote-branch", f"{remote}/{branch}", remote, f"refs/heads/{branch}", None
+    if full.startswith("refs/heads/"):
+        name = full[len("refs/heads/"):]
+        up = git(top, "rev-parse", "--abbrev-ref", f"{name}@{{upstream}}", check=False).strip()
+        if not up and _ok(top, "show-ref", "--verify", "--quiet", f"refs/remotes/origin/{name}"):
+            up = f"origin/{name}"
+        if up:
+            remote, _, branch = up.partition("/")
+            return "branch", up, remote, f"refs/heads/{branch}", None
+        return "branch", "", remotes[0] if remotes else "", "", None
+    default = trusted(top, sha)["default_branch"]  # a commit, or a detached HEAD: compare with the default branch
+    if not default:
+        return "commit", "", remotes[0] if remotes else "", "", None
+    remote, _, branch = default.partition("/")
+    if remote not in remotes:  # a local default branch such as "main": the same name on origin
+        remote, branch = "origin", default
+    return "commit", f"{remote}/{branch}", remote, f"refs/heads/{branch}", None
+
+
+def freshness(top: str, sha: str, ref: str, run, timeout: float = 15) -> dict:
+    """How far the pinned commit is from the current head of its ref (D6). Never fetches and never writes to the repository.
+
+    `run(cmd, stage=..., timeout=...)` is `sandbox.run` with the work area and the repository bound. Asks the remote once with
+    `git ls-remote`; when that fails, falls back to the remote-tracking branch, labelled with the date of the last fetch."""
+    kind, compared, remote, remote_ref, tag = _remote_target(top, sha, ref)
+    rec = {"ref_kind": kind, "compared_with": compared, "source": "none", "remote_sha": None, "behind": None, "ahead": None, "checked_at": None, "reason": None}
+    if not git(top, "remote", check=False).split():
+        return rec | {"reason": "The repository has no remote."}
+    if not remote_ref:
+        return rec | {"reason": "No branch on the remote could be compared with."}
+    cmd = ["git", "ls-remote", "--exit-code", remote, remote_ref] + ([f"{remote_ref}^{{}}"] if tag else [])
+    try:
+        res = run(cmd, stage="freshness", timeout=timeout)
+    except Exception:  # noqa: BLE001: a failed look at the network must not stop prepare
+        res = None
+    online = res is not None and not res.timed_out and res.returncode in (0, 2)
+    if online and res.returncode == 2:
+        return rec | {"source": "remote", "reason": f"the ref no longer exists on {remote}"}
+    if online:
+        lines = [ln.split("\t") for ln in Path(res.stdout).read_text(encoding="utf-8", errors="replace").splitlines() if "\t" in ln]
+        found = {name: h for h, name in lines}
+        remote_sha = found.get(f"{remote_ref}^{{}}") or found.get(remote_ref)
+        if remote_sha:
+            rec |= {"source": "remote", "remote_sha": remote_sha, "checked_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")}
+    if rec["remote_sha"] is None:
+        if tag:
+            return rec | {"reason": f"{remote} could not be reached."}
+        tracking = git(top, "rev-parse", "--verify", "--quiet", f"refs/remotes/{remote}/{remote_ref[len('refs/heads/'):]}", check=False).strip()
+        if not tracking:
+            return rec | {"reason": f"{remote} could not be reached and there is no remote-tracking branch."}
+        rec |= {"source": "tracking", "remote_sha": tracking}
+        fetch_head = git(top, "rev-parse", "--git-path", "FETCH_HEAD", check=False).strip()
+        path = Path(fetch_head) if Path(fetch_head).is_absolute() else Path(top) / fetch_head
+        if fetch_head and path.exists():
+            rec["checked_at"] = datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).strftime("%Y-%m-%d")
+    if _ok(top, "cat-file", "-e", f"{rec['remote_sha']}^{{commit}}"):
+        rec["behind"] = int(git(top, "rev-list", "--count", f"{sha}..{rec['remote_sha']}", check=False).strip() or 0)
+        rec["ahead"] = int(git(top, "rev-list", "--count", f"{rec['remote_sha']}..{sha}", check=False).strip() or 0)
+    else:
+        rec["reason"] = "the newer commits have not been fetched"
+    return rec
 
 
 def clean(area: Path, cache_root: Path) -> bool:
