@@ -636,7 +636,7 @@ Read section 2, D7, D14, D15 and "Results" of Phases 1 and 2. Load the skills in
 
 ### Tasks (Phase 3)
 
-- [ ] **M6-18. Compute the graph views.**
+- [x] **M6-18. Compute the graph views.**
   - Goal: D7's views, budgets and filter, as pure Python.
   - Files: new `scripts/graph_views.py`, `tests/unit/scripts/test_graph_views.py`.
   - Interface: `views(levels, edges, title) -> list` where `levels` is `{node: parent}` with `None` for top-level nodes and `edges` is `{(a, b): weight}` at leaf level; `mermaid(view) -> str`.
