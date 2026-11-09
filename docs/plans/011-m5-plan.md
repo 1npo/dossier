@@ -1446,11 +1446,27 @@ The author does this. **Needed on the machine:** the .NET SDK 10.0.403, Node 22.
 
 ### Results (Phase 6)
 
-(Empty.)
+Started 2026-11-08 by Sonnet 5.5 on `feat/dossier-m5`, `SCR=/home/nick/.cache/dossier-m5-vWDO`. **Stopped at a saved state (cut line): M5-34 is not finished, because block W step 4 (writing all `CA` reports) was not started.** Not merged. M5-34 and M5-35 stay unticked.
+
+Done: block W steps 1 to 3 (`prepare --full` on `CA` and candidates for the five report groups), block Y, block E. Left: block W steps 4 and 5 (`CA` reports, render, check, H, shots), block M, blocks X, I and Z, and M5-36.
+
+**Findings for the milestone review (Phase 6 so far)**
+1. **No Aspire `framework` note for `CA`.** The plan expects `Aspire.Hosting.AppHost`. `src/AppHost/AppHost.csproj` uses `<Project Sdk="Aspire.AppHost.Sdk/13.6.4">` and has no `PackageReference` to that package, and `cs_project.frameworks_named` reads package references only. So the app host is `program-main` with no Gaps note that Aspire wires its services. Fix idea: also read the project's `Sdk` attribute. Not fixed: a rule-precision change, not a crash.
+2. **`CA` has 13 C# projects, not ten** (the plan's count): `AppHost`, `Application`, `Domain`, `Infrastructure`, `ServiceDefaults`, `Shared`, `Web` and six test projects. Packable: `Application`, `Domain`, `Infrastructure`, `ServiceDefaults`, `Shared` (the plan lists no `ServiceDefaults`). 240 `public-api` items.
+3. **`entry.catalog` for `CA` has no route from the four endpoint groups** (`TodoItems`, `TodoLists`, `Users`, `WeatherForecasts`), as expected: they are found by reflection (`MapEndpoints` in `src/Web/Infrastructure/WebApplicationExtensions.cs`). The writer must add them as `added: true` rows with the `/api/{ClassName}` prefix. Hand count of the groups' routes: **10 explicit** (WeatherForecasts 1; TodoLists 4; TodoItems 4, including `PATCH UpdateDetail/{id}`; Users 1, `POST logout`) plus the routes `MapIdentityApi<ApplicationUser>()` generates in `Users.cs`. The tool lists only `ANY /` and the fallback route in `Program.cs`.
 
 ### Verification results (Phase 6)
 
-(Empty.)
+Date 2026-11-08, branch `feat/dossier-m5`, model Sonnet 5.5. SDK 10.0.403.
+
+- **W step 1 (S, A, B, C).** `ca-trusted`, `lib-trusted`. `prepare --full --restore yes` on `CA` exit 0, 44.9 s extract. Adapters `csharp`, `js` and `repo`, every tool `ok`. Restore: no nuget plans (no `packages.lock.json`); two npm restores `ok` (`src/Web/ClientApp` 9.4 s, `src/Web/ClientApp-React` 4.8 s). 13 `no-lock` notes. No `msbuild` notes in the build log. Counts (csharp / js / repo): blindspots 71 / 10 / 0; entry_points 5 / 17 / 8; graph 257 / 100; models 3 / 0 / 0; symbols 892 (485 `def`, 167 `ref-edge`, 240 `public-api`) / 417; tests 32 / 2 / 2; io_candidates 74 / 61; dead 1 / 10; history 9123. C# entry kinds: `program-main` 3 (AppHost, Web, TestAppHost), `http-route` 2. Repo: `ci-trigger` 7, `ci-schedule` 1. `cs-note`s besides `no-lock`: `ambiguous-symbol` 1, `ambiguous-name` 4 (`src/AppHost/Extensions.cs`), `dead` 1. Candidates printed for entry (30 findings), data (3 entities, 7 store findings), io (45 inputs), components and reading.
+- **W step 2.** Thirteen C# projects (finding 2). Aspire app host is `program-main`; the framework note is missing (finding 1). Blind spots: `mediator-handler` 30, `string-route` 15, `di-resolution` 10, `di-registration` 8, `reflection` 4, `di-scan` 3, `route-mount` 1. The reflection and string-route hits are there; MediatR handlers arrive through `mediator-handler`.
+- **W step 3.** Public API: `CleanArchitecture.Application` 136, `.Domain` 54, `.Infrastructure` 40, `.ServiceDefaults` 5, `.Shared` 5.
+- **W steps 4 and 5.** Not done.
+- **Y.** Exit 0; scip-dotnet `ok`; 33 `public-api` items, all package and subpath `Ardalis.GuardClauses`, audience `packable` (31) or `packable, obsolete` (2). Holds `Guard`, `Guard.Against`, `IGuardClause`, `NotFoundException`, `ValidatedNotNullAttribute`, and `GuardClauseExtensions.Null` (2 overloads, across `Guard.cs`, `GuardAgainstNullExtensions.cs` and the other partial files). Holds none of `CallerArgumentExpressionAttribute`, `JetBrains.Annotations` or anything under `test/`; no private constructor. Both items of `GuardAgainstExpressionExtensionsDeprecated.cs` end `, obsolete`. **Pass.**
+- **E.** `OK` (248,746 characters on both sides); worktree removed, one worktree left.
+
+**Deviations.** `D` and the section 6 variables are in a sourced file in the session scratchpad (`env.sh`, copied from the Phase 5 one); block E used the `"${E:?}"` form as in Phase 5.
 
 ---
 
