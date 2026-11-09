@@ -777,7 +777,7 @@ Read section 2, D8, D11, D12, D18 and "Results" of Phases 1 to 3. Load the skill
   - Done-check: `... pytest tests/unit/scripts/test_prompts.py -q` passes.
   - Commit: `docs(dossier): tell Claude how to run the verifier`
 
-- [ ] **M6-29. Python `string-route` and `route-mount`.**
+- [x] **M6-29. Python `string-route` and `route-mount`.**
   - Goal: D11's two route rows.
   - Files: `rules/python/blindspot.yml`, `tests/fixtures/semgrep/python/blindspot.py`, `tests/unit/scripts/test_rules.py`, `rules/README.md`.
   - Steps: rules and fixture lines with `# ruleid:` and `# ok:` for every pattern of D11 (near misses: `@app.route("/x")`, `router.get("/x")`, `include(x)` outside `path(...)`). The ids already have wording in `BLIND_SPOTS`. Record the Python adapter's rule hash change (it reruns builds; no version bump needed).
