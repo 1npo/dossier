@@ -185,6 +185,30 @@ class TestComponentCandidates:
         assert got and all(c["folders"] for c in got)
 
 
+class TestNestedPythonProjects:
+    EXTRACT = {"graph": [
+        {"kind": "module", "module": "app", "path": "backend/app/__init__.py", "package": "app", "is_package": True, "project": "backend"},
+        {"kind": "module", "module": "app.models", "path": "backend/app/models.py", "package": "app", "is_package": False, "project": "backend"},
+        {"kind": "module", "module": "lib", "path": "lib/__init__.py", "package": "lib", "is_package": True},
+        {"kind": "module", "module": "lib.x", "path": "lib/x.py", "package": "lib", "is_package": False}]}
+    TREE = frozenset(g["path"] for g in EXTRACT["graph"])
+
+    def test_a_package_of_a_nested_project_names_its_folder(self):
+        out = candidates.text("components", self.EXTRACT, {}, {}, tree=self.TREE)
+
+        assert "app  [backend]  (2 modules)" in out
+
+    def test_a_root_package_is_printed_as_before(self):
+        out = candidates.text("components", self.EXTRACT, {}, {}, tree=self.TREE)
+
+        assert "\nlib  (2 modules)" in out
+
+    def test_the_data_marks_only_nested_packages(self):
+        got = candidates.component_candidates(self.TREE, self.EXTRACT, {})["packages"]
+
+        assert got == [{"package": "app", "modules": 2, "project": "backend"}, {"package": "lib", "modules": 2}]
+
+
 class TestJavaScriptSection:
     JS = {"graph": [{"kind": "source-root", "path": "apps/web/package.json", "root": "apps"},
                     {"kind": "module", "module": "apps/web/src/main", "short": "main", "path": "apps/web/src/main.tsx", "package": None,

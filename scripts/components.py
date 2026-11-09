@@ -109,6 +109,16 @@ def source_files(tree, extract: dict) -> list:
     return sorted(p for p in paths if (gather.lang_of(p) or (None, None))[1] == "code" and not gather.noise_reason(p))
 
 
+def _package_row(package: str, modules: list) -> dict:
+    """A Python package with its module count; a package of a nested project also names that project's folder."""
+    inside = [m for m in modules if m["module"] == package or m["module"].startswith(package + ".")]
+    row = {"package": package, "modules": len(inside)}
+    nested = sorted({m["project"] for m in inside if m.get("project")})
+    if nested:
+        row["project"] = nested[0]
+    return row
+
+
 def component_candidates(tree, extract: dict, facts: dict) -> dict:
     """Folders, packages and import communities, as suggestions for the components catalog. Never written to a report."""
     lines, files = file_lines(facts), source_files(tree, extract)
@@ -129,7 +139,7 @@ def component_candidates(tree, extract: dict, facts: dict) -> dict:
     for mod, label in sorted(labels.items()):
         groups.setdefault(label, set()).add(path_of[mod].rsplit("/", 1)[0] if "/" in path_of[mod] else ".")
     out = {"folders": [folders[k] for k in sorted(folders)],
-           "packages": [{"package": p, "modules": sum(1 for m in modules if m["module"] == p or m["module"].startswith(p + "."))} for p in keep],
+           "packages": [_package_row(p, modules) for p in keep],
            "communities": [{"label": k, "folders": sorted(v)} for k, v in sorted(groups.items()) if len(v) > 0]}
     roots = sorted({g["root"] for g in extract.get("graph", []) if g.get("kind") == "source-root" and g.get("root") and not g["path"].endswith(".csproj")})
     if roots:  # JavaScript and TypeScript projects; Python-only repositories have none, so their result is unchanged

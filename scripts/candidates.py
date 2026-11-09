@@ -337,7 +337,7 @@ def text(rid: str, extract: dict, reports: dict, facts: dict, *, only_open: bool
         out += [f"{f['path']}  ({f['files']} files, {f['lines']} lines)" for f in c["folders"]]
         if c["packages"] or any(m.get("kind") == "module" and "language" not in m for m in extract.get("graph", [])):
             out.append("== Python packages ==")
-            out += [f"{p['package']}  ({p['modules']} modules)" for p in c["packages"]]
+            out += [f"{p['package']}  " + (f"[{p['project']}]  " if p.get("project") else "") + f"({p['modules']} modules)" for p in c["packages"]]
         if "projects" in c:
             out.append("== JavaScript and TypeScript projects ==")
             out += [f"{p['root']}  ({p['modules']} modules)" for p in c["projects"]]
