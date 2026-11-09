@@ -24,10 +24,10 @@ def _label(text: str) -> str:
 
 
 class _Hierarchy:
-    def __init__(self, levels: dict):
+    def __init__(self, levels: dict, lab):
         self.levels = levels
         self.children: dict = {}
-        for node, parent in sorted(levels.items(), key=lambda kv: str(kv[0])):
+        for node, parent in sorted(levels.items(), key=lambda kv: (lab(kv[0]), str(kv[0]))):
             self.children.setdefault(parent, []).append(node)
         self._depth: dict = {}
 
@@ -44,9 +44,9 @@ class _Hierarchy:
         return node
 
 
-def _fold(items: list, limit: int) -> list:
+def _fold(items: list, limit: int, lab) -> list:
     """Node specs for a view: one per item, or groups of at most GROUP_SIZE in name order (groups of groups when there are many)."""
-    specs = [{"label": str(i), "items": [i], "sub": None} for i in items]
+    specs = [{"label": lab(i), "items": [i], "sub": None} for i in items]
     while len(specs) > limit:
         chunks = [specs[i:i + GROUP_SIZE] for i in range(0, len(specs), GROUP_SIZE)]
         specs = [{"label": f"{c[0]['label']} … {c[-1]['label']} ({sum(len(s['items']) for s in c)})",
@@ -73,14 +73,18 @@ def mermaid(view: dict) -> str:
     return _src(view)
 
 
-def views(levels: dict, edges: dict, title: str, kinds: tuple = KINDS) -> list:
+def views(levels: dict, edges: dict, title: str, kinds: tuple = KINDS, labels: dict | None = None) -> list:
     """Every view of a hierarchy, the root view first.
 
     `levels` is {node: parent} with None for top-level nodes; `edges` is {(a, b): weight} between leaf nodes.
+    `labels` maps a node to the text shown for it (default: the node itself), so two nodes may share a name.
     A view is {"id", "title", "parent", "children": [view ids], "nodes", "edges", "hidden", "src"}; a node is
     {"id", "label", "kind", "view"} and an edge {"from", "to", "weight"}.
     """
-    h = _Hierarchy(levels)
+    def lab(node) -> str:
+        return str((labels or {}).get(node, node))
+
+    h = _Hierarchy(levels, lab)
     leaves = [(a, b, w) for (a, b), w in sorted(edges.items(), key=lambda kv: (str(kv[0][0]), str(kv[0][1]))) if a in levels and b in levels and a != b]
     out: list = []
 
@@ -99,7 +103,7 @@ def views(levels: dict, edges: dict, title: str, kinds: tuple = KINDS) -> list:
 
         if specs is None:
             touches = any((h.at(a, cd) in scope_set) != (h.at(b, cd) in scope_set) for a, b, _ in leaves) if cd > 0 else False
-            specs = _fold(scope, MAX_NODES - 1 if touches else MAX_NODES)
+            specs = _fold(scope, MAX_NODES - 1 if touches else MAX_NODES, lab)
         taken: dict = {}
         nodes, key_of = [], {}
         for spec in specs:
@@ -133,7 +137,7 @@ def views(levels: dict, edges: dict, title: str, kinds: tuple = KINDS) -> list:
             n_sib = sum(1 for i in scope if i not in key_of)
             resolved["sibling"] = {"id": _mermaid_id("other:sibling", taken), "label": f"{n_sib} other {noun(cd)}s", "kind": "other", "view": None}
             nodes.append(resolved["sibling"])
-        ext_used = sorted(k[1] for k in used if isinstance(k, tuple))
+        ext_used = sorted((k[1] for k in used if isinstance(k, tuple)), key=lambda x: (lab(x), str(x)))
         if ext_used:
             if len(nodes) + len(ext_used) > MAX_NODES:
                 other = {"id": _mermaid_id("other:external", taken), "label": f"{len(ext_used)} other {noun(cd - 1)}s", "kind": "other", "view": None}
@@ -141,7 +145,7 @@ def views(levels: dict, edges: dict, title: str, kinds: tuple = KINDS) -> list:
                 resolved.update({("ext", x): other["id"] for x in ext_used})
             else:
                 for x in ext_used:
-                    node = {"id": _mermaid_id("x:" + str(x), taken), "label": str(x), "kind": noun(cd - 1), "view": None}
+                    node = {"id": _mermaid_id("x:" + str(x), taken), "label": lab(x), "kind": noun(cd - 1), "view": None}
                     nodes.append(node)
                     resolved[("ext", x)] = node["id"]
         resolved = {k: (v["id"] if isinstance(v, dict) else v) for k, v in resolved.items()}

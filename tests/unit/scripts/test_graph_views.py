@@ -186,6 +186,16 @@ class TestViews:
         assert view["edges"] == []
 
 
+class TestViewLabels:
+    def test_two_nodes_may_share_a_label_through_the_labels_map(self):
+        levels = {"a:api": None, "c:api": "a:api"}
+
+        found = graph_views.views(levels, {}, "Areas", labels={"a:api": "api", "c:api": "api"})
+
+        assert [n["label"] for n in found[1]["nodes"]] == ["api"]
+        assert found[1]["title"] == "api"
+
+
 class TestMermaid:
     def test_source_is_a_flowchart_with_one_line_per_node_and_edge(self):
         levels = {"x": None, "x1": "x", "y": None, "y1": "y", "z": None, "z1": "z"}

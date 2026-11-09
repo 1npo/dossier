@@ -1,4 +1,5 @@
 import html as htmllib
+import json
 import re
 import sys
 from pathlib import Path
@@ -318,10 +319,32 @@ def table_html(html, tid):
 
 
 class TestComponentMap:
-    def test_draws_no_diagram_of_which_component_imports_which(self):
+    def test_holds_one_graph_data_script_and_a_host_with_the_root_view(self):
         html = measured.body("components.map", MAP_CTX, Refs())
 
-        assert "mermaid-host" not in html and "flowchart" not in html
+        data = json.loads(re.search(r'<script type="application/json" class="igraph-data">(.*?)</script>', html, re.S).group(1))
+        assert html.count('class="igraph-data"') == 1
+        assert data[0]["parent"] is None and len(data[0]["nodes"]) >= 3
+        assert f'data-src="{htmllib.escape(data[0]["src"], quote=True)}"' in html
+        assert measured_graph.NO_JS in html
+
+    def test_graph_has_a_select_with_one_option_per_view_and_a_button_per_node_with_a_view(self):
+        html = measured.body("components.map", MAP_CTX, Refs())
+
+        data = json.loads(re.search(r'class="igraph-data">(.*?)</script>', html, re.S).group(1))
+        assert html.count("<option ") == len(data)
+        assert html.count("data-open=") == sum(1 for n in data[0]["nodes"] if n["view"])
+
+    def test_tables_follow_the_graph_unchanged(self):
+        html = measured.body("components.map", MAP_CTX, Refs())
+
+        assert html.index("igraph-data") < html.index('<table class="table')
+        assert html.count("<table") == 1
+
+    def test_without_imports_between_components_draws_no_graph(self):
+        ctx = {**MAP_CTX, "extract": {"graph": [MAP_EXTRACT["graph"][0]]}}
+
+        assert "igraph" not in measured.body("components.map", ctx, Refs())
 
     def test_table_has_files_lines_and_neighbours(self):
         rows = {r[0]: r for r in rows_of(table_html(measured.body("components.map", MAP_CTX, Refs()), "t-components-map"))}
@@ -347,14 +370,26 @@ class TestDependencyGraph:
         rows = rows_of(table_html(html, "t-interactions-graph-edges"))
         assert rows[0][5] == "[src/app/api/x.py:2][src/app/api/x.py:9]"
 
-    def test_draws_only_tables_with_or_without_a_catalog(self):
+    def test_draws_the_graph_before_the_tables_with_or_without_a_catalog(self):
         for ctx in (MAP_CTX, {"extract": MAP_EXTRACT}):
             html = measured.body("interactions.graph", ctx, Refs())
 
-            assert "mermaid-host" not in html and html.count("<table") >= 2
+            assert html.count('class="igraph-data"') == 1 and html.count("<table") >= 2
+            assert html.index("igraph-data") < html.index("<table")
+            assert measured_graph.NO_JS in html
 
-    def test_no_imports_says_so(self):
-        assert "No imports between modules were found." in measured.body("interactions.graph", {"extract": {"graph": []}}, Refs())
+    def test_views_reach_every_module_that_takes_part_in_an_import(self):
+        html = measured.body("interactions.graph", MAP_CTX, Refs())
+
+        data = json.loads(re.search(r'class="igraph-data">(.*?)</script>', html, re.S).group(1))
+        labels = {n["label"] for v in data for n in v["nodes"]}
+        assert {"src/app/api/x.py", "src/app/core/y.py", "src/app/db/z.py", "loose.py"} <= labels
+
+    def test_no_imports_says_so_and_draws_no_graph(self):
+        html = measured.body("interactions.graph", {"extract": {"graph": []}}, Refs())
+
+        assert "No imports between modules were found." in html
+        assert "igraph" not in html
 
 
 UI_GRAPH = [

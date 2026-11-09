@@ -644,7 +644,7 @@ Read section 2, D7, D14, D15 and "Results" of Phases 1 and 2. Load the skills in
   - Done-check: `... pytest tests/unit/scripts/test_graph_views.py -q` passes.
   - Commit: `feat(dossier): compute collapsible views of the component and module graphs`
 
-- [ ] **M6-19. Draw the graph in the two cards.**
+- [x] **M6-19. Draw the graph in the two cards.**
   - Goal: D7's markup and data.
   - Files: `scripts/measured_graph.py`, `tests/unit/scripts/test_measured.py`.
   - Steps: (1) Tests: `components.map` and `interactions.graph` hold one `igraph-data` script, a host with the root view's `data-src`, the no-JavaScript sentence, a select with one option per view, a button per node with a view; the existing tables come after, byte-identical to today's; a card with no imports keeps its `No imports between modules were found.` line and draws no graph. (2) Implement. (3) Block E.
