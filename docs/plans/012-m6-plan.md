@@ -421,7 +421,7 @@ Read sections 2 to 4, D2 to D6, D18 and D20. Load the skills in section 2. Then:
   - Done-check: `... pytest tests/unit/scripts/test_cs_scip.py -q` passes.
   - Commit: `fix(dossier): treat a used extension method as a use of its class`
 
-- [ ] **M6-4. Drop C# reference edges between unrelated projects.**
+- [x] **M6-4. Drop C# reference edges between unrelated projects.**
   - Goal: D3, third bullet.
   - Files: `scripts/cs_scip.py`, `scripts/cs_adapter.py`, `tests/unit/scripts/test_cs_scip.py`, `tests/integration/scripts/test_cs_adapter_slow.py`.
   - Interface: `cs_scip.drop_unrelated(items, projects, project_of) -> (items, dropped)`.

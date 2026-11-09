@@ -26,7 +26,7 @@ def context(cs_repo, tmp_path, trusted=True):
     files = sorted(p for p in tree if p.endswith(".cs"))
     return SimpleNamespace(checkout=__import__("pathlib").Path(root), sha=cs_repo.sha, tree=tree, files=files, area=tmp_path / "area",
                            restored={}, run=None, treesitter=FakeTS(), semgrep=FakeSemgrep(), tool_versions={}, trusted=trusted,
-                           repo_name="csrepo", tool_status={})
+                           repo_name="csrepo", tool_status={}, details={})
 
 
 def extract(cs_repo, tmp_path, monkeypatch, trusted=True, sdks=("10.0.403",), plan=None):

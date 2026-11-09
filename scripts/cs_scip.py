@@ -225,6 +225,31 @@ def _base_name(base: str) -> str:
     return base.split("<", 1)[0].rsplit(".", 1)[-1].strip()
 
 
+def drop_unrelated(items: list, projects: list, project_of: dict) -> tuple:
+    """(items, dropped): `ref-edge` items between files of two projects that do not reach each other through project references are removed.
+
+    scip-dotnet keeps only the last namespace segment, so every top-level `Program` shares one symbol and links unrelated projects."""
+    refs = {p["path"]: p.get("references", []) for p in projects}
+    reach: dict = {}
+    for start in refs:
+        seen, todo = set(), [start]
+        while todo:
+            q = todo.pop()
+            if q not in seen:
+                seen.add(q)
+                todo.extend(refs.get(q, ()))
+        reach[start] = seen
+    kept, dropped = [], 0
+    for it in items:
+        if it.get("kind") == "ref-edge":
+            a, b = project_of.get(it["path"]), project_of.get((it.get("paths") or [""])[0])
+            if a and b and a != b and b not in reach.get(a, ()) and a not in reach.get(b, ()):
+                dropped += 1
+                continue
+        kept.append(it)
+    return kept, dropped
+
+
 def dead_items(symbols: list, decls: dict, entries: list, models: list, blindspots: list, generated, test_files) -> list:
     """`dead` items for internal types that no other file references (D17). Run only when scip-dotnet gave an index.
 

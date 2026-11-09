@@ -200,6 +200,15 @@ class TestSymbols:
     def test_a_cross_project_edge_from_the_api_to_core(self, ex):
         assert any(s["kind"] == "ref-edge" and s["path"].startswith("src/Shop.Api/") and s["paths"][0].startswith("src/Shop.Core/") for s in ex.section("symbols"))
 
+    def test_no_edge_joins_the_program_classes_of_unrelated_projects(self, ex):
+        programs = [s for s in ex.section("symbols") if s["kind"] == "ref-edge" and s["path"].endswith("/Program.cs") and s["paths"][0].endswith("/Program.cs")
+                    and s["path"].split("/")[1] != s["paths"][0].split("/")[1]]
+        cs = next(a for a in ex.record["details"]["adapters"] if a["name"] == "csharp")
+
+        assert programs == []
+        assert isinstance(cs["details"]["dropped_edges"], int)
+        print("dropped_edges =", cs["details"]["dropped_edges"])
+
     def test_the_two_item_types_have_no_definition(self, ex):
         assert not [s for s in ex.section("symbols") if s["kind"] == "def" and s["name"] == "Item"]
 

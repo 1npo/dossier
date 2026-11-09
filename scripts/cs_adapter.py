@@ -217,7 +217,11 @@ class CSharpAdapter(Adapter):
             return self._fallback(out, st, problems[0] if problems else "scip-dotnet wrote an index with no documents.", ctx, "failed")
         decls = st.get("decls", {})
         index, ambiguous = cs_scip.disambiguate(index, decls)
-        out["symbols"] += cs_scip.finish_symbols(scip_read.reduce(index), decls, st.get("generated", set()))
+        symbols = cs_scip.finish_symbols(scip_read.reduce(index), decls, st.get("generated", set()))
+        csprojects = [p for p in result["projects"] if "language" not in p]
+        symbols, dropped = cs_scip.drop_unrelated(symbols, csprojects, {f: p["path"] for p in csprojects for f in p["files"]})
+        out["symbols"] += symbols
+        ctx.details["dropped_edges"] = dropped
         indexed = {d["path"] for d in index["documents"]}
         missing = sorted(f for p in result["projects"] if "language" not in p for f in p["files"] if f not in indexed and f not in st.get("generated", ()))
         for note, count, path in (("ambiguous-symbol", ambiguous, result["targets"][0]), ("unindexed", len(missing), missing[0] if missing else None)):
