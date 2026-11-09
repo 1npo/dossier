@@ -1135,7 +1135,7 @@ Read section 2, section 6 and "Results" of Phases 1 to 4. Load the skills in sec
   - Done-check: the test passes and the hash matches.
   - Commit: `test(dossier): score C# rows with the ground truth tool` (only if something changed)
 
-- [ ] **M5-32. Run the blocks for `RW`, the Python golden and the JS run.**
+- [x] **M5-32. Run the blocks for `RW`, the Python golden and the JS run.**
   - Goal: the exit criterion on the primary repository.
   - Files: this plan only, unless a block finds a bug.
   - Steps: run, in order, blocks S, A, B, C, D, F, G, H, L, T, J, N, Q, R, K, P, JS, E, I, as section 6 gives them. **A failure is a finding:** fix the cause on this branch with a test first, in its own commit, then rerun the block. Fix the code, not the check. **Block T is the exception:** record its disagreements and carry on, because Phase 5a judges them. Never edit the truth file.
@@ -1168,11 +1168,68 @@ Do not merge. Commit results: `docs(dossier): record phase 5 of M5 in plan 011`.
 
 ### Results (Phase 5)
 
-(Empty.)
+Run 2026-11-08 by Opus 5.5 on `feat/dossier-m5` (`BASE_SHA` `5628174`). `SCR=/home/nick/.cache/dossier-m5-vWDO` (from "Results (Phase 4a)"); it is kept for the author's review and for Phase 5a and 6 (block P's side b is in `$SCR/p/b`, kept for block X). `VERSION` 0.10.0; 681 GB free on `~/.cache`. Truth hash checked before and after: `68f22953...cef94`, unchanged. The truth file was read only through `ground_truth.py`.
+
+**M5-31.** The existing unit test passed; a made-up C# case (`GET /api/x`, `Jwt__Key` with a `where` holding a space and `(test helper)`) passed on the first run, so the tool is unchanged. Commit `ca46d5a` (test only; no "Fails before" line, because nothing failed).
+
+**M5-32.** Every block ran in order (S, A, B, C, D, F, G, H, L, T, J, N, Q, R, K, P, JS, E, I). Two blocks found bugs, each fixed on this branch with a failing test first, in its own commit, and the block rerun:
+
+- `430a388` `fix(dossier): draw sequence actor names readably in the dark theme` (block G). A sequence `actor` label sat on the page in `actorTextColor` (dark): 8 `FAIL [dark] ... contrast 1.01:1` lines on report 06. One CSS rule in `assets/dossier.css`; new slow test `TestSequenceActors` in `test_check_page_slow.py`. Block E printed `OK` after it.
+- `de06e7d` `fix(dossier): add the sdk note when the .NET SDK stops scip-dotnet` (block N). D10 defines the `sdk` Gaps wording, but no task made the adapter emit the `cs-note`, so `The C# tools that need the .NET SDK did not run` never appeared. The adapter now adds one note named with the SDK reason on the first scip target; an untrusted ref adds none. Three new tests in `test_cs_adapter.py`.
+
+Block T is below its targets (entry recall 81%, inputs 74%, outputs 54%). As M5-32 says, it was recorded, not fixed; Phase 5a rules on the 96 disagreements in `$SCR/truth/review.md`.
+
+**Judgement calls (C# defaults, as section 2 allows)**
+- Routes are written with the `/api` prefix that the `route-convention` finding at `Program.cs:52` shows (reports.md tells the writer to), and each row says where the prefix comes from.
+- Components follow folders inside the one web project (features, persistence, security, pipeline); the build project and the test project are their own components.
+- The ER diagram's `FK` marks on collection navigations and the 11 "unused dependency" rows were left as the tools drew them (see findings); fixing them is a rule-precision change, not a crash, V1 failure or block T miss.
+
+**Findings for the milestone review**
+1. **`change.dead-code` lists 11 false "unused dependency" rows for C#** (`FluentValidation.DependencyInjectionExtensions`, `Mediator.Abstractions`, `Mediator.SourceGenerator`, `Microsoft.EntityFrameworkCore.InMemory`, `.Sqlite`, `.SqlServer`, `Serilog.Extensions.Logging`, `Serilog.Sinks.Console`, `SQLitePCLRaw.bundle_e_sqlite3`, `Swashbuckle.AspNetCore`, `System.Security.Cryptography.Pkcs`). Every one is used: NuGet ids are not namespaces, and C# reaches packages through extension methods (`UseSqlite`, `WriteTo.Console`), analysers and transitive pins. The same kind of fault as M5-29's module rows. The `dead` extract itself is empty (D17 found nothing).
+2. **The `repo` adapter writes no I/O items**, so the environment variables set in `Dockerfile` (`ENV`), `docker-compose.yml`, `Makefile` and the scripts, and the scripts' network calls, never become findings; `facts.env_vars` is also empty for this repository. Most of block T's S and O misses come from here.
+3. Bullseye targets written as a multi-line `Target(` call have no name in the candidate detail (5 of 6 at `build/Program.cs`; only the one-line `default` has `[default]`).
+4. `candidates --report components` says `tests/Conduit.IntegrationTests/Conduit.IntegrationTests.csproj (..., test project, 0 files)`; it has 24 tracked `.cs` files. It also prints an empty `== Python packages ==` heading for a C#-only repository.
+5. `change.upgrade-burden` gives `.NET` latest as `10.0.13`, older than the `10.0.14` runtime the repository already pins: the shipped end-of-life snapshot is stale.
+6. The ER diagram (`data.relationships`) marks collection navigations (`List_Comment Comments`, `ArticleTags`, `ArticleFavorites`) as `FK`.
+7. No `ambiguous-symbol` note on `RW` (count 0): the 4 duplicate migration symbols Phase 1 saw (G7) are merged by `disambiguate`. `ambiguous-name` is 47.
+8. `prepare --no-restore` prints `"restore": []`; `build.json` does record the restore step as `skipped` with the reason, under the step name `copy` (pre-existing naming).
+9. `.check-shots` holds one shot per diagram and theme (entry 1, interactions 4, data 1, code viewer), not report shots at both widths, so block G's "shots of reports 04, 05, 06, 08 and 15 at both widths" cannot be read as written. I read the six diagram shots in both themes.
+10. The contributors candidates class the `Copilot` identity as human; its commits carry `Agent-Logs-Url` lines. Written up in `contributors.doubts`.
+11. V3 warns on 7 arrows, all mediator or dependency-injection hops (controller to pipeline behaviour to handler, handler to `CurrentUserAccessor` through its interface): the expected C# blind spot, already in Gaps.
+
+**Left for the author:** Phase 5a rulings on `$SCR/truth/review.md`; finding 1 (dead-code rows) and finding 2 (repo I/O) look like the main Phase 5b candidates. Untracked folders under `$SCR` (`j`, `k`, `n`, `q`, `q-cache`, `r`, `js`, `e`) can be deleted after Phase 6.
 
 ### Verification results (Phase 5)
 
-(Empty.)
+Date 2026-11-08, branch `feat/dossier-m5`, model Opus 5.5. SDK 10.0.403.
+
+- **S.** `rw-trusted`, `ca-trusted`, `lib-trusted`. `CA` and `LIB` cloned here; `RW` was already at the pin. `$REPO` status saved (0 lines).
+- **A.** `dotnet 10.0.403` ok (needs 8.0.100 or later), `scip-dotnet 0.2.16 from a hash-checked NuGet package`, `git 2.47.3`, `uv 0.11.19` ok, `Nothing is missing.`, `skill: ca46d5a (clean)`, exit 0.
+- **B.** Exit 0 in 46 s; mode `full`; adapters `csharp` (tree-sitter, semgrep, scip-dotnet all `ok`) and `repo` (semgrep `ok`); restore `ok` for three nuget plans: `build` 3.2 s, `src/Conduit` 5.8 s, `tests/Conduit.IntegrationTests` 4.5 s. `build.json` has times per step, not per tool: restore 13.4 s, extract 29.9 s. Counts: blindspots csharp 95 / repo 0; dead 0; entry_points csharp 27 / repo 12; graph 328 (import 236, module 82, cs-note 3, cs-project 3, source-root 2, cycle 1, project-reference 1); history 5606; io_candidates 137; models 9 (7 `ef-entity`, 2 `migration`); symbols 873 (468 `def`, 405 `ref-edge`); tests 24 / repo 3. `cs-note`s: `generator` for `Mediator.SourceGenerator` and `Riok.Mapperly` (both `src/Conduit/Conduit.csproj`), `ambiguous-name` 47, `ambiguous-symbol` none. Entry kinds: http-route 19, make-target 8, build-target 6, program-main 2, ci-schedule 2, container 1, shebang-script 1.
+- **C.** Candidates for entry (39), data (7 entities, 20 store findings), io (11 inputs, 62 outputs), components and reading printed. Wrong-looking things are findings 3 and 4. Routes come out as `GET /articles`; the `/api` prefix needs the `route-convention` finding, which is there.
+- **D.** All 14 reports written as Claude, in plan 009's D12 order, from a full read of the 148 tracked files (lock files' package lists, `logo.png` and the generated migration Designer and snapshot files skimmed). `candidates --report <id> --open` printed nothing for all ten reports. The truth file was not read while writing.
+- **F.** Two rounds. Round 1: two errors (`V6: ops.ci: unexpected block 2 (text)` and an unknown `facts:files` key), fixed in the reports. Round 2: exit 0, no `error:` line; 47 V2 and 7 V3 warnings (all in Gaps), 8 "mentions without citing" warnings for paths in Paths cells. Page 11,080,409 bytes.
+- **G.** First run `problems: 8` (the dark actor labels, fixed by `430a388`); after the fix `problems: 0`, 6 diagrams checked, exit 0. `render` again: exit 0. Shots read: see finding 9.
+- **H.** entities 7, fields 47; `data.entities` 7 rows (equal); `entry.catalog` 46; `io.inputs` 37; `io.outputs` 38; `change.dead-code` 11 (finding 1); `change.upgrade-burden` 1 (`.NET`, `net10.0`); Gaps blind spots 42; partial badges 0; `summary.json` lists languages 5, extractors 4 (git, scip-dotnet 0.2.16, semgrep 1.181.0, tree-sitter-language-pack 1.22.1, all `ok`), components 12, entry_points 46, contributors 30, contracts 4, external_dependencies 18, data_stores 4.
+- **L.** `No package here declares a public API.` shown once; no `t-io-contracts-api` table; 0 `public-api` items.
+- **T.** Hash matches. `entry points: recall 81%, precision 100% (47 matched, 11 missed, 0 unmatched)`; `inputs: recall 74% (76 matched, 27 missed, 5 unmatched)`; `outputs: recall 54% (56 matched, 47 missed, 6 unmatched)`. Targets missed: entry recall (100%), inputs and outputs recall (95%); precision met. 96 disagreements (85 missed truth rows, 11 unmatched dossier rows). Each missed row is annotated in `review.md` with its cited line, the dossier evidence and a code: W 27 (said in other words), P 10 (in another card), G 11 (grouped row, for example `/api/articles` routes covering the comment and favourite paths), O 18 (left out by the writer, for example system-table reads, stdin of `sha256sum --check -`, files the build runner globs), S 19 (scope questions: Dependabot schedules, the compose service, push-triggered workflows, launch profiles, build-time network calls). Four truth rows look like duplicated `where` values (T notes in the file). No Gaps entry or blind-spot rule explains any miss except the 2 submodule inputs (coverage item). Not ruled on.
+- **J.** `TagsController.cs` exists; exit 0; `incremental ['contributors', 'gaps', 'overview'] 11`; `entry`, `data`, `interactions` and `components` not stale. Reasons: new commits (overview, contributors), changed tool findings (contributors, from the new author), rewritten reports (gaps).
+- **N.** `doctor`: `MISSING dotnet needs 8.0.100 or later, for C#` with the install link, exit 1. `prepare`: exit 2, `missing_tools`. With `--allow-missing`: exit 0; restore `skipped` (`The .NET SDK is not installed.`) for all three plans; scip-dotnet `skipped`; entry_points 27 + 12 as in block B; symbols 499 fallback `def`s. Strings: the first two `found:` on the first run, the third `MISSING`, then `found` after `de06e7d`. Three `badge partial` (components.catalog, interactions.flows, interactions.graph; `grep -c` prints 1 because they share a line). Without the fake `dotnet`, `prepare` ran the `csharp` section again (scip-dotnet `ok`, 873 symbols) and reused only `repo`.
+- **Q.** I only emptied the DLL and left the marker matching, so no reinstall. Exit 0; scip-dotnet `failed` (`System.BadImageFormatException: Bad IL format ...`); 499 fallback `def`, 0 `ref-edge`; after `render --allow-errors` with copied reports, the same three cards badged `partial`.
+- **R.** Exit 0 in 31 s; restore `skipped` (`Installing dependencies was turned off with --no-restore.`); scip-dotnet `ok`; 468 `def` (as B), 355 `ref-edge` (B: 405), 105 files with defs or edges (as B), no `msbuild` notes, the same `cs-note`s. Answer: without packages scip-dotnet still indexes every file and finds 88% of the references.
+- **K.** First run exit 0: scip-dotnet `skipped` (`The ref is not trusted, so scip-dotnet did not run. Use --allow-ref to run it.`), semgrep and tree-sitter `ok`, 27 entry points, restore `[]` (no restore). Second run (`--allow-ref --no-restore`) exit 0: scip-dotnet `ok`.
+- **P.** `SAME` (prepare and render exit 0 on both sides).
+- **JS.** `SAME`: 13 sections compared, adapters `git`, `js`, `repo`, no `csharp` section on side b.
+- **E.** `OK` (248,746 characters on both sides), after `430a388` and again in order.
+- **I.** Default: 2617 passed, 274 skipped (68 s). Slow (`--basetemp=$HOME/.cache/dossier-m5-slow`, removed afterwards; 22 min 55 s): 3 failed, only the three known ones (`test_overlapping_paragraphs_are_reported`, `test_each_browser_mutation_makes_a_fail[chart-text-small-chart text]`, the G2 golden), 2887 passed, 1 skipped. `test_py_adapter_slow.py` and `test_js_adapter_slow.py` passed unedited; the slow C# tests ran (SDK present).
+
+**Deviations**
+- `D` and the section 6 variables live in a sourced file in the session scratchpad; the report JSON was written by small generator scripts in `$SCR/gen` (not committed; nothing from `RW` is committed).
+- Block B: no per-tool times exist in `build.json`; step times recorded instead.
+- Block E: the `rm` of the copied HTML uses `"${E:?}"/"${side:?}"/...` (a safety check refused the bare form); otherwise unchanged.
+- Block G: see finding 9.
+- Block JS: `conftest.py` imports `pytest`, so the builder ran under `uv run --with pytest --with pygments python -c ...`; `build_js_repo` makes the repository at `$SCR/js/repo/jsrepo`, so `prepare` used that path.
+- Block N: the third string needed a fix (`de06e7d`); the first string matched as written.
 
 ---
 
