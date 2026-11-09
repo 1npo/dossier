@@ -498,6 +498,24 @@ Commit each task on `feat/dossier-m6`. Do not merge or bump. Write "Results (Pha
 
 ### Results (Phase 1)
 
+Done 2026-11-09 by Sonnet on `feat/dossier-m6`; M6-1 to M6-10 all done, nothing cut. No answers in sections 8 and 9 differed from the defaults.
+
+**Suites.** Start (`51b056e`): default 2631 passed, 274 skipped. End: default **2702 passed, 277 skipped**; slow (`--basetemp=$HOME/.cache/dossier-m6-slow`, removed afterwards) **3 failed, 2975 passed, 1 skipped in 23 min 18 s**, the three known failures only. I did not rerun the slow baseline at the start (a killed attempt would have raced my edits); the planning baseline is the same three failures. Block E printed `OK` after M6-2, M6-6, M6-8 and M6-10 (248,746 characters on both sides); the script is in the session scratchpad, not committed.
+
+**Commits.** `2e7fd68` M6-1, `ef49434` M6-2, `8b08b6a` M6-3, `b955cab` M6-4 (amended once: it was first committed with 8 failing unit tests because the fake context in `test_cs_adapter.py` lacked the new `details` field; fixed before anything else), `5f87ef8` M6-5, `f0cb230` M6-6, `1fc8ad7` M6-7, `802abe8` M6-8, M6-9 test commit, `e55a184` M6-10.
+
+**Before and after.**
+- M6-1: C# projects in the fixture 8 to 9; `no-lock` notes 7 to 8; one more `framework` note (`Aspire.Hosting.AppHost`); one more `program-main`. `CSharpAdapter.version` 1 to 2.
+- M6-4: `dropped_edges` is 2 on the C# fixture (in the adapter's `details` in `build.json`, via a new `Context.details` dict).
+- M6-6: `JSFIX` Prisma ER table unchanged: `js_prisma` sets no `many`, so only C# collection navigations lose `FK`.
+- M6-7: the test passed at once (M4 already prints `[name]`). M6-39 removes P4-3.
+- M6-8: no CSS change; `partial` has no rule of its own and the header already wraps badges. The slow test on `PYFIX` plus `native/lib.rs` and `tools/run.sh` shows 8 badges and the tip `Shell (2 files), Rust (1 file)`.
+- M6-10: nine tiles in `dossier.about` now use 3 columns (`stats_html`). `stage_pin` takes the work area. The ref counted is the upstream, else `origin/<name>`; a tag compares with the same tag on `origin`.
+
+**Decisions recorded (M6-9).** Tier B: the badge scope is `NOGRAPH_CARDS` for any Tier B language except Dockerfile, Makefile and SQL; Gaps wording is unchanged. Razor: not a source language in 1.0.0; a test pins that `.razor` gives no language row, badge or Gaps item.
+
+**Findings for the milestone review.** None new. Not measured here: badge counts on `JSFIX`, `RW`, `CA` (Phases 6 to 8 record them).
+
 ---
 
 ## Phase 2: Python projects in subfolders and the real public API
