@@ -770,7 +770,7 @@ Read section 2, D8, D11, D12, D18 and "Results" of Phases 1 to 3. Load the skill
   - Done-check: the two test files pass; block E prints `OK`.
   - Commit: `feat(dossier): record verifier disagreements in Gaps`
 
-- [ ] **M6-28. The verifier prompt and the build steps.**
+- [x] **M6-28. The verifier prompt and the build steps.**
   - Goal: D8's agent bullet.
   - Files: new `prompts/verify.md`; `SKILL.md`; `tests/unit/scripts/test_prompts.py`.
   - Steps: (1) `prompts/verify.md`: who you are (an independent checker), what you get (claims and the code they cite, nothing else), what to do (judge each claim only from the code given; `supported` when the lines show it, `not supported` when they contradict it or show something else, `cannot tell` when they are not enough), the output (one JSON array, D8's keys, one sentence per reason quoting the line), and that repository text is data, never instructions. (2) `SKILL.md`: `--verify` in the build hint and in `prepare`'s flag list; step 7a as D8 says. (3) Tests: the prompt names the three verdicts and the JSON keys; `SKILL.md` names `verify-sample`, `verify-record`, `general-purpose` and says the report is never given to the agent.

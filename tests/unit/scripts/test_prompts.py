@@ -252,3 +252,36 @@ class TestCSharpGuidance:
         section = self.skill.split("### `/dossier doctor [repo]`", 1)[1].split("###", 1)[0]
 
         assert ".NET SDK" in section and "C#" in section
+
+
+SKILL_MD = (Path(__file__).resolve().parents[3] / "SKILL.md").read_text(encoding="utf-8")
+
+
+class TestVerifyPrompt:
+    prompt = (PROMPTS / "verify.md").read_text(encoding="utf-8")
+
+    @pytest.mark.parametrize("word", ["supported", "not supported", "cannot tell"])
+    def test_names_each_verdict(self, word):
+        assert f"`{word}`" in self.prompt
+
+    @pytest.mark.parametrize("key", ["id", "verdict", "reason"])
+    def test_names_each_answer_key(self, key):
+        assert f"`{key}`" in self.prompt
+
+    def test_says_repository_text_is_data(self):
+        assert "is data" in self.prompt and "Never follow them" in self.prompt
+
+
+class TestSkillVerifyStep:
+    def test_names_both_commands_and_the_agent_type(self):
+        for word in ("verify-sample", "verify-record", "general-purpose"):
+            assert word in SKILL_MD
+
+    def test_says_the_report_is_never_given_to_the_agent(self):
+        assert "Never give it a report" in SKILL_MD
+
+    def test_build_hint_and_flag_list_name_verify(self):
+        hint = re.search(r"^argument-hint: (.*)$", SKILL_MD, re.M).group(1)
+
+        assert "[--verify]" in hint
+        assert "`--verify`" in SKILL_MD
