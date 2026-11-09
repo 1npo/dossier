@@ -528,3 +528,21 @@ class TestInteractiveGraph:
 
         assert [line for line in before if "overlap" in line] == []
         assert any("overlap" in line and "badge" in line for line in after), after
+
+
+class TestLargeM6Page:
+    @pytest.fixture(scope="class")
+    def large(self, tmp_path_factory):
+        base = tmp_path_factory.mktemp("large")
+        page = m6_page.make(base)
+        env = {**os.environ, "DOSSIER_HOME": str(base / "home"), "DOSSIER_CONFIG": str(base / "cfg.json"), "DOSSIER_CACHE": str(base / "cache")}
+        return page, env
+
+    def test_dossier_check_finds_no_problem_at_both_widths_and_themes(self, large, tmp_path):
+        page, env = large
+        shots = Path(os.environ.get("DOSSIER_M6_SHOTS", tmp_path / "shots"))
+
+        done = run(CHECK, page, "--shots", shots, env=env)
+
+        assert done.returncode == 0, done.stdout[-2000:]
+        assert '"problems": 0' in done.stdout

@@ -680,7 +680,7 @@ Read section 2, D7, D14, D15 and "Results" of Phases 1 and 2. Load the skills in
   - Done-check: `DOSSIER_SLOW=1 ... test_check_page_slow.py -q -k "mutation" --basetemp=$HOME/.cache/dossier-m6-slow` passes except the known `chart-text-small` case.
   - Commit: `test(dossier): prove the graph and badge checks can fail`
 
-- [ ] **M6-24. The M6 test page.**
+- [x] **M6-24. The M6 test page.**
   - Goal: D14.
   - Files: new `tests/tools/m6_page.py`; `tests/integration/scripts/test_check_page_slow.py`.
   - Steps: build the page; the slow test runs `dossier check` on it and expects `problems: 0`; read the shots of reports 05 and 06 in both themes and at both widths with the Read tool and record what they show (tangled edges, cut labels).
