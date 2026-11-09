@@ -33,7 +33,7 @@ GENERATOR_PACKAGES = ("Riok.Mapperly", "Mediator.SourceGenerator", "CommunityToo
 
 class CSharpAdapter(Adapter):
     name = "csharp"
-    version = "1"
+    version = "2"
     rules = (RULES,)
     languages = ("C#",)
     tools = ("scip-dotnet", "semgrep", "tree-sitter-language-pack")
@@ -66,9 +66,8 @@ class CSharpAdapter(Adapter):
     def _notes(result, tree) -> list:
         notes = []
         for p in (q for q in result["projects"] if "language" not in q):
-            for name in cs_project.UNSUPPORTED_FRAMEWORKS:
-                if name in p["packages"]:
-                    notes.append({"kind": "cs-note", "path": p["path"], "note": "framework", "name": name})
+            for name in cs_project.project_frameworks(p):
+                notes.append({"kind": "cs-note", "path": p["path"], "note": "framework", "name": name})
             if not p["lock"]:
                 notes.append({"kind": "cs-note", "path": p["path"], "note": "no-lock", "name": p["name"]})
         for p in (q for q in result["projects"] if "language" not in q):

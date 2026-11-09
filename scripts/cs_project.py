@@ -12,6 +12,7 @@ import gather
 TEST_PACKAGES = {"microsoft.net.test.sdk", "xunit", "xunit.v3", "nunit", "mstest.testframework", "mstest", "tunit"}
 UNSUPPORTED_FRAMEWORKS = ("FastEndpoints", "Carter", "ServiceStack", "Nancy", "Wolverine", "Microsoft.Orleans.Server",
                           "Dapr.AspNetCore", "Akka", "Aspire.Hosting.AppHost")
+SDK_FRAMEWORKS = {"Aspire.AppHost.Sdk": "Aspire.Hosting.AppHost"}
 OTHER_LANGUAGES = {".fsproj": "F#", ".vbproj": "Visual Basic"}
 SLN_RE = re.compile(r'(?m)^Project\("\{[^}]+\}"\)\s*=\s*"[^"]*",\s*"([^"]+\.csproj)"')
 
@@ -72,15 +73,17 @@ def _project(path: str, read, props_files: set, tracked: set) -> dict:
     out = {"path": path, "dir": directory, "name": name, "files": []}
     if ext in OTHER_LANGUAGES:
         return out | {"language": OTHER_LANGUAGES[ext], "test": False, "packable": False, "references": [], "packages": [],
-                      "friends": [], "frameworks": [], "lock": False}
+                      "friends": [], "frameworks": [], "lock": False, "sdks": []}
     try:
         root = _parse(read(path))
     except ET.ParseError as e:
-        return out | {"error": str(e).splitlines()[0], "sdk": None, "output_type": "Library", "frameworks": [], "test": False,
+        return out | {"error": str(e).splitlines()[0], "sdk": None, "sdks": [], "output_type": "Library", "frameworks": [], "test": False,
                       "packable": False, "package_id": None, "assembly": name, "root_namespace": name, "references": [],
                       "packages": [], "friends": [], "lock": False}
     props = _inherited(directory, read, props_files) | _props(root)
-    sdk = (root.get("Sdk") or "").split("/")[0] or None
+    sdks = [n for n in (part.strip().split("/")[0] for part in (root.get("Sdk") or "").split(";")) if n]
+    sdks += [el.get("Name").split("/")[0] for el in root.iter("Sdk") if el.get("Name")]
+    sdk = sdks[0] if sdks else None
     web = sdk in ("Microsoft.NET.Sdk.Web", "Microsoft.NET.Sdk.Worker")
     output = props.get("OutputType") or ("Exe" if web else "Library")
     frameworks = [f for f in (props.get("TargetFrameworks") or props.get("TargetFramework") or "").split(";") if f]
@@ -92,7 +95,7 @@ def _project(path: str, read, props_files: set, tracked: set) -> dict:
     packable = not (_flag(props, "IsPackable") is False or test or exe or web)
     assembly = props.get("AssemblyName") or name
     lock = f"{directory}/packages.lock.json" if directory else "packages.lock.json"
-    return out | {"sdk": sdk, "output_type": output, "frameworks": frameworks, "test": test, "packable": packable,
+    return out | {"sdk": sdk, "sdks": sdks, "output_type": output, "frameworks": frameworks, "test": test, "packable": packable,
                   "package_id": (props.get("PackageId") or assembly) if packable else None, "assembly": assembly,
                   "root_namespace": props.get("RootNamespace") or name, "references": refs, "packages": packages,
                   "friends": friends, "lock": lock in tracked}
@@ -144,9 +147,14 @@ def source_roots(result: dict, tree) -> list:
     return items
 
 
+def project_frameworks(project: dict) -> list:
+    """The unsupported frameworks one project names, by package or by SDK, in `UNSUPPORTED_FRAMEWORKS` order."""
+    seen = set(project.get("packages", [])) | {SDK_FRAMEWORKS[n] for n in project.get("sdks", []) if n in SDK_FRAMEWORKS}
+    return [n for n in UNSUPPORTED_FRAMEWORKS if n in seen]
+
+
 def frameworks_named(result: dict) -> list:
-    seen = {pkg for p in result["projects"] for pkg in p.get("packages", [])}
-    return sorted(n for n in UNSUPPORTED_FRAMEWORKS if n in seen)
+    return sorted({n for p in result["projects"] for n in project_frameworks(p)})
 
 
 def is_generated(path: str, read) -> bool:

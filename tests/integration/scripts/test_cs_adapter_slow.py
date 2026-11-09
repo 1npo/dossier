@@ -24,7 +24,7 @@ pytestmark = pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="n
 
 NOT_TRUSTED = "The ref is not trusted, so scip-dotnet did not run. Use --allow-ref to run it."
 # marker -> (kind, name) of the entry point that sits on or under it
-ENTRIES = {"ep-program": ("program-main", "Shop.Api"), "ep-main": ("program-main", "Legacy"), "ep-sample": ("program-main", "Sample"),
+ENTRIES = {"ep-program": ("program-main", "Shop.Api"), "ep-main": ("program-main", "Legacy"), "ep-apphost": ("program-main", "AppHost"), "ep-sample": ("program-main", "Sample"),
            "ep-target": ("build-target", "default"), "ep-cli": ("cli-command", "sync"), "ep-cron": ("scheduled-job", "nightly"),
            "ep-queue": ("queue-consumer", "MailConsumer"), "ep-ctl-list": ("http-route", "GET /api/Orders"),
            "ep-ctl-get": ("http-route", "GET /api/Orders/{id}"), "ep-ctl-abs": ("http-route", "POST /submit"), "ep-func": ("function", "Ping"),
@@ -148,7 +148,7 @@ class TestGraph:
 
         names = {g["name"] for g in graph if g["kind"] == "cs-project"}
         refs = {(g["from"], g["to"]) for g in graph if g["kind"] == "project-reference"}
-        assert names == {"build", "Legacy", "Sample", "Shop.Api", "Shop.Core", "Shop.Data", "Shop.NUnitTests", "Shop.Tests"}
+        assert names == {"AppHost", "build", "Legacy", "Sample", "Shop.Api", "Shop.Core", "Shop.Data", "Shop.NUnitTests", "Shop.Tests"}
         assert refs == {("Shop.Api", "Shop.Core"), ("Shop.Api", "Shop.Data"), ("Shop.Data", "Shop.Core"), ("Shop.Tests", "Shop.Api")}
 
     def test_source_roots_are_src_and_tests_and_none_is_the_build_folder(self, ex):
@@ -177,8 +177,8 @@ class TestGraph:
     def test_notes_for_razor_frameworks_generators_and_missing_locks(self, ex):
         notes = [(g["note"], g["name"]) for g in ex.section("graph") if g["kind"] == "cs-note"]
 
-        assert {("razor", "2"), ("framework", "FastEndpoints"), ("generator", "Riok.Mapperly|src/Shop.Api/Shop.Api.csproj"), ("dead", "1")} <= set(notes)
-        assert sum(1 for n, _ in notes if n == "no-lock") == 7
+        assert {("razor", "2"), ("framework", "FastEndpoints"), ("framework", "Aspire.Hosting.AppHost"), ("generator", "Riok.Mapperly|src/Shop.Api/Shop.Api.csproj"), ("dead", "1")} <= set(notes)
+        assert sum(1 for n, _ in notes if n == "no-lock") == 8
 
     def test_shop_core_lists_its_friend(self, ex):
         core = next(g for g in ex.section("graph") if g["kind"] == "cs-project" and g["name"] == "Shop.Core")

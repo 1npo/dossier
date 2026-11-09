@@ -67,7 +67,7 @@ class TestProjectItems:
 
         got = {g["name"]: g for g in out["graph"] if g["kind"] == "cs-project"}
 
-        assert sorted(got) == ["Legacy", "Sample", "Shop.Api", "Shop.Core", "Shop.Data", "Shop.NUnitTests", "Shop.Tests", "build"]
+        assert sorted(got) == ["AppHost", "Legacy", "Sample", "Shop.Api", "Shop.Core", "Shop.Data", "Shop.NUnitTests", "Shop.Tests", "build"]
         assert got["Shop.Api"]["sdk"] == "Microsoft.NET.Sdk.Web" and got["Shop.Tests"]["test"] is True
         assert got["Shop.Core"]["packable"] is True and got["Shop.Core"]["frameworks"] == ["net10.0"]
 
@@ -90,12 +90,12 @@ class TestNotes:
     def test_framework_note_for_fast_endpoints(self, cs_repo, tmp_path, monkeypatch):
         out, _ = extract(cs_repo, tmp_path, monkeypatch)
 
-        assert notes(out, "framework") == [("FastEndpoints", "src/Shop.Api/Shop.Api.csproj")]
+        assert notes(out, "framework") == [("Aspire.Hosting.AppHost", "tools/AppHost/AppHost.csproj"), ("FastEndpoints", "src/Shop.Api/Shop.Api.csproj")]
 
     def test_no_lock_note_for_every_project_except_core(self, cs_repo, tmp_path, monkeypatch):
         out, _ = extract(cs_repo, tmp_path, monkeypatch)
 
-        assert [n for n, _ in notes(out, "no-lock")] == ["Legacy", "Sample", "Shop.Api", "Shop.Data", "Shop.NUnitTests", "Shop.Tests", "build"]
+        assert [n for n, _ in notes(out, "no-lock")] == ["AppHost", "Legacy", "Sample", "Shop.Api", "Shop.Data", "Shop.NUnitTests", "Shop.Tests", "build"]
 
     def test_one_razor_note_counts_two_files(self, cs_repo, tmp_path, monkeypatch):
         out, _ = extract(cs_repo, tmp_path, monkeypatch)

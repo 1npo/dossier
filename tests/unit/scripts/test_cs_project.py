@@ -219,3 +219,32 @@ class TestIsGenerated:
 
     def test_plain_source_is_not_generated(self):
         assert not cs_project.is_generated("a.cs", self.read("class A {}"))
+
+
+class TestSdkNames:
+    def test_aspire_sdk_attribute_names_the_framework_without_a_package(self):
+        files = {"host/Host.csproj": csproj(sdk="Aspire.AppHost.Sdk/13.6.4")}
+        result = find(files)
+
+        assert cs_project.frameworks_named(result) == ["Aspire.Hosting.AppHost"]
+        assert by_name(result)["Host"]["sdks"] == ["Aspire.AppHost.Sdk"]
+
+    def test_sdk_element_names_the_framework(self):
+        text = '<Project Sdk="Microsoft.NET.Sdk"><Sdk Name="Aspire.AppHost.Sdk" Version="13.0.0" /></Project>'
+        result = find({"host/Host.csproj": text})
+
+        assert cs_project.frameworks_named(result) == ["Aspire.Hosting.AppHost"]
+        assert by_name(result)["Host"]["sdks"] == ["Microsoft.NET.Sdk", "Aspire.AppHost.Sdk"]
+
+    def test_several_names_in_one_attribute(self):
+        result = find({"a/a.csproj": csproj(sdk="Aspire.AppHost.Sdk;Other.Sdk/1.0")})
+
+        assert by_name(result)["a"]["sdks"] == ["Aspire.AppHost.Sdk", "Other.Sdk"]
+
+    def test_sdk_field_is_still_the_first_name(self):
+        assert by_name(find({"a/a.csproj": csproj(sdk="Aspire.AppHost.Sdk/1.0;B")}))["a"]["sdk"] == "Aspire.AppHost.Sdk"
+
+    def test_package_and_sdk_report_the_framework_once(self):
+        files = {"a/a.csproj": csproj(sdk="Aspire.AppHost.Sdk/13", items='<PackageReference Include="Aspire.Hosting.AppHost" />')}
+
+        assert cs_project.frameworks_named(find(files)) == ["Aspire.Hosting.AppHost"]
