@@ -32,6 +32,7 @@ class Options:
     submodules: bool = False
     restore: str | None = None
     full: bool = False
+    verify: bool = False
 
 
 class Stop(Exception):

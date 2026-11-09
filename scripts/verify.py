@@ -94,3 +94,21 @@ def check_results(sample_record, results):
             problems.append(f"{rid}: verdict {r.get('verdict')!r} is not one of {', '.join(VERDICTS)}.")
     problems += [f"{i}: no answer." for i in ids if i not in seen]
     return problems
+
+
+def sample_record(seed, per_report, items):
+    """The build.json record that fixes which claims were sampled."""
+    return {"step": "check", "part": "verify-sample", "by": "verify", "status": "ok",
+            "details": {"seed": seed, "per_report": per_report,
+                        "items": [{k: i[k] for k in ("id", "report", "card", "key")} for i in items]}}
+
+
+def result_record(sample_record_, results):
+    """The build.json record of the checker's verdicts, joined to the sampled claims."""
+    by_id = {i["id"]: i for i in sample_record_["details"]["items"]}
+    rows = [{"id": r["id"], "report": by_id[r["id"]]["report"], "key": by_id[r["id"]]["key"],
+             "verdict": r["verdict"], "reason": str(r.get("reason") or "")} for r in results]
+    n = lambda v: sum(1 for r in rows if r["verdict"] == v)  # noqa: E731
+    return {"step": "check", "part": "verify", "by": "verify", "status": "ok",
+            "counts": {"sampled": len(rows), "supported": n("supported"), "not_supported": n("not supported"), "cannot_tell": n("cannot tell")},
+            "details": {"seed": sample_record_["details"]["seed"], "per_report": sample_record_["details"]["per_report"], "results": rows}}

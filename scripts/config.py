@@ -48,6 +48,13 @@ def cache_root() -> Path:
     return Path(c).expanduser() if c else Path.home() / ".local" / "cache" / "dossier"
 
 
+def verify_per_report() -> int:
+    n = load().get("verify_per_report", 5)
+    if isinstance(n, bool) or not isinstance(n, int) or n < 1:
+        raise SystemExit(f"verify_per_report in {path()} must be a whole number of claims, 1 or more.")
+    return n
+
+
 def timeouts() -> dict:
     out = dict(DEFAULT_TIMEOUTS)
     given = load().get("timeouts", {})

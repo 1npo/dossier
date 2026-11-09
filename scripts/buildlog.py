@@ -15,7 +15,7 @@ from pathlib import Path
 FILE, PREV = "build.json", "build.prev.json"
 STEPS = ("pin", "tools", "copy", "measure", "extract", "read", "write", "check", "gaps", "render")
 STATUSES = ("ok", "skipped", "failed", "reused")
-WRITERS = ("prepare", "render", "check_page")
+WRITERS = ("prepare", "render", "check_page", "verify")
 
 
 def now() -> str:

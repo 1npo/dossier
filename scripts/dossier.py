@@ -9,13 +9,15 @@
   dossier.py home [DIR]
   dossier.py doctor [REPO] [--all] [--json]                   list the tools a repository needs, which are installed and how to install the rest
   dossier.py clean [REPO]                                     remove the working area (clean copy, scratch home, caches) of a repository
-  dossier.py prepare [REPO] [--ref REF] [--chunk-tokens N] [--full] [--allow-missing] [--no-restore] [--allow-ref] [--submodules] [--restore yes|no]
+  dossier.py prepare [REPO] [--ref REF] [--chunk-tokens N] [--full] [--allow-missing] [--no-restore] [--allow-ref] [--submodules] [--restore yes|no] [--verify]
                                                               check tools, make a clean copy, install locked dependencies if allowed, measure the repo, write facts, a reading plan and an update plan
   dossier.py render  [REPO] [--partial] [--allow-errors] [--readers N]      validate the reports and write the HTML
   dossier.py candidates [REPO] --report ID [--open] [--catalog FILE] [--json]
                                                               list the tool findings a report must keep, merge or dismiss (--open: only the undecided ones)
   dossier.py correct [REPO] ...                               record a user correction
   dossier.py confirm [REPO] [IDS] ...                         list open items, or confirm / answer / dispute them
+  dossier.py verify-sample [REPO] [--seed S] [--per-report N]   pick cited claims for the independent check and print them as JSON
+  dossier.py verify-record [REPO] --results FILE               record the checker's verdicts
   dossier.py migrate [REPO] [--dry-run]                       one-off: convert an old-layout dossier (used for the M0 check)
 """
 from __future__ import annotations
@@ -26,6 +28,7 @@ import json
 import os
 import posixpath
 import re
+import secrets
 import shutil
 import subprocess
 import sys
@@ -51,6 +54,7 @@ import schema  # noqa: E402
 import stages  # noqa: E402
 import summary  # noqa: E402
 import toolcheck  # noqa: E402
+import verify  # noqa: E402
 import workarea  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -254,7 +258,7 @@ def cmd_prepare(a):
     prev_version = state.get("skill_version")
     state["repo"] = {"name": name, "root_commit": root}
     opts = stages.Options(ref=a.ref, allow_missing=a.allow_missing, no_restore=a.no_restore, allow_ref=a.allow_ref,
-                          submodules=a.submodules, restore=a.restore, full=a.full)
+                          submodules=a.submodules, restore=a.restore, full=a.full, verify=a.verify)
     try:
         sha = stages.resolve_ref(top, a.ref)
         area = workarea.area_for(out.name, top, root)
@@ -262,7 +266,7 @@ def cmd_prepare(a):
         die(str(e))
     build = buildlog.start(out, repo=name, sha=sha, ref=a.ref, version=VERSION,
                            options={"allow_missing": a.allow_missing, "no_restore": a.no_restore, "allow_ref": a.allow_ref,
-                                    "submodules": a.submodules, "full": a.full})
+                                    "submodules": a.submodules, "full": a.full, "verify": a.verify})
     try:
         pin = stages.stage_pin(build, top, a.ref, sha, area)
         report = stages.stage_tools(build, top, sha, opts)
@@ -549,6 +553,41 @@ def cmd_candidates(a):
         sys.stdout.write(candidates.text(a.report, extract, reports, facts, only_open=a.open, catalog=catalog, tree=tree))
 
 
+def _verify_inputs(a):
+    top = toplevel(a.repo)
+    out, _, _ = out_dir(top)
+    facts = load(out / "facts.json")
+    build = buildlog.load(out)
+    if not facts or not build:
+        die("There is no build to check. Run prepare and render first.")
+    return out, facts, build
+
+
+def cmd_verify_sample(a):
+    out, facts, build = _verify_inputs(a)
+    reports = {rid: load(out / "reports" / f"{rid}.json") for rid, _, authored in render.REPORTS
+               if authored and (out / "reports" / f"{rid}.json").exists()}
+    cites = render.Cites(facts)
+    per = a.per_report or config.verify_per_report()
+    seed = a.seed or secrets.token_hex(8)
+    items = verify.sample(verify.eligible(reports, cites), seed, per, cites)
+    buildlog.append(out / buildlog.FILE, verify.sample_record(seed, per, items))
+    print(json.dumps({"seed": seed, "sha": facts["repo"]["sha"], "prompt": str(ROOT / "prompts" / "verify.md"), "items": items}, indent=1))
+
+
+def cmd_verify_record(a):
+    out, _, build = _verify_inputs(a)
+    sample = buildlog.latest(build, "check", "verify-sample")
+    if not sample:
+        die("No claims have been sampled. Run verify-sample first.")
+    results = load(a.results)
+    problems = verify.check_results(sample, results)
+    if problems:
+        die("\n".join(problems))
+    buildlog.append(out / buildlog.FILE, verify.result_record(sample, results))
+    print(f"Recorded {len(results)} verdicts.")
+
+
 def cmd_migrate(a):
     top = toplevel(a.repo)
     out, _, _ = out_dir(top)
@@ -724,6 +763,7 @@ def main():
     p.add_argument("--allow-ref", action="store_true", help="install dependencies and run repository code even when the ref is not a tag or the default branch")
     p.add_argument("--submodules", action="store_true", help="also check out and analyse submodules")
     p.add_argument("--restore", choices=["yes", "no"], help="answer the question about installing dependencies (stored per repository)")
+    p.add_argument("--verify", action="store_true", help="have an independent checker test a sample of cited claims after the reports are written")
     p.set_defaults(fn=cmd_prepare)
     p = sub.add_parser("render")
     p.add_argument("repo", nargs="?")
@@ -742,6 +782,15 @@ def main():
     p.add_argument("--catalog", metavar="FILE", help="a drafted reports/components.json: show its sizes, edges and files in no component")
     p.add_argument("--json", action="store_true")
     p.set_defaults(fn=cmd_candidates)
+    p = sub.add_parser("verify-sample")
+    p.add_argument("repo", nargs="?")
+    p.add_argument("--seed", help="repeat an earlier sample")
+    p.add_argument("--per-report", type=int, help="claims per report (default: verify_per_report in the config, else 5)")
+    p.set_defaults(fn=cmd_verify_sample)
+    p = sub.add_parser("verify-record")
+    p.add_argument("repo", nargs="?")
+    p.add_argument("--results", required=True, metavar="FILE", help="the checker's answers: a JSON array of id, verdict and reason")
+    p.set_defaults(fn=cmd_verify_record)
     p = sub.add_parser("migrate")
     p.add_argument("repo", nargs="?")
     p.add_argument("--dry-run", action="store_true", help="show what would change and write nothing")

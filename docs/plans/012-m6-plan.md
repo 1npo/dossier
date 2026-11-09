@@ -756,7 +756,7 @@ Read section 2, D8, D11, D12, D18 and "Results" of Phases 1 to 3. Load the skill
   - Done-check: `... pytest tests/unit/scripts/test_verify.py -q` passes.
   - Commit: `feat(dossier): sample cited claims for an independent check`
 
-- [ ] **M6-26. `verify-sample`, `verify-record` and `--verify`.**
+- [x] **M6-26. `verify-sample`, `verify-record` and `--verify`.**
   - Goal: D8's CLI.
   - Files: `scripts/dossier.py`, `scripts/stages.py` (`Options.verify`), `scripts/config.py` (`verify_per_report`), `tests/unit/scripts/test_verify.py`, `tests/integration/scripts/test_prepare_cli.py`.
   - Steps: (1) Tests with a fake agent result file: `prepare --verify` records `options.verify`; `verify-sample` prints D8's JSON and appends its record; `verify-record` with a good file appends the results record, with a bad file exits 1 and writes nothing; a second `verify-sample` with `--seed` of the first gives the same ids. (2) Implement.
