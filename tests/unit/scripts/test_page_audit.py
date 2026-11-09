@@ -1,3 +1,4 @@
+import json
 import re
 import sys
 from pathlib import Path
@@ -488,3 +489,80 @@ class TestFreshnessTile:
 
         assert page_audit.audit(html, {}, whole_page=False, build=None) == []
         assert page_audit.audit(html, {}, whole_page=False, build={"records": []}) == []
+
+
+def imp(a, b):
+    return {"kind": "import", "path": a, "paths": [b], "from": a[:-3].replace("/", "."), "to": b[:-3].replace("/", "."), "lines": [1]}
+
+
+GRAPH_CTX = {"extract": {"graph": [
+    {"kind": "module", "path": "src/app/__init__.py", "module": "app", "package": "app", "is_package": True},
+    imp("src/app/api/x.py", "src/app/core/y.py"), imp("src/app/api/x.py", "src/app/db/z.py"), imp("src/app/db/z.py", "src/app/core/y.py")]},
+    "tree": {"src/app/api/x.py", "src/app/core/y.py", "src/app/db/z.py"},
+    "catalog": [{"name": "Api", "paths": ["src/app/api/"]}, {"name": "Core", "paths": ["src/app/core/"]}, {"name": "Db", "paths": ["src/app/db/"]}]}
+GRAPH_DATA = re.compile(r'(<script type="application/json" class="igraph-data">)(.*?)(</script>)', re.S)
+
+
+def change_views(html, edit):
+    def swap(m):
+        views = json.loads(m.group(2))
+        edit(views)
+        return m.group(1) + json.dumps(views) + m.group(3)
+    return GRAPH_DATA.sub(swap, html, count=1)
+
+
+class TestAuditGraphViews:
+    CARDS = ("components.map", "interactions.graph")
+
+    def html(self, make_cites, cid):
+        return page(make_cites, {"card": cid}, ctx=GRAPH_CTX)
+
+    def audit(self, html):
+        return page_audit.audit(html, {}, whole_page=False, measured=GRAPH_CTX)
+
+    def test_correct_views_have_no_error(self, make_cites):
+        for cid in self.CARDS:
+            assert self.audit(self.html(make_cites, cid)) == []
+
+    def test_a_view_set_that_leaves_out_a_component_is_reported(self, make_cites):
+        def drop(views):
+            for v in views:
+                gone = {n["id"] for n in v["nodes"] if n["label"] == "Db"}
+                v["nodes"] = [n for n in v["nodes"] if n["id"] not in gone]
+                v["edges"] = [e for e in v["edges"] if e["from"] not in gone and e["to"] not in gone]
+
+        html = change_views(self.html(make_cites, "components.map"), drop)
+
+        assert self.audit(html) == ["V11: components.map: graph views leave out Db"]
+
+    def test_a_view_set_that_leaves_out_a_module_is_reported(self, make_cites):
+        def drop(views):
+            for v in views:
+                gone = {n["id"] for n in v["nodes"] if n["label"] == "src/app/db/z.py"}
+                v["nodes"] = [n for n in v["nodes"] if n["id"] not in gone]
+                v["edges"] = [e for e in v["edges"] if e["from"] not in gone and e["to"] not in gone]
+
+        html = change_views(self.html(make_cites, "interactions.graph"), drop)
+
+        assert self.audit(html) == ["V11: interactions.graph: graph views leave out src/app/db/z.py"]
+
+    def test_a_link_with_no_import_behind_it_is_reported(self, make_cites):
+        def invent(views):
+            ids = {n["label"]: n["id"] for n in views[0]["nodes"]}
+            views[0]["edges"].append({"from": ids["core"], "to": ids["api"], "weight": 1})
+
+        html = change_views(self.html(make_cites, "components.map"), invent)
+
+        errs = self.audit(html)
+        assert len(errs) == 1 and "draws a link from core to api" in errs[0] and "nothing in core imports anything in api" in errs[0]
+
+    def test_a_card_whose_views_were_removed_is_reported(self, make_cites):
+        html = GRAPH_DATA.sub("", self.html(make_cites, "components.map"))
+
+        assert self.audit(html) == ["V11: components.map: the card has no graph views."]
+
+    def test_a_card_without_imports_needs_no_views(self, make_cites):
+        ctx = {**GRAPH_CTX, "extract": {"graph": []}}
+        html = page(make_cites, {"card": "interactions.graph"}, ctx=ctx)
+
+        assert page_audit.audit(html, {}, whole_page=False, measured=ctx) == []

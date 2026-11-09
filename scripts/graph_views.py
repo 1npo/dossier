@@ -79,7 +79,8 @@ def views(levels: dict, edges: dict, title: str, kinds: tuple = KINDS, labels: d
     `levels` is {node: parent} with None for top-level nodes; `edges` is {(a, b): weight} between leaf nodes.
     `labels` maps a node to the text shown for it (default: the node itself), so two nodes may share a name.
     A view is {"id", "title", "parent", "children": [view ids], "nodes", "edges", "hidden", "src"}; a node is
-    {"id", "label", "kind", "view"} and an edge {"from", "to", "weight"}.
+    {"id", "label", "kind", "view"} and an edge {"from", "to", "weight"}. A node that stands for something outside the
+    view's own scope (a neighbour) also has "ext": true.
     """
     def lab(node) -> str:
         return str((labels or {}).get(node, node))
@@ -140,12 +141,12 @@ def views(levels: dict, edges: dict, title: str, kinds: tuple = KINDS, labels: d
         ext_used = sorted((k[1] for k in used if isinstance(k, tuple)), key=lambda x: (lab(x), str(x)))
         if ext_used:
             if len(nodes) + len(ext_used) > MAX_NODES:
-                other = {"id": _mermaid_id("other:external", taken), "label": f"{len(ext_used)} other {noun(cd - 1)}s", "kind": "other", "view": None}
+                other = {"id": _mermaid_id("other:external", taken), "label": f"{len(ext_used)} other {noun(cd - 1)}s", "kind": "other", "view": None, "ext": True}
                 nodes.append(other)
                 resolved.update({("ext", x): other["id"] for x in ext_used})
             else:
                 for x in ext_used:
-                    node = {"id": _mermaid_id("x:" + str(x), taken), "label": lab(x), "kind": noun(cd - 1), "view": None}
+                    node = {"id": _mermaid_id("x:" + str(x), taken), "label": lab(x), "kind": noun(cd - 1), "view": None, "ext": True}
                     nodes.append(node)
                     resolved[("ext", x)] = node["id"]
         resolved = {k: (v["id"] if isinstance(v, dict) else v) for k, v in resolved.items()}

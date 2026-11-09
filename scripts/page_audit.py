@@ -13,9 +13,11 @@ from html.parser import HTMLParser
 
 import buildlog
 import components
+import graphs
 import measured_blast
 import measured_change
 import measured_er
+import measured_graph
 import measured_tables
 import measured_upgrade
 import schema
@@ -26,10 +28,10 @@ DRAWN_TABLES = {"data.relationships": "t-data-relationships-fields", "interactio
 
 
 class Node:
-    __slots__ = ("tag", "attrs", "kids", "chunks", "parent")
+    __slots__ = ("tag", "attrs", "kids", "chunks", "parent", "raw")
 
     def __init__(self, tag, attrs, parent):
-        self.tag, self.attrs, self.kids, self.chunks, self.parent = tag, dict(attrs), [], [], parent
+        self.tag, self.attrs, self.kids, self.chunks, self.parent, self.raw = tag, dict(attrs), [], [], parent, []
 
     def has(self, cls: str) -> bool:
         return cls in (self.attrs.get("class") or "").split()
@@ -69,7 +71,9 @@ class Builder(HTMLParser):
             self.cur = n.parent
 
     def handle_data(self, data):
-        if self.cur.tag not in SKIP_TEXT and data.strip():
+        if self.cur.tag == "script" and self.cur.has("igraph-data"):
+            self.cur.raw.append(data)  # graph views are data, kept apart from the text of the card
+        elif self.cur.tag not in SKIP_TEXT and data.strip():
             self.cur.chunks.append(data)
 
 
@@ -260,6 +264,81 @@ def _check_measured(cards: dict, m, page: str) -> list:
     return errs
 
 
+def _leaf_pairs(cid: str, m) -> tuple:
+    """(the leaves a graph card's views must reach, the import pairs between them) for `components.map` or `interactions.graph`."""
+    extract, rows = m.get("extract") or {}, m.get("catalog") or []
+    imports = [(g["path"], g["paths"][0]) for g in measured_graph._imports(extract)]
+    if not imports or "graph" not in extract:
+        return set(), set()
+    if cid == "components.map":
+        if not rows:
+            return set(), set()
+        group = measured_graph._group_of(extract, rows, measured_graph.package_roots(extract))
+        return {row["name"] for row in rows}, set(graphs.aggregate(imports, group))
+    return {p for pair in imports for p in pair}, {pair for pair in imports if pair[0] != pair[1]}
+
+
+def _graph_views(card: Node) -> list:
+    for script in card.find("script", cls="igraph-data"):
+        try:
+            return json.loads("".join(script.raw))
+        except ValueError:
+            return []
+    return []
+
+
+def _view_members(views: list) -> dict:
+    """label -> the leaves that the nodes with that label stand for, found by following each node's view down to the leaves."""
+    by_id = {v["id"]: v for v in views}
+
+    def own(view):
+        return [n for n in view["nodes"] if not n.get("ext") and n["kind"] != "other"]
+
+    def leaves(vid, seen=()):
+        if vid in seen or vid not in by_id:
+            return set()
+        out = set()
+        for n in own(by_id[vid]):
+            out |= leaves(n["view"], seen + (vid,)) if n["view"] else {n["label"]}
+        return out
+
+    reg: dict = {}
+    for v in views:
+        for n in own(v):
+            reg.setdefault(n["label"], set()).update(leaves(n["view"]) if n["view"] else {n["label"]})
+    return reg
+
+
+def _check_graphs(cards: dict, m) -> list:
+    """V11: every component and module is in a view, and every drawn link has an import behind it (plan 012, D7)."""
+    errs = []
+    for cid in ("components.map", "interactions.graph"):
+        if cid not in cards or "Not yet generated" in cards[cid][0].text():
+            continue
+        leaves, pairs = _leaf_pairs(cid, m)
+        if not pairs:
+            continue
+        views = _graph_views(cards[cid][0])
+        if not views:
+            errs.append(f"V11: {cid}: the card has no graph views.")
+            continue
+        reg = _view_members(views)
+        shown = {n["label"] for v in views for n in v["nodes"]}
+        if leaves - shown:  # the link check needs every leaf in place, so it waits until the views are whole
+            errs += [f"V11: {cid}: graph views leave out {name}" for name in sorted(leaves - shown)]
+            continue
+        for v in views:
+            label = {n["id"]: n for n in v["nodes"]}
+            for e in v["edges"]:
+                a, b = label.get(e["from"]), label.get(e["to"])
+                if not a or not b or "other" in (a["kind"], b["kind"]):
+                    continue
+                ma, mb = reg.get(a["label"], {a["label"]}), reg.get(b["label"], {b["label"]})
+                if not any(x in ma and y in mb for x, y in pairs):
+                    errs.append(f"V11: {cid}: a graph view draws a link from {a['label']} to {b['label']}, but nothing in {a['label']} imports anything in {b['label']}.")
+    return errs
+
+
 def _check_unfinished(cards: dict) -> list:
     import render  # late: render calls this module
 
@@ -311,4 +390,5 @@ def audit(page: str, reports: dict, extract=None, facts=None, whole_page=True, b
     errs += _check_freshness(cards, build)
     if measured is not None:
         errs += _check_measured(cards, measured, page)
+        errs += _check_graphs(cards, measured)
     return errs

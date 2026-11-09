@@ -658,7 +658,7 @@ Read section 2, D7, D14, D15 and "Results" of Phases 1 and 2. Load the skills in
   - Done-check: the new slow test passes; block E prints `OK`.
   - Commit: `feat(dossier): open and close graph views in the page`
 
-- [ ] **M6-21. V11 for the graph views.**
+- [x] **M6-21. V11 for the graph views.**
   - Goal: every component and module is in a view, and every view edge exists.
   - Files: `scripts/page_audit.py`, `tests/unit/scripts/test_page_audit.py`.
   - Steps: tests: a page whose views lack one component fails with `components.map: graph views leave out <name>`; a view edge between two nodes with no import between their members fails; a correct page passes. Implement.
