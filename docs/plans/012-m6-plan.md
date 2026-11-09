@@ -604,6 +604,28 @@ Commit on `feat/dossier-m6`. Do not merge or bump. Write "Results (Phase 2)" and
 
 ### Results (Phase 2)
 
+Done 2026-11-09 by Sonnet on `feat/dossier-m6`; M6-11 to M6-17 all done, nothing cut.
+
+**Suites.** Default **2671 passed, 1 skipped** (unit only run 16 s). Slow (`--basetemp=$HOME/.cache/dossier-m6-slow`, removed afterwards): **3 failed, 3063 passed, 1 skipped in 24 min 3 s**, the three known failures only. Block E printed `OK` after M6-17 (248,746 characters on both sides).
+
+**Commits.** M6-11 `e5ee5f2`, M6-12 `1fa28a1`, M6-13 `e7c8c87`, candidates `[project]` tag `954ce35`, M6-14 `9ba1f0b`, M6-15 `e996554`, M6-16 `62c0dd6`, M6-17 `b278ace`.
+
+**Before and after.**
+- Root snapshot (`tests/fixtures/py_snapshot/`, 8 files): unchanged after M6-12 and M6-17 (`PYFIX` is an application: build-system plus scripts, no `py.typed`). scip symbol strings embed the commit sha, so the snapshot test masks it as `<sha>`.
+- `PythonAdapter.version` 3 to 4 (M6-17, once for D9 and D10).
+- Acceptance run: `prepare --no-restore` of `build_pylib_repo` gave 10 `public-api` items (`typedlib` 6: parse, Config, VERSION, Fast, Alias and the `demo.plugins` entry point; `flatlib` 4), none for `app` or `badlib`, and one `py-note` for `badlib`.
+
+**Decisions recorded.**
+- Paths stay repository-relative everywhere; only package roots, module names, settings and scip-python are computed per project, so tree-sitter, semgrep and vulture still run from the checkout root. Roots are stored prefixed with the project folder.
+- Tool status across projects: failed beats ok beats skipped. A project with no files and no manifest is skipped when another project exists.
+- A lone `setup.py` does not make a project; it does not count as the project's `.py` evidence.
+- External re-exports (`from requests import y`, cycles) get kind `variable` with `path` null and `external` set, since the kind is unknown.
+- PEP 420 configured folders without `__init__.py` are not added beyond the roots `py_packages.package_roots` gives; not needed by any fixture. Worth a look if a real repository shows it.
+- `py_api.py` is 317 lines, slightly over the 300 guide.
+- The no-API line now appears for any repository with a module (Python, JS or C#). Two tests pinning "a Python module draws nothing" were changed to the D10 rule.
+
+**Findings for the milestone review.** None new. Not measured here: Python subfolder runs on real repositories (Phases 6 to 8).
+
 ---
 
 ## Phase 3: Interactive graphs
