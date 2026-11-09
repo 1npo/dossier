@@ -566,3 +566,25 @@ class TestAuditGraphViews:
         html = page(make_cites, {"card": "interactions.graph"}, ctx=ctx)
 
         assert page_audit.audit(html, {}, whole_page=False, measured=ctx) == []
+
+    def test_the_graph_node_missing_mutation_is_caught_by_v11(self, make_cites):
+        for cid in self.CARDS:
+            html = broken_pages.mutate(self.html(make_cites, cid), "graph-node-missing")
+
+            errs = self.audit(html)
+
+            assert len(errs) == 1 and errs[0].startswith(f"V11: {cid}: graph views leave out ")
+
+    def test_the_graph_data_removed_mutation_is_caught_by_v11(self, make_cites):
+        html = broken_pages.mutate(self.html(make_cites, "components.map"), "graph-data-removed")
+
+        assert self.audit(html) == ["V11: components.map: the card has no graph views."]
+
+    @pytest.mark.parametrize("name", ["graph-data-removed", "graph-view-over-budget", "graph-buttons-dead", "graph-node-missing"])
+    def test_a_graph_mutation_of_a_page_without_a_graph_says_so(self, name):
+        with pytest.raises(ValueError):
+            broken_pages.mutate("<html><head></head><body></body></html>", name)
+
+    def test_the_badge_mutation_needs_a_badge_to_move(self):
+        with pytest.raises(ValueError):
+            broken_pages.mutate("<html><head></head><body></body></html>", "nograph-badge-overlap")

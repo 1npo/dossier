@@ -673,7 +673,7 @@ Read section 2, D7, D14, D15 and "Results" of Phases 1 and 2. Load the skills in
   - Done-check: the slow tests pass.
   - Commit: `feat(dossier): check every graph view and every flowchart's edge budget in a browser`
 
-- [ ] **M6-23. Mutations for the graph and the badges.**
+- [x] **M6-23. Mutations for the graph and the badges.**
   - Goal: D15.
   - Files: `tests/tools/broken_pages.py`, `tests/integration/scripts/test_check_page_slow.py`, `tests/unit/scripts/test_page_audit.py`.
   - Steps: add the five mutations and their parametrised cases, each with the line it must produce. Run each and see it fail the check.

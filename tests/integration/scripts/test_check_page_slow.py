@@ -504,3 +504,27 @@ class TestInteractiveGraph:
 
         assert done.returncode == 1
         assert any("31 edges (at most 30)" in line for line in done.stdout.splitlines()), done.stdout[-1500:]
+
+    @pytest.mark.parametrize("mutation, wanted", [("graph-data-removed", "the graph has no views"), ("graph-view-over-budget", "13 nodes (at most 12)"),
+                                                  ("graph-buttons-dead", "does not open its view")])
+    def test_each_graph_mutation_makes_a_fail(self, small, tmp_path, mutation, wanted):
+        page, env = small
+        broken = tmp_path / "broken.html"
+        broken.write_text(broken_pages.mutate(page.read_text(), mutation))
+
+        done = check(broken, env)
+
+        assert done.returncode == 1 and any(wanted in line for line in done.stdout.splitlines()), done.stdout[-1500:]
+
+    def test_the_header_badges_pass_the_overlap_check_until_they_get_a_negative_margin(self, small, tmp_path):
+        page, env = small
+        badged = tmp_path / "badged.html"
+        badged.write_text(broken_pages.nograph_badges_added(page.read_text()))
+        broken = tmp_path / "broken.html"
+        broken.write_text(broken_pages.mutate(badged.read_text(), "nograph-badge-overlap"))
+
+        before = json.loads(run(LAYOUT_PROBE, badged, "--width", 1500, env=env).stdout)
+        after = json.loads(run(LAYOUT_PROBE, broken, "--width", 1500, env=env).stdout)
+
+        assert [line for line in before if "overlap" in line] == []
+        assert any("overlap" in line and "badge" in line for line in after), after
