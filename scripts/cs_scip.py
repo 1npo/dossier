@@ -230,6 +230,7 @@ def dead_items(symbols: list, decls: dict, entries: list, models: list, blindspo
 
     `refs` counts uses from other files, so a name used again inside its own file also keeps a type off the list."""
     defs = {(s["path"], s["name"]): s for s in symbols if s["kind"] == "def" and s["symbol"].endswith("#")}
+    used_members = [(s["path"], s["line"]) for s in symbols if s["kind"] == "def" and not s["symbol"].endswith("#") and s["refs"]]
     dynamic = {b["path"] for b in blindspots if b.get("pattern") in DYNAMIC_USE}
     entities = {(m["path"], m["name"]) for m in models}
     declared = {t["name"] for d in decls.values() for t in d["types"]}
@@ -243,6 +244,8 @@ def dead_items(symbols: list, decls: dict, entries: list, models: list, blindspo
                     or not t["line"] <= found["line"] <= t["end_line"]):
                 continue
             if any(t["line"] <= e["line"] <= t["end_line"] for e in entries if e["path"] == path and e.get("line")):
+                continue
+            if any(p == path and t["line"] <= ln <= t["end_line"] for p, ln in used_members):  # x.AddAspire() references the method, not its class
                 continue
             if any(_base_name(b) not in declared for b in t["bases"]):
                 continue

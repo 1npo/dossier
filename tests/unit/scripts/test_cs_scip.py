@@ -378,6 +378,22 @@ def dead(types, defs=None, entries=(), models=(), blindspots=(), generated=(), t
 
 
 class TestDeadItems:
+    def test_type_with_a_used_member_is_not_listed(self):
+        defs = [item("N/Ext#", name="Ext", line=3) | {"public": False},
+                item("N/Ext#AddAspire().", name="AddAspire", line=5) | {"public": True, "refs": 1}]
+
+        assert dead([tdecl("Ext", line=3, end=9)], defs) == []
+
+    def test_type_whose_members_are_all_unused_is_still_listed(self):
+        defs = [item("N/Ext#", name="Ext", line=3) | {"public": False}, item("N/Ext#AddAspire().", name="AddAspire", line=5) | {"public": True}]
+
+        assert [r["name"] for r in dead([tdecl("Ext", line=3, end=9)], defs)] == ["Ext"]
+
+    def test_a_used_def_outside_the_type_range_does_not_keep_it(self):
+        defs = [item("N/Ext#", name="Ext", line=3) | {"public": False}, item("N/Other#Run().", name="Run", line=20) | {"public": True, "refs": 4}]
+
+        assert [r["name"] for r in dead([tdecl("Ext", line=3, end=9)], defs)] == ["Ext"]
+
     def test_internal_type_with_no_references_is_listed(self):
         rows = dead([tdecl("Secret")])
 

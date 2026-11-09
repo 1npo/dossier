@@ -414,7 +414,7 @@ Read sections 2 to 4, D2 to D6, D18 and D20. Load the skills in section 2. Then:
   - Done-check: the two test files pass; block E prints `OK`.
   - Commit: `fix(dossier): stop listing NuGet packages as unused`
 
-- [ ] **M6-3. Keep a C# type off the dead list when one of its members is used.**
+- [x] **M6-3. Keep a C# type off the dead list when one of its members is used.**
   - Goal: D3, second bullet.
   - Files: `scripts/cs_scip.py`, `tests/unit/scripts/test_cs_scip.py`.
   - Steps: test: a static class whose extension method `def` has `refs` 1 is not listed; one with all members at 0 still is. Implement.
