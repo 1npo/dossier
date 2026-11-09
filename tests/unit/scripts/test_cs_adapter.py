@@ -102,6 +102,22 @@ class TestNotes:
 
         assert notes(out, "razor") == [("2", "src/Shop.Api/Components/Pages/Counter.razor")]
 
+    def test_missing_sdk_gives_one_sdk_note_with_the_reason(self, cs_repo, tmp_path, monkeypatch):
+        out, _ = extract(cs_repo, tmp_path, monkeypatch, sdks=())
+
+        assert notes(out, "sdk") == [("The .NET SDK is not installed.", "Shop.slnx")]
+
+    def test_unmet_global_json_gives_an_sdk_note(self, cs_repo, tmp_path, monkeypatch):
+        out, _ = extract(cs_repo, tmp_path, monkeypatch, sdks=("10.0.114",))
+
+        assert [n for n, _ in notes(out, "sdk")][0].startswith("The repository asks for .NET SDK 10.0.403")
+
+    def test_untrusted_ref_or_installed_sdk_gives_no_sdk_note(self, cs_repo, tmp_path, monkeypatch):
+        untrusted, _ = extract(cs_repo, tmp_path, monkeypatch, trusted=False, sdks=())
+        installed, _ = extract(cs_repo, tmp_path / "b", monkeypatch)
+
+        assert notes(untrusted, "sdk") == [] and notes(installed, "sdk") == []
+
 
 class TestToolStatus:
     def test_trusted_with_sdk_and_an_index_makes_every_tool_ok(self, cs_repo, tmp_path, monkeypatch):

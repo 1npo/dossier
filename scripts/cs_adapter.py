@@ -204,6 +204,9 @@ class CSharpAdapter(Adapter):
     def _scip(self, ctx, out, result, st, gate) -> None:
         """Symbols and references with scip-dotnet, or the tree-sitter fallback when it could not run or gave nothing (D11)."""
         if gate:
+            where = (result["targets"] or [p["path"] for p in result["projects"] if "language" not in p] or st.get("files") or [None])[0]
+            if gate != NOT_TRUSTED and where:
+                out["graph"].append({"kind": "cs-note", "path": where, "note": "sdk", "name": gate})
             return self._fallback(out, st, gate, ctx)
         scip, problem = self._install(ctx, config.timeouts()["tool"])
         if problem:
