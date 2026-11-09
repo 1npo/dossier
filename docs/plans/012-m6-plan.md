@@ -763,7 +763,7 @@ Read section 2, D8, D11, D12, D18 and "Results" of Phases 1 to 3. Load the skill
   - Done-check: the two test files pass.
   - Commit: `feat(dossier): add verify-sample and verify-record`
 
-- [ ] **M6-27. Verifier results in Gaps, on the process card and in V10.**
+- [x] **M6-27. Verifier results in Gaps, on the process card and in V10.**
   - Goal: D8's Gaps, card and V10 bullets.
   - Files: `scripts/process.py`, `scripts/checks.py` (`gap_extras`), `tests/unit/scripts/test_process.py`, `tests/unit/scripts/test_checks_gaps.py`.
   - Steps: tests: one `inference` item per `not supported`, with D8's wording and the reason in "how to confirm"; none for `supported` or `cannot tell`; the `Verifier` row for both cases; V10 error for a sample with no results; info only for `--verify` with no sample; a build without `--verify` has no new record and its card shows `not run (turn it on with --verify)`. Implement. Block E.

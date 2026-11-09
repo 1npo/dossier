@@ -1,6 +1,7 @@
 """Sampling for the independent claim check (`--verify`, D8). Pure: no I/O besides reading cited lines through `cites`."""
 import hashlib
 import random
+import re
 
 import render
 
@@ -17,7 +18,7 @@ def claim_key(c):
 
 def plain_text(text):
     """The claim as plain words: citation markers removed."""
-    out = render.INLINE_CITE.sub("", str(text or ""))
+    out = re.sub(r"\s*" + render.INLINE_CITE.pattern, "", str(text or ""))
     return " ".join(out.split())
 
 

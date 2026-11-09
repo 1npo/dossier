@@ -128,6 +128,7 @@ def _ok_rows(step, build) -> list:
         summary = buildlog.latest(build, "check", "summary")
         if summary:
             out.append(("Summary", _plural((summary.get("counts") or {}).get("v8", 0), "problem")))
+        out.append(("Verifier", verifier_line(build)))
         out.append(("Browser check", f"{_plural((b.get('counts') or {}).get('problems', 0), 'problem')} ({_clock(b.get('started'))} UTC)" if b else "not run yet"))
         return out
     if step == "gaps":
@@ -138,6 +139,34 @@ def _ok_rows(step, build) -> list:
         bad = (summary.get("counts") or {}).get("v8", 0) if summary else 0
         return [("Page", "written"), ("Summary file", f"not written ({_plural(bad, 'problem')})" if bad else "written")]
     return []
+
+
+def verifier_line(build) -> str:
+    """The Verifier row of the check step."""
+    res = buildlog.latest(build, "check", "verify")
+    if res:
+        c, d = res.get("counts") or {}, res.get("details") or {}
+        return (f"{d.get('per_report')} claims per report, {c.get('sampled', 0)} sampled: {c.get('supported', 0)} supported, "
+                f"{c.get('not_supported', 0)} not supported, {c.get('cannot_tell', 0)} cannot tell")
+    if buildlog.latest(build, "check", "verify-sample"):
+        return "claims were sampled but no results were recorded"
+    return "not run (turn it on with --verify)"
+
+
+def verifier_items(build, claims) -> list[dict]:
+    """One `inference` item for each sampled claim the checker could not confirm; `claims` maps (report, key) to the claim's text. The reason is in the how-to-confirm column so item ids stay stable."""
+    res = buildlog.latest(build, "check", "verify") if build else None
+    if not res:
+        return []
+    out = []
+    for r in (res.get("details") or {}).get("results", []):
+        text = claims.get((r["report"], r["key"]))
+        if r.get("verdict") != "not supported" or text is None:
+            continue
+        out.append({"kind": "inference", "report": r["report"],
+                    "statement": f'A separate check could not confirm this statement from the code it cites: "{text}"',
+                    "how_to_confirm": f"The checker said: {r['reason']} Open the cited code, then confirm or correct the statement with /dossier confirm."})
+    return out
 
 
 def _sentence(rows) -> str:
@@ -434,6 +463,12 @@ def validate_build(build, pending=()) -> tuple[list[str], list[str]]:
             elif r["status"] in ("skipped", "failed") and not r.get("reason"):
                 errors.append(f"V10: step '{step}' was {r['status']} without a reason.")
     infos = []
+    sampled = max((n for n, r in enumerate(recs) if r["step"] == "check" and r.get("part") == "verify-sample"), default=None)
+    if sampled is not None:
+        if not any(r["step"] == "check" and r.get("part") == "verify" for r in recs[sampled:]):
+            errors.append("V10: the verifier sampled claims but no results were recorded. Run dossier verify-record, or build again without --verify.")
+    elif (build.get("options") or {}).get("verify"):
+        infos.append("V10: --verify is on and no claims have been sampled yet. Run dossier verify-sample after this render.")
     ex = next((r for r in reversed(recs) if r["step"] == "extract"), None)
     if ex is not None:
         if ex["status"] in ("skipped", "failed"):

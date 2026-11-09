@@ -747,3 +747,56 @@ class TestRazorIsNotALanguage:
         assert gather.lang_of("Pages/Counter.razor") is None
         assert process.nograph_cards(langs(("C#", "A")), facts_of(**{"C#": 3})) == {}
         assert process.coverage_items(langs(("C#", "A"))) == []
+
+
+SAMPLE = rec("check", part="verify-sample", by="verify", details={"seed": "s", "per_report": 5, "items": [{"id": "V01", "report": "entry", "card": "c", "key": "k1"}]})
+RESULT = rec("check", part="verify", by="verify", counts={"sampled": 3, "supported": 1, "not_supported": 1, "cannot_tell": 1},
+             details={"seed": "s", "per_report": 5, "results": [{"id": "V01", "report": "entry", "key": "k1", "verdict": "not supported", "reason": "Line 3 says otherwise."}]})
+
+
+class TestVerifierRow:
+    def test_build_without_verify_says_not_run(self):
+        row = verifier_cell(build_with(*FULL))
+
+        assert row == "not run (turn it on with --verify)"
+
+    def test_recorded_results_are_counted(self):
+        row = verifier_cell(build_with(*FULL, SAMPLE, RESULT))
+
+        assert row == "5 claims per report, 3 sampled: 1 supported, 1 not supported, 1 cannot tell"
+
+    def test_sample_without_results_says_so(self):
+        row = verifier_cell(build_with(*FULL, SAMPLE))
+
+        assert row == "claims were sampled but no results were recorded"
+
+
+def verifier_cell(build):
+    return dict(process._ok_rows("check", build))["Verifier"]
+
+
+class TestV10Verifier:
+    def test_sample_without_results_is_an_error(self):
+        errors, _ = process.validate_build(build_with(*FULL, SAMPLE))
+
+        assert [e for e in errors if "verifier" in e] == [
+            "V10: the verifier sampled claims but no results were recorded. Run dossier verify-record, or build again without --verify."]
+
+    def test_sample_with_later_results_is_clean(self):
+        errors, _ = process.validate_build(build_with(*FULL, SAMPLE, RESULT))
+
+        assert not [e for e in errors if "verifier" in e]
+
+    def test_verify_option_with_no_sample_is_info_only(self):
+        build = build_with(*FULL)
+        build["options"] = {"verify": True}
+
+        errors, infos = process.validate_build(build)
+
+        assert not [e for e in errors if "verif" in e]
+        assert any(i.startswith("V10: --verify is on") for i in infos)
+
+    def test_build_without_verify_has_no_verifier_line(self):
+        errors, infos = process.validate_build(build_with(*FULL))
+
+        assert not [x for x in errors + infos if "verif" in x]
