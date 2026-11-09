@@ -227,6 +227,22 @@ class TestSemgrepRouting:
 
         assert [b["pattern"] for b in out["blindspots"]] == ["dynamic-import"]
 
+    def test_barrel_hit_in_an_init_file_is_kept(self, py_repo, tmp_path):
+        semgrep = FakeSemgrep([self.result("dossier.python.blindspot.barrel-reexport", "src/shopcart/__init__.py", 1,
+                                           metadata={"category": "blindspot", "pattern": "barrel-reexport"})])
+
+        out = py_adapter.PythonAdapter().extract(context(py_repo, tmp_path, semgrep=semgrep))
+
+        assert [(b["pattern"], b["path"]) for b in out["blindspots"]] == [("barrel-reexport", "src/shopcart/__init__.py")]
+
+    def test_barrel_hit_in_another_file_is_dropped(self, py_repo, tmp_path):
+        semgrep = FakeSemgrep([self.result("dossier.python.blindspot.barrel-reexport", "src/shopcart/plugins.py", 1,
+                                           metadata={"category": "blindspot", "pattern": "barrel-reexport"})])
+
+        out = py_adapter.PythonAdapter().extract(context(py_repo, tmp_path, semgrep=semgrep))
+
+        assert out["blindspots"] == []
+
 
 class TestEntries:
     def test_console_script_and_main_module_come_from_project_files(self, py_repo, tmp_path):

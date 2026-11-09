@@ -145,3 +145,10 @@ rules:
               regex: ^(app|router|server|api|.*[Rr]outer|.*[Aa]pp)$
       - pattern: path(..., include(...), ...)
       - pattern: re_path(..., include(...), ...)
+
+  - id: dossier.python.blindspot.barrel-reexport
+    message: Passes names on from other modules with a star import
+    languages: [python]
+    severity: INFO
+    metadata: {category: blindspot, pattern: barrel-reexport}
+    pattern-regex: (?m)^[ \t]*from[ \t]+\S+[ \t]+import[ \t]+\*

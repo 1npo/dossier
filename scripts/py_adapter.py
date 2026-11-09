@@ -155,6 +155,8 @@ class PythonAdapter(Adapter):
             meta, family = r["metadata"], r["rule"].split(".")[2]
             base = {"path": r["path"], "line": r["start_line"], "end_line": r["end_line"], "rule": r["rule"], "snippet": r["snippet"]}
             if family == "blindspot":
+                if meta.get("pattern") == "barrel-reexport" and Path(r["path"]).name != "__init__.py":
+                    continue    # semgrep's test files cannot be named __init__.py, so the rule matches any file and the adapter keeps the packages
                 out["blindspots"].append({**base, "pattern": meta.get("pattern")})
             elif family == "entry":
                 kind = meta["kind"]

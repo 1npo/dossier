@@ -784,7 +784,7 @@ Read section 2, D8, D11, D12, D18 and "Results" of Phases 1 to 3. Load the skill
   - Done-check: `... pytest tests/unit/scripts/test_rules.py -q` passes; `DOSSIER_SLOW=1 ... tests/integration/scripts/test_shared_layer.py -q --basetemp=...` passes.
   - Commit: `feat(dossier): find Python routes mounted under a prefix or built at run time`
 
-- [ ] **M6-30. Python `barrel-reexport`.**
+- [x] **M6-30. Python `barrel-reexport`.**
   - Goal: D11's barrel row.
   - Files: as M6-29.
   - Steps: a rule for `from $M import *` limited to `__init__.py` files (with `paths: include`, or a `pattern-regex` `(?m)^[ \t]*from[ \t]+\S+[ \t]+import[ \t]+\*` if the structural form is rejected; record which), a fixture `__init__.py` positive case and a non-`__init__` negative case.

@@ -184,3 +184,12 @@ urlpatterns = [
 
 # ok: dossier.python.blindspot.route-mount
 urls = include("api.urls")
+
+# ruleid: dossier.python.blindspot.barrel-reexport
+from .models import *
+
+# ok: dossier.python.blindspot.barrel-reexport
+from .models import Order
+
+# ok: dossier.python.blindspot.barrel-reexport
+import models
