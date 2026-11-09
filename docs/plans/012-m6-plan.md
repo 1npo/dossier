@@ -436,7 +436,7 @@ Read sections 2 to 4, D2 to D6, D18 and D20. Load the skills in section 2. Then:
   - Done-check: both test files pass.
   - Commit: `fix(dossier): name multi-line Bullseye targets and count test project files`
 
-- [ ] **M6-6. `FK` only on references that are not lists.**
+- [x] **M6-6. `FK` only on references that are not lists.**
   - Goal: D3, fifth bullet. Cut item 3 in D20.
   - Files: `scripts/measured_er.py`, `tests/unit/scripts/test_measured_er.py`.
   - Steps: test: a field with `ref` and `many` shows no `FK`; with `ref` alone shows `FK`; `pk` unchanged. Implement. Record before and after for `JSFIX`'s Prisma model fields (run the ER helper on its extract in the test or a one-off script; no commit of output).

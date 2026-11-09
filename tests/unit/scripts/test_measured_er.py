@@ -214,3 +214,16 @@ class TestRelationsAcrossFamilies:
         b = {"kind": "pydantic", "name": "B", "path": "b.py", "line": 1, "fields": []}
 
         assert [(o["name"], t["name"]) for o, t, _ in measured_er._relations([a], [a, b], {})] == [("A", "B")]
+
+
+class TestKeys:
+    def test_a_single_reference_is_a_foreign_key(self):
+        assert measured_er._keys({"name": "owner", "ref": "User"}) == "FK"
+
+    def test_a_list_reference_is_not_a_foreign_key(self):
+        assert measured_er._keys({"name": "orders", "ref": "Order", "many": True}) == ""
+
+    def test_pk_is_unchanged_and_combines_with_fk(self):
+        assert measured_er._keys({"name": "id", "pk": True}) == "PK"
+        assert measured_er._keys({"name": "id", "pk": True, "ref": "User"}) == "PK, FK"
+        assert measured_er._keys({"name": "id", "pk": True, "ref": "User", "many": True}) == "PK"
