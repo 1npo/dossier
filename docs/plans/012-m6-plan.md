@@ -651,7 +651,7 @@ Read section 2, D7, D14, D15 and "Results" of Phases 1 and 2. Load the skills in
   - Done-check: the test file passes; block E prints `OK`.
   - Commit: `feat(dossier): add the interactive graph to the component map and dependency graph`
 
-- [ ] **M6-20. The page script for the graph.**
+- [x] **M6-20. The page script for the graph.**
   - Goal: D7's script.
   - Files: `assets/dossier.js`, `assets/dossier.css`, `tests/integration/scripts/test_check_page_slow.py` (a first browser test).
   - Steps: (1) Slow test on a small page (build it with the M5 page helper plus a catalog of 15 components): the root view draws; choosing a view in the select draws it and updates the breadcrumb; clicking an SVG node that has a view opens it; `Up` returns; the caption shows the hidden-links sentence when the data says so. (2) Implement `initGraphs`. (3) Block E.

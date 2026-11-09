@@ -11,6 +11,7 @@ SKILL = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(SKILL / "tests" / "tools"))
 
 import broken_pages  # noqa: E402
+import m6_page  # noqa: E402
 
 sys.path.insert(0, str(SKILL / "scripts"))
 
@@ -23,6 +24,7 @@ CHECK = SKILL / "scripts" / "check_page.py"
 DIAGRAM_TEXT = SKILL / "tests" / "tools" / "diagram_text.py"
 TABLE_FIT = SKILL / "tests" / "tools" / "table_fit.py"
 LAYOUT_PROBE = SKILL / "tests" / "tools" / "layout_probe.py"
+GRAPH_PROBE = SKILL / "tests" / "tools" / "graph_probe.py"
 
 pytestmark = [
     pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs a browser: set DOSSIER_SLOW=1"),
@@ -425,3 +427,60 @@ class TestNewTablesOnTheM5Page:
         errs = page_audit.audit(page.read_text(), reports, extract, facts, measured=measured)
 
         assert [e for e in errs if any(cid in e for cid in M5_CARDS)] == []
+
+
+class TestInteractiveGraph:
+    @pytest.fixture(scope="class")
+    def small(self, tmp_path_factory):
+        """The M3 page plus a catalog of 15 components, so both graph cards have views, groups among them."""
+        base = tmp_path_factory.mktemp("small")
+        page = m6_page.make_small(base)
+        env = {**os.environ, "DOSSIER_HOME": str(base / "home"), "DOSSIER_CONFIG": str(base / "cfg.json"), "DOSSIER_CACHE": str(base / "cache")}
+        return page, env
+
+    def probe(self, page, env, *args):
+        done = run(GRAPH_PROBE, page, *args, env=env)
+        assert done.returncode == 0, done.stderr[-800:]
+        return json.loads(done.stdout)
+
+    @pytest.mark.parametrize("report, card", [("components", "components.map"), ("interactions", "interactions.graph")])
+    def test_root_view_draws_with_a_node_for_each_area(self, small, report, card):
+        page, env = small
+
+        got = self.probe(page, env, "--report", report, "--card", card)
+
+        assert got["root"]["nodes"] >= 2 and not got["root"]["failed"]
+        assert got["root"]["crumb"] == "All areas" and not got["root"]["up"]
+
+    def test_choosing_a_view_in_the_select_draws_it_and_updates_the_breadcrumb(self, small):
+        page, env = small
+
+        got = self.probe(page, env)
+
+        assert got["picked"]["select"] == got["views"][1][0]
+        assert got["picked"]["crumb"] == "All areas > " + got["views"][1][1]
+        assert got["picked"]["nodes"] >= 1 and got["picked"]["up"]
+
+    def test_clicking_a_node_that_has_a_view_opens_it_and_up_returns(self, small):
+        page, env = small
+
+        got = self.probe(page, env)
+
+        assert got["has_link"] >= 1
+        assert got["clicked"]["up"] and got["clicked"]["crumb"].startswith("All areas > ")
+        assert got["back"]["crumb"] == "All areas" and not got["back"]["up"]
+
+    def test_the_caption_shows_the_hidden_links_sentence_when_the_data_says_so(self, small, tmp_path):
+        page, env = small
+        text = page.read_text()
+        marker = 'class="igraph-data">'
+        start = text.index(marker) + len(marker)
+        end = text.index("</script>", start)
+        views = json.loads(text[start:end])
+        views[0]["hidden"] = {"w": 2, "shown": 1, "total": 40}
+        patched = tmp_path / "hidden.html"
+        patched.write_text(text[:start] + json.dumps(views).replace("<", "\\u003c") + text[end:])
+
+        got = self.probe(patched, env)
+
+        assert got["root"]["caption"] == "Links with fewer than 2 imports are hidden in this view (1 of 40 shown). Every link is in the tables below."
