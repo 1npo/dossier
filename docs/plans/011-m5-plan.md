@@ -1243,20 +1243,20 @@ Load `git-commit`. `git switch feat/dossier-m5`. Set `SCR` from "Results (Phase 
 
 ### Tasks (Phase 5a)
 
-- [ ] **T-2. Rule on every disagreement.**
+- [x] **T-2. Rule on every disagreement.**
   - Goal: a miss or an extra row is settled by reading the code, not by the session that built the dossier.
   - Files: `$SCR/truth/rulings.md`, and `$SCR/truth/rw.json` when the list was wrong.
   - Steps: for each row, read the cited code and give one verdict with a reason: `list wrong` (amend the truth file), `dossier wrong` (Phase 5b fixes it), `blind spot` (name the Gaps entry or blind-spot rule that explains it), or `no error`. For a dossier row that matches nothing, say whether it is a true entry point, input or output. Sonnet's notes are not evidence. Rerun `sha256sum` if the file changed.
   - Done-check: every row in `review.md` has a verdict.
   - Commit: none for the files. See below.
 
-- [ ] **T-3. Check the component map.**
+- [x] **T-3. Check the component map.**
   - Goal: section 11's component check for a public repository (decision 34).
   - Files: `$SCR/truth/rulings.md`.
   - Steps: for every row of `components.catalog`, open its paths and confirm that they exist, that the files belong together, and that Responsibility says what the code does. Give each `ok` or `dossier wrong`, with a reason.
   - Done-check: every component has a verdict.
 
-- [ ] **T-4. Decision 2's DI question.**
+- [x] **T-4. Decision 2's DI question.**
   - Goal: say whether dependency injection wiring was missed in a way a custom Roslyn tool would have caught.
   - Files: `$SCR/truth/rulings.md`.
   - Steps: list every disagreement and every `inferred` flow arrow whose cause is DI registration, resolution or scanning, or a mediator handler. For each, say whether a compiler-based tool could have resolved it from the code alone (for example a registration with a literal type pair) or not (for example assembly scanning). End with one line: `Roslyn tool: worth revisiting` or `Roslyn tool: not needed for this repository`, with the count behind it.
@@ -1282,7 +1282,37 @@ Write under "Results (Phase 5a)": the count of each verdict, every `list wrong` 
 
 ### Results (Phase 5a)
 
-(Empty.)
+Run 2026-11-08 with Opus 5.5. Rulings are in `$SCR/truth/rulings.md`: all 85 rows of `review.md`, the 11 unmatched dossier rows, all 12 components and the DI question have a verdict, from the code only.
+
+- **Counts.** `dossier wrong` 57 (of which 27 are naming only: the row states the fact but not the route path, class, key, migration, message or host), `list wrong` 15, `no error` 13 (implementation words such as `args`, `$@`, `exit 1`, `mktemp`, a method name, plus `appsettings*.json` and Serilog's console row), `blind spot` 0. Unmatched dossier rows: 7 `no error` (true rows, including five true "none" rows), 4 `dossier wrong` (counted with their truth rows). Components: 11 `ok`, 1 `dossier wrong`.
+- **`list wrong` changes** to `$SCR/truth/rw.json` (19 rows removed, none added; backup `$SCR/truth/rw.before-5a.json`):
+  1. Entry points: the four Dependabot schedules (`.github/dependabot.yml` lines 6, 15, 19, 23). Dependabot runs on GitHub and executes no repository code; its PRs start the push and pull-request workflows, which stay entry points.
+  2. Inputs, config files: `dependabot.yml` (read only by GitHub's service) and `.rules4rc` (read by nothing in the repository, its build or CI).
+  3. Inputs, configuration keys: the five settings the test factory passes in-process (`tests/Conduit.IntegrationTests/ApiFactory.cs` lines 19-23). Only `Logging:LogLevel:Default` was a disagreement; the other four matched because their keys are real inputs elsewhere, and are removed for the same reason.
+  4. Inputs, files read: `Resources` (no resource file is tracked; the localizer reads embedded resources, not a folder), `server.log` (the script reads back its own log to copy it to stderr, already an output), `hurl archive` (the script reads its own download), `Glob directories` (names no input; it is the `clean` deletion).
+  5. Inputs, stdin: `sha256sum --check -` (a pipe inside `scripts/install-hurl.sh`, not the script's stdin).
+  6. Inputs, network requests: `Hurl release download` and `git ls-remote` (downloads the scripts make are outbound calls, already in the truth as outputs).
+  7. Outputs, database writes: `transaction` (wraps the writes already listed).
+  - New `sha256sum`: `a7fc87a9dbcf454d0b7e8b2500f81ad533535cdf1e5dad327ed8c7c145a18098` (was `68f22953…`, which matched Phase 4a). Now 54 entry points, 89 inputs, 102 outputs. Rescore: entry points recall 87% (was 81%), precision 100%; inputs 81% (was 74%); outputs 55% (was 54%).
+- **`dossier wrong`, by defect, for Phase 5b:**
+  1. `entry.catalog`: no row for CI workflows started by push and pull requests (`.github/workflows/dotnetcore.yml` "Build and Test"; `realworld-api-tests.yml` also runs on them), and neither CI row names `workflow_dispatch`. Cause: `repo.ci-schedule` reads only `schedule`. 3 rows.
+  2. `entry.catalog`: the container row does not name the compose service `conduit` (`docker-compose.yml:2`).
+  3. `entry.catalog`: no row for the launch profiles `IIS Express` and `RealWorld` (`src/Conduit/Properties/launchSettings.json`). `RealWorld` matches today only through the CI row's name.
+  4. `entry.catalog`, design-time factory: name `SqliteMigrationContextFactory` and `SqlServerMigrationContextFactory` (`src/Conduit/Infrastructure/MigrationContextFactories.cs`). 2 rows.
+  5. `io.inputs`, config files: `packages.lock.json` (named only as "lock files"), `.editorconfig` (read by the analyzers in every build) and `Conduit.slnx`. 3 rows.
+  6. `io.inputs`, files read: the submodule suites the Make targets run (`realworld/specs/api/run-api-tests-hurl.sh`, `realworld/specs/api/bruno`) and the test projects the `test` target globs (`tests/**/*.csproj`). The Gaps submodule item explains unread contents, not unlisted paths. 3 rows.
+  7. `io.inputs` and `io.outputs`, route groups: name `/api/articles/{slug}/comments`, `/api/articles/{slug}/favorite`, `/api/profiles/{username}/follow` and cite `CommentsController.cs`, `FavoritesController.cs`, `FollowersController.cs`. 6 rows.
+  8. `io.inputs`, database reads: the startup schema check reads `__EFMigrationsHistory` and `sqlite_master` or `sys.tables` (`src/Conduit/Infrastructure/DatabaseInitializer.cs`). 3 rows.
+  9. `io.outputs`, stdout/stderr: quote the three messages of `scripts/run-managed-api-tests.sh`, and add the spec-freshness job's `pinned:`/`latest:` lines and `::error::spec is behind` annotation (`.github/workflows/spec-freshness.yml`). 5 rows.
+  10. `io.outputs`, files written: `clean` deletes `publish`, `bin`, `obj` (`Directory.Delete`); `format` rewrites sources (`csharpier format`, on every `build`); `scripts/install-hurl.sh` writes the Hurl archive and tree to `RUNNER_TEMP`; the SQLite row names no location (`/data`, volume `conduit-data`); the `test` target writes `conduit-http-<guid>.db` temp files, deleted with `File.Delete` (`tests/Conduit.IntegrationTests/ApiFactory.cs`). 7 rows.
+  11. `io.outputs`, network responses: no success statuses (201, 204; `201` matches today only through a citation range), the OpenAPI row has no `/swagger` path, and the any-origin CORS headers (`src/Conduit/Program.cs:79`) are missing. 4 rows.
+  12. `io.outputs`, outbound calls: "none from the API" is false when `Database:Provider` is `sqlserver` (`src/Conduit/ServicesExtensions.cs:56-58`); the script row names no hosts (`github.com/Orange-OpenSource/hurl`, `github.com/realworld-apps/realworld`); `bun x @usebruno/cli` is missing (`scripts/run-bruno-tests.sh`); build and dev tooling's network calls are missing (`nuget.org` via `dotnet restore` and `dotnet tool restore`, the `mcr.microsoft.com/dotnet/sdk` and `aspnet` images, `git submodule update` with and without `--remote`). 11 rows.
+  13. `io.outputs`, schema migrations: name `InitialSchema` and `UniqueIdentities` and cite both provider folders under `src/Conduit/Infrastructure/Migrations/`. 4 rows.
+  14. `io.outputs`, exit codes: the API row names no config key (`Jwt:SigningKey`, `Database:Provider`), leaves out the missing SQL Server connection string (`ConnectionStrings:Conduit`), and does not quote the "predates EF migrations" message (`src/Conduit/ServicesExtensions.cs`, `src/Conduit/Infrastructure/DatabaseInitializer.cs`). 4 rows.
+  15. `components.catalog`, Request pipeline: Paths `src/Conduit/Infrastructure/` take the whole folder, so they include every Persistence and Security file. List the pipeline's own files and `Errors/` instead.
+- **Blind spots.** None. No Gaps entry or blind-spot rule explains a row.
+- **Tool defects seen (for Phase 5b, not rulings).** `tests/tools/ground_truth.py` builds `where` with `dict(keys)`, so truth rows that share a key all show the last row's line in `review.md` (every "two rows share this `where`" note in the annotations is this). It also matches keys against citations inside cells, which gives the false `201` match.
+- **DI line.** Roslyn tool: not needed for this repository (0 of 85 disagreements come from DI; 7 of the 9 DI-dependent steps are resolvable by a compiler tool, and all 9 are already right).
 
 ---
 
