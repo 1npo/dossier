@@ -1326,7 +1326,7 @@ Read section 2, section 6 and "Results" of Phases 4a to 5a. Load the skills in s
 
 ### Tasks (Phase 5b)
 
-- [ ] **M5-33. Fix each `dossier wrong` row.**
+- [x] **M5-33. Fix each `dossier wrong` row.**
   - Goal: the exit criterion on the primary repository.
   - Files: whatever each fix needs, under the rules in section 2.
   - Steps: (1) For each row, fix the rule or the extractor, or add a Gaps entry where no rule can work, with a test first, in its own commit. A rule change moves the build key through the `rules` hash; an extractor change bumps `CSharpAdapter.version`. (2) Rebuild what changed. (3) Rerun blocks T, P, JS and E. (4) If block T shows a new disagreement, stop and ask the author to run Phase 5a again.
@@ -1354,7 +1354,29 @@ Do not merge. Commit results: `docs(dossier): record phase 5b of M5 in plan 011`
 
 ### Results (Phase 5b)
 
-(Empty.)
+Run 2026-11-08 with Sonnet 5.5, `SCR=/home/nick/.cache/dossier-m5-vWDO`, truth hash `a7fc87a9...8098` checked before the rerun. **M5-33 stopped at step 4 (3 new disagreements); Phase 5a then ruled on them (see "Rulings outcome" below) and M5-33 is done.**
+
+**Commits**
+- `fix(dossier): keep each truth row's where and ignore citations when matching`: `ground_truth.py` keeps one entry per truth row (`missed_where` parallel to `missed`; `where` maps a key to a list of lines) and matches keys against the row text with `[[...]]` citations removed. Five new tests in `test_ground_truth.py`; the old `where` assertion now expects a list.
+- `ca98883` `fix(dossier): list the push, pull request and manual triggers of GitHub workflows for C#`: new `ci-trigger` entries (defect 1), written only when the repository has a `.cs` file, so Python and JS output is the same. `RepoAdapter.version` 4 to 5. Seven new tests.
+
+**Reports.** Defects 2 to 15 are omissions in the reports I wrote in Phase 5, not extractor faults (the facts are in tracked files, none of them blind spots). I fixed them in the report generators in `$SCR/gen` (backups `*.before-5b.py`; not committed, nothing from `RW` is committed): entry (compose service `conduit`, four CI trigger rows, launch profiles, the two design-time factory classes), io inputs (lock files, `.editorconfig`, `Conduit.slnx`, the submodule suites, the test-project glob, the three route paths with their controllers, the startup schema reads) and io outputs (the three script messages and the spec-freshness lines, `clean` deletions, `csharpier format`, the Hurl archive, the SQLite location and volume, the test temp files, 201 and 204, `/swagger`, CORS, SQL Server, hosts, `@usebruno/cli`, build and dev tooling's network calls, the migration names, the exit-code keys), and components (Request pipeline Paths by file). Not changed: the writer prompts (`prompts/reports.md`) are untouched.
+
+**Rerun.** `prepare --full` exit 0 (6 `ci-trigger` candidates, each used by a row); `render` exit 0 after fixing a cite range, V5 (one entry per row) and V4 (full paths in Paths); no `error:` line.
+
+| Block T | Before 5b (after 5a) | After 5b |
+|---|---|---|
+| Entry points recall / precision | 87% / 100% | 96% / 100% (2 missed) |
+| Inputs recall | 81% | 94% (5 missed, all ruled `no error`) |
+| Outputs recall | 55% | 91% (9 missed: 8 ruled `no error`, 1 new) |
+
+Disagreements went from 96 to 16. The 13 `no error` rows of Phase 5a are the remaining misses of those rows. **Three are new, all caused by the tool fix** (they used to match through a citation): entry `src/Conduit/Program.cs` and `build/Program.cs` (the program-main rows name the programs `Conduit` web API and `build` runner and link them by label `Program.cs` only), and output `RestException` (named only in a citation). I did not rule on them or reword the rows to satisfy the matcher. Targets are not met until Phase 5a rules.
+
+**P and JS.** `test_py_adapter_slow.py` and `test_js_adapter_slow.py`: 34 passed, unedited. I did not rebuild plan 010's block P and JS comparison scripts, which this plan only refers to. **E.** Not run: `render.py`, CSS and JS are untouched. Default suite: 2629 passed, 274 skipped.
+
+**C# judgement call.** `ci-trigger` is limited to repositories with C# so Python and JS stay identical (section 2). A Python repository's push and pull-request workflows therefore still have no entry points; that is a gap for a later milestone.
+
+**Rulings outcome (2026-11-08).** Phase 5a ruled the 3 new disagreements (#86 `src/Conduit/Program.cs`, #87 `build/Program.cs`, #88 `RestException`) `no error` (rulings.md, "Phase 5b rerun"; truth hash `a7fc87a9...8098` rechecked). Block T has 16 disagreements, all `no error`; none is `dossier wrong`, `list wrong` or `blind spot`. Targets are met: entry points recall 96% (2 missed, both ruled `no error`) and precision 100%; inputs recall 94%; outputs recall 91%. Before 5b: 87% / 100%, 81%, 55%. Noted, not a ruling: the matcher drops a citation's label with its target, which is why #86 and #87 miss.
 
 ---
 
