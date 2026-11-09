@@ -572,7 +572,7 @@ Read section 2, D9, D10, D18 and "Results (Phase 1)". Load the skills in section
   - Done-check: `... pytest tests/unit/scripts/test_py_api.py -q` passes.
   - Commit: `feat(dossier): find what a Python library offers to other packages`
 
-- [ ] **M6-17. Wire the Python API into the adapter and the card.**
+- [x] **M6-17. Wire the Python API into the adapter and the card.**
   - Goal: D10's items, note and no-API line.
   - Files: `scripts/py_adapter.py` (version up by one for D9 and D10 together), `scripts/measured_tables.py`, `scripts/checks_v7.py` (the `py-note` `api` wording), `tests/unit/scripts/test_measured.py`, `tests/unit/scripts/test_checks_v7.py`, `tests/integration/scripts/test_py_root_unchanged_slow.py`.
   - Steps: (1) Tests: `public_api` shows Python rows with Import path as written; a Python application extract shows the no-API line; an extract with no modules shows nothing; JS and C# HTML byte-identical to today (assert). The root snapshot: `PYFIX` is an application (check its `pyproject.toml`; if it is a library, record its new rows as the one deliberate snapshot change, regenerate the snapshot in this commit and list the diff in "Results"). (2) Implement. (3) Block E.

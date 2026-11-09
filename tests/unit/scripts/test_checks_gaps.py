@@ -66,5 +66,13 @@ class TestJavaScriptGaps:
 
         assert [(g["report"], g["statement"]) for g in found] == [("io", "The public API of @s/lib could not be fully worked out from ./x.")]
 
+    def test_an_unresolved_python_public_api_gives_the_io_item(self):
+        note = {"kind": "py-note", "path": "badlib/badlib/__init__.py", "note": "api", "name": "badlib|badlib"}
+
+        found = [g for g in checks.validate({}, {"graph": [PY, note]})["gaps"] if "public API" in g["statement"]]
+
+        assert [(g["report"], g["statement"], g["how_to_confirm"]) for g in found] == [
+            ("io", "The public API of badlib could not be fully worked out from badlib.", "Read this module by hand.")]
+
     def test_no_js_extract_adds_none_of_these(self):
         assert [s for s in statements({"graph": [PY]}) if "Routes written" in s or "Bun" in s or "public API" in s] == []

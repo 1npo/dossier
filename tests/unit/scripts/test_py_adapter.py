@@ -278,8 +278,44 @@ class TestHandlerArgument:
 
 
 class TestComplexityOnModules:
-    def test_adapter_version_is_3_so_old_extracts_are_not_reused(self):
-        assert py_adapter.PythonAdapter.version == "3"
+    def test_adapter_version_is_4_so_old_extracts_are_not_reused(self):
+        assert py_adapter.PythonAdapter.version == "4"
+
+
+LIBRARY = {"lib/pyproject.toml": '[build-system]\nrequires = []\n[project]\nname = "lib"\n', "lib/lib/__init__.py": "__all__ = ['f']\ndef f(): pass\n",
+           "lib/lib/bad.py": "__all__ = names()\n",
+           "app/pyproject.toml": '[build-system]\nrequires = []\n[project]\nname = "app"\n[project.scripts]\nrun = "app.main:main"\n',
+           "app/app/__init__.py": "", "app/app/main.py": "def main(): pass\n"}
+
+
+def library_context(tmp_path):
+    repo = tmp_path / "libs"
+    for rel, text in LIBRARY.items():
+        (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / rel).write_text(text)
+    tree = frozenset(LIBRARY)
+    return SimpleNamespace(checkout=repo, sha="a" * 40, tree=tree, files=sorted(p for p in tree if p.endswith(".py")), area=tmp_path / "area",
+                           restored={}, run=None, treesitter=FakeTS(), semgrep=FakeSemgrep(), tool_versions={}, trusted=False, repo_name="libs",
+                           tool_status={})
+
+
+class TestPublicApi:
+    def test_a_library_project_gives_public_api_symbols_in_the_symbols_output(self, tmp_path):
+        out = py_adapter.PythonAdapter().extract(library_context(tmp_path))
+
+        api = [s for s in out["symbols"] if s["kind"] == "public-api"]
+        assert [(s["package"], s["subpath"], s["name"], s["path"], s["project"]) for s in api] == [("lib", "lib", "f", "lib/lib/__init__.py", "lib")]
+
+    def test_an_application_project_gives_none(self, tmp_path):
+        out = py_adapter.PythonAdapter().extract(library_context(tmp_path))
+
+        assert not [s for s in out["symbols"] if s["kind"] == "public-api" and s["package"] == "app"]
+
+    def test_a_computed_all_gives_a_py_note_in_the_graph_output(self, tmp_path):
+        out = py_adapter.PythonAdapter().extract(library_context(tmp_path))
+
+        notes = [g for g in out["graph"] if g["kind"] == "py-note"]
+        assert [(n["path"], n["name"], n["project"]) for n in notes] == [("lib/lib/bad.py", "lib|lib.bad", "lib")]
 
 
 PYPROJECT = '[project]\nname = "{name}"\n[project.scripts]\n{name} = "app.main:main"\n'

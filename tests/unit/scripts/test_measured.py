@@ -481,13 +481,42 @@ class TestPublicApi:
 
         assert "No package here declares a public API. What this repository offers from outside is in Entry points." in self.html([], graph)
 
-    def test_no_items_and_no_javascript_draws_nothing(self):
-        assert self.html([], [{"kind": "module", "module": "a", "path": "a.py"}]) == ""
+    def test_no_items_and_no_modules_draws_nothing(self):
+        assert self.html([], []) == ""
 
     def test_repository_text_is_escaped(self):
         item = dict(API_ITEMS[0], name="<i>x</i>")
 
         assert "<i>x</i>" not in self.html([item])
+
+
+PY_API = [
+    {"kind": "public-api", "path": "src/typedlib/_core.py", "line": 4, "name": "parse", "symbol_kind": "function", "package": "typedlib", "subpath": "typedlib",
+     "audience": "listed in __all__, typed", "external": None},
+    {"kind": "public-api", "path": "src/typedlib/plugins.py", "line": 8, "name": "Fast", "symbol_kind": "class", "package": "typedlib", "subpath": "typedlib.plugins",
+     "audience": "public by name, typed, has a stub", "external": None},
+]
+PY_MODULE = {"kind": "module", "module": "app.main", "path": "app/main.py", "package": "app", "is_package": False}
+
+
+class TestPythonPublicApi:
+    def html(self, items=PY_API, graph=(PY_MODULE,)):
+        import measured_tables
+
+        return measured_tables.public_api({"extract": {"symbols": list(items), "graph": list(graph)}}, Refs())
+
+    def test_the_import_path_is_shown_as_written(self):
+        rows = rows_of(table_html(self.html(), API_ID))
+
+        assert [(r[0], r[1], r[2], r[3], r[4], r[5]) for r in rows] == [
+            ("typedlib", "typedlib", "parse", "function", "src/typedlib/_core.py", "listed in __all__, typed"),
+            ("typedlib", "typedlib.plugins", "Fast", "class", "src/typedlib/plugins.py", "public by name, typed, has a stub")]
+
+    def test_a_python_application_with_no_api_says_so(self):
+        assert "No package here declares a public API. What this repository offers from outside is in Entry points." in self.html([])
+
+    def test_an_extract_with_no_modules_draws_nothing(self):
+        assert self.html([], []) == ""
 
 
 CS_API = [
@@ -527,8 +556,8 @@ class TestCSharpPublicApi:
 
         assert "No package here declares a public API." in self.html([], graph)
 
-    def test_a_repository_with_no_javascript_or_csharp_draws_nothing(self):
-        assert self.html([], [{"kind": "module", "module": "a", "path": "a.py"}]) == ""
+    def test_a_repository_with_no_modules_draws_nothing(self):
+        assert self.html([], []) == ""
 
 
 class TestJavaScriptAreas:

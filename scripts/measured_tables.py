@@ -101,7 +101,7 @@ def public_api(ctx: dict, refs) -> str:
     r = _render()
     lines = "".join(f'<p class="muted">{r.E(x)}</p>' for x in friend_lines(extract))
     if not found:
-        has_code = any(g.get("language") in ("js", "csharp") for g in extract.get("graph", []) if g.get("kind") == "module")
+        has_code = any(g.get("kind") == "module" for g in extract.get("graph", []))  # Python, JavaScript or C#
         return (f'<p class="muted">{NO_API}</p>' if has_code else "") + lines
     rows = []
     for s in found:

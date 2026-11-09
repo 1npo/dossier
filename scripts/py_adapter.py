@@ -16,6 +16,7 @@ import candidates
 import config
 import gather
 import graphs
+import py_api
 import py_packages
 import py_project
 import py_queries
@@ -55,7 +56,7 @@ def module_name(path: str, roots=(), base: str = "") -> str:
 class PythonAdapter(Adapter):
     name = "python"
     rules = (RULES,)
-    version = "3"
+    version = "4"
     languages = ("Python",)
     tools = ("grimp", "vulture", "scip-python", "semgrep", "tree-sitter-language-pack")
     expected_untracked = (".venv/**",)
@@ -276,7 +277,15 @@ class PythonAdapter(Adapter):
         self._entries(ctx, out, st)
         self._dead(ctx, out, st, timeout)
         self._symbols(ctx, out, st, timeout)
+        self._api(ctx, out, proj, st)
         return out
+
+    def _api(self, ctx, out, proj, st):
+        read = lambda path: py_packages.read_blob(ctx.checkout, path)  # noqa: E731
+        if py_api.is_library(proj, read, ctx.tree):
+            symbols, notes = py_api.items(proj, st["roots"], ctx.tree, read)
+            out["symbols"] += symbols
+            out["graph"] += notes
 
     def extract(self, ctx) -> dict:
         timeout = config.timeouts()["tool"]

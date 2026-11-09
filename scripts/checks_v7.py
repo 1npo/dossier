@@ -88,6 +88,10 @@ def js_coverage(extract: dict) -> list:
             package, _, subpath = name.partition("|")
             items.append({"kind": "coverage", "report": "io", "how_to_confirm": "Read this package's entry file by hand.",
                           "statement": f"The public API of {package} could not be fully worked out from {subpath}."})
+    for note in sorted((g for g in graph if g.get("kind") == "py-note" and g.get("note") == "api"), key=lambda g: g["name"]):
+        package, _, module = note["name"].partition("|")
+        items.append({"kind": "coverage", "report": "io", "how_to_confirm": "Read this module by hand.",
+                      "statement": f"The public API of {package} could not be fully worked out from {module}."})
     return items
 
 
