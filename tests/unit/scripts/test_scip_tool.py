@@ -169,3 +169,25 @@ class TestRunIndex:
 
         with pytest.raises(shared_tools.ToolError, match="without writing"):
             scip_tool.run_index(fake_run(tmp_path), "/i.js", tmp_path, area, "r", "s", 1)
+
+
+class TestProjectFolders:
+    def test_environment_reads_the_named_venv_folder(self, tmp_path):
+        dist = tmp_path / "up" / ".venv" / "lib" / "python3.12" / "site-packages" / "x-1.0.dist-info"
+        dist.mkdir(parents=True)
+        (dist / "METADATA").write_text("Name: x\nVersion: 1.0\n")
+
+        got = scip_tool.environment(tmp_path / "other", venv=tmp_path / "up" / ".venv")
+
+        assert [d["name"] for d in got] == ["x"]
+
+    def test_run_index_uses_cwd_and_project_name_when_given(self, tmp_path):
+        checkout = tmp_path / "co"
+        (checkout / "backend").mkdir(parents=True)
+        area = tmp_path / "area"
+        run = fake_run(tmp_path, write=lambda cmd, cwd: (area / "scip" / "index.scip").write_text("x"))
+
+        scip_tool.run_index(run, "/tool/index.js", checkout, area, "repo", "abc", 90, cwd=checkout / "backend", project_name="repo-backend")
+
+        call = run.calls[0]
+        assert call["cwd"] == checkout / "backend" and call["cmd"][call["cmd"].index("--project-name") + 1] == "repo-backend"

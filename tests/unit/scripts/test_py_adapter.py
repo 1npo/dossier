@@ -29,23 +29,30 @@ class FakeSemgrep:
 
 class FakeGrimp:
     response = {"modules": [], "imports": [], "contracts": [], "errors": []}
+    all = []
+    error = None
 
     def __init__(self, run, timeout):
         self.calls = []
 
     def graph(self, roots, packages, contracts):
         FakeGrimp.args = (roots, packages, contracts)
+        FakeGrimp.all.append(FakeGrimp.args)
+        if FakeGrimp.error:
+            raise FakeGrimp.error
         return FakeGrimp.response
 
 
 class FakeVulture:
     items = []
     error = None
+    calls = []
 
     def __init__(self, run, timeout):
         pass
 
     def dead(self, paths, config):
+        FakeVulture.calls.append(paths)
         if FakeVulture.error:
             raise FakeVulture.error
         return FakeVulture.items
@@ -55,6 +62,7 @@ class FakeVulture:
 def fakes(monkeypatch):
     FakeGrimp.response = {"modules": [], "imports": [], "contracts": [], "errors": []}
     FakeVulture.items, FakeVulture.error = [], None
+    FakeVulture.calls, FakeGrimp.all, FakeGrimp.error = [], [], None
     monkeypatch.setattr(py_adapter, "Grimp", FakeGrimp)
     monkeypatch.setattr(py_adapter, "Vulture", FakeVulture)
     monkeypatch.setattr(py_adapter.config, "timeouts", lambda: {"tool": 5})
@@ -272,3 +280,117 @@ class TestHandlerArgument:
 class TestComplexityOnModules:
     def test_adapter_version_is_3_so_old_extracts_are_not_reused(self):
         assert py_adapter.PythonAdapter.version == "3"
+
+
+PYPROJECT = '[project]\nname = "{name}"\n[project.scripts]\n{name} = "app.main:main"\n'
+
+
+def nested_context(tmp_path, venv_in=None):
+    repo = tmp_path / "mixed"
+    for rel, text in {"tool.py": "print('x')\n", "backend/pyproject.toml": PYPROJECT.format(name="backend"),
+                      "backend/app/__init__.py": "", "backend/app/models.py": "X = 1\n", "backend/app/main.py": "def main(): pass\n",
+                      "frontend/package.json": "{}\n"}.items():
+        (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / rel).write_text(text)
+    if venv_in:
+        (repo / venv_in / ".venv").mkdir(parents=True)
+    tree = frozenset(p.relative_to(repo).as_posix() for p in repo.rglob("*") if p.is_file() and ".venv" not in p.parts)
+    files = sorted(p for p in tree if p.endswith(".py"))
+    return SimpleNamespace(checkout=repo, sha="a" * 40, tree=tree, files=files, area=tmp_path / "area", restored={}, run=None,
+                           treesitter=FakeTS(), semgrep=FakeSemgrep(), tool_versions={"scip-python": "0.6.6"}, trusted=True,
+                           repo_name="mixed", tool_status={})
+
+
+def nested_graph(repo):
+    app = str(Path(repo) / "backend" / "app")
+    return {"modules": [{"module": "app", "path": app + "/__init__.py", "is_package": True},
+                        {"module": "app.models", "path": app + "/models.py", "is_package": False},
+                        {"module": "app.main", "path": app + "/main.py", "is_package": False}],
+            "imports": [{"from": "app.main", "to": "app.models", "lines": [1]}], "contracts": [], "errors": []}
+
+
+class TestProjects:
+    def test_grimp_gets_roots_under_the_project_and_modules_keep_python_names(self, tmp_path):
+        ctx = nested_context(tmp_path)
+        FakeGrimp.response = nested_graph(ctx.checkout)
+
+        out = py_adapter.PythonAdapter().extract(ctx)
+
+        roots, packages, _ = FakeGrimp.all[0]
+        assert roots == [str(ctx.checkout / "backend")] and packages == ["app"]
+        modules = {(g["module"], g["path"]) for g in out["graph"] if g["kind"] == "module" and g["package"]}
+        assert modules == {("app", "backend/app/__init__.py"), ("app.models", "backend/app/models.py"), ("app.main", "backend/app/main.py")}
+        assert ctx.tool_status["grimp"]["status"] == "ok"
+
+    def test_nested_items_carry_the_project_and_root_items_do_not(self, tmp_path):
+        ctx = nested_context(tmp_path)
+        FakeGrimp.response = nested_graph(ctx.checkout)
+
+        out = py_adapter.PythonAdapter().extract(ctx)
+
+        modules = [g for g in out["graph"] if g["kind"] == "module"]
+        assert {g.get("project") for g in modules if g["path"].startswith("backend/")} == {"backend"}
+        assert "project" not in next(g for g in modules if g["path"] == "tool.py")
+        assert [g["module"] for g in modules if g["path"] == "tool.py"] == ["tool"]
+
+    def test_console_scripts_cite_the_project_manifest(self, tmp_path):
+        ctx = nested_context(tmp_path)
+
+        out = py_adapter.PythonAdapter().extract(ctx)
+
+        scripts = [e for e in out["entry_points"] if e["kind"] == "console-script"]
+        assert [(e["name"], e["path"], e["project"]) for e in scripts] == [("backend", "backend/pyproject.toml", "backend")]
+
+    def test_vulture_runs_per_project_on_its_own_paths(self, tmp_path):
+        ctx = nested_context(tmp_path)
+
+        py_adapter.PythonAdapter().extract(ctx)
+
+        assert sorted(FakeVulture.calls, key=len) == [["tool.py"], ["backend/app/__init__.py", "backend/app/main.py", "backend/app/models.py"]]
+
+    def test_scip_python_runs_in_the_project_folder_with_its_own_name(self, tmp_path, monkeypatch):
+        ctx = nested_context(tmp_path, venv_in="backend")
+        calls = []
+        index = tmp_path / "index.scip"
+        index.write_bytes(b"")
+        monkeypatch.setattr(py_adapter.shutil, "which", lambda *a, **k: "/usr/bin/node")
+        monkeypatch.setattr(scip_tool, "ensure_installed", lambda *a, **k: "/tool/index.js")
+        monkeypatch.setattr(scip_tool, "run_index", lambda *a, **k: calls.append(k) or index)
+        monkeypatch.setattr(scip_read, "reduce", lambda decoded: [{"kind": "def", "path": "app/models.py", "line": 1, "name": "X"}])
+
+        out = py_adapter.PythonAdapter().extract(ctx)
+
+        nested = next(c for c in calls if c.get("cwd"))
+        assert nested["cwd"] == ctx.checkout / "backend" and nested["project_name"] == "mixed-backend"
+        assert nested["venv"] == ctx.checkout / "backend" / ".venv"
+        assert {s["path"] for s in out["symbols"]} == {"app/models.py", "backend/app/models.py"}
+
+    def test_scip_python_uses_the_root_venv_when_the_project_has_none(self, tmp_path, monkeypatch):
+        ctx = nested_context(tmp_path, venv_in="")
+        calls = []
+        index = tmp_path / "index.scip"
+        index.write_bytes(b"")
+        monkeypatch.setattr(py_adapter.shutil, "which", lambda *a, **k: "/usr/bin/node")
+        monkeypatch.setattr(scip_tool, "ensure_installed", lambda *a, **k: "/tool/index.js")
+        monkeypatch.setattr(scip_tool, "run_index", lambda *a, **k: calls.append(k) or index)
+        monkeypatch.setattr(scip_read, "reduce", lambda decoded: [])
+
+        py_adapter.PythonAdapter().extract(ctx)
+
+        assert next(c for c in calls if c.get("cwd"))["venv"] == ctx.checkout / ".venv"
+
+    def test_tool_status_keeps_ok_when_one_project_has_nothing_to_graph(self, tmp_path):
+        ctx = nested_context(tmp_path)
+        FakeGrimp.response = nested_graph(ctx.checkout)
+
+        py_adapter.PythonAdapter().extract(ctx)
+
+        assert ctx.tool_status["grimp"] == {"status": "ok", "reason": None}
+
+    def test_a_failure_in_any_project_marks_the_tool_failed(self, tmp_path):
+        ctx = nested_context(tmp_path)
+        FakeGrimp.error = ToolError("boom")
+
+        py_adapter.PythonAdapter().extract(ctx)
+
+        assert ctx.tool_status["grimp"] == {"status": "failed", "reason": "boom"}

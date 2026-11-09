@@ -534,7 +534,7 @@ Read section 2, D9, D10, D18 and "Results (Phase 1)". Load the skills in section
   - Done-check: `... pytest tests/unit/scripts/test_py_project.py -q` passes; `DOSSIER_SLOW=1 ... tests/integration/scripts/test_py_root_unchanged_slow.py -q --basetemp=$HOME/.cache/dossier-m6-slow` passes.
   - Commit: `feat(dossier): find Python projects below the repository root`
 
-- [ ] **M6-12. Run the Python adapter once per project.**
+- [x] **M6-12. Run the Python adapter once per project.**
   - Goal: D9's analysis per project.
   - Files: `scripts/py_adapter.py`, `scripts/py_packages.py`, `scripts/scip_tool.py`, `tests/unit/scripts/test_py_adapter.py`, `tests/unit/scripts/test_scip_tool.py`, `tests/integration/scripts/test_py_root_unchanged_slow.py`.
   - Interface: `PythonAdapter._extract_project(ctx, folder) -> dict`; `py_packages` functions take the project folder's checkout path (they already take `checkout`); `scip_tool.environment(checkout, venv=None)`; `scip_tool.run_index(..., cwd=None, project_name=None)`.
