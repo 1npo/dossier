@@ -74,13 +74,49 @@ class TestScore:
 
         assert s["entry"]["recall"] == 1.0 and s["entry"]["precision"] == 1.0
         assert s["input"]["recall"] == 1.0
-        assert s["input"]["where"]["Jwt__Key"] == "tests/Api.Tests/Helper.cs:7 (test helper)"
+        assert s["input"]["where"]["Jwt__Key"] == ["tests/Api.Tests/Helper.cs:7 (test helper)"]
 
     def test_a_missing_card_counts_as_no_rows(self, tmp_path):
         t = truth(tmp_path, entry=["GET /a"])
         d = tmp_path / "reports"
         d.mkdir()
         assert ground_truth.score(t, d)["entry"]["missed"] == ["GET /a"]
+
+
+class TestSharedKeysAndCitations:
+    def test_truth_rows_sharing_a_key_keep_their_own_where(self, tmp_path):
+        t = tmp_path / "truth.json"
+        t.write_text(json.dumps({"entry_points": [
+            {"kind": "ci", "key": "workflow_dispatch", "where": "a.yml:10"},
+            {"kind": "ci", "key": "workflow_dispatch", "where": "b.yml:10"}], "io": []}))
+        s = ground_truth.score(t, reports(tmp_path))["entry"]
+        assert s["where"]["workflow_dispatch"] == ["a.yml:10", "b.yml:10"]
+        assert s["missed"] == ["workflow_dispatch", "workflow_dispatch"]
+        assert s["missed_where"] == ["a.yml:10", "b.yml:10"]
+
+    def test_review_lists_each_shared_key_row_with_its_own_line(self, tmp_path):
+        t = tmp_path / "truth.json"
+        t.write_text(json.dumps({"entry_points": [
+            {"kind": "ci", "key": "exit 1", "where": "a.sh:30"},
+            {"kind": "ci", "key": "exit 1", "where": "a.sh:45"}], "io": []}))
+        text = ground_truth.review(ground_truth.score(t, reports(tmp_path)))
+        assert "(truth: a.sh:30)" in text and "(truth: a.sh:45)" in text
+
+    def test_a_key_inside_a_citation_does_not_match(self, tmp_path):
+        t = truth(tmp_path, io=[("output", "201")])
+        r = reports(tmp_path, outputs=[["response", "409 on a clash", "[[ConduitContext.cs:171-201]]"]])
+        s = ground_truth.score(t, r)["output"]
+        assert s["missed"] == ["201"]
+
+    def test_a_key_in_the_text_still_matches_beside_a_citation(self, tmp_path):
+        t = truth(tmp_path, io=[("output", "201")])
+        r = reports(tmp_path, outputs=[["response", "201 on create", "[[A.cs:1-2]]"]])
+        assert ground_truth.score(t, r)["output"]["recall"] == 1.0
+
+    def test_unmatched_rows_keep_their_citations(self, tmp_path):
+        t = truth(tmp_path, entry=["GET /a"])
+        r = reports(tmp_path, entry=[["route", "GET /z", "[[A.cs:1-2]]"]])
+        assert ground_truth.score(t, r)["entry"]["unmatched"] == ["route | GET /z | [[A.cs:1-2]]"]
 
 
 class TestMain:
