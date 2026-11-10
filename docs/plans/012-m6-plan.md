@@ -871,7 +871,7 @@ Read section 2, D13, D16, D17 and "Results" of Phases 1 to 4. Load the skills in
 
 ### Tasks (Phase 5)
 
-- [ ] **M6-34. `build_parser` and the docs drift test.**
+- [x] **M6-34. `build_parser` and the docs drift test.**
   - Goal: D13.
   - Files: `scripts/dossier.py`, new `tests/unit/scripts/test_docs.py`.
   - Steps: (1) Move the parser into `build_parser()`; `main` is unchanged in behaviour (`test_doctor_cli.py`, `test_prepare_cli.py` pass). (2) Write D13's tests; they fail until M6-35 to M6-38 land, so mark the README and guide tests `xfail(strict=True)` with the reason `docs arrive in M6-35 to M6-38`, and remove each mark in the task that makes it pass.

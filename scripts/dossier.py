@@ -738,7 +738,7 @@ def cmd_confirm(a):
         print(f"\n{len(gone)} saved decision(s) have no matching statement in the current reports. They are kept and apply again if the statement returns.")
 
 
-def main():
+def build_parser():
     ap = argparse.ArgumentParser(prog="dossier")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("version").set_defaults(fn=cmd_version)
@@ -816,7 +816,11 @@ def main():
     p.add_argument("--contributor")
     p.add_argument("--type")
     p.set_defaults(fn=cmd_correct)
-    a = ap.parse_args()
+    return ap
+
+
+def main():
+    a = build_parser().parse_args()
     a.fn(a)
 
 
