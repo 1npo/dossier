@@ -285,3 +285,50 @@ class TestSkillVerifyStep:
 
         assert "[--verify]" in hint
         assert "`--verify`" in SKILL_MD
+
+
+def card_section(guide: str, card_id: str) -> str:
+    return guide.split(f"(`{card_id}`)", 1)[1].split("###", 1)[0]
+
+
+class TestGraphsAreDrawnByCode:
+    guide = (PROMPTS / "reports.md").read_text(encoding="utf-8")
+    method = (PROMPTS / "method.md").read_text(encoding="utf-8")
+
+    @pytest.mark.parametrize("card_id", ["components.map", "interactions.graph"])
+    def test_graph_card_says_the_graph_is_never_described(self, card_id):
+        section = card_section(self.guide, card_id)
+
+        assert "interactive graph" in section
+        assert "never describe" in section
+
+    def test_components_guidance_says_tier_b_files_have_no_links(self):
+        section = self.method.split("## Components", 1)[1].split("\n## ", 1)[0]
+
+        assert "no static graph" in section
+
+    def test_contracts_guidance_covers_python_libraries(self):
+        section = card_section(self.guide, "io.contracts")
+
+        assert "Python" in section
+
+
+class TestSkillSteps:
+    skill = (PROMPTS.parent / "SKILL.md").read_text(encoding="utf-8")
+
+    def test_step_one_mentions_the_freshness_tile(self):
+        step = self.skill.split("1. **Prepare.**", 1)[1].split("2. **Size check.**", 1)[0]
+
+        assert "freshness" in step.lower()
+
+    def test_finish_step_explains_the_no_static_graph_badge(self):
+        step = self.skill.split("8. **Finish.**", 1)[1].split("### `/dossier confirm`", 1)[0]
+
+        assert "no static graph" in step
+
+
+class TestRulesReadme:
+    def test_python_barrel_rule_is_described(self):
+        text = (PROMPTS.parent / "rules" / "README.md").read_text(encoding="utf-8")
+
+        assert "`__init__.py`" in text and "route-mount" in text

@@ -42,7 +42,7 @@ Report 05: Components. Question: *What are the main parts, what does each do, an
 
 ### Component map (`components.map`)
 
-Drawn by code from the tool findings. **Do not write this card:** leave it out of the file.
+Drawn by code from the tool findings: a table, and above it an interactive graph that opens on the areas and lets the reader open each one. **Do not write this card:** leave it out of the file, and never describe the graph or its boxes in any card you write; the page computes every view of it. A component made of files in a language with no static graph (the `no static graph` badge) has no links in it: say so in that component's detail entry.
 
 ### Component catalog (`components.catalog`)
 
@@ -76,7 +76,7 @@ Report 06: Interactions. Question: *How do the parts talk to each other, and whe
 
 ### Dependency graph (`interactions.graph`)
 
-Drawn by code from the tool findings. **Do not write this card:** leave it out of the file. In a React repository the card also lists the React components, with what each renders and which hooks and context it uses; use that list when you write the flows. How context values reach their consumers, and what a custom hook wires up, are not worked out: Gaps says so.
+Drawn by code from the tool findings: a table, and above it an interactive graph of areas, components and modules. **Do not write this card:** leave it out of the file, and never describe the graph or its boxes in any card you write. In a React repository the card also lists the React components, with what each renders and which hooks and context it uses; use that list when you write the flows. How context values reach their consumers, and what a custom hook wires up, are not worked out: Gaps says so.
 
 ### Cycles and layer violations (`interactions.violations`)
 
@@ -132,7 +132,7 @@ Tool findings that arrive here (home card): stdout, file-write, outbound-call, m
 
 Written agreements with other systems: OpenAPI, protobuf, GraphQL and JSON-schema files, public exports, route tables, client SDK use. Consumers outside the repository are `unknown` unless declared.
 
-Shape: a table with columns Contract, Direction, Counterparty, Schema location, Versioning. One row per contract and direction. The page draws a table of the real public API of each package below your rows (what other packages can import); never copy it (it covers C# libraries too). Write one row per package that has such an API, as `offered`; in C#, that is one `io.contracts` row per library with an API. `Direction` is exactly `offered` (this repository publishes it) or `consumed` (this repository relies on it); `summary.json` joins repositories on that word, and `render` fails on anything else.
+Shape: a table with columns Contract, Direction, Counterparty, Schema location, Versioning. One row per contract and direction. The page draws a table of the real public API of each package below your rows (what other packages can import); never copy it (it covers C# and Python libraries too). Write one row per package that has such an API, as `offered`; in C# and Python, that is one `io.contracts` row per library with an API. A Python application with console scripts and no `py.typed` file offers no API, and the page says so. `Direction` is exactly `offered` (this repository publishes it) or `consumed` (this repository relies on it); `summary.json` joins repositories on that word, and `render` fails on anything else.
 
 ## data
 

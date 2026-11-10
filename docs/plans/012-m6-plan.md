@@ -896,7 +896,7 @@ Read section 2, D13, D16, D17 and "Results" of Phases 1 to 4. Load the skills in
   - Done-check: the docs test passes; the commands ran as written.
   - Commit: `docs(dossier): add the developer guide`
 
-- [ ] **M6-38. `SKILL.md`, prompts and the rules README.**
+- [x] **M6-38. `SKILL.md`, prompts and the rules README.**
   - Files: `SKILL.md`, `prompts/method.md`, `prompts/reports.md`, `rules/README.md`, `tests/unit/scripts/test_prompts.py`, `tests/unit/scripts/test_docs.py`.
   - Steps: D16's last bullet. Remove every remaining `xfail` mark in `test_docs.py`.
   - Done-check: `test_prompts.py` and `test_docs.py` pass with no `xfail`.
