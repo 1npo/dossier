@@ -1240,7 +1240,7 @@ Read section 2, section 7 and "Results" of Phases 1 to 7. Load the skills in sec
 
 ### Tasks (Phase 8)
 
-- [ ] **M6-47. Block W for `CA`, with freshness online (block FR2).**
+- [x] **M6-47. Block W for `CA`, with freshness online (block FR2).**
   - Done-check: results recorded.
   - Commit: `docs(dossier): record the M6 checks on the largest repository`
 
@@ -1279,6 +1279,17 @@ Every DoD item is `met`, or `not met` with a reason the author accepts; block FC
 As M6-49. CI does not tag this skill; whether to tag `v1.0.0` or publish it is the author's call (section 8).
 
 ### Results (Phase 8)
+
+**M6-47 (2026-11-10, Sonnet 5.5).** Blocks A, B, C, F, G, H, W and FR2 run on `CA` (pin `4739ae4`, trusted). No code changed. One expectation of block W is **not met** (finding 1).
+
+- **Block A/B.** `doctor` exit 0 (Languages: C#, TypeScript, JavaScript full; PowerShell Tier B). `prepare --full --restore yes` exit 0. Every tool `ok` for `csharp` (tree-sitter, semgrep, scip-dotnet), `js` (six tools) and `repo` (semgrep). Step times (s): extract 40.2, measure 19.2, restore 14.4 (npm ci in `src/Web/ClientApp` 9.5 and `src/Web/ClientApp-React` 4.9; no nuget restore, there are no `packages.lock.json`). Counts: entry points csharp 5, js 17, repo 8 (17 `package-script`, 7 `ci-trigger`, 3 `program-main`, 2 `http-route`, 1 `ci-schedule`); symbols csharp 892 (240 `public-api`), js 417; graph csharp 259; models 3; blind spots 71 csharp, 10 js; history 9,121.
+- **Block W step 2-3.** 13 C# projects (not the ten of plan 011: six in `src`, `Web`, plus `TestAppHost` and five test projects; counted from `cs-project`). `no-lock` notes: one per project (13). `framework` note `Aspire.Hosting.AppHost` present for `AppHost` and `TestAppHost` (M6-1 holds). Test projects carry real file counts (M6-5 holds): Application.FunctionalTests 14, Application.UnitTests 3, Domain.UnitTests 1, Infrastructure.IntegrationTests 1, Web.AcceptanceTests 12, TestAppHost 1. Public API: `Application`, `Domain`, `Infrastructure`, `ServiceDefaults`, `Shared` are `packable` (240 items); `Web`, `AppHost` are not.
+- **Finding 1 (block W, not met): `AspireExtensions` is still in `change.dead-code`** (page row 1 of 16; `extract/dead.json`). Cause, from `logs/cs-scip-1.err`: scip-dotnet cannot load `AppHost.csproj` and `TestAppHost.csproj` ("AppHost is an Aspire AppHost project but necessary dependencies aren't present"), because CA has no lock file and so no nuget restore runs. The call `.WithAspNetCoreEnvironment()` in `src/AppHost/Program.cs:29` is therefore not resolved: the method def has `refs: 0`, and M6-3's member-use rule has nothing to count. M6-3 is right for a repository that restores; it does not help where the Aspire SDK cannot load. Not fixed. Options for the author: (a) restore the AppHost for projects without a lock file when `--restore yes`, (b) skip the dead list for a type in a project the indexer failed to load, (c) accept and let a report dismiss the row.
+- **Block W step 2 (rest).** Endpoint groups reach Gaps: blind spots csharp `string-route` 15, `reflection` 4, `route-mount` 1, `mediator-handler` 30. Hand count of `Map*` routes in `src/Web/Endpoints`: 10 (Users 1, WeatherForecasts 1, TodoItems 4, TodoLists 4); the tool lists 2 `http-route` (`ANY /` and the fallback in `Web/Program.cs`), as the endpoint groups are discovered by reflection (`MapEndpoints`), the same as plan 011.
+- **Block D (deviation).** The reports are generated, not hand-written: `$SCR/gen/synth.py` run on the `candidates` text of `CA` (`$SCR/wc`), with 13 components, then three patches in `$OUTC/reports` for V5 errors (the `TodoItem` and `TodoList` fields, the inputs `ASPNETCORE_ENVIRONMENT` and `RELEASE_NOTES`, the bots `dependabot[bot]` and `renovate[bot]`). They test build, render and check, not the prose (as M6-45 for `BP`). Plan 011 wrote all of them by hand.
+- **Block F/G/H.** `render` 2 rounds: round 1 exit 1 with 6 `error: V5`; round 2 (V6 on `contributors.agents` columns) then exit 0, 0 `error:`, 16 V6 and 2 V5 warnings, 2 V9 notes. `check` `problems: 0` (3 diagrams; the run was not timed). Page 10.3 MB. Rows: `data.entities` 3, `entry.catalog` 30, `io.inputs` 47, `io.outputs` 12, `change.dead-code` 16, `change.upgrade-burden` 2, `components.catalog` 13. Blind-spot lines in Gaps 45, 0 `partial` badges, 8 `nograph` (PowerShell), tile `Freshness` present, 0 `igraph-data` blocks (the generated interactions report has no graph card). `summary.json` lists all eight tools `ok`. Not read: the shots (generated reports; 8 kept, none of reports 05 to 07).
+- **Block BS (completes the table).** `CA` (151 lines): csharp mediator-handler 30, string-route 15, di-resolution 10, di-registration 8, reflection 4, di-scan 3, route-mount 1; js react-context 4, di-registration 4, hook-wiring 2.
+- **Block FR2.** Pin record: `source: remote`, `compared_with: origin/main`, `remote_sha e1ab4cc`, `behind: 3`, `ahead: 0`. `gh api .../compare/$CA_PIN...main --jq .ahead_by` printed 3 (same as 2026-11-09). The page tile reads "3 commits behind origin/main is at e1ab4cc, checked 2026-11-10 20:45 UTC".
 
 ### Verification results (Phase 8)
 
