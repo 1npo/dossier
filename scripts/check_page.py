@@ -151,7 +151,9 @@ def check_viewer(page, scheme, shots):
     opened = lambda: page.evaluate(PANEL_JS)
     # pick a statement with several openable sources if there is one, else any openable citation
     pick = page.evaluate("""() => {
-      const sups = Array.from(document.querySelectorAll('sup.cite')).filter(s => s.querySelector('a[data-view]'));
+      const all = Array.from(document.querySelectorAll('sup.cite')).filter(s => s.querySelector('a[data-view]'));
+      // prefer a citation in a written card: a measured card may clip or filter its rows out of sight
+      const sups = all.filter(s => !s.closest('.card.fact')).length ? all.filter(s => !s.closest('.card.fact')) : all;
       const best = sups.find(s => s.querySelectorAll('a[data-view]').length > 1) || sups[0];
       return best ? { rid: best.closest('.report').id, n: sups.indexOf(best) } : null; }""")
     if not pick:
@@ -160,7 +162,9 @@ def check_viewer(page, scheme, shots):
     page.wait_for_timeout(150)
     sup_sel = f"#{pick['rid']} sup.cite:has(a[data-view])"
     sups = page.query_selector_all(sup_sel)
-    sup = next((x for x in sups if len(x.query_selector_all("a[data-view]")) > 1), sups[0])
+    # a filtered-out table row holds citations nobody can see: prefer a visible one
+    sup = next((x for x in sups if len(x.query_selector_all("a[data-view]")) > 1 and x.is_visible()), None) \
+        or next((x for x in sups if x.is_visible()), sups[0])
     a = sup.query_selector("a[data-view]")
     secret = page.evaluate("re => Array.from(document.querySelectorAll('[data-view]')).map(e => e.dataset.view).filter(p => new RegExp(re).test(p))", SECRET_PATH)
     if secret:
@@ -369,8 +373,8 @@ def check_report(page, scheme, rid, shots, counter):
             problems.append(f"{rid} / table {t.get_attribute('id')}: columns not sortable: {', '.join(missing)}")
     # citation tooltip
     if scheme == "light":
-        a = page.query_selector(f"#{rid} .cite a[data-tip]")
-        g = page.query_selector(f"#{rid} .gid[data-tip]")
+        a = next((x for x in page.query_selector_all(f"#{rid} .cite a[data-tip]") if x.is_visible()), None)
+        g = next((x for x in page.query_selector_all(f"#{rid} .gid[data-tip]") if x.is_visible()), None)
         if g:
             g.scroll_into_view_if_needed()
             g.hover()
