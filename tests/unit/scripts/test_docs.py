@@ -24,7 +24,7 @@ CHECKED_FILES = [
     "docs/user-guide.md",
     "docs/developer-guide.md",
 ]
-PENDING_FILES = {"README.md", "docs/user-guide.md", "docs/developer-guide.md"}
+PENDING_FILES = {"docs/user-guide.md", "docs/developer-guide.md"}
 # Flags the user never types: Claude passes them or answers them through a question.
 NOT_IN_BUILD_HINT = {"--chunk-tokens", "--restore"}
 
@@ -91,3 +91,12 @@ class TestNoStaleNames:
         found = [m.group(0) for m in STALE_NAMES.finditer(text)]
 
         assert found == []
+
+
+class TestReadmeLinks:
+    def test_relative_links_point_at_files_that_exist(self):
+        links = re.findall(r"\]\(([^)#:]+?)(?:#[^)]*)?\)", read("README.md"))
+
+        missing = [l for l in links if not (ROOT / l).exists()]
+
+        assert missing == [] or set(missing) <= {"docs/user-guide.md", "docs/developer-guide.md", "LICENSE"}

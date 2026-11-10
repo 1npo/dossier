@@ -1,117 +1,63 @@
-# codebase-dossier
+# dossier
 
-A Claude Code skill that works as a codebase intelligence report generator: it measures a git repository and builds a single-file HTML dossier of short, cited reports on what the code does, how it's built, and where the risks are.
+A Claude Code skill that reads a git repository and builds one self-contained HTML page of short, cited reports on what the code does, how it is built and where the risks are. Counting and drawing are done by code; Claude reads and writes, and every claim is marked confirmed, inferred or unknown.
+
+![The component map card of a dossier, with its interactive graph above the component table](docs/images/dossier.png)
+
+The picture is a made-up test page, not a real repository.
 
 ## Usage
 
 Inside Claude Code:
 
 ```
-/dossier home ~/dev/dossiers        # set where dossiers are saved (once)
-/dossier build ~/dev/projects/foo   # build a dossier for a repo
+/dossier home ~/dev/dossiers        # choose where dossiers are saved (once)
+/dossier build ~/dev/projects/foo   # build a dossier for a repository
 /dossier confirm                    # list open questions, then answer them
 /dossier correct                    # record something the dossier got wrong
-/dossier doctor ~/dev/projects/foo  # check which tools a repo needs are installed
-/dossier check ~/dev/projects/foo   # check the written page: every row drawn, readable in a browser
-/dossier clean ~/dev/projects/foo   # delete the working copy and caches for a repo
-/dossier version
+/dossier doctor ~/dev/projects/foo  # check which tools the repository needs are installed
+/dossier check ~/dev/projects/foo   # check the written page in a browser
+/dossier clean ~/dev/projects/foo   # delete the working copy and caches for a repository
 ```
 
-`build` pins the dossier to a commit, writes twelve reports (overview, capabilities, interfaces, architecture, domain logic, data, code tour, failures, delivery, risks, contributors, gaps), and renders them to `<home>/<repo-name>/` as one self-contained HTML page. Version 0.5.0 draws the new card layout; writing dossiers in that layout arrives in a later version. Version 0.6.0 adds `doctor`, `clean`, a clean working copy for every build, a run record (`build.json`) and the "How this dossier was made" card. Version 0.7.0 extracts Python entry points, imports, inputs and outputs, data models and tests with tools, writes the reading guide, entry points, components, interactions, inputs and outputs, data model, behaviour, conventions and build reports from them, and checks that every tool finding is accounted for. Version 0.7.1 repairs what 0.7.0 drew and checked: a page asset with a git conflict marker is refused and the skill's commit is recorded on the process card (now a table, with the extractor versions); diagrams draw at their natural size, and a large component graph is split into an overview and one diagram per area, with a dependency matrix and edge tables that hold every import; entries and recipes are tables with numbered steps; the relationships card is drawn by code from every extracted field; every entity and entry point (argparse commands included) has its own row, and every environment variable is in Inputs; flows need numbered notes; the reading order covers every module.
-
-## Checking a dossier
-
-`/dossier check` runs after `render`. V11 compares the written page with the reports and the tool output: every table has its columns and one row per source row, every entry its fields, every flow its numbered notes, every field its row in the relationships table. V12 opens the page in a browser, in both themes, at 1500 and 400 px wide, and checks that diagrams draw and their text is at least 11 px, that nothing scrolls sideways or overlaps, and that the code viewer and search work. It prints one `FAIL` line per problem and `problems: N`; the build is done when N is 0. `render` runs V11 itself and does not write a page that fails it. The browser part needs Playwright (see Install) and takes a few minutes.
-
-Report 02 keeps its earlier layout. `tests/tools/golden02.py` compares its three cards with screenshots of the pre-0.5 skill (`tests/fixtures/golden02/README.md` says how to make them).
-
-## Updating a dossier
-
-Run `/dossier build` again after the code changes. `prepare` compares the pinned commit with the last render and works out which reports cite code that changed: a cited file was edited at the cited lines, deleted, or lost or gained a neighbour; a cited directory changed; or a correction is pending. Only those reports are re-read and rewritten, and the others are left alone. Citations whose lines did not move are renumbered to the new commit by script, with no model involved. If nothing is stale, the build just re-renders. `overview` and `contributors` are refreshed whenever the commit changes, and `gaps` whenever another report is. A new minor version of the skill, a rewritten history, or `--full` rebuilds everything.
-
-Every claim is marked confirmed, inferred, or unknown, and cites the files it came from. Your confirmations and corrections survive rebuilds.
-
-## Reading the code behind a citation
-
-Hover a source marker `[n]` to see what it points to. Click it to open the cited code in a panel on the right, with the cited lines marked and the code syntax-highlighted (by Pygments, at build time; the colors meet a 4.5:1 contrast ratio in both themes). The code is embedded in the page, so the panel works offline and without the repository.
-
-| Key | Action |
-|---|---|
-| `v` | Show or hide the panel. It opens empty, with a note, when the report has no citations to view |
-| `l` | Show or hide the legend: what the badge on a card and the confirmed, inferred and unknown pills mean |
-| `p` | Pin the panel: it stays open and the page makes room for it. The choice is remembered in the browser |
-| `[` `]` | Previous or next source in the report's reference list |
-| `Esc` | Collapse an unpinned panel (a click outside it does the same) |
-
-The Legend and Code tabs sit in each report's title bar, which stays in view as you scroll, below the page header. The panel also has a row of the statement's other sources and a "Go to reference" button. Citations of directories and commits, and of files that are binary, minified or may hold secrets, do not open the panel; the click jumps to the reference list as before. A click on a "measured facts" marker opens a short explanation of what the measurement is, with a button that shows the gatherer code that made it in the same panel. A file longer than 1,500 lines is embedded as the 1,500-line window that holds the most cited ranges, and the panel says which lines it shows.
-
-**Sharing.** The page now contains the source of every file it cites, up to 3 MB of text in total. Treat it like the repository: do not share it more widely than the code. Files that match secret patterns or are flagged by the gatherer are never embedded.
-
-## Working with tables
-
-Every table can be sorted (click a column heading; a third click restores the written order). Drag the right edge of a heading to resize that column; double-click the edge, or use the arrow keys on it, to undo or nudge it. The **Columns** menu above a table hides and shows columns, and the remaining columns are laid out again at readable widths. **Reset columns** brings back every column at its natural width.
-
-## Contributor knowledge map
-
-The Contributors report has a card that shows which parts of the repository each person knows best. It is a tree of directories and files with one row per path. Each row has a bar split by contributor, and the top contributor beside it. Four controls change what you see:
-
-- **Measure**: *Lines* (surviving lines per `git blame`) or *Commits*.
-- **Show**: all paths, or only the paths the selected contributor has touched.
-- **Zoom**: how deep the tree is open, from *Top level* to *All files*. You can still open and close single folders.
-- **Contributor chips**: click one to see only that person's share on every row. Click it again to go back.
-
-Hover a row for the numbers. The minimap on the right shows the whole tree: click or drag it to scroll. The tree also works from the keyboard (arrow keys, Enter).
-
-How the figures are made (all in `gather.py`, under "knowledge map"):
-
-- **Lines** come from the `git blame` already run for code ownership, so they match the Contributors card. If blame runs out of time on a very large repository, the card says so, and the line shares of the remaining files are estimated from lines added minus deleted.
-- **Commits** and **recent commits** come from one `git log --no-merges -M` pass. A renamed file keeps its earlier history at its current path. Commits that touch more than 400 files (imports, reformatting) are not credited to any file.
-- **Who is shown**: identities are merged as elsewhere in the dossier (`.mailmap` is honoured by git). Bots are left out. The six people with the most familiarity get their own colour, the same colour they have in the other graphics, and everyone else is grouped as "Others".
-- **Files**: the text files tracked at the pinned commit, without vendored, generated, lock, binary and minified files, and without files that `.gitattributes` marks `linguist-generated` or `linguist-vendored`.
-- **Departed and "at risk" are inferences.** A person with no commit in the 6 months before the pinned commit (`KNOWLEDGE_DEPARTED_MONTHS`) is hatched as no longer active, and a directory is tagged "at risk" when its top contributor has left and holds 50% or more of it. The card labels both as inferred.
-
-Very large trees show only the rows near the viewport, so the page stays responsive. The per-file figures are kept in `knowledge.json` next to `facts.json`, at most 1.5 MB (`KNOWLEDGE_CAP`); beyond that the smallest, least changed files are left out and the card says how many.
-
-## History, contributors and the summary file
-
-Version 0.8.0 adds two reports that are built from the git history, and a summary file.
-
-- **Change and history** (report 10) shows where the code changes most, which files change together, what a change to one file can reach (pick a file or a component), unfinished migrations, odd decisions, dead code, how old the runtime and packages are, and branches still open.
-- **Contributors** (report 13) shows who the people are, who to ask about each component, how concentrated the knowledge is (with the bus factor), which commits came from agents and bots, and how the team works. A commit belongs to the person who wrote it. When an agent or a bot wrote it, it belongs to the person who approved its pull request, and on a project with one person, to that person. The Contributors card on the Overview page has Owner and Author buttons to switch between the two views.
-- The history is read once and kept in full: nothing is cut to a top few. A shallow clone or a very long history gives a partial result, marked on the cards and listed in Gaps. Raise `timeouts.history` (seconds, default 600) in `~/.config/dossier/config.json` when reading takes too long.
-- The `gh` command-line tool is optional. When a project has several people and agents or bots have written commits, `gh` reads pull request approvals (`timeouts.github`, default 300 seconds). Without it, those commits count for their authors.
-- `summary.json` is written next to the page. It holds the facts other tools may want: components and how they depend on each other, entry points, contracts, dependencies, risk counts, ownership and hotspots. It lists people by an opaque id and never holds an email address. `render` checks it against `prompts/summary.schema.json` and `/dossier check` checks it again.
-
-Reports 10 and 13 are now required, so a dossier made by an older version is rebuilt in full the next time you run `/dossier build`.
-
-## Calendars
-
-The commit calendars (on Overview and Contributors) open on days and zoom out to months. Each week is boxed. Hover a cell to see who committed that day or month, how many commits, and the lines added (green) and deleted (red), lined up in columns. Calendar data older than this version has no line counts until you run `prepare` again.
+`build` pins the dossier to one commit and writes the page to `<home>/<repo-name>/`. Run it again after the code changes: only the reports that cite changed code are rewritten. Add `--verify` to have an independent checker test a sample of the cited claims.
 
 ## Install
 
-TypeScript, JavaScript and React repositories have full support from version 0.9.0, and need Node 22.13 or later.
+Requires Claude Code, [uv](https://docs.astral.sh/uv/) and `git`.
 
-C# repositories have full support from version 0.10.0. They need the .NET SDK that the repository's `global.json` asks for (8 or later when there is none); without it, dossier builds the C# cards from the source text alone and marks them partial.
+- Node 22.13 or later for TypeScript and JavaScript repositories (16 or later for Python alone; not 23 or 25).
+- The .NET SDK named by the repository's `global.json` (8 or later when there is none) for C# repositories.
+- Playwright's Chromium for `/dossier check`: `uv run --with playwright python -m playwright install chromium`.
+- `gh` is optional; it adds pull request approvals to the Contributors report.
 
-Requires Claude Code and [uv](https://docs.astral.sh/uv/), which installs Pygments for `dossier.py` on demand. Without Pygments the code is shown without colors, and `build` prints a warning. The page check in `build` uses Playwright, which `uv` installs on demand; the first run also needs `uv run --with playwright python -m playwright install chromium`.
+Copy this folder into your skills folder:
 
 ```sh
-git clone git@github-1npo:1npo/codebase-dossier.git
-cp -r codebase-dossier/dossier ~/.claude/skills/dossier
+cp -r dossier ~/.claude/skills/dossier
 ```
 
-The skill is user-invoked only (`/dossier ...`); Claude won't trigger it on its own.
+The skill runs only when you type `/dossier ...`. Claude does not start it on its own. Run `/dossier doctor` to see what is missing.
+
+## Goals and status
+
+Gives a lead engineer a working mental model of a repository at one commit, with evidence for each claim. It does not edit the repository, run it as a service or replace reading the code. Status: active. Maintained by one person.
+
+## Documentation
+
+For users, in the [user guide](docs/user-guide.md):
+
+- [Getting started](docs/user-guide.md#getting-started)
+- [Usage by task](docs/user-guide.md#usage-by-task)
+- [Reference](docs/user-guide.md#reference)
+- [Troubleshooting](docs/user-guide.md#troubleshooting)
+
+For contributors, in the [developer guide](docs/developer-guide.md):
+
+- [Getting started](docs/developer-guide.md#getting-started)
+- [How to make changes](docs/developer-guide.md#how-to-make-changes)
+- [Testing](docs/developer-guide.md#testing)
 
 ## License
 
-No license for the skill itself yet. Bundled third-party libraries in `dossier/vendor/` keep their own licenses (`LICENSE.md`, `LICENSE-mermaid`).
-
-## Development
-
-Run the unit tests from this directory:
-
-```sh
-uv run --with pytest --with pygments python -m pytest tests
-DOSSIER_SLOW=1 uv run --with pytest --with pygments python -m pytest tests   # also the browser and extractor tests
-```
+MIT. See [LICENSE](LICENSE). Bundled third-party libraries in `vendor/` keep their own licenses (`LICENSE.md`, `LICENSE-mermaid`).

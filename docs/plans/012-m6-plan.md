@@ -878,7 +878,7 @@ Read section 2, D13, D16, D17 and "Results" of Phases 1 to 4. Load the skills in
   - Done-check: the full suite passes.
   - Commit: `test(dossier): check that the docs name every command and flag`
 
-- [ ] **M6-35. Rewrite the README.**
+- [x] **M6-35. Rewrite the README.**
   - Files: `README.md`, `docs/images/dossier.png` (a shot of the M6 test page, report 05 in the light theme at 1500 px), `tests/unit/scripts/test_docs.py`.
   - Steps: D16's README. Check every link and anchor.
   - Done-check: `... pytest tests/unit/scripts/test_docs.py -q` passes its README cases.
