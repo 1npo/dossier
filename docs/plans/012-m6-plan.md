@@ -1059,6 +1059,8 @@ Decision needed from the author (Phase 6a was meant for new disagreements, but t
 - **JS:** `js` section identical; `repo` +1 `ci-trigger` (`ci.yml` push). The new `io_candidates` `repo` section is empty: `JSFIX`'s Dockerfile has no `ENV` or `ARG`.
 - **E:** `OK`, 248,746 characters both sides.
 
+**Slow suite (2026-11-10, end of Phase 6):** 3 failed, 3197 passed, 1 skipped (51 min). The three failures are the known ones (`test_overlapping_paragraphs_are_reported`, `test_each_browser_mutation_makes_a_fail[chart-text-small-chart text]`, `test_golden02_slow.py`). Truth hash unchanged. The basetemp folder was removed.
+
 ---
 
 ## Phase 6a: Rulings on new ground-truth disagreements
