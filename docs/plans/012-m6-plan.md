@@ -835,6 +835,32 @@ Commit on `feat/dossier-m6`. Do not merge or bump. Write "Results (Phase 4)" and
 
 ### Results (Phase 4)
 
+Done 2026-11-09 by Sonnet on `feat/dossier-m6`; M6-25 to M6-33 all done, nothing cut (M6-31 included). No answers in sections 8 and 9 differed from the defaults.
+
+**Suites.** Start (end of Phase 3): default 2708 passed, 1 skipped (that run had `DOSSIER_SLOW` off, so skips differ from the planning baseline). End: default **2878 passed, 304 skipped**; slow (`--basetemp=$HOME/.cache/dossier-m6-slow`, removed afterwards) **3 failed, 3178 passed, 1 skipped in 46 min 40 s**, the three known failures only. That run was made before the last commit, which adds only test-helper code; the large-page test was rerun alone after it (passed, 8 min 15 s). Block E printed `OK` after M6-27 and again at the end (248,746 characters on both sides); the script is in the session scratchpad, not committed.
+
+**Commits.** `d541e83` M6-25, `d8d43ca` M6-26, `bd551e2` M6-27, `ebe9449` M6-28, `aef7e3e` M6-29, `2f2ca9b` M6-30, `602b43c` M6-31, `cfec351` M6-32, `a7b2262` M6-33, `ed494cc` the verifier items for the M6 test page (see below).
+
+**Decisions recorded.**
+- `"verify"` joined `buildlog.WRITERS` (D8 names `by: "verify"`; the log refused it otherwise). `verify_per_report` is read by `config.verify_per_report()` and must be a whole number of 1 or more.
+- Claim text for the Gaps items is looked up from the reports at render time by `(report, key)`, because the D8 result record holds only the key. A key that no report has any more gives no item.
+- The `Verifier` row appears on the process card of every build; V10's error and info lines are as D8 words them. `unknown` claims, `facts:` and directory citations, and citations without line numbers are not eligible.
+- `plain_text` removes a citation marker with the space before it, so the claim reads `It starts the server.` not `server .`.
+- **Barrel rule.** Semgrep's test files cannot be named `__init__.py`, and `paths: include` would hide the test file. So the rule is the regex form and matches `from x import *` in any file; `py_adapter` keeps only hits in `__init__.py`. I did not try the structural `from $M import *` form. Other forms recorded as working under `semgrep --test`: `constant_propagation: false` (string-route), `metavariable-regex` on `$A` (mount), `path(..., include(...), ...)`. A mutated string-route rule failed the test, and the restored rule passed.
+- I wrote the barrel adapter test with its filter at the same time, so `test_barrel_hit_in_another_file_is_dropped` was not seen failing first; it fails without the filter by construction.
+- `RepoAdapter.version` went 5 to 6 once, in M6-31, for both M6-31 and M6-32. Dockerfile and compose items carry the name only (snippet `ENV A`, `environment: A`); a name set twice in one file is listed once.
+- `wants_triggers` is gone, and `workflow_entries` lost its `triggers` argument.
+
+**D18 changes, before and after.** `repo` adapter on the fixtures (entry points by kind): `PYFIX` 4 to 5 (+ `ci-trigger` push at `.github/workflows/ci.yml:3`); `JSFIX` 1 to 2 (+ `ci-trigger` push). Dockerfile variables: 0 items in both (their Dockerfiles set no variable). Edited `test_py_adapter_slow.py` (entry points ten to eleven, one new row); `test_js_adapter_slow.py` needed no edit. The new Python route and barrel rules are not run against the golden here (Phase 6).
+
+**Carry-over from Phase 3, done here.** Phase 3 said Phase 4 would add the three verifier Gaps items to `tests/tools/m6_page.py`; no Phase 4 task named it, so I added it as a separate commit. `m6_page.make` now appends a `verify-sample` and a `verify` record with three `not supported` verdicts on claims of the existing reports; the rendered page holds the three `could not confirm this statement` items, and `dossier check` still reports no problems on it at both widths and themes. The page shows no `Verifier` text because the M3 page has no process card; the row is covered by unit tests.
+
+**Not done here (for Phase 7).** The verifier has not run with real subagents; Phase 7 does that. `verify-sample` was run only on a small made-up repository in tests.
+
+**Findings for the milestone review.**
+- The barrel rule's file filter lives in the adapter, not the rule, so a reader of `rules/python/blindspot.yml` alone will think it fires on every file.
+- Edge-case: a claim whose report text later changes gets a new key (a hash of its text), so a recorded verdict stops matching and its Gaps item silently disappears at the next render. Claims with an `id` are stable.
+
 ---
 
 ## Phase 5: Docs and version 1.0.0
