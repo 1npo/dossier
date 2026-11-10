@@ -975,7 +975,7 @@ Read section 2, section 7 and "Results" of Phases 1 to 5. Load the skills in sec
 
 ### Tasks (Phase 6)
 
-- [ ] **M6-42. Blocks S, A, P, P2, JS and E.**
+- [x] **M6-42. Blocks S, A, P, P2, JS and E.**
   - Goal: Python and JS unchanged except D18; report 02 unchanged.
   - Files: this plan, unless a block finds a bug (fixed with a test first, in its own commit, then the block rerun).
   - Done-check: results recorded under "Verification results (Phase 6)".
@@ -1011,7 +1011,19 @@ Do not merge. Commit results: `docs(dossier): record phase 6 of M6 in plan 012`.
 
 ### Results (Phase 6)
 
+- Started 2026-11-10, branch `feat/dossier-m6`, Sonnet 5.5. Pre-flight ok: `VERSION` 1.0.0, 680 GB free, truth hash matches.
+- `SCR=/home/nick/.cache/dossier-m6-g4vm`
+
 ### Verification results (Phase 6)
+
+**M6-42 (2026-11-10, `feat/dossier-m6`, Sonnet 5.5).** Block A (`doctor`) is not run yet; it goes with M6-43.
+
+- **S:** seven `-trusted` lines, truth hash unchanged.
+- **P (golden items):** `python` section identical (325 items both sides). `repo` differs only by `entry_points`: +3 `ci-trigger` rows (`integration.yaml` push, pull_request, workflow_call; D18). Deviation: a new, empty `io_candidates` `repo` section (0 items; the golden has no Dockerfile or compose), consistent with D18's "none".
+- **P2:** one open finding group (`epg-b75b22bb`, the three triggers). I replaced the hand-written `CI workflow` row with three rows, one per trigger, each with its `ep-` id, in the copy only. `render` without `--allow-errors` exits 0, no `error:` line. Report diffs against D18: `dossier` (version 1.0.0, Freshness tile `Up to date` with `origin/main, as of the last fetch on 2025-07-14`, 2 more statements), `reading` (+1 entry-point row for the workflow, citation renumbered), `entry` (the 3 rows), `components` and `interactions` (graph markup and badges), `io` (the no-API line), `change` (`Data as of 2026-11-09`), `gaps` (same counts 76/2/45; one id moved from G003 to G137 because my first render with a bad citation advanced the id counter in the scratch copy). 8 `badge nograph`. Every other report byte-identical.
+- **Finding, fixed:** `check` on the golden copy gave `problems: 4`: the layout check waited 20 s for the 13 ER diagrams of `data`, which take about 20.4 s here on the base commit too (not an M6 regression). Raised the wait to 90 s in `check_layout.py` (no verdict changed). After it: `problems: 0`.
+- **JS:** `js` section identical; `repo` +1 `ci-trigger` (`ci.yml` push). The new `io_candidates` `repo` section is empty: `JSFIX`'s Dockerfile has no `ENV` or `ARG`.
+- **E:** `OK`, 248,746 characters both sides.
 
 ---
 
