@@ -1045,6 +1045,7 @@ Decision needed from the author (Phase 6a was meant for new disagreements, but t
 - M6-42's block A was run with M6-43 (above).
 - The slow suite was started after the results were written; its result is in "Verification results (Phase 6)".
 
+- **Author's ruling on block T (2026-11-10): option (b).** A fresh session rewrites `entry`, `io.inputs` and `io.outputs` of the `RW` dossier row by row, from the code and `facts:env_vars` only, without opening `$TRUTH/review.md` or `rulings.md`, then reruns block T. M6-43 stays `[~]` until that rescore is recorded. Do this before Phase 7.
 - Started 2026-11-10, branch `feat/dossier-m6`, Sonnet 5.5. Pre-flight ok: `VERSION` 1.0.0, 680 GB free, truth hash matches.
 - `SCR=/home/nick/.cache/dossier-m6-g4vm`
 
