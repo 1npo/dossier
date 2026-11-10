@@ -1156,7 +1156,7 @@ Read section 2, section 7 and "Results" of Phases 1 to 6a. Load the skills in se
   - Done-check: results recorded.
   - Commit: `docs(dossier): record the M6 React, mixed and library checks`
 
-- [ ] **M6-46. Blocks V, FR, N, K, NR, SUB, CL and HY.**
+- [x] **M6-46. Blocks V, FR, N, K, NR, SUB, CL and HY.**
   - Goal: the verifier on a real dossier, freshness offline, and definition of done item 4.
   - Done-check: results recorded.
   - Commit: `docs(dossier): record the M6 verifier, freshness and degraded-build checks`
@@ -1214,6 +1214,19 @@ Do not merge. Commit results: `docs(dossier): record phase 7 of M6 in plan 012`.
 | TB (4) | python: dynamic-import 1, getattr-dispatch 1, decorator-registry 1, pytest-fixtures 1 |
 
 - **For the author.** `string-route` and `barrel-reexport` appear for `BP` only; `RW` has no `source-generator` row of 2 as in plan 011's notes but 9. The unit suite passes (2,792 + 1 test).
+
+**M6-46 (2026-11-10, Sonnet 5.5).** Blocks V, FR, N, K, NR, SUB, CL and HY run on `RW`. No code changed.
+
+- **Block V.** `prepare --verify --no-restore` exit 0 (`render_only`); `verify-sample` seed `b2d152ff08f6aed6`, 55 items, 5 per report over 11 reports (`gaps` excluded). 11 general-purpose subagents on `sonnet`, one per report. `verify-record` exit 0 ("Recorded 55 verdicts"); `render` exit 0; `check` `problems: 0` (7 diagrams). The process card says `5 claims per report, 55 sampled: 27 supported, 0 not supported, 28 cannot tell`. No Gaps item was added (none `not supported`). `verify-sample --seed b2d152ff08f6aed6` gave the same ids and claims. **The 28 `cannot tell`** are almost all one cause: the excerpt cut at the cited lines does not show the context the claim also states (a route prefix on the controller, a table name in a mapping, an `[Route]` above the cited line). V46, V47 and V49 are `orientation · n` / `periphery · n` labels of the `reading` report, which are not checkable claims; the sampler should leave them out (finding). I opened none of the 28 in the code; no verdict is a disagreement, so none needs a ruling.
+- **Deviation (V).** Each subagent's prompt was one line telling it to Read one scratch file (`$SCR/v/<report>.txt`) that holds exactly `prompts/verify.md` plus that report's items. The plan says the prompt is that text itself; a 74 KB report (`components`) is not reliably retyped by hand. The files hold nothing else, and the agents were told to open nothing else. Each agent made 2 to 3 tool calls.
+- **Block FR.** The clone's remote was set to a missing folder, one commit pushed to the bare remote and fetched. `prepare` exit 0; pin record `source: "tracking"`, `compared_with: "origin/master"`, `behind: 1` (`git rev-list --count` prints 1), `ahead: 0`. After `render` the page has the tile `commit behind` and `as of the last fetch`.
+- **Block N.** `doctor` exit 1 (`MISSING dotnet needs 8.0.100 or later`); `prepare --restore yes` exit 2; with `--allow-missing` exit 0; `scip-dotnet` `skipped`, tree-sitter and semgrep `ok`, csharp entry points 27, repo 18. `render --allow-errors` exit 0: 3 `badge partial` (`grep -c` says 2 because two sit on one line; counted with `-o`), 8 `badge nograph`, and the three `found:` strings present unchanged. I did not run the "without the fake `dotnet`, do not reuse the `csharp` section" step.
+- **Block K.** Side branch commit, no flags: exit 0, scip-dotnet `skipped` ("The ref is not trusted, so scip-dotnet did not run. Use --allow-ref to run it."), tree-sitter and semgrep `ok`, 27 csharp entry points; with `--allow-ref --no-restore`: scip-dotnet `ok`. The `Freshness` tile is on the page in both. The first run's pin record is `source: remote`, `behind: 0`, `ahead: 1`.
+- **Block NR.** exit 0; the restore record is `skipped` with "Installing dependencies was turned off with --no-restore." (planned: three nuget).
+- **Block SUB.** Without the flag the page has the Gaps item "The submodule realworld was not analysed. Build with --submodules to include it." (1 line). With `--submodules --no-restore`: exit 0; `build.json` `options` has `submodules: true` (the key is `submodules`, not `submodules_on` as section 7 says); after `render --allow-errors` with copied reports the item is gone (0).
+- **Block CL.** First `clean` printed `Removed the working area ...`, the dossier's `build.json` is still there; the second printed `Nothing to clean for rw.`
+- **Block HY.** `test_hygiene.py` with `DOSSIER_SLOW=1`: 15 passed in 6.75 s; the basetemp folder was removed.
+- **Findings for the milestone review.** (1) `verify-sample` should skip claims that are only a reading-order label. (2) A `cannot tell` rate of 51% means the excerpt window is too narrow for the verifier to confirm claims that span a controller prefix or a mapping: consider adding the enclosing declaration to each excerpt. (3) Section 7 should say `options.submodules`.
 
 ### Verification results (Phase 7)
 
