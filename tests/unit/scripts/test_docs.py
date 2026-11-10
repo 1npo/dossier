@@ -24,7 +24,7 @@ CHECKED_FILES = [
     "docs/user-guide.md",
     "docs/developer-guide.md",
 ]
-PENDING_FILES = {"docs/developer-guide.md"}
+PENDING_FILES = set()
 # Flags the user never types: Claude passes them or answers them through a question.
 NOT_IN_BUILD_HINT = {"--chunk-tokens", "--restore"}
 

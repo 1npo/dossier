@@ -890,7 +890,7 @@ Read section 2, D13, D16, D17 and "Results" of Phases 1 to 4. Load the skills in
   - Done-check: the docs test passes its user-guide cases.
   - Commit: `docs(dossier): add the user guide`
 
-- [ ] **M6-37. The developer guide.**
+- [x] **M6-37. The developer guide.**
   - Files: new `docs/developer-guide.md`.
   - Steps: D16's developer guide. Run the "Getting started" commands from a fresh clone of the branch in a scratch folder and record the counts.
   - Done-check: the docs test passes; the commands ran as written.
