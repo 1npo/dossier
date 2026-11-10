@@ -417,6 +417,20 @@ class TestProjects:
         assert nested["venv"] == ctx.checkout / "backend" / ".venv"
         assert {s["path"] for s in out["symbols"]} == {"app/models.py", "backend/app/models.py"}
 
+    def test_scip_python_lifts_both_ends_of_a_ref_edge_in_a_nested_project(self, tmp_path, monkeypatch):
+        ctx = nested_context(tmp_path, venv_in="backend")
+        index = tmp_path / "index.scip"
+        index.write_bytes(b"")
+        monkeypatch.setattr(py_adapter.shutil, "which", lambda *a, **k: "/usr/bin/node")
+        monkeypatch.setattr(scip_tool, "ensure_installed", lambda *a, **k: "/tool/index.js")
+        monkeypatch.setattr(scip_tool, "run_index", lambda *a, **k: index)
+        monkeypatch.setattr(scip_read, "reduce", lambda decoded: [{"kind": "ref-edge", "path": "app/main.py", "paths": ["app/models.py"], "count": 1}])
+
+        out = py_adapter.PythonAdapter().extract(ctx)
+
+        edges = {(s["path"], s["paths"][0]) for s in out["symbols"]}
+        assert edges == {("app/main.py", "app/models.py"), ("backend/app/main.py", "backend/app/models.py")}
+
     def test_scip_python_uses_the_root_venv_when_the_project_has_none(self, tmp_path, monkeypatch):
         ctx = nested_context(tmp_path, venv_in="")
         calls = []

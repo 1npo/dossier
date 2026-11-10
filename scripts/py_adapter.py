@@ -218,6 +218,8 @@ class PythonAdapter(Adapter):
             for sym in symbols:
                 if isinstance(sym.get("path"), str):
                     sym["path"] = self._lift(st, sym["path"])
+                if isinstance(sym.get("paths"), list):
+                    sym["paths"] = [self._lift(st, p) for p in sym["paths"]]
             return symbols
         out["symbols"] += self._step(ctx, "scip-python", go) or []
 
