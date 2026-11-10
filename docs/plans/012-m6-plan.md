@@ -981,7 +981,7 @@ Read section 2, section 7 and "Results" of Phases 1 to 5. Load the skills in sec
   - Done-check: results recorded under "Verification results (Phase 6)".
   - Commit: `docs(dossier): record the M6 golden and JS checks`
 
-- [~] **M6-43. Blocks B, C, D, F, G, H, L, T, J for `RW`, then I.** (all run; block T below M5's figures, see the results)
+- [x] **M6-43. Blocks B, C, D, F, G, H, L, T, J for `RW`, then I.** (all run; block T holds M5's figures after M6-44, see "Results (Phase 7)")
   - Goal: the C# repository against the kept truth.
   - Steps: as section 7. Block T's result must hold M5's: entry points recall at least 96% and precision 100%, inputs at least 94%, outputs at least 91%, and every disagreement one of M5's 16 (ruled `no error`). **A new disagreement is recorded, not fixed and not judged:** Phase 6a rules on it.
   - Done-check: every block's result is recorded.
@@ -1146,7 +1146,7 @@ Read section 2, section 7 and "Results" of Phases 1 to 6a. Load the skills in se
 
 ### Tasks (Phase 7)
 
-- [ ] **M6-44. Fix `dossier wrong` rows from Phase 6a (only if any).**
+- [x] **M6-44. Fix `dossier wrong` rows from Phase 6a (only if any).**
   - Steps: for each, fix the rule or the extractor with a test first (own commit), or the report in `$SCR` when it is a writing omission; rebuild; rerun block T. A further new disagreement: stop and ask for Phase 6a again.
   - Done-check: block T holds M5's figures.
   - Commit: one per fix, then `docs(dossier): record the M6 ground truth fixes`.
@@ -1186,6 +1186,16 @@ Nothing is cut. If `BP`'s reports cannot finish, stop at a saved state; the next
 Do not merge. Commit results: `docs(dossier): record phase 7 of M6 in plan 012`.
 
 ### Results (Phase 7)
+
+**M6-44 (2026-11-10, Sonnet 5.5).** Fixed the 41 `dossier wrong` rows of Phase 6a in the `RW` `io` report only (generator `$SCR/gen/io.py`; the M6-43 version is kept as `io.m6-43.py`). Writing omissions: no code, rule, extractor or test changed. Rulings read: `$SCR/truth-m6/rulings.md`; `$TRUTH/rw.json` not opened (hash `a7fc87a9...8098` before and after).
+
+- **Removed (17 inputs rows).** `PROJECT`, `SECONDS` and the 13 local script variables (the whole `script variables` category). The `.gitmodules` row now says what the command reads: the gitlink in the tree of HEAD.
+- **Added inputs (10 rows).** Five config files (`Directory.Build.props`, `Directory.Packages.props`, `NuGet.config`, `.editorconfig`, `Conduit.slnx`); one row each for the favorites, followers, profiles and tags route groups; the `scheduled triggers` row split into two rows that name `0 6 * * 1` and `0 */6 * * *`.
+- **Added outputs (13 rows).** `csharpier format` rewriting the sources; the integration test database file and its `File.Delete`; CORS headers; SQL Server; the Hurl download repository; `nuget.org`; the two Dockerfile base images; four start-up failures (signing key, provider, connection string, a database that predates migrations) in a new `start-up failures` category.
+- **Rebuild.** `candidates --open` printed nothing; `render` exit 0, no `error:` line (70 warnings, 68 before: four new V2 "text not in the cited lines" notes on the new favorites, followers, SQL Server and `NuGet.config` rows, two old ones gone; not fixed, they are the same kind as the 53 V2 notes already there); `check` `problems: 0`.
+- **Block T after M6-44** (`$SCR/truth-m6/review3.md`): entry points recall 98% (53 of 54), precision 100%; inputs 99% (88 of 89); outputs 93% (95 of 102). These are the projected figures of Phase 6a and hold M5's bars (96%, 94%, 91%). Both `truth-ok` lines printed.
+- **Disagreements.** 43 keys: 1 missed entry point, 1 missed input, 7 missed outputs, 17 unmatched inputs, 18 unmatched outputs. Every key is one Phase 6a ruled `no error`, except one: the `files read` row for the submodule pin, which M6-44 reworded (it is now correct by the code; it is still not in the truth). Against `$TRUTH/review-5b.md` only 1 key is shared, because the rewrite changed the row text; so "M5's 16 plus the 9" cannot be checked key by key, only by the rulings. **No new disagreement outside the rulings, so no Phase 6a rerun.**
+- **For the author.** The reworded submodule-pin row (above) is the one key without a ruling: it is the corrected form of U22 and I treated it as `no error`; say if you want it ruled.
 
 ### Verification results (Phase 7)
 
