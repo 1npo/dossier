@@ -3,7 +3,7 @@
   make_small(tmp) -> Path to the rendered page: the M3 page plus a catalog of 15 components, so the graph cards have views
   make(tmp)       -> Path to the large page (D14): 60 components over 15 areas, 400 modules with 1,200 imports (group nodes and the
                      edge filter), a Shell and a Rust file (Tier B badges), a pin record with freshness (3 commits behind) and 40
-                     Python `public-api` items from two packages. The three verifier Gaps items of D14 arrive with `--verify` (Phase 4).
+                     Python `public-api` items from two packages, and three verifier Gaps items (a `verify` record whose three `not supported` verdicts name claims of the existing reports).
 
 The names are made up and the paths are real tracked files of the repository, so every citation resolves.
 """
@@ -93,6 +93,29 @@ def pin_and_tools(out: Path, sha: str) -> None:
     (out / "facts.json").write_text(json.dumps(facts))
 
 
+def verifier_records(out: Path, sha: str, count: int = 3) -> None:
+    """A `verify-sample` and a `verify` record whose `count` verdicts are all `not supported`, on claims the reports already hold."""
+    import buildlog
+    import render
+    import verify
+
+    picked = []
+    for rid in ("entry", "components", "io", "data", "behavior", "change", "conventions", "ops"):
+        f = out / "reports" / f"{rid}.json"
+        if not f.exists():
+            continue
+        for c in render.claims_of(rid, json.loads(f.read_text())):
+            if c.get("conf") in ("confirmed", "inferred") and verify.plain_text(c.get("text")) and len(picked) < count:
+                picked.append((rid, verify.claim_key(c)))
+                break
+    items = [{"id": f"V{n:02d}", "report": r, "card": "", "key": k} for n, (r, k) in enumerate(picked, 1)]
+    path = out / buildlog.FILE
+    sample = {"step": "check", "part": "verify-sample", "by": "verify", "status": "ok", "details": {"seed": "m6page", "per_report": 5, "items": items}}
+    buildlog.append(path, sample)
+    results = [{"id": i["id"], "verdict": "not supported", "reason": "Line 3 shows something else."} for i in items]
+    buildlog.append(path, verify.result_record(sample, results))
+
+
 def extend_large(out: Path, sha: str, source: list) -> None:
     modules = large_modules()
     m3_page_add = __import__("m4_page")._add
@@ -100,6 +123,7 @@ def extend_large(out: Path, sha: str, source: list) -> None:
     m3_page_add(out, "symbols", sha, "python", python_api([p for p in source if p.endswith(".py")] or source))
     (out / "reports" / "components.json").write_text(json.dumps(large_catalog(modules)))
     pin_and_tools(out, sha)
+    verifier_records(out, sha)
 
 
 def make(tmp: Path) -> Path:
