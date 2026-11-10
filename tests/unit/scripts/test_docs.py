@@ -98,4 +98,4 @@ class TestReadmeLinks:
 
         missing = [l for l in links if not (ROOT / l).exists()]
 
-        assert missing == [] or set(missing) <= {"docs/user-guide.md", "docs/developer-guide.md", "LICENSE"}
+        assert missing == []

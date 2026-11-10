@@ -902,7 +902,7 @@ Read section 2, D13, D16, D17 and "Results" of Phases 1 to 4. Load the skills in
   - Done-check: `test_prompts.py` and `test_docs.py` pass with no `xfail`.
   - Commit: `docs(dossier): describe the 1.0.0 design in the skill and prompts`
 
-- [ ] **M6-39. `post-v1.md`, the licence and `process.md`.**
+- [x] **M6-39. `post-v1.md`, the licence and `process.md`.**
   - Files: `docs/post-v1.md`, new `LICENSE`, `docs/process.md` (the M6 row only).
   - Steps: (1) Remove "Python projects in subfolders" and P4-3 (if M6-7 passed); add: Tier B tree-sitter symbols; Makefile and shell variables as inputs; `.cake` scripts; FastAPI `Depends`; `.NET` versions from Microsoft's `releases.json`; agent detection from `Agent-Logs-Url` (report 02 data); the ground-truth matcher's citation labels; any cut from Phases 1 to 4. Each with what, why left out and where decided. (2) `LICENSE` as D16: copy `/home/nick/.claude/skills/docs-project/templates/LICENSE` (read only; it is in the installed copy, so never edit it) and replace `{{year}}` with `2026` (Q6). (3) Change `process.md`'s M6 session count to `8 Sonnet, and 1 Opus if the C# re-score shows a new disagreement (plan 012, D20)` (Q2, author-approved 2026-11-09).
   - Done-check: `git diff --stat` shows the three files; `head -3 LICENSE` names MIT, 2026 and `Nick OMalley <nickpeteromalley@gmail.com>`; the docs test passes.
