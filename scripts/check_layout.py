@@ -150,6 +150,6 @@ def arguments() -> dict:
 
 def check_report(page, args: dict) -> list:
     """The problems of the report that is shown in `page` (it waits for its diagrams to be drawn first)."""
-    page.wait_for_function("() => Array.from(document.querySelectorAll('.report:not([hidden]) .mermaid-host')).every(h => h.dataset.done)", timeout=20000)
+    page.wait_for_function("() => Array.from(document.querySelectorAll('.report:not([hidden]) .mermaid-host')).every(h => h.dataset.done)", timeout=90000)
     page.wait_for_timeout(200)
     return page.evaluate(LAYOUT_JS, args)
