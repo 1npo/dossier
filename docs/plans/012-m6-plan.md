@@ -1078,7 +1078,7 @@ Load `git-commit`. `git switch feat/dossier-m6`. Set `SCR` to the path in "Resul
 
 ### Tasks (Phase 6a)
 
-- [ ] **T-6. Rule on each new disagreement.**
+- [x] **T-6. Rule on each new disagreement.**
   - Steps: for each row, read the cited code and give one verdict with a reason: `dossier wrong` (Phase 6 or 7 fixes it), `blind spot` (name the Gaps entry or rule), or `no error`. `list wrong` is **not** available: `TRUTH` is never edited in M6; if you think the list is wrong, say so as a finding for the author. Write the rulings to `$SCR/truth-m6/rulings.md`.
   - Done-check: every new row has a verdict.
 
@@ -1101,6 +1101,40 @@ Every new row is ruled, and the truth hash is unchanged.
 Write under "Results (Phase 6a)" the count of each verdict and each `dossier wrong` row by path and name (no code from the repository). Tick T-6 and commit: `docs(dossier): record the M6 ground truth rulings in plan 012`. Do not merge.
 
 ### Results (Phase 6a)
+
+**T-6 (2026-11-10, Opus 5.5, fresh session).** Source: `$SCR/truth-m6/review2.md` (the block T rescore after the row-by-row rewrite; the old `review.md` was superseded by it and not used). Rulings, with one reason per row: `$SCR/truth-m6/rulings.md`. Truth hash `a7fc87a9...8098` before and after; `rw.json` was not opened. Read: `review2.md`, the `RW` reports, the code at `9345f18`, `prompts/reports.md`, and only the "Phase 5b rerun" part of `$TRUTH/rulings.md`.
+
+- **Counts.** 84 rows: **41 `dossier wrong`, 0 `blind spot`, 43 `no error`.** By group: entry points missed 1 (0 / 0 / 1); inputs missed 12 (11 / 0 / 1); outputs missed 20 (13 / 0 / 7); inputs in the dossier but not in the truth 33 (17 / 0 / 16); outputs in the dossier but not in the truth 18 (0 / 0 / 18). No row is `blind spot`: the `RW` Gaps report has 3 items and none names any of these cases.
+- **Projected figures.** If Phase 7 adds the 24 missed items ruled `dossier wrong`: entry points 98% (the one miss is `no error`), inputs 99% (88 of 89), outputs 93% (95 of 102). That holds M5's bars.
+- **`dossier wrong`, missed inputs (11):**
+  - Config files: `Directory.Build.props`, `Directory.Packages.props`, `NuGet.config`, `.editorconfig`, `Conduit.slnx`.
+  - Route groups with no inputs row: `src/Conduit/Features/Favorites/FavoritesController.cs`, `src/Conduit/Features/Followers/FollowersController.cs`, `src/Conduit/Features/Profiles/ProfilesController.cs`, `src/Conduit/Features/Tags/TagsController.cs`.
+  - The `scheduled triggers` row names neither schedule: `.github/workflows/realworld-api-tests.yml` (weekly), `.github/workflows/spec-freshness.yml` (every six hours).
+- **`dossier wrong`, missed outputs (13):**
+  - Files written and deleted: `build/Program.cs` (the `format` target rewrites the sources), `tests/Conduit.IntegrationTests/ApiFactory.cs` (the test database file, and its deletion).
+  - Responses: `src/Conduit/Program.cs` (the CORS headers).
+  - Calls the dossier does not name: `src/Conduit/ServicesExtensions.cs` (the SQL Server provider), `scripts/install-hurl.sh` (the Hurl download repository), `NuGet.config` (the `nuget.org` source), `Dockerfile` (the two base images).
+  - Start-up failures not on the error catalog: `src/Conduit/ServicesExtensions.cs` (signing key, provider, connection string), `src/Conduit/Infrastructure/DatabaseInitializer.cs` (a database that predates migrations).
+- **`dossier wrong`, rows that are not inputs (17):**
+  - Not set from the environment: `Makefile` (`PROJECT`), `scripts/run-managed-api-tests.sh` (`SECONDS`).
+  - 13 local script variables: `scripts/install-hurl.sh` (`VERSION`; `NAME`, `ARCHIVE`, `BASE`; `checksum`), `scripts/run-bruno-tests.sh` (`ROOT`, `BRUNO_VERSION`, `folder`), `scripts/run-managed-api-tests.sh` (`ROOT`, `WORK`, `SERVER_PID`, `deadline`, `ready`, `status`), `.github/workflows/spec-freshness.yml` (`pinned`, `latest`).
+  - `.github/workflows/spec-freshness.yml`: the row says `.gitmodules` is read, but the command reads the gitlink in the tree.
+  - The `scheduled triggers` row: covered by the fix for the two schedules above.
+- **`no error` misses that will stay (9):**
+  - The Swagger route template.
+  - `__EFMigrationsHistory`.
+  - `hurl archive` (case only).
+  - The realworld `ls-remote` and the Bruno CLI (both listed as inputs).
+  - The four migration names.
+
+**Findings for the milestone review**
+
+1. Block T's "every disagreement one of M5's 16" can no longer hold: the 9 `no error` misses above are new and stay. Default taken: Phase 7's block T accepts M5's 16 plus these 9. The rulings exist for exactly that.
+2. The scorer matches exact text: a case-insensitive match would clear `hurl archive`. Not changed: Phase 6a changes no code.
+3. `prompts/reports.md` does not say whether test-only code (the integration test factory) belongs on the io cards. The truth says yes. One sentence would settle it.
+4. No adapter emits a finding for root build configuration files, Dockerfile `FROM` images, `UseCors`, or a formatter that writes files. So these were writer omissions, not undecided findings. Candidate rules, for Phase 7 or later.
+5. The rewrite read "one row per environment variable" as "one row per script variable" (13 rows). `prompts/reports.md` could say that values a script computes or sets itself are not inputs.
+6. Next: Phase 7 starts with M6-44, because 41 rows are `dossier wrong`. These are fixes to the `RW` reports in `$SCR` (writing omissions), not to code. Then it reruns block T.
 
 ---
 
