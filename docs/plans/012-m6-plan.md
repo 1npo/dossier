@@ -943,6 +943,28 @@ Commit on `feat/dossier-m6`. Do not merge. Write "Results (Phase 5)" and commit:
 
 ### Results (Phase 5)
 
+Done 2026-11-09 by Sonnet on `feat/dossier-m6`; M6-34 to M6-41 all done, nothing cut (M6-40 included). Not merged.
+
+**Suites.** Start: default 2878 passed, 304 skipped. End: default **2897 passed, 304 skipped**; slow (`--basetemp=$HOME/.cache/dossier-m6-slow`, removed afterwards) **3 failed, 3197 passed, 1 skipped in 47 min 30 s**, the three known failures only. A fresh clone of the branch (before M6-37) gave 2887 passed, 305 skipped, 1 xfailed, as the developer guide's getting-started section was run.
+
+**Commits.** `1ada3de` M6-34, `e83a441` M6-35, `36d08d8` M6-36, `051edc0` M6-37, `a7ac5eb` M6-38, `0784676` M6-39, `99aace5` M6-40, `1a1a1a1` M6-41.
+
+**Decisions recorded.**
+- **README screenshot.** The page's synthetic report 05 says "This report has not been written yet" and shows 1228 red errors, so `docs/images/dossier.png` is a crop of the Component map card only (light theme, 1500 px), and the README says the picture is a made-up test page. The installed Playwright wanted Chromium build 1254 and only 1223 was present; I launched the existing 1223 headless shell by path and installed nothing.
+- **Node rule.** D16's "not 23 or 25" is not in the code (`tools.json` sets minimums only, and `doctor` accepted Node 26.13), so neither guide states it. Plan text error.
+- **`NOT_IN_BUILD_HINT`.** `test_docs.py` exempts `--chunk-tokens` and `--restore` from the `build` hint (Claude passes or answers them). Judgement call.
+- **Docs the old README held** (code panel keys, tables, contributor map, update rules, calendars, history) moved into the user guide; the version history was dropped.
+- **`/` key** for search is documented from the sidebar hint, not from a test.
+- **M6-40.** `as_of` 2026-11-05 to 2026-11-09; one cycle changed, nextjs 16 latest 16.4.5 to 16.4.6. `.NET` unchanged.
+- **M6-41.** The test is a new file, `tests/unit/scripts/test_update_plan.py`, because no test called `update_plan`. It failed first (`incremental`).
+- **post-v1.md.** Removed the Python subfolders entry and P4-3; added eight "left out of 1.0.0" items, including the verifier-verdict key finding from Phase 4.
+
+**Not checked.** Anchors are checked by a script run once, not by a test (the README link test checks files only). The Block E report 02 guard was not run: Phase 5 edited no render code.
+
+**Findings for the milestone review.**
+- The slow-suite watcher I started used `pgrep -f` on a string in its own command line, so it never exited; the suite had finished long before. Killed by hand.
+- `README.md` no longer carries a version history; nothing else does either (git log only).
+
 ---
 
 ## Phase 6: Python golden, JS run and the C# repository against its ground truth
