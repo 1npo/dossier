@@ -26,7 +26,7 @@ Inside Claude Code:
 
 Requires Claude Code, [uv](https://docs.astral.sh/uv/) and `git`.
 
-- Node 22.13 or later for TypeScript and JavaScript repositories (16 or later for Python alone; not 23 or 25).
+- Node 22.13 or later for TypeScript and JavaScript repositories (16 or later for Python alone).
 - The .NET SDK named by the repository's `global.json` (8 or later when there is none) for C# repositories.
 - Playwright's Chromium for `/dossier check`: `uv run --with playwright python -m playwright install chromium`.
 - `gh` is optional; it adds pull request approvals to the Contributors report.

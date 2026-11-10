@@ -884,7 +884,7 @@ Read section 2, D13, D16, D17 and "Results" of Phases 1 to 4. Load the skills in
   - Done-check: `... pytest tests/unit/scripts/test_docs.py -q` passes its README cases.
   - Commit: `docs(dossier): rewrite the README for 1.0.0`
 
-- [ ] **M6-36. The user guide.**
+- [x] **M6-36. The user guide.**
   - Files: new `docs/user-guide.md`, `tests/unit/scripts/test_docs.py`.
   - Steps: D16's user guide, with a table of contents. The reference section lists every command and flag (D13 test 1).
   - Done-check: the docs test passes its user-guide cases.

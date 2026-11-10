@@ -24,7 +24,7 @@ CHECKED_FILES = [
     "docs/user-guide.md",
     "docs/developer-guide.md",
 ]
-PENDING_FILES = {"docs/user-guide.md", "docs/developer-guide.md"}
+PENDING_FILES = {"docs/developer-guide.md"}
 # Flags the user never types: Claude passes them or answers them through a question.
 NOT_IN_BUILD_HINT = {"--chunk-tokens", "--restore"}
 
@@ -48,7 +48,6 @@ def hint_commands() -> list:
 
 
 class TestUserGuideNamesTheCli:
-    @pytest.mark.xfail(strict=True, reason=PENDING)
     def test_every_subcommand_and_option_appears(self):
         guide = read("docs/user-guide.md")
         missing = []
