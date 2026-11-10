@@ -1151,7 +1151,7 @@ Read section 2, section 7 and "Results" of Phases 1 to 6a. Load the skills in se
   - Done-check: block T holds M5's figures.
   - Commit: one per fix, then `docs(dossier): record the M6 ground truth fixes`.
 
-- [ ] **M6-45. Blocks R, M, Y, TB and BS.**
+- [x] **M6-45. Blocks R, M, Y, TB and BS.** (BS lacks `CA`: it is built in M6-47)
   - Goal: the TS/React repository, the smallest mixed repository, every library's public API, the Tier B page, the blind-spot counts.
   - Done-check: results recorded.
   - Commit: `docs(dossier): record the M6 React, mixed and library checks`
@@ -1196,6 +1196,24 @@ Do not merge. Commit results: `docs(dossier): record phase 7 of M6 in plan 012`.
 - **Block T after M6-44** (`$SCR/truth-m6/review3.md`): entry points recall 98% (53 of 54), precision 100%; inputs 99% (88 of 89); outputs 93% (95 of 102). These are the projected figures of Phase 6a and hold M5's bars (96%, 94%, 91%). Both `truth-ok` lines printed.
 - **Disagreements.** 43 keys: 1 missed entry point, 1 missed input, 7 missed outputs, 17 unmatched inputs, 18 unmatched outputs. Every key is one Phase 6a ruled `no error`, except one: the `files read` row for the submodule pin, which M6-44 reworded (it is now correct by the code; it is still not in the truth). Against `$TRUTH/review-5b.md` only 1 key is shared, because the rewrite changed the row text; so "M5's 16 plus the 9" cannot be checked key by key, only by the rulings. **No new disagreement outside the rulings, so no Phase 6a rerun.**
 - **For the author.** The reworded submodule-pin row (above) is the one key without a ruling: it is the corrected form of U22 and I treated it as `no error`; say if you want it ruled.
+
+**M6-45 (2026-11-10, Sonnet 5.5).** Blocks Y, M, TB, R and BS run. Two fixes came out of them, each in its own commit. The reports of `BP`, M and TB are written by generators (`$SCR/gen/synth.py`, never committed): one row per tool finding, `na` where there is none. They test the build, render and check, not the prose.
+
+- **Block Y.** All four `prepare --full --no-restore` exit 0. `TO`: 3 items, `tomli` holds `loads`, `load`, `TOMLDecodeError` (in `src/tomli/_parser.py`), audience `listed in __all__, typed`, no `tomli._` path, no `__version__`; the nested `benchmark/`, `fuzzer/`, `profiler/` and `scripts/` add no module items and no rows. `MI`: 352 items: `more_itertools` 176 (`public by name, typed, has a stub`), `more_itertools.more` 120 and `more_itertools.recipes` 56 (both `listed in __all__, typed, has a stub`); `chunked` is from `more.py`, `flatten` from `recipes.py`; no `__version__`. `GC` 33 (31 `packable`, 2 `packable, obsolete`). `ZU` 64, all `marked private`.
+- **Block M.** `prepare --no-restore` exit 0; `js`, `python`, `repo` ok; grimp ok, no `partial` badge. **Finding 1 (fixed, `0b97e85`):** the first run dropped 3 paths as unexpected (`src/shopcart/cli.py`, `core.py`, `store.py`): `_lift` made only the `path` of a scip-python `ref-edge` repository-relative, not its `paths`, so every ref-edge target in a nested project was lost. A unit test failed first. After the fix: 266 paths seen, 0 dropped. `render` exit 0 and no `error:`, `check` `problems: 0`. `entry.catalog` and `interactions.graph` hold rows from `backend/` and `frontend/`; 8 `nograph` badges (Shell). One `igraph-data` block: the two components have no edge between them, so the component map draws no graph.
+- **Block TB.** The M6-8 slow test passes. The built page (`PYFIX` plus `native/lib.rs`, `tools/run.sh`): `problems: 0`, 8 `nograph` badges, tip `Shell (2 files), Rust (1 file)`, Gaps lists Rust and Shell once each with the unchanged wording.
+- **Block R (`BP`).** `prepare --full --restore yes` exit 0: yarn restores `ok` for `apps/nextjs-app` (54.3 s), `apps/nextjs-pages` (18.0 s), `apps/react-vite` (23.4 s); `js` tools all `ok`; extract 65 s, 9,412 paths, 0 dropped. Entry points: 36 `package-script`, 28 `http-route` (with `[discussionId]` for both Next apps), 11 `ui-route`, 6 `server-listen`. **Hand count of `apps/react-vite` routes: 10** (the `router.tsx` entries), M4's figure. The tool has 11: the 11th is `src/testing/test-utils.tsx:66`, `createMemoryRouter([{ path: path, ... }])` in a test helper, shown as `path`. Not fixed; a report should dismiss it. `render` exit 0, no `error:`; the React table `t-interactions-graph-react` is present; `No package here declares a public API.` once, no `t-io-contracts-api` table; no `nograph` badge (no Shell); `Freshness` tile present. One `igraph-data` block with 49 views (the three apps have no edge between them, so no component-map graph; the "2" of block H holds for `RW`). **Finding 2 (fixed, `51f3a68`):** `check` failed with 3 problems. The last commit of `BP` is 2026-05-14, so its 12 month hotspot table filters out every row, and the check opened the first citation of `change`, which sat in a hidden row (30 s timeout, then "Go to reference ... not into view"). The page is right; the check now skips hidden citations and prefers written cards. Afterwards `check` `problems: 0` (4 diagrams). Not read: the shots of reports 04, 05, 06 (the reports are generated).
+- **Block BS** (`Counter((adapter, pattern))`; `CA` is built in M6-47):
+
+| Dossier | Counts |
+|---|---|
+| `RW` (95) | csharp: mediator-handler 23, di-resolution 21, reflection 13, source-generator 9, di-registration 9, partial-class 6, codegen 6, route-convention 4, mvc-filter 2, di-scan 2 |
+| `BP` (150) | js: barrel-reexport 74, hook-wiring 48, string-route 16, react-context 12 |
+| golden side b (79) | python: pytest-fixtures 74, getattr-dispatch 2, computed-subcommand 1; repo: codegen 2 |
+| block M (7) | js: react-context 2, hook-wiring 1; python: dynamic-import 1, getattr-dispatch 1, decorator-registry 1, pytest-fixtures 1 |
+| TB (4) | python: dynamic-import 1, getattr-dispatch 1, decorator-registry 1, pytest-fixtures 1 |
+
+- **For the author.** `string-route` and `barrel-reexport` appear for `BP` only; `RW` has no `source-generator` row of 2 as in plan 011's notes but 9. The unit suite passes (2,792 + 1 test).
 
 ### Verification results (Phase 7)
 
