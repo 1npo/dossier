@@ -915,7 +915,7 @@ Read section 2, D13, D16, D17 and "Results" of Phases 1 to 4. Load the skills in
   - Done-check: `... pytest tests/unit/scripts/test_measured_upgrade.py -q` passes.
   - Commit: `chore(dossier): refresh the end-of-life snapshot`
 
-- [ ] **M6-41. Version 1.0.0.**
+- [x] **M6-41. Version 1.0.0.**
   - Files: `VERSION`, `tests/unit/scripts/test_incremental.py` or the test that covers `update_plan` (one case).
   - Steps: (1) Test: a state saved by `0.10.0` gives `mode` `full` with `the skill changed from 0.10.0 to 1.0.0`. (2) `VERSION` to `1.0.0`. (3) Full and slow suites.
   - Done-check: `cat VERSION` prints `1.0.0`; the suites pass, except the three known failures.
