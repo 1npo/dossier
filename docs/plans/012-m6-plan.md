@@ -981,7 +981,7 @@ Read section 2, section 7 and "Results" of Phases 1 to 5. Load the skills in sec
   - Done-check: results recorded under "Verification results (Phase 6)".
   - Commit: `docs(dossier): record the M6 golden and JS checks`
 
-- [ ] **M6-43. Blocks B, C, D, F, G, H, L, T, J for `RW`, then I.**
+- [~] **M6-43. Blocks B, C, D, F, G, H, L, T, J for `RW`, then I.** (all run; block T below M5's figures, see the results)
   - Goal: the C# repository against the kept truth.
   - Steps: as section 7. Block T's result must hold M5's: entry points recall at least 96% and precision 100%, inputs at least 94%, outputs at least 91%, and every disagreement one of M5's 16 (ruled `no error`). **A new disagreement is recorded, not fixed and not judged:** Phase 6a rules on it.
   - Done-check: every block's result is recorded.
@@ -1010,6 +1010,40 @@ Nothing is cut. If block D cannot finish, stop at a saved state and say which re
 Do not merge. Commit results: `docs(dossier): record phase 6 of M6 in plan 012`.
 
 ### Results (Phase 6)
+
+**M6-43 (2026-11-10, Sonnet 5.5).**
+
+- Block A (`doctor` on `RW`): exit 0. `Languages:` lists C# (full) and Shell, Dockerfile, Makefile, PowerShell as `(Tier B: no static graph)`. `skill: bf514c1 (clean)`.
+- Block B (`prepare --full --restore yes`): exit 0, 50 s. Three nuget restores `ok`. `build.json` pin record: `freshness` `Up to date`, `compared_with` `origin/master`, `source` `remote`, `behind` 0. Counts: `entry_points` csharp 27 / repo 18, symbols 873 (as plan 011), `io_candidates` csharp 137 / repo 5, M6-4 `dropped_edges` 0. Plan 011's "repo 12" predates M5-33: the base commit also gives 18 (6 `ci-trigger`, 2 `ci-schedule`, 8 `make-target`, 1 `container`, 1 `shebang-script`), so C# `ci-trigger` is unchanged, as D18 says. New in M6: 5 `env-var` items (Dockerfile `Database__Provider`, `ConnectionStrings__Conduit`; compose `Jwt__SigningKey`, `Database__Provider`, `ConnectionStrings__Conduit`).
+- Block C: no finding looked wrong. The decisions in block D were made against these lists.
+- Block D (reports written by Claude, generators in `$SCR/gen`, never committed; `$TRUTH/rw.json` was not read while writing): 14 reports. Every `candidates --open` printed nothing. Components: 17 in the catalog, 0 files unassigned.
+- Block F (`render`): first run exit 1 with 9 errors (7 citation ranges past the end of the file, 2 `interactions.flows` notes, 7 `md-` group ids), after one fix round exit 0, no `error:` line. 44 warnings (34 V2, 8 V3, 1 V5, 1 V9 info), none blocking.
+- Block G (`check`): `problems: 0` (7 diagrams). Shots read: the component-map root view shows five areas (`Conduit`, `Conduit.IntegrationTests`, `build`, `scripts`, `unassigned`) and no links; the interactions root view shows one box. Both are right for the data (see finding 1).
+- Block H: 8 `badge nograph` (tip `No import or call graph was made for Shell (4 files), PowerShell (1 file)`), 2 `igraph-data` blocks (components.map 8 views, interactions.graph 20 views), `Freshness` tile present (`Up to date`, `with origin/master, checked 2026-11-10 14:46 UTC`), summary gaps unknown 1, inference 112, assumption 1, coverage 56. Page 10.8 MB.
+- Block L: `No package here declares a public API.` once, no `t-io-contracts-api` table.
+- Block J: `incremental`, stale `contributors`, `gaps`, `overview` (the new commit), 11 fresh. `entry`, `data`, `interactions`, `components` not stale.
+- Block I, default suite: **2897 passed, 304 skipped** (72 s).
+
+**Block T: below M5's figures, and not blind any more.** Measured on the first pass of the reports (written before anything was scored): entry points recall 78% (42 matched, 12 missed), precision 100%; inputs recall 26% (23 of 89); outputs recall 20% (20 of 102). M5 held 96%, 100%, 94% and 91%. The truth hash was unchanged before and after.
+
+Why: the truth lists every item at line level (each script variable, each status code, each `rm`, each `/api/...` route prefix, each Dockerfile path). The scorer matches a truth key as text inside a dossier row, so a row that merges items, or names an item only through a citation label, misses it. My block D reports followed `method.md`'s "one row per environment variable" only for the findings the tools gave me. I merged the rest into a few rows (for example one row for all the `ServicesExtensions` settings, one row for all 19 routes' responses). This is a writing-grain gap, not a code change: block P/JS/E, the candidates and the pipeline behave as in M5.
+
+I did not rewrite the rows to chase the figures. I did read the first 60 lines of the entry points and inputs misses and the first 45 lines of the outputs misses in my own `$SCR/truth-m6/review.md` (tool output), to understand why the figures were low. So about 100 of the 190 truth keys are now known to this session, and **a second pass by this session would not be a blind re-score.** The 12 entry-point misses are the host and build `Program.cs` by path, two Swagger routes, the compose service `conduit`, three scripts, `build.ps1`, the IIS Express launch profile and the two migration context factories. None of the 66 + 82 input and output misses is in the tool candidates; they are rows a writer adds by hand.
+
+Decision needed from the author (Phase 6a was meant for new disagreements, but these are 190 misses, not disagreements about a rule): (a) accept the figures as the cost of a one-pass writer and move on; or (b) have a fresh session rewrite `entry`, `io.inputs` and `io.outputs` of the `RW` dossier row by row, from the code and `facts:env_vars` only, and **without opening `review.md`**, then rescore. I recommend (b), in Phase 6a or at the start of Phase 7, because item 3 of the definition of done uses these figures.
+
+**Findings for the milestone review**
+
+1. The component-map root view shows no links between areas and the interactions root view is one box. The extract has 236 `import` items, all inside `src/Conduit`, and one `project-reference` item (tests to `Conduit`) that the root view does not draw. The data is as extracted; a reader may expect an arrow from the tests to `Conduit`. A card-level hint or drawing project references in the root view is a candidate change.
+2. The `unassigned` area node in the component map holds root files (the Makefile and Dockerfile are in a component by my catalog, but the area map groups by folder). A reader may not understand `unassigned` there.
+3. `check_layout.py` waited 20 s for diagrams. The golden's `data` report has 13 ER diagrams and needs about 20.4 s on this machine, on the base commit too. Raised to 90 s (commit `fix(dossier): wait up to 90 s for diagrams in the layout check`); no verdict changed.
+4. The `repo` adapter now writes an empty `io_candidates` section when it finds no Dockerfile or compose variables. Harmless, and D18 lists the case as "none".
+5. `build.sh` points at `Build/Build.csproj`, which does not exist on case-sensitive file systems (recorded in the `RW` reports as inferred).
+
+**Deviations**
+
+- M6-42's block A was run with M6-43 (above).
+- The slow suite was started after the results were written; its result is in "Verification results (Phase 6)".
 
 - Started 2026-11-10, branch `feat/dossier-m6`, Sonnet 5.5. Pre-flight ok: `VERSION` 1.0.0, 680 GB free, truth hash matches.
 - `SCR=/home/nick/.cache/dossier-m6-g4vm`
