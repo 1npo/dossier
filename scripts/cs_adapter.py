@@ -181,8 +181,8 @@ class CSharpAdapter(Adapter):
 
     @staticmethod
     def _run_targets(ctx, scip, targets) -> tuple:
-        """(decoded indexes, problems, msbuild notes). One failing target does not stop the others."""
-        indexes, problems, notes = [], [], []
+        """(decoded indexes, problems, msbuild notes, project files that did not load). One failing target does not stop the others."""
+        indexes, problems, notes, unloaded = [], [], [], set()
         for n, target in enumerate(targets):
             try:
                 path, code, log = scip.index(ctx.checkout, target, ctx.area, n)
@@ -194,11 +194,12 @@ class CSharpAdapter(Adapter):
             except Exception as e:  # a bad index must not stop the other targets
                 problems.append((str(e).splitlines() or [type(e).__name__])[0])
                 continue
+            unloaded |= cs_scip.unloaded_projects(log, ctx.checkout)
             soft = cs_scip.soft_failure(log)
             if soft:
                 problems.append(f"scip-dotnet could not load every project: {soft}")
                 notes.append({"kind": "cs-note", "path": target, "note": "msbuild", "name": soft})
-        return indexes, problems, notes
+        return indexes, problems, notes, unloaded
 
     def _scip(self, ctx, out, result, st, gate) -> None:
         """Symbols and references with scip-dotnet, or the tree-sitter fallback when it could not run or gave nothing (D11)."""
@@ -210,7 +211,7 @@ class CSharpAdapter(Adapter):
         scip, problem = self._install(ctx, config.timeouts()["tool"])
         if problem:
             return self._fallback(out, st, problem[1], ctx, problem[0])
-        indexes, problems, notes = self._run_targets(ctx, scip, result["targets"])
+        indexes, problems, notes, unloaded = self._run_targets(ctx, scip, result["targets"])
         out["graph"] += notes
         index = cs_scip.join(indexes, ctx.tree)
         if not index["documents"]:
@@ -231,7 +232,7 @@ class CSharpAdapter(Adapter):
             ctx.tool_status["scip-dotnet"] = {"status": "failed", "reason": problems[0]}
             return
         ctx.tool_status["scip-dotnet"] = {"status": "ok", "reason": None}
-        dead = cs_scip.dead_items(out["symbols"], decls, out["entry_points"], out["models"], out["blindspots"], st.get("generated", set()), st.get("tests", set()))
+        dead = cs_scip.dead_items(out["symbols"], decls, out["entry_points"], out["models"], out["blindspots"], st.get("generated", set()), st.get("tests", set()), unloaded)
         out["dead"] += dead
         if dead:
             out["graph"].append({"kind": "cs-note", "path": dead[0]["path"], "note": "dead", "name": str(len(dead))})

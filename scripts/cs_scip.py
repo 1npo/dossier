@@ -5,6 +5,7 @@ which checks a pinned SHA-512 before anything is unpacked. Nothing from the pack
 """
 import base64
 import hashlib
+import re
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -120,6 +121,17 @@ def soft_failure(log: str) -> str | None:
         if line.startswith("Failure:"):
             return line[len("Failure:"):].strip()
     return None
+
+
+def unloaded_projects(log: str, checkout) -> set:
+    """Project files (relative to the checkout) that MSBuild could not load, from `Msbuild failed when processing the file '<path>'`.
+
+    scip-dotnet logs these after a timestamp and a level, so they are not `Failure:` lines at the start; the run still gives an index for the rest."""
+    root = str(checkout).rstrip("/") + "/"
+    found = set()
+    for m in re.finditer(r"Msbuild failed when processing the file '([^']+)'", log):
+        found.add(m.group(1)[len(root):] if m.group(1).startswith(root) else m.group(1))
+    return found
 
 
 def failure(returncode, log: str, index_path) -> str | None:
@@ -250,10 +262,12 @@ def drop_unrelated(items: list, projects: list, project_of: dict) -> tuple:
     return kept, dropped
 
 
-def dead_items(symbols: list, decls: dict, entries: list, models: list, blindspots: list, generated, test_files) -> list:
+def dead_items(symbols: list, decls: dict, entries: list, models: list, blindspots: list, generated, test_files, unloaded=()) -> list:
     """`dead` items for internal types that no other file references (D17). Run only when scip-dotnet gave an index.
 
-    `refs` counts uses from other files, so a name used again inside its own file also keeps a type off the list."""
+    `refs` counts uses from other files, so a name used again inside its own file also keeps a type off the list.
+    `unloaded` holds project files the indexer could not load: calls made from there never resolved, so a type in them cannot be called dead."""
+    skip = tuple(u.rsplit("/", 1)[0] + "/" if "/" in u else "" for u in unloaded)
     defs = {(s["path"], s["name"]): s for s in symbols if s["kind"] == "def" and s["symbol"].endswith("#")}
     used_members = [(s["path"], s["line"]) for s in symbols if s["kind"] == "def" and not s["symbol"].endswith("#") and s["refs"]]
     dynamic = {b["path"] for b in blindspots if b.get("pattern") in DYNAMIC_USE}
@@ -262,6 +276,8 @@ def dead_items(symbols: list, decls: dict, entries: list, models: list, blindspo
     rows = []
     for path, d in sorted(decls.items()):
         if path in generated or path in test_files or path in dynamic:
+            continue
+        if skip and any(path.startswith(k) for k in skip):  # the project did not load, so its references are missing
             continue
         for t in d["types"]:
             found = defs.get((path, t["name"]))
