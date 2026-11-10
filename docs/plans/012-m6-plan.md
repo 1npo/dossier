@@ -908,7 +908,7 @@ Read section 2, D13, D16, D17 and "Results" of Phases 1 to 4. Load the skills in
   - Done-check: `git diff --stat` shows the three files; `head -3 LICENSE` names MIT, 2026 and `Nick OMalley <nickpeteromalley@gmail.com>`; the docs test passes.
   - Commit: `docs(dossier): update the after-1.0 list, the session count and add the licence`
 
-- [ ] **M6-40. Refresh the end-of-life snapshot.**
+- [x] **M6-40. Refresh the end-of-life snapshot.**
   - Goal: D17; cut item 1 in D20.
   - Files: `scripts/eol.json`, `tests/unit/scripts/test_measured_upgrade.py` (only where a test pins a value that moved).
   - Steps: run `tests/tools/refresh_eol.py` as its docstring says; record `as_of` before and after and every changed cycle in "Results".
