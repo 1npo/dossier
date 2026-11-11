@@ -105,7 +105,7 @@ def risk_pills(risks: dict) -> str:
 def card(e: dict) -> str:
     open_n = e["open_inferences"] + e["open_unknowns"]
     stale = '<span class="badge" data-variant="secondary" title="Built by an older version of the skill. Build again to refresh it.">older skill</span>' if e["outdated"] else ""
-    commit = f'<div class="chips">{render.joined_pill(e["branch"], e["sha"], e["commit_date"][:10])}</div>' if e["sha"] else ""
+    commit = f'<div class="chips"><span class="badge" data-variant="outline">{E(e["branch"])}</span><span class="badge" data-variant="outline">{E(e["sha"])}</span></div>' if e["sha"] else ""
     change = f'<p class="muted change">{E(e["change"])}</p>' if e["change"] and e["builds"] > 1 else ""
     stats = (f'<dl class="dstats"><div><dt>Components</dt><dd>{e["components"]}</dd></div>'
              f'<div><dt>Entry points</dt><dd>{e["entry_points"]}</dd></div>'

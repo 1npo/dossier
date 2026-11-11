@@ -170,14 +170,14 @@ class TestTile:
                 "checked_at": "2026-11-09 10:00", "reason": None} | kw
 
     def test_up_to_date(self):
-        assert render.freshness_tile(self.rec(remote_sha=SHA)) == ("Freshness", "Up to date", "with origin/main, checked 2026-11-09 10:00 UTC")
+        assert render.freshness_tile(self.rec(remote_sha=SHA)) == ("Freshness", "Up to date", f"with origin/main, checked {render.local_stamp('2026-11-09 10:00')}")
 
     def test_up_to_date_from_the_last_fetch(self):
         assert render.freshness_tile(self.rec(remote_sha=SHA, source="tracking", checked_at="2026-11-01"))[2] == "with origin/main, as of the last fetch on 2026-11-01"
         assert render.freshness_tile(self.rec(remote_sha=SHA, source="tracking", checked_at=None))[2] == "with origin/main, as of the last fetch"
 
     def test_behind(self):
-        assert render.freshness_tile(self.rec(behind=3)) == ("Freshness", "3 commits behind", f"origin/main is at {NEW[:7]}, checked 2026-11-09 10:00 UTC")
+        assert render.freshness_tile(self.rec(behind=3)) == ("Freshness", "3 commits behind", f"origin/main is at {NEW[:7]}, checked {render.local_stamp('2026-11-09 10:00')}")
         assert render.freshness_tile(self.rec(behind=1))[1] == "1 commit behind"
 
     def test_ahead_only(self):

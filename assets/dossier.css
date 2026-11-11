@@ -671,5 +671,9 @@ table.happened { width: 100%; border-collapse: collapse; font-size: .8125rem; }
 .side-link { display: flex; align-items: center; gap: .5rem; margin: 0 .5rem .5rem; padding: .4rem .5rem; border-radius: var(--radius-md, .375rem); font-size: .875rem; color: var(--foreground); text-decoration: none; }
 .side-link:hover { background: var(--accent); }
 .side-link kbd { margin-left: auto; }
+/* the three key hints in the sidebar (b, / and h) share one box and one right edge, 1.5rem in from the sidebar's edge */
+#rail-toggle kbd, .search kbd, .side-link kbd { box-sizing: border-box; display: inline-block; min-width: 1.5rem; height: 1.25rem; line-height: calc(1.25rem - 2px); padding: 0 .35rem; text-align: center; font-family: var(--font-mono, ui-monospace, Menlo, Consolas, monospace); font-size: .6875rem; border: 1px solid var(--border); border-radius: .3rem; background: var(--muted); color: var(--muted-foreground); }
+html:not(.rail) #rail-toggle { padding-right: .5rem; }
+.search kbd { right: .5rem; }
 html.rail .side-link { justify-content: center; margin: 0 0 .5rem; }
 :root { --dossier-css-end: 1; }

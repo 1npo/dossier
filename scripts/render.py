@@ -464,10 +464,20 @@ FAVICON_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill
 FAVICON = '<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,' + urllib.parse.quote(FAVICON_SVG, safe="/:=,;()") + '">'
 
 
-def joined_pill(*parts):
-    """One outline pill holding several facts, separated by bullets."""
-    text = " \u2022 ".join(E(str(x)) for x in parts if x)
-    return f'<span class="badge" data-variant="outline">{text}</span>'
+def local_dt(stamp):
+    """A UTC stamp (`2026-11-11T17:33:06Z` or `2026-11-11 17:33`) as an aware datetime in the machine's local time zone, or None."""
+    for fmt in ("%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M:%S"):
+        try:
+            return datetime.strptime(str(stamp)[:19 if "T" in fmt else 16], fmt).replace(tzinfo=timezone.utc).astimezone()
+        except ValueError:
+            continue
+    return None
+
+
+def local_stamp(stamp):
+    """`2026-11-11 12:33 PM` in local time. A stamp that cannot be read is returned unchanged."""
+    dt = local_dt(stamp)
+    return dt.strftime("%Y-%m-%d %I:%M %p") if dt else str(stamp)
 
 
 def badge(label, cls="", variant="outline"):
@@ -1146,7 +1156,7 @@ def freshness_tile(rec):
     if not known:
         return label, "Not known", rec.get("reason") or "It could not be worked out."
     where, short = rec.get("compared_with") or "the remote", rec["remote_sha"][:7]
-    when = (f"checked {rec['checked_at']} UTC" if rec.get("checked_at") else "checked just now") if rec["source"] == "remote" else (
+    when = (f"checked {local_stamp(rec['checked_at'])}" if rec.get("checked_at") else "checked just now") if rec["source"] == "remote" else (
         f"as of the last fetch on {rec['checked_at']}" if rec.get("checked_at") else "as of the last fetch")
     if rec.get("ref_kind") == "tag":
         name = where.split(" ", 1)[-1]
@@ -1694,7 +1704,7 @@ def panel_corrections(state, refs, present=frozenset()):
 
 def panel_history(entries, refs):
     def num(n): return f'<span class="num">{n}</span>'
-    rows = [[f'<span class="nw">{E(h["date"][:10])}</span><div class="muted">{E(h["date"][11:16])} UTC</div>', f'<span class="nw"><code>{E(h["short"])}</code></span>', E(h.get("branch") or h.get("ref") or ""),
+    rows = [[f'<span class="nw">{E(local_stamp(h["date"])[:10])}</span><div class="muted">{E(local_stamp(h["date"])[11:])}</div>', f'<span class="nw"><code>{E(h["short"])}</code></span>', E(h.get("branch") or h.get("ref") or ""),
              E(h["summary"]) + (f'<div class="muted">{E(h["note"])}</div>' if h.get("note") else ""),
              num(h["gaps"]["unknown"]), num(h["gaps"]["inference"]), num(h["gaps"]["assumption"]), f'<span class="nw">{E(h["skill_version"])}</span>', refs.mark(["commit:" + h["sha"]])] for h in reversed(entries)]
     return card("Dossier changelog", render_table(["Built", "Commit", "Branch", "What changed", "Unknown", "Inferred", "Assumed", "Skill version", "Source"], rows, refs, "t-hist", False, True,
@@ -2002,7 +2012,7 @@ def render_html(facts, reports, state, history, version, cites, build=None, cove
     if coverage is None:
         coverage = process.coverage_items(build) if build else ()
     gaps = collect_gaps(reports, coverage)
-    built = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    built = datetime.now().astimezone().strftime("%Y-%m-%d %I:%M %p")
     fed = {c: len(v) for rid, _, _ in REPORTS for c, v in candidates.for_report(rid, extract or {}).items()}
     ctx = {"cites": cites, "gaps": gaps, "history": history, "built": built, "version": version, "build": build,
            "extract": extract or {}, "fed": fed, "checks": checks or {},
@@ -2033,7 +2043,7 @@ def render_html(facts, reports, state, history, version, cites, build=None, cove
     head = (f'<header class="masthead"><div class="masthead-inner"><div class="mh-row">'
             f'<button class="btn" data-variant="outline" data-size="sm" id="menu-toggle" type="button">Menu</button>'
             f'<h1>{E(mh["name"])}</h1>{source}'
-            f'<span class="chips">{joined_pill(mh["ref"], mh["short"], mh["date"])}{badge("Last built " + built, "", "outline")}{open_pills(reports)}</span>'
+            f'<span class="chips">{badge(mh["ref"], "", "outline")}{badge("commit " + mh["short"], "", "outline")}{badge(mh["date"], "", "outline")}{badge("Last built " + built, "", "outline")}{open_pills(reports)}</span>'
             '</div>'
             f'<div class="mh-row2"><p class="lede" title="{E(mh["description"])}">{E(mh["description"][:300])}</p></div></div>'
             '</header>')
