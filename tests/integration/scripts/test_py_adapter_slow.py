@@ -55,7 +55,7 @@ class TestFixtureOfRecord:
     def test_extract_succeeds_with_every_tool_ok(self, ex):
         adapters = {a["name"]: a for a in ex.record["details"]["adapters"]}
 
-        assert ex.record["status"] == "ok" and set(adapters) == {"python", "repo"}
+        assert ex.record["status"] == "ok" and set(adapters) == {"python", "repo", "tier-b"}
         assert {t: s["status"] for a in adapters.values() for t, s in a["tools"].items()} == {
             "grimp": "ok", "tree-sitter-language-pack": "ok", "semgrep": "ok", "vulture": "ok", "scip-python": "ok"}
 

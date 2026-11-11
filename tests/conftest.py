@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 import render  # noqa: E402
 
+os.environ["DOSSIER_OFFLINE"] = "1"  # no test reaches the network for reference data
 SHA = "a" * 40
 collect_ignore_glob = ["fixtures/*"]
 PYFIX = Path(__file__).resolve().parent / "fixtures" / "pyrepo"

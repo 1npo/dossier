@@ -274,7 +274,7 @@ class TestRegistration:
     def test_both_adapters_are_registered_and_the_repo_one_matches_any_language(self):
         names = [type(a).__name__ for a in adapters.detect(["Shell"])]
 
-        assert names == ["RepoAdapter"]
+        assert names == ["RepoAdapter", "TierBAdapter"]
 
     def test_python_matches_python(self):
         assert [type(a).__name__ for a in adapters.detect(["Python"])] == ["PythonAdapter", "RepoAdapter"]

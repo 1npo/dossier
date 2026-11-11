@@ -6,12 +6,15 @@ The snapshot is `scripts/eol.json`, refreshed by hand with tests/tools/refresh_e
 from __future__ import annotations
 
 import json
+import os
 import re
+import urllib.request
 from pathlib import Path
 
 import measured_change
 
 SNAPSHOT = Path(__file__).resolve().parent / "eol.json"
+DOTNET_INDEX = "https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/releases-index.json"
 PACKAGE_PRODUCTS = {"django": "django", "react": "react", "next": "nextjs"}
 
 
@@ -23,6 +26,42 @@ def _render():
 
 def load_snapshot() -> dict:
     return json.loads(SNAPSHOT.read_text(encoding="utf-8"))
+
+
+def dotnet_cycles_from_index(index) -> list:
+    """The snapshot's `dotnet` shape from Microsoft's releases-index.json: cycle `10` for channel `10.0` (`3.1` stays), newest first."""
+    out = []
+    for r in (index or {}).get("releases-index") or []:
+        channel = str(r.get("channel-version") or "")
+        m = re.fullmatch(r"(\d+)\.(\d+)", channel)
+        if not m or not r.get("latest-release"):
+            continue
+        cycle = m.group(1) if m.group(2) == "0" and int(m.group(1)) >= 5 else channel
+        out.append({"cycle": cycle, "eol": r.get("eol-date") or None, "latest": r["latest-release"], "_k": (int(m.group(1)), int(m.group(2)))})
+    out.sort(key=lambda c: c["_k"], reverse=True)
+    for c in out:
+        del c["_k"]
+    return out
+
+
+def fetch_dotnet_index(timeout=5):
+    """Microsoft's releases-index.json parsed, or None with no network, a bad status or bad JSON. Off when DOSSIER_OFFLINE is set."""
+    if os.environ.get("DOSSIER_OFFLINE"):
+        return None
+    try:
+        with urllib.request.urlopen(DOTNET_INDEX, timeout=timeout) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def resolve_snapshot(fetch=None):
+    """(snapshot, note on where the .NET data came from). The live index replaces the snapshot's `dotnet` list when it parses to something."""
+    snap = load_snapshot()
+    cycles = dotnet_cycles_from_index((fetch or fetch_dotnet_index)())
+    if cycles:
+        return {**snap, "products": {**snap["products"], "dotnet": cycles}}, "from Microsoft's releases-index.json, fetched now"
+    return snap, f"from the offline snapshot of {snap['as_of']} (Microsoft's releases-index.json was not reachable)"
 
 
 def _cycle(text):
@@ -90,7 +129,7 @@ def _gap(cycles, cycle, today):
 
 def rows(ctx, snapshot=None):
     """[(name, pinned, latest, gap, source path or None)]."""
-    snap = snapshot or load_snapshot()
+    snap = snapshot or resolve_snapshot()[0]
     facts, read = ctx.get("facts") or {}, ctx.get("read")
     today = (facts.get("repo") or {}).get("commit_date") or snap["as_of"]
     out = []
@@ -135,9 +174,12 @@ def card(cid, ctx, refs):
     if not measured_change.has_history(ctx) and not (ctx.get("facts") or {}).get("manifests"):
         return None
     r = _render()
-    snap = load_snapshot()
-    caption = measured_change.foot_notes(f"Data as of {snap['as_of']}, from endoflife.date.")
+    snap, dotnet_note = resolve_snapshot()
     found = rows(ctx, snap)
+    text = f"Data as of {snap['as_of']}, from endoflife.date."
+    if any(r[0] == ".NET" for r in found):
+        text += f" .NET {dotnet_note}."
+    caption = measured_change.foot_notes(text)
     if not found:
         return measured_change.none_found("No runtime or package with end-of-life data was found.") + caption
     cells = [[r.E(n), r.E(p), r.E(l), r.E(g), r.source_cell(refs, (s, None)) if s else ""] for n, p, l, g, s in found]
