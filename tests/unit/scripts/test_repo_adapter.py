@@ -381,4 +381,4 @@ class TestTestCommand:
         assert not repo_adapter.TEST_COMMAND.search(command)
 
     def test_the_adapter_version_changed_with_the_variables_and_the_triggers(self):
-        assert repo_adapter.RepoAdapter.version == "6"
+        assert repo_adapter.RepoAdapter.version == "7"
