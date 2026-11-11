@@ -67,7 +67,6 @@ scripts/              the CLI and everything it imports (flat folder)
   candidates.py         the tool findings each report must keep, merge or dismiss
   render.py, measured*.py   draws the page; measured*.py draw the cards code writes
   checks*.py, page_audit.py, check_layout.py, check_page.py   the checks
-  graph_views.py        the views of the interactive graph cards
   verify.py             --verify sampling and recording
   sandbox.py            every child process goes through here
   tools.json            tool versions, scopes, minimum versions, install hints
@@ -124,8 +123,6 @@ tests/tools/          page builders and probes used by tests (m3_page.py ... m6_
 | V12 | A browser: diagrams draw, text is readable, nothing overlaps, the viewer works | `check_page.py`, `check_layout.py` |
 
 **Staleness.** `incremental.update_plan` compares the pinned commit with the last render and the skill's `major.minor` with the saved one. A new major or minor version plans a full rebuild.
-
-**Interactive graphs.** `graph_views.py` computes every view in Python (at most 12 nodes and 30 links each, folding the rest into group nodes) and `measured_graph.py` writes them into the two graph cards as JSON. `assets/dossier.js` only switches between views. Because every view is computed, every view is checked by unit tests and by the browser check.
 
 **Freshness.** `workarea.freshness` runs `git ls-remote` through `sandbox.run`, falls back to the remote-tracking branch, and `stage_pin` stores the result in the pin record of `build.json`. `render.py` draws it as the first tile of the `dossier.about` card.
 

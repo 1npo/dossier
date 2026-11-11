@@ -2,7 +2,7 @@
 
 A Claude Code skill that reads a git repository and builds one self-contained HTML page of short, cited reports on what the code does, how it is built and where the risks are. Counting and drawing are done by code; Claude reads and writes, and every claim is marked confirmed, inferred or unknown.
 
-![The component map card of a dossier, with its interactive graph above the component table](docs/images/dossier.png)
+![The component map card of a dossier, above its component table](docs/images/dossier.png)
 
 The picture is a made-up test page, not a real repository.
 

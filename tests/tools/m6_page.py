@@ -1,6 +1,6 @@
 """Build pages that hold what M6 adds, for the V11 and V12 tests (plan 012, M6-20 and M6-24).
 
-  make_small(tmp) -> Path to the rendered page: the M3 page plus a catalog of 15 components, so the graph cards have views
+  make_small(tmp) -> Path to the rendered page: the M3 page plus a catalog of 15 components, so the graph cards have more than a few rows
   make(tmp)       -> Path to the large page (D14): 60 components over 15 areas, 400 modules with 1,200 imports (group nodes and the
                      edge filter), a Shell and a Rust file (Tier B badges), a pin record with freshness (3 commits behind) and 40
                      Python `public-api` items from two packages, and three verifier Gaps items (a `verify` record whose three `not supported` verdicts name claims of the existing reports).
