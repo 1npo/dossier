@@ -123,11 +123,10 @@ EXTRA_CSS = """
 body { min-height: 100vh; }
 .wrap { max-width: 72rem; margin: 0 auto; padding: 0 2rem 4rem; }
 .top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.25rem 0; border-bottom: 1px solid var(--border); }
-.top .actions { display: flex; align-items: center; gap: .75rem; }
-.built-pill { font-size: .75rem; padding: .25rem .75rem; border: 1px solid var(--border); border-radius: 99px; color: var(--muted-foreground); background: var(--muted); white-space: nowrap; }
+.top .lead { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
 .hero { padding: 2rem 0 1rem; } .hero h1 { font-size: 1.75rem; }
-.summary { display: flex; flex-wrap: wrap; gap: .5rem 2rem; margin-top: 1rem; padding: .85rem 1.25rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); width: fit-content; max-width: 100%; }
-.summary div { display: flex; flex-direction: column; } .summary b { font-size: 1.5rem; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.summary { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
+.summary div { display: flex; flex-direction: column; padding: .6rem 1rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); } .summary b { font-size: 1.5rem; font-variant-numeric: tabular-nums; line-height: 1.2; }
 .summary span { font-size: .75rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted-foreground); }
 .tools { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; margin: 1.5rem 0 1rem; }
 .tools select { font: inherit; padding: .4rem .6rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); color: var(--foreground); }
@@ -140,7 +139,8 @@ a.dcard:hover, a.dcard:focus-visible { border-color: var(--foreground); transfor
 .dcard footer { display: flex; justify-content: space-between; align-items: center; gap: .5rem; flex-wrap: wrap; }
 .dcard .change { margin: 0; padding: 0 1.5rem 1rem; font-size: .8125rem; }
 .langs .bar { display: flex; height: .45rem; border-radius: 99px; overflow: hidden; gap: 2px; margin-bottom: .35rem; } .langs .bar i { display: block; min-width: 4px; }
-.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin: 0; padding: .6rem .75rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--muted); }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin: 0; }
+.stats > div { padding: .5rem .75rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--muted); }
 .tools .search { position: relative; margin: 0; flex: 1 1 16rem; max-width: 24rem; } .tools .search .input { width: 100%; padding-left: 2.1rem; padding-right: 2.2rem; }
 .stats dt { font-size: .6875rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); } .stats dd { margin: 0; font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 .badge.risk-critical, .badge.risk-high { color: var(--destructive); border-color: var(--destructive); }
@@ -185,7 +185,7 @@ def page(items: list[dict], version: str, home: Path) -> str:
     summary = (f'<div class="summary"><div><b>{len(items)}</b><span>dossier{"" if len(items) == 1 else "s"}</span></div>'
                f'<div><b>{n_risk}</b><span>critical or high risks</span></div>'
                f'<div><b>{sum(i["components"] for i in items)}</b><span>components mapped</span></div></div>')
-    built = f'<span class="built-pill">Last built {E(newest)}</span>' if items else ""
+    built = f'<span class="chips"><span class="badge" data-variant="outline">Last built {E(newest)}</span></span>' if items else ""
     brand_text = f'<div class="brand-text"><span class="brand-name">Dossier</span><span class="brand-ver">v{E(version)}</span></div>'
     brand = ('<svg class="brand-icon" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
              'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="11"/><g transform="translate(12 12) scale(0.625) translate(-12 -12)" stroke-width="3.2">'
@@ -205,7 +205,7 @@ def page(items: list[dict], version: str, home: Path) -> str:
     css = render.load_asset(render.VENDOR / "basecoat.min.css") + "\n" + render.load_asset(render.ASSETS / "dossier.css") + EXTRA_CSS
     return (f'<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
             f'<meta name="generator" content="dossier"><title>Dossiers</title><style>{css}</style></head><body><div class="wrap">'
-            f'<header class="top"><div class="brand">{brand}{brand_text}</div><div class="actions">{built}{toggle}</div></header>'
+            f'<header class="top"><div class="lead"><div class="brand">{brand}{brand_text}</div>{built}</div>{toggle}</header>'
             f'<section class="hero"><h1>Your dossiers</h1>{summary if items else ""}</section>'
             f'{body}<footer class="foot muted">Generated by the dossier skill v{E(version)} from <code>{E(str(home))}</code>. This page is rewritten every time a dossier is built.</footer>'
             f'</div><script>{SCRIPT}</script></body></html>\n')
