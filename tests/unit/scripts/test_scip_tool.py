@@ -7,8 +7,9 @@ import pytest
 import scip_tool
 import shared_tools
 import toolcheck
+from dossier import resources
 
-SCRIPTS = Path(shared_tools.__file__).parent
+NODE = resources.data("node")
 
 
 def fake_run(tmp_path, returncode=0, timed_out=False, write=None):
@@ -35,13 +36,13 @@ def install_writer(cmd, cwd):
 
 class TestLockfile:
     def test_lock_version_matches_the_tools_json_pin(self):
-        lock = json.loads((SCRIPTS / "node/scip-python/package-lock.json").read_text())
+        lock = json.loads((NODE / "scip-python/package-lock.json").read_text())
         pinned = next(t["version"] for t in toolcheck.load_tools()["tools"] if t["id"] == "scip-python")
 
         assert lock["packages"]["node_modules/@sourcegraph/scip-python"]["version"] == pinned
 
     def test_package_json_pins_the_same_version(self):
-        pkg = json.loads((SCRIPTS / "node/scip-python/package.json").read_text())
+        pkg = json.loads((NODE / "scip-python/package.json").read_text())
         pinned = next(t["version"] for t in toolcheck.load_tools()["tools"] if t["id"] == "scip-python")
 
         assert pkg["dependencies"] == {"@sourcegraph/scip-python": pinned}
@@ -49,7 +50,7 @@ class TestLockfile:
     def test_tools_json_names_the_lock_folder(self):
         entry = next(t for t in toolcheck.load_tools()["tools"] if t["id"] == "scip-python")
 
-        assert entry["node_lock"] == "node/scip-python" and (SCRIPTS / entry["node_lock"] / "package-lock.json").exists()
+        assert entry["node_lock"] == "node/scip-python" and (NODE.parent / entry["node_lock"] / "package-lock.json").exists()
 
 
 class TestInstallDir:

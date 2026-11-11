@@ -13,9 +13,10 @@ from pathlib import Path
 
 import toolcheck
 from scip_tool import _check
-from shared_tools import SCRIPTS, ToolError
+from dossier import resources
+from shared_tools import ToolError
 
-NODE_DIR = SCRIPTS / "node" / "js-tools"
+NODE_DIR = resources.data("node", "js-tools")
 FILES = ("package.json", "package-lock.json", "ts_facts.mjs")
 PROBE = Path("node_modules") / "knip" / "bin" / "knip.js"
 NOT_TRUSTED = "The ref is not trusted, so Node tools did not run. Use --allow-ref to run them."

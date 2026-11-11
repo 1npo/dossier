@@ -1135,7 +1135,7 @@ Read section 2, D7, section 6 and this phase; read Phase A's Results. Every data
   4. Tests: `test_rules.py` (`RULES`), `test_prompts.py`, `test_schema_files.py`, `test_docs.py` (`CHECKED_FILES`: `src/dossier/data/rules/README.md`), and `tests/tools/refresh_eol.py` (`OUT`).
   - Done-check: `git grep -nE "prompts/schema|summary\.schema|/ \"rules\"|\"assets\"|\"vendor\"|tools\.json|eol\.json" -- scripts src tests prompts SKILL.md` shows only `resources.data(...)` calls, docstrings with new paths and test data; default suite at the baseline; block GF `SAME`.
   - Commit: `refactor(dossier): move schemas, rules, assets and vendored bundles into package data`
-- [ ] **B2. Workers and Node helpers.**
+- [x] **B2. Workers and Node helpers.**
   1. `git mv scripts/py_worker.py scripts/py_worker.py.lock scripts/ts_worker.py scripts/ts_worker.py.lock scripts/semgrep_worker.py scripts/semgrep_worker.py.lock src/dossier/data/workers/` and `git mv scripts/node src/dossier/data/node`.
   2. `shared_tools._call`: `str(resources.data("workers", worker))` instead of `SCRIPTS / worker`; keep the name `SCRIPTS` out (delete it) and update `js_tools.py` and `scip_tool.py`, which import it: `NODE_DIR = resources.data("node", "js-tools")` and `resources.data("node", "scip-python")`.
   3. Create the folder `tests/support/` (no `__init__.py`) with `workers.py`: `load(name)` imports a worker script from `resources.data("workers")` with `importlib.util.spec_from_file_location` under the name `name` and caches it in `sys.modules`. `test_py_tools.py` and `test_shared_tools.py` use it instead of `import py_worker` / `import semgrep_worker` (add `tests/support` to `pythonpath` now). Update the `js_tools.NODE_DIR` monkeypatch target if its module changed.

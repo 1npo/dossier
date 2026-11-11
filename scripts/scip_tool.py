@@ -11,9 +11,10 @@ import re
 import shutil
 from pathlib import Path
 
-from shared_tools import SCRIPTS, ToolError
+from dossier import resources
+from shared_tools import ToolError
 
-NODE_DIR = SCRIPTS / "node" / "scip-python"
+NODE_DIR = resources.data("node", "scip-python")
 INDEX_JS = Path("node_modules") / "@sourcegraph" / "scip-python" / "index.js"
 
 

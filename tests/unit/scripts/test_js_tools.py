@@ -8,9 +8,9 @@ import pytest
 import js_tools
 import shared_tools
 import toolcheck
+from dossier import resources
 
-SCRIPTS = Path(shared_tools.__file__).parent
-LOCK_DIR = SCRIPTS / "node" / "js-tools"
+LOCK_DIR = resources.data("node", "js-tools")
 PACKAGES = {"dependency-cruiser": "dependency-cruiser", "knip": "knip", "scip-typescript": "@sourcegraph/scip-typescript",
             "typescript": "typescript", "yarn": "yarn", "yarn-berry": "@yarnpkg/cli-dist", "pnpm": "pnpm"}
 

@@ -25,7 +25,7 @@ dev = ["pytest>=9.2", "ruff==0.17.4", "mypy==2.4.1"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src", "scripts"]          # "scripts" is the transition entry, removed in C11; E1 adds "tests/support" and "tools"
+pythonpath = ["src", "scripts", "tests/support"]          # "scripts" is the transition entry, removed in C11; E1 adds "tests/support" and "tools"
 
 [tool.ruff]
 line-length = 120
