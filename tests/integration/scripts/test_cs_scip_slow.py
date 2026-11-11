@@ -5,8 +5,8 @@ import subprocess
 import pytest
 
 import cs_scip
-import sandbox
-import toolcheck
+from dossier.tooling import sandbox
+from dossier.tooling import toolcheck
 
 pytestmark = [
     pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs the network: set DOSSIER_SLOW=1"),

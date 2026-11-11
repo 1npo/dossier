@@ -8,13 +8,13 @@ from pathlib import Path
 import pytest
 
 from dossier.core import buildlog
-import cs_sdk
+from dossier.tooling import dotnet_sdk as cs_sdk
 import process
 import restore
-import sandbox
+from dossier.tooling import sandbox
 import stages
-import toolcheck
-import workarea
+from dossier.tooling import toolcheck
+from dossier.pipeline import workarea
 
 FORBIDDEN = {"SSH_AUTH_SOCK": "forbidden-ssh", "GIT_AUTHOR_NAME": "forbidden-git", "AWS_SECRET_ACCESS_KEY": "forbidden-aws",
              "GITHUB_TOKEN": "forbidden-gh", "DATABASE_URL": "forbidden-db", "MY_SECRET": "forbidden-secret"}
@@ -167,7 +167,7 @@ class TestNpmInstallScripts:
                        capture_output=True)
 
     def test_the_restore_command_does_not_run_install_scripts(self, tmp_path):
-        import toolcheck
+        from dossier.tooling import toolcheck
         project = tmp_path / "app"
         self.project(project)
         entry = next(r for r in toolcheck.load_tools()["restore"] if r["ecosystem"] == "npm")

@@ -5,7 +5,7 @@ import adapters
 import candidates
 import cs_adapter
 import cs_scip
-import cs_sdk
+from dossier.tooling import dotnet_sdk as cs_sdk
 import scip_fake
 from adapters import OUTPUTS
 

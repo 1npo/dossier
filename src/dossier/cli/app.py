@@ -50,13 +50,13 @@ import portfolio  # noqa: E402
 import process  # noqa: E402
 import render  # noqa: E402
 import resolve  # noqa: E402
-import sandbox  # noqa: E402
+from dossier.tooling import sandbox  # noqa: E402
 from dossier.core import schema  # noqa: E402
 import stages  # noqa: E402
 import summary  # noqa: E402
-import toolcheck  # noqa: E402
+from dossier.tooling import toolcheck  # noqa: E402
 import verify  # noqa: E402
-import workarea  # noqa: E402
+from dossier.pipeline import workarea  # noqa: E402
 
 ROOT = resources.skill_root()
 VERSION = resources.version()

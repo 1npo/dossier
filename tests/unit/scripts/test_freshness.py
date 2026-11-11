@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 import render
-import workarea
+from dossier.pipeline import workarea
 
 SHA = "a" * 40
 NEW = "b" * 40

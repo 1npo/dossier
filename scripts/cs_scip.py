@@ -12,7 +12,7 @@ from pathlib import Path
 
 import cs_api
 from dossier.core import scip_read
-from shared_tools import ToolError
+from dossier.tooling.shared_tools import ToolError
 
 SUPPORTED_MAJORS = (10, 9, 8)
 

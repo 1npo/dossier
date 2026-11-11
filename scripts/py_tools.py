@@ -1,7 +1,7 @@
 """Clients for the locked Python worker (grimp and vulture), in the style of `shared_tools`."""
 from __future__ import annotations
 
-from shared_tools import ToolError, _call  # noqa: F401  (ToolError is re-exported for callers)
+from dossier.tooling.shared_tools import ToolError, _call  # noqa: F401  (ToolError is re-exported for callers)
 
 
 class Grimp:

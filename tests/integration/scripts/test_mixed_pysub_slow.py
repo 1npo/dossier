@@ -7,7 +7,7 @@ import pytest
 from dossier.core import buildlog
 import candidates
 import stages
-import workarea
+from dossier.pipeline import workarea
 from conftest import build_mixed_pysub_repo
 
 pytestmark = pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs the network: set DOSSIER_SLOW=1")

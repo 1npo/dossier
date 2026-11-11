@@ -1,4 +1,4 @@
-import cs_sdk
+from dossier.tooling import dotnet_sdk as cs_sdk
 
 
 class TestParseGlobalJson:

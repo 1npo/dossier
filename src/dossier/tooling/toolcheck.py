@@ -10,7 +10,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-import cs_sdk
+from dossier.tooling import dotnet_sdk as cs_sdk
 from dossier.facts import gather
 from dossier import resources
 

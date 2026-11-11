@@ -11,10 +11,10 @@ import json
 import re
 from pathlib import Path
 
-import toolcheck
+from dossier.tooling import toolcheck
 from scip_tool import _check
 from dossier import resources
-from shared_tools import ToolError
+from dossier.tooling.shared_tools import ToolError
 
 NODE_DIR = resources.data("node", "js-tools")
 FILES = ("package.json", "package-lock.json", "ts_facts.mjs")

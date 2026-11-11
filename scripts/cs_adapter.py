@@ -16,11 +16,11 @@ import cs_models
 import cs_project
 import cs_queries
 import cs_scip
-import cs_sdk
+from dossier.tooling import dotnet_sdk as cs_sdk
 import cs_semgrep
 import cs_tests
 from dossier.core import scip_read
-import toolcheck
+from dossier.tooling import toolcheck
 from adapters import OUTPUTS, Adapter
 from dossier.facts.gather import TEST_RE
 from dossier import resources

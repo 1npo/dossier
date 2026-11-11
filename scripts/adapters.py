@@ -17,9 +17,9 @@ from typing import Callable
 import candidates
 from dossier import resources
 from dossier.facts import gather
-import sandbox
-import shared_tools
-import workarea
+from dossier.tooling import sandbox
+from dossier.tooling import shared_tools
+from dossier.pipeline import workarea
 
 OUTPUTS = ("entry_points", "graph", "symbols", "io_candidates", "models", "tests", "dead", "blindspots")
 ALWAYS_EXPECTED_SEG = {".venv", "venv", ".git", ".grimp_cache"}

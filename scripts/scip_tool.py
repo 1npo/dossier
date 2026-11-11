@@ -12,7 +12,7 @@ import shutil
 from pathlib import Path
 
 from dossier import resources
-from shared_tools import ToolError
+from dossier.tooling.shared_tools import ToolError
 
 NODE_DIR = resources.data("node", "scip-python")
 INDEX_JS = Path("node_modules") / "@sourcegraph" / "scip-python" / "index.js"

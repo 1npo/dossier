@@ -11,10 +11,10 @@ import re
 from pathlib import Path
 
 from dossier.core import config
-import cs_sdk
+from dossier.tooling import dotnet_sdk as cs_sdk
 from dossier.facts import gather
 import js_tools
-import sandbox
+from dossier.tooling import sandbox
 
 PROJECT_EXTS = (".csproj", ".fsproj", ".vbproj")
 WORKLOAD_FAILURE = re.compile(r"NETSDK1147")

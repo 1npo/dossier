@@ -5,8 +5,8 @@ from types import SimpleNamespace
 
 import pytest
 
-import shared_tools
-import toolcheck
+from dossier.tooling import shared_tools
+from dossier.tooling import toolcheck
 import workers
 from dossier import resources
 

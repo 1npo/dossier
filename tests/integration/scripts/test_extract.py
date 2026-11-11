@@ -4,7 +4,7 @@ import subprocess
 import pytest
 
 import adapters
-import workarea
+from dossier.pipeline import workarea
 
 
 class FixtureAdapter(adapters.Adapter):

@@ -8,7 +8,7 @@ import adapters
 import py_adapter
 from dossier.core import scip_read
 import scip_tool
-from shared_tools import ToolError
+from dossier.tooling.shared_tools import ToolError
 
 
 class FakeTS:

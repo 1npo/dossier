@@ -6,8 +6,8 @@ import pytest
 
 import cs_semgrep
 import measured_tables
-import sandbox
-import shared_tools
+from dossier.tooling import sandbox
+from dossier.tooling import shared_tools
 from dossier import resources
 
 pytestmark = pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs the network: set DOSSIER_SLOW=1")

@@ -5,7 +5,7 @@ import pytest
 
 from dossier.facts import gather
 import history
-import sandbox
+from dossier.tooling import sandbox
 
 
 @pytest.fixture

@@ -8,8 +8,8 @@ import pytest
 
 import cs_scip
 from dossier.core import scip_read
-import shared_tools
-import toolcheck
+from dossier.tooling import shared_tools
+from dossier.tooling import toolcheck
 
 
 def make_nupkg(members=None):

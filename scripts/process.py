@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 from dossier.core import buildlog
 from dossier.core import schema
-import toolcheck
+from dossier.tooling import toolcheck
 
 E = lambda s: html.escape(str(s if s is not None else ""), quote=True)
 
@@ -411,7 +411,7 @@ def partial_cards(build, tools=None) -> dict:
     """Card id -> why it was made without one of its tools (D7). Empty without a build record."""
     if not build:
         return {}
-    import toolcheck  # late: toolcheck does not import this module, but keeps process light for the page
+    from dossier.tooling import toolcheck  # late: toolcheck does not import this module, but keeps process light for the page
 
     tools = tools or toolcheck.load_tools()
     mine = {(r["step"], r.get("part")): r for r in build["records"] if r.get("by") == "prepare"}

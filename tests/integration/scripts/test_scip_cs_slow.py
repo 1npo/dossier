@@ -9,12 +9,12 @@ import pytest
 import cs_project
 import cs_queries
 import cs_scip
-import cs_sdk
-import sandbox
+from dossier.tooling import dotnet_sdk as cs_sdk
+from dossier.tooling import sandbox
 from dossier.core import scip_read
-import shared_tools
-import toolcheck
-import workarea
+from dossier.tooling import shared_tools
+from dossier.tooling import toolcheck
+from dossier.pipeline import workarea
 from conftest import build_cs_repo
 
 pytestmark = [

@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Mapping
 
 from dossier.core import config
-import toolcheck
+from dossier.tooling import toolcheck
 
 PASS_THROUGH = ("LANG", "LC_ALL", "TERM")
 NETWORK = ("HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "SSL_CERT_FILE", "REQUESTS_CA_BUNDLE", "NODE_EXTRA_CA_CERTS")

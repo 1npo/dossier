@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import toolcheck
+from dossier.tooling import toolcheck
 from dossier import resources
 
 
