@@ -496,3 +496,8 @@ def test_overview_and_dossier_have_no_executive_summary_card():
 def test_overview_has_a_written_project_summary_card_first():
     cards = schema.load("overview")["cards"]
     assert cards[0]["id"] == "overview.summary" and cards[0]["writer"] == "claude"
+
+
+def test_contents_card_comes_before_the_executive_summary():
+    src = open(render.__file__, encoding="utf-8").read()
+    assert "toc + summary_card" in src
