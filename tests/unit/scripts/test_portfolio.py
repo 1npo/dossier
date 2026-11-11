@@ -45,3 +45,10 @@ def test_header_pill_brand_version_and_search_hint(tmp_path):
     assert 'data-variant="outline">Last built ' in text and 'class="brand-ver">v1.5.0' in text
     assert '<kbd id="search-hint">/</kbd>' in text and "press /" not in text
     assert "Cited, commit-pinned" not in text and 'e.key === "t"' in text
+
+
+def test_card_has_header_region_and_body_with_langs(tmp_path):
+    make(tmp_path, "a")
+    text = portfolio.write(tmp_path, "1.5.0").read_text()
+    assert '<header class="dhead">' in text and 'class="dstats"' in text and 'class="desc"' in text
+    assert 'class="card dcard"' in text and '<div class="bar"' not in text.split('class="dhead"')[1].split("</header>")[0]

@@ -106,16 +106,16 @@ def card(e: dict) -> str:
     stale = '<span class="badge" data-variant="secondary" title="Built by an older version of the skill. Build again to refresh it.">older skill</span>' if e["outdated"] else ""
     commit = f'<div class="chips"><span class="badge" data-variant="outline">{E(e["branch"])}</span><span class="badge" data-variant="outline">{E(e["sha"])}</span></div>' if e["sha"] else ""
     change = f'<p class="muted change">{E(e["change"])}</p>' if e["change"] and e["builds"] > 1 else ""
-    stats = (f'<dl class="stats"><div><dt>Components</dt><dd>{e["components"]}</dd></div>'
+    stats = (f'<dl class="dstats"><div><dt>Components</dt><dd>{e["components"]}</dd></div>'
              f'<div><dt>Entry points</dt><dd>{e["entry_points"]}</dd></div>'
              f'<div><dt>Open items</dt><dd>{open_n}</dd></div></dl>') if e["has_summary"] else ""
     builds = f" · {e['builds']} builds" if e["builds"] > 1 else ""
     key = E(" ".join([e["name"], e["description"], e["branch"]] + [l["name"] for l in e["languages"]]).lower())
     return (f'<a class="card dcard" href="{E(e["page"])}" data-key="{key}" data-built="{E(e["built"])}" data-name="{E(e["name"].lower())}">'
-            f'<div class="bar"><span class="muted">{ago(e["age_days"])}{builds}</span>{stale}</div>'
-            f'<header><h2>{E(e["name"])}</h2>{commit}'
-            f'<p>{E(e["description"][:200]) or "No description found in the repository."}</p></header>'
-            f'<section>{stats}{lang_bar(e["languages"])}<div class="chips">{risk_pills(e["risks"])}</div></section>{change}</a>')
+            f'<header class="dhead"><div class="dhead-row"><h2>{E(e["name"])}</h2>{stale}</div>'
+            f'<div class="dhead-row">{commit or "<span></span>"}<span class="muted">{ago(e["age_days"])}{builds}</span></div></header>'
+            f'<section><p class="desc">{E(e["description"][:200]) or "No description found in the repository."}</p>'
+            f'{stats}{lang_bar(e["languages"])}<div class="chips">{risk_pills(e["risks"])}</div></section>{change}</a>')
 
 
 EXTRA_CSS = """
@@ -132,15 +132,16 @@ body { min-height: 100vh; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr)); gap: 1rem; }
 a.dcard { display: flex; flex-direction: column; text-decoration: none; color: inherit; transition: border-color .15s, transform .15s; }
 a.dcard:hover, a.dcard:focus-visible { border-color: var(--foreground); transform: translateY(-1px); outline: none; }
-.dcard header { display: grid; gap: .25rem; } .dcard h2 { font-size: 1.125rem; } .dcard header p { margin: 0; color: var(--muted-foreground); font-size: .875rem; }
-.dcard .bar { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin-top: -1rem; padding: .6rem 1rem; border-bottom: 1px solid var(--border); background: var(--muted); font-size: .8125rem; }
+.dcard h2 { font-size: 1.125rem; } .dcard .desc { margin: 0; color: var(--muted-foreground); font-size: .875rem; }
+.dcard .dhead { display: flex; flex-direction: column; align-items: stretch; gap: .5rem; margin-top: -1rem; padding: .85rem 1rem; border-bottom: 1px solid var(--border); background: var(--muted); }
+.dcard .dhead-row { display: flex; justify-content: space-between; align-items: center; gap: .5rem; flex-wrap: wrap; } .dcard .dhead .muted { font-size: .8125rem; }
 .dcard { position: relative; } .dcard section { display: grid; gap: .85rem; flex: 1; }
 .dcard .change { margin: 0; padding: 0 1.5rem 1rem; font-size: .8125rem; }
 .langs .bar { display: flex; height: .45rem; border-radius: 99px; overflow: hidden; gap: 2px; margin-bottom: .35rem; } .langs .bar i { display: block; min-width: 4px; }
-.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin: 0; }
-.stats > div { padding: .5rem .75rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--muted); }
+.dstats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin: 0; }
+.dstats > div { padding: .5rem .6rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--muted); }
 .tools .search { position: relative; margin: 0; flex: 1 1 16rem; max-width: 24rem; } .tools .search .input { width: 100%; padding-left: 2.1rem; padding-right: 2.2rem; }
-.stats dt { font-size: .6875rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); } .stats dd { margin: 0; font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.dstats dt { font-size: .625rem; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; color: var(--muted-foreground); } .dstats dd { margin: 0; font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 .badge.risk-critical, .badge.risk-high { color: var(--destructive); border-color: var(--destructive); }
 .badge.risk-medium { background: var(--warn-bg); color: var(--warn); border-color: var(--warn); }
 .empty { padding: 3rem 1rem; text-align: center; color: var(--muted-foreground); } .empty[hidden] { display: none; }
