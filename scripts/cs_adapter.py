@@ -23,8 +23,9 @@ import scip_read
 import toolcheck
 from adapters import OUTPUTS, Adapter
 from gather import TEST_RE
+from dossier import resources
 
-RULES = Path(__file__).resolve().parent.parent / "rules" / "csharp"
+RULES = resources.data("rules", "csharp")
 NOT_TRUSTED = "The ref is not trusted, so scip-dotnet did not run. Use --allow-ref to run it."
 NO_RUNTIME = "scip-dotnet needs the .NET 8, 9 or 10 runtime, and none is installed."
 RAZOR_EXTS = (".razor", ".cshtml")

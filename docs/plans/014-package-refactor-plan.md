@@ -1128,20 +1128,20 @@ Read section 2, D7, section 6 and this phase; read Phase A's Results. Every data
 
 ### Tasks (Phase B)
 
-- [ ] **B1. Card schemas, summary schema, rules, assets, vendor, `tools.json`, `eol.json`.**
+- [x] **B1. Card schemas, summary schema, rules, assets, vendor, `tools.json`, `eol.json`.**
   1. Moves: `git mv prompts/schema src/dossier/data/schemas/cards` (the 17 JSON files and `README.md`); `git mv prompts/summary.schema.json src/dossier/data/schemas/summary.schema.json`; `git mv rules src/dossier/data/rules`; `git mv assets src/dossier/data/assets`; `git mv vendor src/dossier/data/vendor`; `git mv scripts/tools.json src/dossier/data/tools.json`; `git mv scripts/eol.json src/dossier/data/eol.json`.
   2. Code (section 6, "Code" rows marked B1): `schema.SCHEMA_DIR`, `candidates.SCHEMA_DIR`, `summary_check.SCHEMA_PATH`, the four `RULES` constants, `toolcheck.TOOLS_FILE`, `measured_upgrade.SNAPSHOT`, `render.ASSETS`, `render.VENDOR`, `render.ROOT` (the conflict message). Each module imports `from dossier import resources`. Update the docstrings that name old paths (section 6), except in `gather.py`, `deps.py`, `history.py`.
   3. `prompts/method.md:47`: `prompts/schema/<report>.json` becomes `${CLAUDE_SKILL_DIR}/src/dossier/data/schemas/cards/<report>.json` and the README reference likewise. Grep `prompts/` and `SKILL.md` for any other `schema/` mention and update it.
   4. Tests: `test_rules.py` (`RULES`), `test_prompts.py`, `test_schema_files.py`, `test_docs.py` (`CHECKED_FILES`: `src/dossier/data/rules/README.md`), and `tests/tools/refresh_eol.py` (`OUT`).
   - Done-check: `git grep -nE "prompts/schema|summary\.schema|/ \"rules\"|\"assets\"|\"vendor\"|tools\.json|eol\.json" -- scripts src tests prompts SKILL.md` shows only `resources.data(...)` calls, docstrings with new paths and test data; default suite at the baseline; block GF `SAME`.
   - Commit: `refactor(dossier): move schemas, rules, assets and vendored bundles into package data`
-- [ ] **B2. Workers and Node helpers.**
+- [x] **B2. Workers and Node helpers.**
   1. `git mv scripts/py_worker.py scripts/py_worker.py.lock scripts/ts_worker.py scripts/ts_worker.py.lock scripts/semgrep_worker.py scripts/semgrep_worker.py.lock src/dossier/data/workers/` and `git mv scripts/node src/dossier/data/node`.
   2. `shared_tools._call`: `str(resources.data("workers", worker))` instead of `SCRIPTS / worker`; keep the name `SCRIPTS` out (delete it) and update `js_tools.py` and `scip_tool.py`, which import it: `NODE_DIR = resources.data("node", "js-tools")` and `resources.data("node", "scip-python")`.
   3. Create the folder `tests/support/` (no `__init__.py`) with `workers.py`: `load(name)` imports a worker script from `resources.data("workers")` with `importlib.util.spec_from_file_location` under the name `name` and caches it in `sys.modules`. `test_py_tools.py` and `test_shared_tools.py` use it instead of `import py_worker` / `import semgrep_worker` (add `tests/support` to `pythonpath` now). Update the `js_tools.NODE_DIR` monkeypatch target if its module changed.
   - Done-check: `for w in py ts semgrep; do uv lock --script src/dossier/data/workers/${w}_worker.py --check; done` exits 0 three times (each lock still matches its script); `git diff --stat -M` shows the lockfiles and `node/` as pure renames (100%); default suite at the baseline; block GF `SAME` (the JS and Python cases ran the workers).
   - Commit: `refactor(dossier): move the locked workers and Node helper projects into package data`
-- [ ] **B3. The skill root and the code digest.**
+- [x] **B3. The skill root and the code digest.**
   1. `stages.py:93`: `skill_state(resources.skill_root())`.
   2. `adapters.code_hash(folder=None)`: hash every `*.py` under `src/dossier/` (workers included) and `scripts/*.py`, sorted by POSIX path relative to the skill root, then `resources.data("tools.json")` and `VERSION`. Each entry is `relative_path + "\0" + bytes + "\0"`. Keep the 16-character hex result. Replace the module constant `SCRIPTS` with `PACKAGE = resources.skill_root() / "src" / "dossier"`, and update the test that monkeypatches `adapters.SCRIPTS` to patch `adapters.PACKAGE` and build its fake tree in that shape.
   3. Content test `tests/unit/scripts/test_no_file_paths.py` (moved to `tests/content/` in E4): no `__file__` name in any module under `src/dossier/` or `scripts/` except `src/dossier/resources.py`, the two launchers, and the attribute `module.__file__` in `render.gatherer_source`.
@@ -1171,6 +1171,15 @@ Next session: **Sonnet**, `Start Phase C in docs/plans/014-package-refactor-plan
 `git revert -m 1 <merge sha>`. Node helper installs in users' caches are keyed by lock content, which does not change, so a revert needs no cache cleanup.
 
 ### Results (Phase B)
+
+Session: Sonnet 5.5, 2026-11-11. Branch `refactor/package-b-data`, three commits (B1 `3b5ed39`, B2, B3).
+
+- **New base.** `main` had moved past `2b6a480` to **`7f51be9`** (1.10.4: the portfolio header fix). `$SCR/base` is now detached at `7f51be9`, and **`BASE_SHA=7f51be9`** for Phases C onward. `$SCR/golden/a1` is stale (it records `dossier_version` 1.10.3): the reference for later GF runs is a fresh `fa` capture of `$SCR/base`, which Phase B left in `$SCR/golden/fa`.
+- **B1.** Pure `git mv` of schemas (`data/schemas/cards/`, `data/schemas/summary.schema.json`), `rules/`, `assets/`, `vendor/`, `tools.json`, `eol.json`. Code and docstrings updated as in section 6; `method.md:47` names `${CLAUDE_SKILL_DIR}/src/dossier/data/schemas/cards/...`. Tests updated: `test_rules`, `test_prompts`, `test_docs`, `test_cs_config_keys_slow`, `test_cs_semgrep_slow`, `test_shared_layer`, `tests/tools/refresh_eol.py`. `reports.md` has no schema path, so it needed no change.
+- **B2.** Workers, their three `.lock` files and `node/` are 100% renames. `lock --check` passes for all three workers. `SCRIPTS` is gone from `shared_tools`, `js_tools` and `scip_tool`. `tests/support/workers.py` (`load(name)`) is on pytest's `pythonpath`; `test_py_tools` and `test_shared_tools` use it.
+- **B3.** `stages.py` uses `resources.skill_root()`. `adapters.code_hash` hashes every `*.py` under `src/dossier/` and `scripts/*.py` by path relative to the skill root, then `data/tools.json` and `VERSION`; `PACKAGE` replaces `SCRIPTS`. The new content test is `tests/unit/scripts/test_no_file_paths.py` (2 tests). It also allows `scripts/bump_version.py`, which still uses `__file__` until C11 moves it to `tools/`.
+- **Deviation.** The plan's GF block recaptures the base each time; I compared against the stored `fa` instead (same base).
+- **Results.** Default suite **3060 passed, 305 skipped** (3058 baseline plus the 2 new tests). `ruff check` exit 0. Block GF after B3: **`SAME`** in all 12 fast cases, and the gatherer review shows no line other than import and `__all__` lines (B1 was also `SAME` on its own). `scripts/` holds only `.py` files; `prompts/` holds only the three Markdown files.
 
 ---
 

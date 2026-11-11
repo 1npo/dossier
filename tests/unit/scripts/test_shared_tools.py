@@ -5,11 +5,13 @@ from types import SimpleNamespace
 
 import pytest
 
-import semgrep_worker
 import shared_tools
 import toolcheck
+import workers
+from dossier import resources
 
-SCRIPTS = Path(shared_tools.__file__).parent
+WORKERS = resources.data("workers")
+semgrep_worker = workers.load("semgrep_worker")
 
 
 def fake_run(tmp_path, response=None, returncode=0, stderr="", timed_out=False):
@@ -28,8 +30,8 @@ def fake_run(tmp_path, response=None, returncode=0, stderr="", timed_out=False):
 
 class TestTreeSitterPin:
     def test_worker_pins_tree_sitter_below_the_release_that_corrupts_memory(self):
-        header = (SCRIPTS / "ts_worker.py").read_text().split("# ///")[1]
-        lock = (SCRIPTS / "ts_worker.py.lock").read_text()
+        header = (WORKERS / "ts_worker.py").read_text().split("# ///")[1]
+        lock = (WORKERS / "ts_worker.py.lock").read_text()
 
         assert '"tree-sitter==0.25.2"' in header
         assert 'name = "tree-sitter"\nversion = "0.25.2"' in lock
@@ -82,7 +84,7 @@ class TestSemgrep:
 class TestWorkerPins:
     @pytest.mark.parametrize("worker,tool", [("ts_worker.py", "tree-sitter-language-pack"), ("semgrep_worker.py", "semgrep")])
     def test_pin_matches_tools_json(self, worker, tool):
-        text = (SCRIPTS / worker).read_text()
+        text = (WORKERS / worker).read_text()
         pinned = re.search(rf'dependencies = \[[^\]]*"{re.escape(tool)}==([^"]+)"', text).group(1)
         listed = next(t["version"] for t in toolcheck.load_tools()["tools"] if t["id"] == tool)
 
@@ -90,7 +92,7 @@ class TestWorkerPins:
 
     @pytest.mark.parametrize("worker", ["ts_worker.py", "semgrep_worker.py"])
     def test_worker_is_locked(self, worker):
-        assert (SCRIPTS / f"{worker}.lock").exists()
+        assert (WORKERS / f"{worker}.lock").exists()
 
 
 class TestRuleId:
@@ -105,14 +107,14 @@ class TestRuleId:
 
 class TestPyWorkerPins:
     def test_dependencies_name_the_tools_json_versions_of_grimp_and_vulture(self):
-        text = (SCRIPTS / "py_worker.py").read_text()
+        text = (WORKERS / "py_worker.py").read_text()
         pins = dict(re.findall(r'"([a-z-]+)==([^"]+)"', re.search(r"dependencies = \[(.*)\]", text).group(1)))
         listed = {t["id"]: t["version"] for t in toolcheck.load_tools()["tools"] if t["id"] in ("grimp", "vulture")}
 
         assert pins == listed
 
     def test_worker_is_locked(self):
-        assert (SCRIPTS / "py_worker.py.lock").exists()
+        assert (WORKERS / "py_worker.py.lock").exists()
 
 
 class TestSemgrepTest:

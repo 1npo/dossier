@@ -6,6 +6,7 @@ import pytest
 
 import sandbox
 import shared_tools
+from dossier import resources
 
 SKILL = Path(__file__).resolve().parents[2].parent
 FIXTURE_RULES = Path(__file__).resolve().parents[2] / "fixtures" / "rules"
@@ -37,7 +38,7 @@ class TestSharedLayer:
 
 class TestSemgrepRules:
     def test_every_shipped_rule_passes_its_semgrep_test_file(self, project):
-        got = shared_tools.Semgrep(project).test(SKILL / "rules", SKILL / "tests" / "fixtures" / "semgrep")
+        got = shared_tools.Semgrep(project).test(resources.data("rules"), SKILL / "tests" / "fixtures" / "semgrep")
 
         assert got["returncode"] == 0, got["output"]
 

@@ -12,6 +12,7 @@ import re
 from pathlib import Path
 
 from components import catalog_edges, catalog_rows, component_candidates, component_of, file_lines, parse_paths, source_files  # noqa: F401
+from dossier import resources
 
 ID_OUTPUTS = {"entry_points": "ep", "io_candidates": "io", "models": "md", "dead": "dd", "blindspots": "bs", "history": "mk"}
 
@@ -119,7 +120,7 @@ def group_members(extract: dict) -> dict:
 
 # ------------------------------------------------------------------ which card owns which finding (D3)
 
-SCHEMA_DIR = Path(__file__).resolve().parent.parent / "prompts" / "schema"
+SCHEMA_DIR = resources.data("schemas", "cards")
 CATEGORY_CARD = {
     "cli-args": "io.inputs", "env-var": "io.inputs", "config-file": "io.inputs", "file-read": "io.inputs", "stdin": "io.inputs", "request-header": "io.inputs",
     "message-consume": "io.inputs", "db-connect": "data.stores", "db-access": "interactions.state",
@@ -135,7 +136,7 @@ DECIDED_OUTPUTS = ("entry_points", "io_candidates", "models", "history")
 
 
 def card_titles() -> dict:
-    """Card id -> title, from prompts/schema/*.json."""
+    """Card id -> title, from src/dossier/data/schemas/cards/*.json."""
     titles = {}
     for f in sorted(SCHEMA_DIR.glob("*.json")):
         try:

@@ -31,9 +31,10 @@ import process
 import schema
 import viewer
 from gather import Repo
+from dossier import resources
 
-ROOT = Path(__file__).resolve().parent.parent
-ASSETS, VENDOR = ROOT / "assets", ROOT / "vendor"
+ROOT = resources.skill_root()
+ASSETS, VENDOR = resources.data("assets"), resources.data("vendor")
 CONFLICT_MARKER = re.compile(r"^(<{7}|={7}|>{7})( |$)")
 
 

@@ -8,6 +8,7 @@ import cs_semgrep
 import measured_tables
 import sandbox
 import shared_tools
+from dossier import resources
 
 pytestmark = pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs the network: set DOSSIER_SLOW=1")
 
@@ -19,7 +20,7 @@ def rows(tmp_path_factory):
     area = tmp_path_factory.mktemp("cscfg") / "repo"
     area.mkdir()
     run = functools.partial(sandbox.run, area=area, cwd=FIXTURE, timeout=900)
-    results = shared_tools.Semgrep(run).scan(Path(__file__).resolve().parents[3] / "rules" / "csharp", ["Program.cs"], timeout=120)
+    results = shared_tools.Semgrep(run).scan(resources.data("rules", "csharp"), ["Program.cs"], timeout=120)
     return cs_semgrep.items([r for r in results if ".csharp." in r["rule"]])["io_candidates"]
 
 

@@ -1,6 +1,6 @@
 """Upgrade burden (D3): how far the runtime and the main frameworks are from end of life, from a shipped snapshot.
 
-The snapshot is `scripts/eol.json`, refreshed by hand with tests/tools/refresh_eol.py. The .NET list is fetched once, by `prepare`, and pinned in `refdata.json` beside the facts (`render --refresh-refdata` fetches it again). Products the source does not know
+The snapshot is `src/dossier/data/eol.json`, refreshed by hand with tests/tools/refresh_eol.py. The .NET list is fetched once, by `prepare`, and pinned in `refdata.json` beside the facts (`render --refresh-refdata` fetches it again). Products the source does not know
 (flask, fastapi, sqlalchemy, pydantic) are simply not listed.
 """
 from __future__ import annotations
@@ -13,8 +13,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import measured_change
+from dossier import resources
 
-SNAPSHOT = Path(__file__).resolve().parent / "eol.json"
+SNAPSHOT = resources.data("eol.json")
 DOTNET_INDEX = "https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/releases-index.json"
 PACKAGE_PRODUCTS = {"django": "django", "react": "react", "next": "nextjs"}
 

@@ -1,9 +1,10 @@
-"""Card schema: load prompts/schema/*.json, lint them, and check a report against its schema (V6)."""
+"""Card schema: load src/dossier/data/schemas/cards/*.json, lint them, and check a report against its schema (V6)."""
 import json
 import re
 from pathlib import Path
+from dossier import resources
 
-SCHEMA_DIR = Path(__file__).resolve().parent.parent / "prompts" / "schema"
+SCHEMA_DIR = resources.data("schemas", "cards")
 ALLOW_PENDING = False  # every card of a report Claude writes must be filled; only migration (allow_pending=True) may leave one pending
 REPORT_ORDER = ("dossier", "overview", "reading", "entry", "components", "interactions", "io", "data",
                 "behavior", "change", "conventions", "ops", "contributors", "risks", "gaps", "corrections")

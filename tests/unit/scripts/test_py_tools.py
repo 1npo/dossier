@@ -4,8 +4,11 @@ from types import SimpleNamespace
 import pytest
 
 import py_tools
-import py_worker
 import shared_tools
+import workers
+from dossier import resources
+
+py_worker = workers.load("py_worker")
 
 
 def fake_run(tmp_path, response=None, returncode=0, stderr="", timed_out=False):

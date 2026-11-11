@@ -19,7 +19,7 @@ CHECKED_FILES = [
     "SKILL.md",
     "prompts/method.md",
     "prompts/reports.md",
-    "rules/README.md",
+    "src/dossier/data/rules/README.md",
     "docs/user-guide.md",
     "docs/developer-guide.md",
 ]

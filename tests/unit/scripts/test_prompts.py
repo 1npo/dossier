@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 import schema  # noqa: E402
+from dossier import resources
 
 PROMPTS = Path(__file__).resolve().parents[3] / "prompts"
 RETIRED = re.compile(r"capabilities|code-tour|domain-logic|delivery|interfaces\b|architecture\b")
@@ -329,6 +330,6 @@ class TestSkillSteps:
 
 class TestRulesReadme:
     def test_python_barrel_rule_is_described(self):
-        text = (PROMPTS.parent / "rules" / "README.md").read_text(encoding="utf-8")
+        text = (resources.data("rules", "README.md")).read_text(encoding="utf-8")
 
         assert "`__init__.py`" in text and "route-mount" in text

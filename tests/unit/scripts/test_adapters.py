@@ -125,12 +125,12 @@ class TestKey:
 
     def test_a_change_to_the_skills_code_changes_the_key(self, tmp_path, monkeypatch):
         (tmp_path / "a.yml").write_text("rules: []\n")
-        code = tmp_path / "code"
-        code.mkdir()
+        code = tmp_path / "src" / "dossier"
+        code.mkdir(parents=True)
         (code / "x.py").write_text("A = 1\n")
         adapter = WithRules()
         adapter.rules = (tmp_path,)
-        monkeypatch.setattr(adapters, "SCRIPTS", code)
+        monkeypatch.setattr(adapters, "PACKAGE", code)
         before = adapters._key(adapter, "sha", {})
 
         (code / "x.py").write_text("A = 2\n")

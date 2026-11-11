@@ -8,6 +8,7 @@ import pytest
 import cs_semgrep
 import sandbox
 import shared_tools
+from dossier import resources
 
 pytestmark = pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs the network: set DOSSIER_SLOW=1")
 
@@ -37,7 +38,7 @@ def found(tmp_path_factory, request):
     area.mkdir(parents=True)
     run = functools.partial(sandbox.run, area=area, cwd=Path(repo.path), timeout=900)
     files = sorted(str(p.relative_to(repo.path)) for p in Path(repo.path).rglob("*.cs"))
-    results = shared_tools.Semgrep(run).scan(SKILL / "rules", [f for f in files if not f.endswith(".Designer.cs")], timeout=120)
+    results = shared_tools.Semgrep(run).scan(resources.data("rules"), [f for f in files if not f.endswith(".Designer.cs")], timeout=120)
     owner = lambda p: "build/build.csproj" if p.startswith("build/") else None  # noqa: E731
     marks = {}
     for f in files:

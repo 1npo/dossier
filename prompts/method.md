@@ -44,7 +44,7 @@ Rules:
 
 ## Report file shape: cards
 
-One JSON file per report in `reports/`. Each report has a fixed list of cards, named in `prompts/schema/<report>.json`; `prompts/schema/README.md` explains the schema, and `reports.md` says what goes in each card. A report file has:
+One JSON file per report in `reports/`. Each report has a fixed list of cards, named in `${CLAUDE_SKILL_DIR}/src/dossier/data/schemas/cards/<report>.json`; `${CLAUDE_SKILL_DIR}/src/dossier/data/schemas/cards/README.md` explains the schema, and `reports.md` says what goes in each card. A report file has:
 
 - `headline`: one sentence.
 - `summary`: the executive summary, a list of 3 to 5 short bullets.

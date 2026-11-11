@@ -15,6 +15,7 @@ from pathlib import Path, PurePosixPath
 from typing import Callable
 
 import candidates
+from dossier import resources
 import gather
 import sandbox
 import shared_tools
@@ -161,17 +162,21 @@ def rules_hash(folders) -> str:
     return h.hexdigest()[:16]
 
 
-SCRIPTS = Path(__file__).resolve().parent
+PACKAGE = resources.skill_root() / "src" / "dossier"
 
 
 def code_hash(folder=None) -> str:
-    """A digest of the skill's own code (every script, `tools.json` and `VERSION`), so a change to an adapter or to
-    anything it calls invalidates a saved extract. Without it a fix to extraction code kept showing the old rows for the same commit."""
-    folder = Path(folder) if folder else SCRIPTS
+    """A digest of the skill's own code (every module under `src/dossier/`, the workers included, every launcher in
+    `scripts/`, `data/tools.json` and `VERSION`), so a change to an adapter or to anything it calls invalidates a saved
+    extract. Without it a fix to extraction code kept showing the old rows for the same commit. `folder` is the package
+    folder; the skill root is two levels above it."""
+    folder = Path(folder) if folder else PACKAGE
+    root = folder.parents[1]
     h = hashlib.sha256()
-    files = sorted(folder.glob("*.py")) + [f for f in (folder / "tools.json", folder.parent / "VERSION") if f.exists()]
+    files = sorted(list(folder.rglob("*.py")) + list((root / "scripts").glob("*.py")), key=lambda f: f.relative_to(root).as_posix())
+    files += [f for f in (folder / "data" / "tools.json", root / "VERSION") if f.exists()]
     for f in files:
-        h.update(f.name.encode() + b"\0" + f.read_bytes() + b"\0")
+        h.update(f.relative_to(root).as_posix().encode() + b"\0" + f.read_bytes() + b"\0")
     return h.hexdigest()[:16]
 
 

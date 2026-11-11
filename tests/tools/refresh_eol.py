@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rewrite scripts/eol.json from endoflife.date. Run by hand when the snapshot is stale; the skill never calls the network for this.
+"""Rewrite src/dossier/data/eol.json from endoflife.date. Run by hand when the snapshot is stale; the skill never calls the network for this.
 
     python3 tests/tools/refresh_eol.py                 # every product, and a new as_of date
     python3 tests/tools/refresh_eol.py --add react     # only these products, added to the file; the others and as_of stay as they are
@@ -13,9 +13,11 @@ from pathlib import Path
 sys.path[:0] = [str(Path(__file__).resolve().parents[2] / "src")]
 sys.path.append(str(Path(__file__).resolve().parents[2] / "scripts"))  # TRANSITION: removed in C11
 
+from dossier import resources  # noqa: E402
+
 SOURCE = "https://endoflife.date/api/v1/products/"
 PRODUCTS = ("python", "django", "nodejs", "dotnet", "postgresql", "react", "nextjs")
-OUT = Path(__file__).resolve().parents[2] / "scripts" / "eol.json"
+OUT = resources.data("eol.json")
 
 
 def fetch(name):

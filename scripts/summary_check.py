@@ -1,4 +1,4 @@
-"""V8: a small validator for `summary.json`, covering exactly the JSON Schema keywords `prompts/summary.schema.json` uses.
+"""V8: a small validator for `summary.json`, covering exactly the JSON Schema keywords `src/dossier/data/schemas/summary.schema.json` uses.
 
 A schema keyword that is not handled here raises, so the schema file and this code cannot drift apart silently.
 """
@@ -6,8 +6,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from dossier import resources
 
-SCHEMA_PATH = Path(__file__).resolve().parent.parent / "prompts" / "summary.schema.json"
+SCHEMA_PATH = resources.data("schemas", "summary.schema.json")
 CONSTRAINTS = {"type", "required", "properties", "additionalProperties", "items", "enum", "minimum"}
 ANNOTATIONS = {"$schema", "title", "description"}
 TYPES = {"object": dict, "array": list, "string": str, "null": type(None), "boolean": bool}

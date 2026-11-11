@@ -9,8 +9,8 @@ import json
 from pathlib import Path
 
 import toolcheck
+from dossier import resources
 
-SCRIPTS = Path(__file__).resolve().parent
 
 
 class ToolError(RuntimeError):
@@ -19,7 +19,7 @@ class ToolError(RuntimeError):
 
 def _call(run, tool: str, worker: str, request: dict, timeout: float | None = None) -> dict:
     py = toolcheck.load_tools()["python"]
-    cmd = ["uv", "run", "--locked", "--python", py, "--script", str(SCRIPTS / worker)]
+    cmd = ["uv", "run", "--locked", "--python", py, "--script", str(resources.data("workers", worker))]
     extra = {} if timeout is None else {"timeout": timeout}
     result = run(cmd, input=json.dumps(request).encode(), stage=tool, profile="tool", **extra)
     if result.timed_out:
