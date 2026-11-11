@@ -75,16 +75,17 @@ def collect(home: Path, version: str, now: datetime | None = None) -> list[dict]
     return sorted(items, key=lambda e: e["built"], reverse=True)
 
 
-def ago(days) -> str:
-    if days is None:
-        return "built at an unknown time"
-    if days <= 0:
-        return "built today"
-    if days == 1:
-        return "built yesterday"
-    if days < 60:
-        return f"built {days} days ago"
-    return f"built {days // 30} months ago"
+def stamp(built: str) -> str:
+    """`2026-11-11 08:56 PM`, in the viewer's local time. A build record with only a date shows just the date."""
+    try:
+        dt = datetime.strptime(built, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).astimezone()
+    except ValueError:
+        return built[:10]
+    return dt.strftime("%Y-%m-%d %I:%M %p")
+
+
+def built_pill(built: str) -> str:
+    return f'<span class="badge" data-variant="outline">Last built {E(stamp(built))}</span>' if built else ""
 
 
 def lang_bar(langs) -> str:
@@ -109,11 +110,11 @@ def card(e: dict) -> str:
     stats = (f'<dl class="dstats"><div><dt>Components</dt><dd>{e["components"]}</dd></div>'
              f'<div><dt>Entry points</dt><dd>{e["entry_points"]}</dd></div>'
              f'<div><dt>Open items</dt><dd>{open_n}</dd></div></dl>') if e["has_summary"] else ""
-    builds = f" · {e['builds']} builds" if e["builds"] > 1 else ""
+    builds = f"{e['builds']} builds" if e["builds"] > 1 else ""
     key = E(" ".join([e["name"], e["description"], e["branch"]] + [l["name"] for l in e["languages"]]).lower())
     return (f'<a class="card dcard" href="{E(e["page"])}" data-key="{key}" data-built="{E(e["built"])}" data-name="{E(e["name"].lower())}">'
             f'<header class="dhead"><div class="dhead-row"><h2>{E(e["name"])}</h2>{stale}</div>'
-            f'<div class="dhead-row">{commit or "<span></span>"}<span class="muted">{ago(e["age_days"])}{builds}</span></div></header>'
+            f'<div class="dhead-row">{commit or "<span></span>"}<span class="chips">{built_pill(e["built"])}<span class="muted">{builds}</span></span></div></header>'
             f'<section><p class="desc">{E(e["description"][:200]) or "No description found in the repository."}</p>'
             f'{stats}{lang_bar(e["languages"])}<div class="chips">{risk_pills(e["risks"])}</div></section>{change}</a>')
 
@@ -180,11 +181,10 @@ SCRIPT = """
 
 def page(items: list[dict], version: str, home: Path) -> str:
     n_risk = sum(i["risks"].get(s, 0) for i in items for s in ("critical", "high"))
-    newest = items[0]["built"][:10] if items else ""
     summary = (f'<div class="summary"><div><b>{len(items)}</b><span>dossier{"" if len(items) == 1 else "s"}</span></div>'
                f'<div><b>{n_risk}</b><span>critical or high risks</span></div>'
                f'<div><b>{sum(i["components"] for i in items)}</b><span>components mapped</span></div></div>')
-    built = f'<span class="chips"><span class="badge" data-variant="outline">Last built {E(newest)}</span></span>' if items else ""
+    built = f'<span class="chips">{built_pill(items[0]["built"])}</span>' if items else ""
     brand_text = f'<div class="brand-text"><span class="brand-name">Dossier</span><span class="brand-ver">v{E(version)}</span></div>'
     brand = ('<svg class="brand-icon" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
              'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="11"/><g transform="translate(12 12) scale(0.625) translate(-12 -12)" stroke-width="3.2">'
