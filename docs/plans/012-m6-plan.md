@@ -1244,13 +1244,13 @@ Read section 2, section 7 and "Results" of Phases 1 to 7. Load the skills in sec
   - Done-check: results recorded.
   - Commit: `docs(dossier): record the M6 checks on the largest repository`
 
-- [ ] **M6-48. Blocks X, CP, I, E, Z and the definition-of-done table.**
+- [x] **M6-48. Blocks X, CP, I, E, Z and the definition-of-done table.**
   - Goal: section 11, item by item.
   - Steps: run the blocks, then fill section 7's DoD table under "Verification results (Phase 8)", one line per item with the evidence (block and figure).
   - Done-check: every item says `met`, or `not met` with the reason and what is left.
   - Commit: `docs(dossier): record the M6 definition of done`
 
-- [ ] **M6-49. Merge, install check, push.**
+- [x] **M6-49. Merge, install check, push.**
   - Steps: (1) Tick and record, including the list of kept folders: `TRUTH`, `$SCR/truth-m6/` if it exists, and `$SCR` itself. Delete none of them (section 8, "Ground truth after M6"). (2) `git switch main && git merge --no-ff feat/dossier-m6` (local only). (3) Block FC on the local `main`. (4) **Ask the author:** "M6 is merged locally and the fresh-clone check passed. Push `main` and delete the branch?" Push and delete only on a yes; on a no, leave both as they are and say so.
   - Done-check: `git log --oneline -1 main` shows the merge; block FC passed; the author's answer is recorded.
   - Commit: the merge commit.
@@ -1303,6 +1303,14 @@ As M6-49. CI does not tag this skill; whether to tag `v1.0.0` or publish it is t
 - **Block I, default.** 2902 passed, 304 skipped (72 s). Baseline at `51b056e` was 2631 passed, 274 skipped.
 - **Block Z.** `repo-status` of `cannalerts` unchanged (diff prints nothing); `worktree list` showed two entries, the second the block P baseline worktree `$SCR/p/code` (`51b056e`), which I removed with `git worktree remove`, leaving one; all seven clones under `$SCR/src` have an empty `git status --porcelain`; `sha256sum $TRUTH/rw.json` prints `a7fc87a9...8098`. `$SCR` is kept: `/home/nick/.cache/dossier-m6-g4vm`.
 - **Block I, slow.** Run alone with `DOSSIER_SLOW=1` and `--basetemp=$HOME/.cache/dossier-m6-slow` (removed afterwards): **3 failed, 3202 passed, 1 skipped, 4 warnings (52 min 34 s).** The three failures are the known ones: `test_overlapping_paragraphs_are_reported`, `test_each_browser_mutation_makes_a_fail[chart-text-small-chart text]`, `test_golden02_slow.py::...looks_as_the_pre_m0_page_did` (G2). `test_summary_schema_slow.py` passed.
+
+**M6-49 (2026-11-10, Sonnet 5.5).** Kept folders, none deleted (section 8, "Ground truth after M6"):
+
+- `TRUTH`: `/home/nick/.cache/dossier-m5-vWDO/truth` (C# ground truth, `rw.json` sha `a7fc87a9...8098`, review and rulings files).
+- `$SCR/truth-m6/`: `/home/nick/.cache/dossier-m6-g4vm/truth-m6` (the M6 re-score review files).
+- `$SCR`: `/home/nick/.cache/dossier-m6-g4vm` (19 GB; the clones, pages and logs of every block).
+
+The merge, block FC and the author's push answer are recorded in the commit after the merge.
 
 **Findings for the milestone review (Phase 8).**
 
