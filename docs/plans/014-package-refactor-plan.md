@@ -1001,7 +1001,7 @@ Read section 2, section 4 (D1, D2, D7, D14) and this phase. Load the shared skil
   - Tests in `tests/unit/tools/test_move_modules.py`, one class per behaviour: each import form above; nested (function-level) imports keep indentation; multi-line `from` imports; `noqa` kept; a string containing `import render` and the attribute `render.x` are unchanged; a dry run changes nothing; `--check` finds a leftover.
   - Done-check: its tests pass; `--dry-run` on the A4 map prints the expected rewrites of the four test files that import the CLI.
   - Commit: `test(dossier): add the module-move codemod for the package refactor`
-- [ ] **A4. The package skeleton, `resources`, the launcher, the CLI move.** (Opus)
+- [x] **A4. The package skeleton, `resources`, the launcher, the CLI move.** (Opus)
   1. On a clean tree, `python3 tools/move_modules.py $SCR/maps/a4.map` with the one line `dossier cli.app` (it moves the file and rewrites the four test files that import `dossier`).
   2. Write `src/dossier/resources.py` exactly as D7, `src/dossier/__main__.py` (`from dossier.cli import main` and `main()`), the launcher `scripts/dossier.py` exactly as D1 (with the TRANSITION line), and give `src/dossier/cli/__init__.py` a `main()` that calls `dossier.cli.app.main()` for now (imported inside the function).
   3. In `cli/app.py`: delete line 37 (`sys.path.insert`), replace `ROOT = ...` and `VERSION = ...` with `ROOT = resources.skill_root()` and `VERSION = resources.version()` (every `ROOT / ...` use then resolves to the same paths as before).
@@ -1081,6 +1081,24 @@ Session: Opus 5.5, 2026-11-11.
   2. Once a map has moved `dossier` itself, `from dossier import <x>` is left alone when `x` is a module or package under `src/dossier/`: it names the package, not the old flat CLI. So `from dossier import resources` is not flagged by `--check`.
 - A statement that shares its line with other code (`x = 1; import a, b`) is split with `; ` instead of newlines.
 - `DOCS` text for the new `__init__.py` files is D4's "Holds" column; `adapters.js` reads "The JavaScript and TypeScript adapter and its helpers."
+
+**A4.**
+
+- The codemod (map `dossier cli.app`) moved `scripts/dossier.py` to `src/dossier/cli/app.py`, created `src/dossier/cli/__init__.py` and rewrote the four test imports. `--check` exits 0 afterwards.
+- `cli/__init__.py` holds `main()`, which imports `dossier.cli.app` inside the function, and `__all__ = ["main"]`.
+- In `cli/app.py`: line 37 is gone, `from dossier import resources` joins the import block, and `ROOT`/`VERSION` come from `resources`. The `# noqa: E402` comments on the flat imports stay until C11 (they are harmless, and the codemod keeps them).
+- **`python -m dossier` does not work yet:** `__main__.py` is exactly D8's, and the flat modules are on `sys.path` only through the launcher's TRANSITION line or pytest's `pythonpath`. It works from C11 on, when the flat modules are in the package. Claude never runs it.
+- **`sys.path` inserts:** the plan counted 27 test files, `conftest.py`, `m3_page.py`, `layout_probe.py` and `refresh_eol.py`. Today there are 24 files in all (19 test files, `conftest.py`, `m3_page.py`, `layout_probe.py`, `refresh_eol.py` and `test_docs.py`'s `ROOT` form), all handled. Test files lost the line. `conftest.py` and the three helpers got `sys.path[:0] = [<root>/src]` plus an appended `<root>/scripts` marked `# TRANSITION: removed in C11`.
+- `diagram_text.py` and `table_fit.py` import nothing from the skill (only Playwright), so they got no path lines.
+- The `tests/tools` inserts in six test files are E1's (section 6).
+- `test_py311_syntax.py` scans `scripts/`, `src/` and `tools/`.
+- New `tests/unit/scripts/test_launcher.py`, 9 tests: the PEP 723 header against `pyproject.toml`; `data()` and its `isinstance` guard; `skill_root()`, including a copy of `resources.py` with no `SKILL.md`; `version()`.
+- Done-checks:
+  - `uv run scripts/dossier.py version` (run from `/tmp`) prints `dossier 1.10.3`.
+  - `doctor` ends `skill: b682b2b (dirty)` before the commit and `skill: <A4 sha> (clean)` after.
+  - Default suite: **3058 passed, 305 skipped**. That is 2995 + 22 golden + 1 golden mask test (below) + 31 codemod + 9 launcher.
+  - `uv run ruff check`: exit 0.
+- **Block GF after A4: `SAME`** in all 12 fast cases, with an empty gatherer review. The first branch-side compare differed only in the process card's skill line, in a third HTML shape (`<th scope="row">Skill</th><td>2b6a480</td>`). The determinism run could not show it, since both of its sides ran the same commit. This is D14's existing "process card's skill line" mask, so the regex was widened (`594cd25`, one more test); no new mask was added.
 
 ---
 

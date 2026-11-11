@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
 import summary  # noqa: E402
 import summary_check  # noqa: E402
 

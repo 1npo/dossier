@@ -1,7 +1,6 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2].parent / "scripts"))
 import checks  # noqa: E402
 
 TREE = {"src/app/a.py", "src/app/api/b.py", "src/app/api/c.py", "scripts/run.sh", "docs/x.md", "uv.lock", "README.md", "src/other/z.py"}

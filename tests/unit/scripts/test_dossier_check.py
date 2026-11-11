@@ -4,10 +4,9 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2].parent / "scripts"))
 
 import buildlog  # noqa: E402
-import dossier  # noqa: E402
+from dossier.cli import app as dossier  # noqa: E402
 import render  # noqa: E402
 import page_audit  # noqa: E402
 

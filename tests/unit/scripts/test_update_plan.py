@@ -2,8 +2,7 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
-import dossier  # noqa: E402
+from dossier.cli import app as dossier  # noqa: E402
 
 
 class TestUpdatePlan:

@@ -1,7 +1,6 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
 import checks_people  # noqa: E402
 
 COLUMNS = ["ID", "Risk", "Category", "Severity", "Impact", "Recommendation", "Source"]

@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2].parent / "scripts"))
 import schema  # noqa: E402
 
 PROMPTS = Path(__file__).resolve().parents[3] / "prompts"

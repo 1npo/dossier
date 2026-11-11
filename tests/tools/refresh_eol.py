@@ -10,7 +10,8 @@ import urllib.request
 from datetime import date
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+sys.path[:0] = [str(Path(__file__).resolve().parents[2] / "src")]
+sys.path.append(str(Path(__file__).resolve().parents[2] / "scripts"))  # TRANSITION: removed in C11
 
 SOURCE = "https://endoflife.date/api/v1/products/"
 PRODUCTS = ("python", "django", "nodejs", "dotnet", "postgresql", "react", "nextjs")
