@@ -1,5 +1,6 @@
 {
   "name": "1npo-tools",
+  "description": "Tools by 1npo for Claude Code.",
   "owner": { "name": "1npo" },
   "plugins": [
     {
