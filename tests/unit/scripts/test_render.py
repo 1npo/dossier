@@ -4,7 +4,7 @@ import re
 import pytest
 
 import checks_people
-import gather
+from dossier.facts import gather
 import render
 import viewer
 

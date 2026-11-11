@@ -4,7 +4,7 @@ from __future__ import annotations
 import posixpath
 import re
 
-import gather
+from dossier.facts import gather
 from dossier.core import graphs
 from dossier.core import scip_read
 

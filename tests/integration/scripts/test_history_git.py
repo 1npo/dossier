@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-import gather
+from dossier.facts import gather
 import history
 import sandbox
 

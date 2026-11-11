@@ -10,7 +10,7 @@ import re
 import tomllib
 from pathlib import Path
 
-import gather
+from dossier.facts import gather
 
 CONTRACT_KEYS = ("layers", "containers", "source_modules", "forbidden_modules", "modules", "ignore_imports")
 

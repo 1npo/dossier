@@ -7,7 +7,7 @@ from __future__ import annotations
 import fnmatch
 import re
 
-import gather
+from dossier.facts import gather
 from dossier.core import graphs
 
 

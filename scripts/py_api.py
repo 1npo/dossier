@@ -10,7 +10,7 @@ import configparser
 import re
 import tomllib
 
-import gather
+from dossier.facts import gather
 
 MAX_HOPS = 10
 SCRIPT_GROUPS = ("scripts", "gui-scripts", "console_scripts", "gui_scripts")

@@ -7,7 +7,7 @@ import posixpath
 import re
 import xml.etree.ElementTree as ET
 
-import gather
+from dossier.facts import gather
 
 TEST_PACKAGES = {"microsoft.net.test.sdk", "xunit", "xunit.v3", "nunit", "mstest.testframework", "mstest", "tunit"}
 UNSUPPORTED_FRAMEWORKS = ("FastEndpoints", "Carter", "ServiceStack", "Nancy", "Wolverine", "Microsoft.Orleans.Server",

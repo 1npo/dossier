@@ -9,7 +9,7 @@ import statistics
 from collections import Counter
 from datetime import date
 
-import gather
+from dossier.facts import gather
 
 CONVENTIONAL = re.compile(r"^(feat|fix|docs|chore|refactor|test|build|ci|perf|style)(\(.+\))?!?: ")
 MERGE_BRANCH = [re.compile(r"^Merge (?:remote-tracking )?branch '([^']+)'"), re.compile(r"^Merge pull request #\d+ from [^/\s]+/(\S+)"),

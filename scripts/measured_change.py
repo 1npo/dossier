@@ -7,7 +7,7 @@ from __future__ import annotations
 from collections import Counter
 
 import components
-import gather
+from dossier.facts import gather
 
 HOTSPOT_FILES = ["File", "Component", "Commits", "Lines added", "Lines removed", "Complexity", "Last changed", "Source"]
 HOTSPOT_COMPONENTS = ["Component", "Files", "File changes", "Lines added", "Lines removed", "Complexity"]

@@ -8,7 +8,7 @@ import json
 import re
 import time
 
-import gather
+from dossier.facts import gather
 
 BATCH = 50
 SHA = re.compile(r"[0-9a-f]{40}")

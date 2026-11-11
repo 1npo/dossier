@@ -741,7 +741,7 @@ class TestNoGraphCards:
 
 class TestRazorIsNotALanguage:
     def test_a_razor_file_gives_no_language_row_and_no_tier_b_item(self):
-        import gather
+        from dossier.facts import gather
 
         assert gather.lang_of("Views/Home/Index.razor") is None
         assert gather.lang_of("Pages/Counter.razor") is None

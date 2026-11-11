@@ -16,7 +16,7 @@ from typing import Callable
 
 import candidates
 from dossier import resources
-import gather
+from dossier.facts import gather
 import sandbox
 import shared_tools
 import workarea

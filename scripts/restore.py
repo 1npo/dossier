@@ -12,7 +12,7 @@ from pathlib import Path
 
 from dossier.core import config
 import cs_sdk
-import gather
+from dossier.facts import gather
 import js_tools
 import sandbox
 

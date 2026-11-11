@@ -22,7 +22,7 @@ import cs_tests
 from dossier.core import scip_read
 import toolcheck
 from adapters import OUTPUTS, Adapter
-from gather import TEST_RE
+from dossier.facts.gather import TEST_RE
 from dossier import resources
 
 RULES = resources.data("rules", "csharp")

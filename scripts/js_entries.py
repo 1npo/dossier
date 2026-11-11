@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import posixpath
 
-import gather
+from dossier.facts import gather
 import js_project
 
 CODE_EXT = (".js", ".jsx", ".ts", ".tsx")

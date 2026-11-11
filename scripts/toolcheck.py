@@ -11,7 +11,7 @@ from collections import Counter
 from pathlib import Path
 
 import cs_sdk
-import gather
+from dossier.facts import gather
 from dossier import resources
 
 TOOLS_FILE = resources.data("tools.json")

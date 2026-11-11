@@ -10,7 +10,7 @@ import re
 from collections import defaultdict
 
 import components
-import gather
+from dossier.facts import gather
 import measured_blast
 import measured_change
 import measured_cs

@@ -6,7 +6,7 @@ Each language is one query. Add a language by adding a row to `LANGUAGES` and a 
 """
 from __future__ import annotations
 
-import gather
+from dossier.facts import gather
 from adapters import Adapter
 
 PACK = "tree-sitter-language-pack"

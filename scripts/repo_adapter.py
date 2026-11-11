@@ -9,7 +9,7 @@ import re
 import subprocess
 from pathlib import Path
 
-import gather
+from dossier.facts import gather
 from adapters import Adapter
 from dossier import resources
 

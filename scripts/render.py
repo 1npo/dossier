@@ -19,9 +19,9 @@ from functools import lru_cache
 from pathlib import Path
 from urllib.parse import quote
 
-import deps as depscan
+from dossier.facts import deps as depscan
 import history as historyscan
-import gather
+from dossier.facts import gather
 import candidates
 import components
 import measured
@@ -30,7 +30,7 @@ import measured_tables
 import process
 from dossier.core import schema
 import viewer
-from gather import Repo
+from dossier.facts.gather import Repo
 from dossier import resources
 
 ROOT = resources.skill_root()

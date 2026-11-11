@@ -19,9 +19,9 @@ from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta, timezone
 from pathlib import PurePosixPath
 
-import deps as depscan
-import env_scan as envscan
-import markers as markerscan
+from dossier.facts import deps as depscan
+from dossier.facts import env_scan as envscan
+from dossier.facts import markers as markerscan
 
 import tomllib
 

@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-import gather
+from dossier.facts import gather
 
 
 def days():

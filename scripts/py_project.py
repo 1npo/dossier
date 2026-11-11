@@ -6,7 +6,7 @@ non-test `.py` file that no deeper project claims.
 """
 from __future__ import annotations
 
-import gather
+from dossier.facts import gather
 
 MANIFESTS = ("pyproject.toml", "setup.py", "setup.cfg", "requirements.txt")
 

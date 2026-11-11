@@ -14,8 +14,8 @@ from pathlib import Path
 from typing import Iterator, NamedTuple
 
 import candidates
-import gather
-import markers
+from dossier.facts import gather
+from dossier.facts import markers
 import ownership
 import workflow
 

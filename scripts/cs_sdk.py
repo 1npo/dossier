@@ -9,7 +9,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-import gather
+from dossier.facts import gather
 
 DEFAULT_RULE = "patch"
 

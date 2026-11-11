@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 
-import gather
+from dossier.facts import gather
 
 LOCKFILES = (("package-lock.json", "npm"), ("yarn.lock", "yarn"), ("pnpm-lock.yaml", "pnpm"), ("bun.lock", "bun"), ("bun.lockb", "bun"))
 JS_LANGUAGES = {"JavaScript", "TypeScript"}

@@ -14,7 +14,7 @@ from pathlib import Path, PurePosixPath
 
 import candidates
 from dossier.core import config
-import gather
+from dossier.facts import gather
 from dossier.core import graphs
 import py_api
 import py_depends

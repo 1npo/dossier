@@ -1,6 +1,6 @@
 import pytest
 
-import gather
+from dossier.facts import gather
 
 
 def label_of(message):

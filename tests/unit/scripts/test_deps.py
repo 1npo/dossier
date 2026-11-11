@@ -1,6 +1,6 @@
 import json
 
-import deps
+from dossier.facts import deps
 
 
 class FakeRepo:

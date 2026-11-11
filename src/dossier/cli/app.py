@@ -41,7 +41,7 @@ import candidates  # noqa: E402
 import checks  # noqa: E402
 import components  # noqa: E402
 from dossier.core import config  # noqa: E402
-import gather  # noqa: E402
+from dossier.facts import gather  # noqa: E402
 import history as historyscan  # noqa: E402
 import incremental  # noqa: E402
 import measured_upgrade  # noqa: E402

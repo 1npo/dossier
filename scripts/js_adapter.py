@@ -20,7 +20,7 @@ import js_semgrep
 import js_tools
 from dossier.core import scip_read
 from adapters import OUTPUTS, Adapter
-from gather import TEST_RE
+from dossier.facts.gather import TEST_RE
 from dossier import resources
 
 RULES = resources.data("rules", "js")
