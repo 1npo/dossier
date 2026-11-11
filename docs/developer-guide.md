@@ -41,7 +41,7 @@ The slow tests run the real tools, need the network and a browser, and take abou
 DOSSIER_SLOW=1 uv run --with pytest --with pygments python -m pytest tests -q --basetemp=$HOME/.cache/dossier-m6-slow
 ```
 
-Always set `--basetemp` to a folder under your home: `/tmp` is small and the tools fill it. Three tests fail by design today and are not regressions: `test_overlapping_paragraphs_are_reported`, `test_each_browser_mutation_makes_a_fail[chart-text-small-chart text]` and the G2 golden in `test_golden02_slow.py`.
+Always set `--basetemp` to a folder under your home: `/tmp` is small and the tools fill it. Two tests fail by design today and are not regressions: `test_overlapping_paragraphs_are_reported` and `test_each_browser_mutation_makes_a_fail[chart-text-small-chart text]`.
 
 To try the skill, copy or link the folder to `~/.claude/skills/dossier` and type `/dossier doctor` in Claude Code, or run the CLI directly:
 
@@ -77,7 +77,7 @@ assets/               dossier.css, dossier.js (the page)
 vendor/               Mermaid and Basecoat, with their licences
 tests/unit/scripts/   one test file per script, mirroring scripts/
 tests/integration/    tests that run real tools (the *_slow.py files need DOSSIER_SLOW=1)
-tests/fixtures/       small repositories and golden files; encamp-m0 is frozen and git-ignored
+tests/fixtures/       small repositories and golden files
 tests/tools/          page builders and probes used by tests (m3_page.py ... m6_page.py)
 ```
 
@@ -171,7 +171,7 @@ Every recipe starts with a failing test. Run it, see it fail, then make it pass.
 
 - **Unit tests** (`tests/unit/scripts/test_*.py`) are fast, use `tmp_path`, and mirror the script they test. One class per unit, `Test<Unit>`, with methods named `test_<scenario>_<expected result>`. No test touches the network or the real home folder.
 - **Integration tests** (`tests/integration/scripts/`) run real tools. Those named `*_slow.py` skip unless `DOSSIER_SLOW=1`.
-- **Fixtures** are small made-up repositories (`pyrepo`, `jsrepo`, `csrepo`, `pylib`) and expected outputs. `encamp-m0` is a frozen, git-ignored copy; never write to it. Never commit code from a public repository.
+- **Fixtures** are small made-up repositories (`pyrepo`, `jsrepo`, `csrepo`, `pylib`) and expected outputs. The `m3_page.py` to `m6_page.py` builders commit `pyrepo` in a temporary folder and add generated history to it. Never commit code from a public repository.
 - **Test pages.** `tests/tools/m3_page.py` to `m6_page.py` build large synthetic dossiers for the V11 and V12 checks. `python tests/tools/m6_page.py` prints the path of a rendered page.
 - **Mutation tests.** `tests/tools/broken_pages.py` damages a good page in one way per check; the check must then fail with a known line. Run them through `test_check_page_slow.py`.
 - **Ground truth.** `tests/tools/ground_truth.py` scores a dossier against a hand-made truth for a public repository.
@@ -220,7 +220,7 @@ To install a released version, see the README. In the author's setup it is insta
 | The page differs from yesterday's | Compare `build.json` with `build.prev.json`; the skill's commit is on the process card. |
 | A page check fails in one theme only | Open `.check-shots/` in the dossier folder: it keeps screenshots from the last check (one per diagram, and others by page). |
 
-Useful commands: `dossier doctor <repo> --json`, `dossier candidates <repo> --report ID --json`, `dossier migrate <repo> --dry-run`, `python tests/tools/graph_probe.py PAGE.html` (drives one graph in a browser and prints what happened).
+Useful commands: `dossier doctor <repo> --json`, `dossier candidates <repo> --report ID --json`, `python tests/tools/graph_probe.py PAGE.html` (drives one graph in a browser and prints what happened).
 
 ## Gotchas
 

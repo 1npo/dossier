@@ -45,7 +45,7 @@ def test_wrong_row_width(make_cites, monkeypatch):
 
 def test_old_layout(make_cites, monkeypatch):
     errs, _ = run(make_cites, {"headline": "H", "summary": "- one", "blocks": []}, monkeypatch)
-    assert any("Run: dossier.py migrate" in e for e in errs)
+    assert any("old layout" in e for e in errs)
 
 
 def test_claims_rows_entries_na_and_pending():
