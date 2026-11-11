@@ -29,3 +29,11 @@ Each was considered during M6 and left out. Decided in [plans/012-m6-plan.md](pl
 - **Agent detection from `Agent-Logs-Url`.** Commits by an agent such as Copilot are classed as human although their messages carry an `Agent-Logs-Url` line. The classifier feeds report 02, which M6 may not change (M5, Phase 5, finding 10).
 - **Ground-truth matcher labels.** `tests/tools/ground_truth.py` drops a row's label when matching; M5, Phase 5a, noted two cases (#86 and #87). A test-tool idea only.
 - **Verifier verdicts for claims without an `id`.** A saved verdict is keyed by the claim's id, or by a hash of its text when it has none. If a later build rewords such a claim, the verdict stops matching and its Gaps item disappears at the next render. Give every sampled claim an id, or key verdicts by citation. Found in M6, Phase 4.
+
+## Findings from the M6 definition-of-done run
+
+Found in M6, Phase 8 (M6-48). Recorded in [plans/012-m6-plan.md](plans/012-m6-plan.md), "Verification results (Phase 8)".
+
+- **`soft_failure` misses real scip-dotnet log lines.** `cs_scip.soft_failure` only matches a line that starts with `Failure:`. Real logs put a timestamp and `fail:` first, so the `msbuild` note and the "could not load every project" problem are never produced from a real log (the test fakes use the bare form). Left alone because the obvious fix marks scip-dotnet `failed` and drops the dead list for every C# repository with one unloadable project. The dead list now skips unloaded projects on its own (`6fa6624`), so decide whether the page should also say which projects did not load.
+- **Recorded verifier verdicts for `RW` disappeared.** Between block V and block CP the build still said `verify: true` but the verdicts were gone, and `render` failed with V10. Cause unknown; re-running `verify-record` from the saved results fixed it. Worth finding what clears them.
+- **`prepare` reuses `extract/` after a skill code change.** With the same commit and ref, `prepare --full` kept the old extract, so a fix to an adapter rule did not show until `extract/` was moved aside. Probably by design (keyed by commit); decide whether the skill version or an adapter version should be part of the key.
