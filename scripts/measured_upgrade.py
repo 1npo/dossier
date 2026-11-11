@@ -1,6 +1,6 @@
 """Upgrade burden (D3): how far the runtime and the main frameworks are from end of life, from a shipped snapshot.
 
-The snapshot is `scripts/eol.json`, refreshed by hand with tests/tools/refresh_eol.py. Products the source does not know
+The snapshot is `scripts/eol.json`, refreshed by hand with tests/tools/refresh_eol.py. The .NET list is fetched once, by `prepare`, and pinned in `refdata.json` beside the facts (`render --refresh-refdata` fetches it again). Products the source does not know
 (flask, fastapi, sqlalchemy, pydantic) are simply not listed.
 """
 from __future__ import annotations
@@ -9,6 +9,7 @@ import json
 import os
 import re
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 
 import measured_change
@@ -55,13 +56,21 @@ def fetch_dotnet_index(timeout=5):
         return None
 
 
-def resolve_snapshot(fetch=None):
-    """(snapshot, note on where the .NET data came from). The live index replaces the snapshot's `dotnet` list when it parses to something."""
-    snap = load_snapshot()
+def fetch_refdata(fetch=None, today=None) -> dict:
+    """What the build pins: {"dotnet": {"fetched": date, "cycles": [...]}} from the live index, or {} when it cannot be read."""
     cycles = dotnet_cycles_from_index((fetch or fetch_dotnet_index)())
-    if cycles:
-        return {**snap, "products": {**snap["products"], "dotnet": cycles}}, "from Microsoft's releases-index.json, fetched now"
-    return snap, f"from the offline snapshot of {snap['as_of']} (Microsoft's releases-index.json was not reachable)"
+    if not cycles:
+        return {}
+    return {"dotnet": {"fetched": today or datetime.now(timezone.utc).strftime("%Y-%m-%d"), "cycles": cycles}}
+
+
+def resolve_snapshot(refdata=None):
+    """(snapshot, note on where the .NET data came from). The pinned fetch in `refdata` replaces the snapshot's `dotnet` list; nothing is read from the network here, so a render is a function of the build."""
+    snap = load_snapshot()
+    pinned = (refdata or {}).get("dotnet") or {}
+    if pinned.get("cycles"):
+        return {**snap, "products": {**snap["products"], "dotnet": pinned["cycles"]}}, f"from Microsoft's releases-index.json, fetched {pinned['fetched']}"
+    return snap, f"from the offline snapshot of {snap['as_of']} (no fetch of Microsoft's releases-index.json is pinned in this build; run render with --refresh-refdata)"
 
 
 def _cycle(text):
@@ -129,8 +138,8 @@ def _gap(cycles, cycle, today):
 
 def rows(ctx, snapshot=None):
     """[(name, pinned, latest, gap, source path or None)]."""
-    snap = snapshot or resolve_snapshot()[0]
     facts, read = ctx.get("facts") or {}, ctx.get("read")
+    snap = snapshot or resolve_snapshot(facts.get("refdata"))[0]
     today = (facts.get("repo") or {}).get("commit_date") or snap["as_of"]
     out = []
     pinned, source = None, None
@@ -174,7 +183,7 @@ def card(cid, ctx, refs):
     if not measured_change.has_history(ctx) and not (ctx.get("facts") or {}).get("manifests"):
         return None
     r = _render()
-    snap, dotnet_note = resolve_snapshot()
+    snap, dotnet_note = resolve_snapshot((ctx.get("facts") or {}).get("refdata"))
     found = rows(ctx, snap)
     text = f"Data as of {snap['as_of']}, from endoflife.date."
     if any(r[0] == ".NET" for r in found):

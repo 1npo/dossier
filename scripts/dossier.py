@@ -43,6 +43,7 @@ import config  # noqa: E402
 import gather  # noqa: E402
 import history as historyscan  # noqa: E402
 import incremental  # noqa: E402
+import measured_upgrade  # noqa: E402
 import page_audit  # noqa: E402
 import process  # noqa: E402
 import render  # noqa: E402
@@ -313,6 +314,7 @@ def cmd_prepare(a):
     (out / "dependencies.json").write_text(json.dumps(facts.pop("dependencies", None), separators=(",", ":")))
     save(out / "facts.json", facts)
     save(out / "chunks.json", chunks)
+    save(out / "refdata.json", measured_upgrade.fetch_refdata())
     save_state(out, state)
     existing = sorted(p.stem for p in (out / "reports").glob("*.json"))
     pending = [c["id"] for c in state.get("corrections", []) if c.get("status") != "applied"]
@@ -367,6 +369,13 @@ def cmd_render(a):
     facts["file_activity"] = load(out / "activity.json")
     facts["knowledge"] = load(out / "knowledge.json")
     facts["dependencies"] = load(out / "dependencies.json")
+    if a.refresh_refdata:
+        fresh = measured_upgrade.fetch_refdata()
+        if fresh:
+            save(out / "refdata.json", fresh)
+        else:
+            print("warning: the .NET release data could not be fetched; keeping the pinned data")
+    facts["refdata"] = load(out / "refdata.json", {}) or {}
     facts["file_lines"] = components.chunk_lines(load(out / "chunks.json", {}))
     state = load_state(out)
     reports = {}
@@ -725,6 +734,7 @@ def build_parser():
     p.add_argument("--partial", action="store_true", help="allow missing reports")
     p.add_argument("--allow-errors", action="store_true", help="write the HTML even if validation fails")
     p.add_argument("--apply-corrections", action="store_true", help="mark pending corrections as applied")
+    p.add_argument("--refresh-refdata", action="store_true", help="fetch the .NET release data again instead of using the date pinned by the last build")
     p.set_defaults(fn=cmd_render)
     p = sub.add_parser("check")
     p.add_argument("repo", nargs="?")
