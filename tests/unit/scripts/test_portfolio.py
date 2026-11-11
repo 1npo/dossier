@@ -52,3 +52,9 @@ def test_card_has_header_region_and_body_with_langs(tmp_path):
     text = portfolio.write(tmp_path, "1.5.0").read_text()
     assert '<header class="dhead">' in text and 'class="dstats"' in text and 'class="desc"' in text
     assert 'class="card dcard"' in text and '<div class="bar"' not in text.split('class="dhead"')[1].split("</header>")[0]
+
+
+def test_stamp_uses_12_hour_clock_and_falls_back_to_date():
+    import re
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2} (AM|PM)", portfolio.stamp("2026-11-11T02:56:46Z"))
+    assert portfolio.stamp("2026-11-11") == "2026-11-11"
