@@ -44,8 +44,6 @@ Do these first: each one can make a build silently wrong or hide a failure.
 ### 6. Features to reconsider
 
 16. **Tier B symbols.** Shell, Rust and other languages without a Tier A adapter get counts and a file list but no tree-sitter symbols. The `no static graph` badge says what is missing.
-17. **Environment variables card.** The measured panel "Environment variables read by the code" (`facts-env_vars`, `panel_env`) was removed in M0: the 1.0.0 card set has no place for it, and it capped its rows, against the spec's "no caps" principle. `ops.config-secrets` and `io.inputs` hold the written account today. ([plans/005-m0-plan.md](plans/005-m0-plan.md), Q4.)
-18. **Secrets card.** The "Secret scan" panel (`facts-secret_signals`, `panel_secrets`) was removed for the same reasons. If it returns it must not present dossier as a security scanner (spec section 1, permanent non-goals).
 
 ### 7. Ongoing, driven by the author's work
 
