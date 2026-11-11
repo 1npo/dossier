@@ -1,4 +1,4 @@
-import js_queries
+from dossier.adapters.js import queries as js_queries
 
 
 def call(path, text, line=1):

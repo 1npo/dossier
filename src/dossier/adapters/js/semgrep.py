@@ -1,7 +1,7 @@
 """Turns semgrep results for the JavaScript rules into adapter items (plan 010, D6, D10). Pure."""
 from __future__ import annotations
 
-import js_reduce
+from dossier.adapters.js import reduce as js_reduce
 
 TRIGGERS = {"cli-command": "the `{name}` command", "http-route": "a web request to `{name}`", "queue-consumer": "a message for the task `{name}`",
             "scheduled-job": "a schedule", "server-listen": "when the server starts",

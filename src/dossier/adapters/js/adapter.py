@@ -10,14 +10,14 @@ from pathlib import Path
 
 from dossier.findings import candidates
 from dossier.core import config
-import js_api
-import js_entries
-import js_prisma
-import js_project
-import js_queries
-import js_reduce
-import js_semgrep
-import js_tools
+from dossier.adapters.js import api as js_api
+from dossier.adapters.js import entries as js_entries
+from dossier.adapters.js import prisma as js_prisma
+from dossier.adapters.js import project as js_project
+from dossier.adapters.js import queries as js_queries
+from dossier.adapters.js import reduce as js_reduce
+from dossier.adapters.js import semgrep as js_semgrep
+from dossier.adapters.js import tools as js_tools
 from dossier.core import scip_read
 from dossier.adapters.base import OUTPUTS, Adapter
 from dossier.facts.gather import TEST_RE

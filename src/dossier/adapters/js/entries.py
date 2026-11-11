@@ -7,7 +7,7 @@ from __future__ import annotations
 import posixpath
 
 from dossier.facts import gather
-import js_project
+from dossier.adapters.js import project as js_project
 
 CODE_EXT = (".js", ".jsx", ".ts", ".tsx")
 NEXT_SPECIAL = {"_app", "_document", "_error"}

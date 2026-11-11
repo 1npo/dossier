@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-import js_tools
+from dossier.adapters.js import tools as js_tools
 from dossier.tooling import sandbox
 from dossier.tooling import toolcheck
 

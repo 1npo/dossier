@@ -13,7 +13,7 @@ from pathlib import Path
 from dossier.core import config
 from dossier.tooling import dotnet_sdk as cs_sdk
 from dossier.facts import gather
-import js_tools
+from dossier.adapters.js import tools as js_tools
 from dossier.tooling import sandbox
 
 PROJECT_EXTS = (".csproj", ".fsproj", ".vbproj")

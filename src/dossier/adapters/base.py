@@ -65,7 +65,7 @@ ADAPTERS: tuple = ()  # kept for callers that pass their own tuple; the shipped 
 def _registered() -> tuple:
     """The adapters dossier ships. Imported on first use: both modules import this one, so a top-level import would cycle."""
     from cs_adapter import CSharpAdapter
-    from js_adapter import JsAdapter
+    from dossier.adapters.js.adapter import JsAdapter
     from dossier.adapters.python.adapter import PythonAdapter
     from dossier.adapters.repo import RepoAdapter
     from dossier.adapters.tier_b import TierBAdapter

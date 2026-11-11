@@ -5,8 +5,8 @@ from types import SimpleNamespace
 import pytest
 
 from dossier.adapters import base as adapters
-import js_adapter
-import js_tools
+from dossier.adapters.js import adapter as js_adapter
+from dossier.adapters.js import tools as js_tools
 from dossier.adapters.base import OUTPUTS
 
 NODE_TOOLS = ("dependency-cruiser", "knip", "scip-typescript", "typescript")

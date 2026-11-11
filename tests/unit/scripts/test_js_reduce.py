@@ -2,7 +2,7 @@ import json
 import re
 from pathlib import Path
 
-import js_reduce
+from dossier.adapters.js import reduce as js_reduce
 from dossier.core import scip_read
 import pytest
 

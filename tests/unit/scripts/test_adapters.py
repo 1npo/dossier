@@ -3,7 +3,7 @@ import json
 import pytest
 
 from dossier.adapters import base as adapters
-import js_adapter
+from dossier.adapters.js import adapter as js_adapter
 from dossier.adapters.python import adapter as py_adapter
 from dossier.adapters import repo as repo_adapter
 
