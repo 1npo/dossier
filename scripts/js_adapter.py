@@ -21,8 +21,9 @@ import js_tools
 import scip_read
 from adapters import OUTPUTS, Adapter
 from gather import TEST_RE
+from dossier import resources
 
-RULES = Path(__file__).resolve().parent.parent / "rules" / "js"
+RULES = resources.data("rules", "js")
 NODE_TOOLS = ("dependency-cruiser", "knip", "scip-typescript", "typescript")
 CRUISE_CONFIGS = tuple(f".dependency-cruiser.{e}" for e in ("js", "cjs", "mjs", "ts", "cts", "mts", "json"))
 

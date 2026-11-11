@@ -4,10 +4,11 @@ from pathlib import Path
 import pytest
 
 import candidates
+from dossier import resources
 import checks_v7
 
 SKILL = Path(__file__).resolve().parents[3]
-RULES = SKILL / "rules"
+RULES = resources.data("rules")
 TARGETS = SKILL / "tests" / "fixtures" / "semgrep"
 
 IO_CATEGORIES = {"cli-args", "env-var", "config-file", "file-read", "stdin", "message-consume", "db-connect", "db-access",

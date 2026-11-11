@@ -1,7 +1,7 @@
 """The repository-wide adapter: what belongs to no single language.
 
 Entry points from Dockerfiles, Makefiles, CI files, systemd units and shebang scripts; SQL tables and migrations;
-CI test commands; and the language-independent blind-spot scan (`rules/all`).
+CI test commands; and the language-independent blind-spot scan (`src/dossier/data/rules/all`).
 """
 from __future__ import annotations
 
@@ -11,8 +11,9 @@ from pathlib import Path
 
 import gather
 from adapters import Adapter
+from dossier import resources
 
-RULES_ALL = Path(__file__).resolve().parent.parent / "rules" / "all"
+RULES_ALL = resources.data("rules", "all")
 MAX_BYTES = 1_000_000
 TEST_COMMAND = re.compile(r"\b(pytest|tox|nox|jest|vitest|mocha)\b|make test\b|\bplaywright test\b|\bcypress run\b|\b(npm|yarn|pnpm)( run)? test\b|\bnx test\b|\bdotnet test\b")
 NOT_COLUMN = ("primary", "foreign", "constraint", "unique", "key", "check", "index", "exclude")

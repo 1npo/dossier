@@ -1,4 +1,4 @@
-"""Which tools a repository needs, and which of them this machine has. Reads tools.json. Installs nothing."""
+"""Which tools a repository needs, and which of them this machine has. Reads data/tools.json. Installs nothing."""
 from __future__ import annotations
 
 import json
@@ -12,8 +12,9 @@ from pathlib import Path
 
 import cs_sdk
 import gather
+from dossier import resources
 
-TOOLS_FILE = Path(__file__).resolve().parent / "tools.json"
+TOOLS_FILE = resources.data("tools.json")
 HOST_FOR_VIA = {"uv": ["uv"], "npx": ["node", "npm"], "dotnet-tool": ["dotnet"], "sdk": ["dotnet"], "repo-config": []}
 
 

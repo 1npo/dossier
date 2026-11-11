@@ -27,8 +27,9 @@ import scip_tool
 import toolcheck
 from adapters import OUTPUTS, Adapter
 from py_tools import Grimp, Vulture
+from dossier import resources
 
-RULES = Path(__file__).resolve().parent.parent / "rules" / "python"
+RULES = resources.data("rules", "python")
 NO_PACKAGE = "No Python package was found, so imports were read from the files directly."
 NOT_TRUSTED = "The ref is not trusted, so Node tools did not run. Use --allow-ref to run them."
 NO_NODE = "Node is not installed."

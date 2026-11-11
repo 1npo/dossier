@@ -1128,7 +1128,7 @@ Read section 2, D7, section 6 and this phase; read Phase A's Results. Every data
 
 ### Tasks (Phase B)
 
-- [ ] **B1. Card schemas, summary schema, rules, assets, vendor, `tools.json`, `eol.json`.**
+- [x] **B1. Card schemas, summary schema, rules, assets, vendor, `tools.json`, `eol.json`.**
   1. Moves: `git mv prompts/schema src/dossier/data/schemas/cards` (the 17 JSON files and `README.md`); `git mv prompts/summary.schema.json src/dossier/data/schemas/summary.schema.json`; `git mv rules src/dossier/data/rules`; `git mv assets src/dossier/data/assets`; `git mv vendor src/dossier/data/vendor`; `git mv scripts/tools.json src/dossier/data/tools.json`; `git mv scripts/eol.json src/dossier/data/eol.json`.
   2. Code (section 6, "Code" rows marked B1): `schema.SCHEMA_DIR`, `candidates.SCHEMA_DIR`, `summary_check.SCHEMA_PATH`, the four `RULES` constants, `toolcheck.TOOLS_FILE`, `measured_upgrade.SNAPSHOT`, `render.ASSETS`, `render.VENDOR`, `render.ROOT` (the conflict message). Each module imports `from dossier import resources`. Update the docstrings that name old paths (section 6), except in `gather.py`, `deps.py`, `history.py`.
   3. `prompts/method.md:47`: `prompts/schema/<report>.json` becomes `${CLAUDE_SKILL_DIR}/src/dossier/data/schemas/cards/<report>.json` and the README reference likewise. Grep `prompts/` and `SKILL.md` for any other `schema/` mention and update it.
