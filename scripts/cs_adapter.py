@@ -33,7 +33,7 @@ GENERATOR_PACKAGES = ("Riok.Mapperly", "Mediator.SourceGenerator", "CommunityToo
 
 class CSharpAdapter(Adapter):
     name = "csharp"
-    version = "1"
+    version = "2"
     rules = (RULES,)
     languages = ("C#",)
     tools = ("scip-dotnet", "semgrep", "tree-sitter-language-pack")
@@ -66,9 +66,8 @@ class CSharpAdapter(Adapter):
     def _notes(result, tree) -> list:
         notes = []
         for p in (q for q in result["projects"] if "language" not in q):
-            for name in cs_project.UNSUPPORTED_FRAMEWORKS:
-                if name in p["packages"]:
-                    notes.append({"kind": "cs-note", "path": p["path"], "note": "framework", "name": name})
+            for name in cs_project.project_frameworks(p):
+                notes.append({"kind": "cs-note", "path": p["path"], "note": "framework", "name": name})
             if not p["lock"]:
                 notes.append({"kind": "cs-note", "path": p["path"], "note": "no-lock", "name": p["name"]})
         for p in (q for q in result["projects"] if "language" not in q):
@@ -137,7 +136,7 @@ class CSharpAdapter(Adapter):
         owner = {f: p["path"] for p in result["projects"] if "language" not in p for f in p["files"]}
         builders = {p["path"] for p in result["projects"] if "language" not in p and {"bullseye", "cake.frosting"} & {x.lower() for x in p["packages"]}}
         try:
-            found = cs_semgrep.items(ctx.semgrep.scan(RULES, scan), owner.get, builders)
+            found = cs_semgrep.items(ctx.semgrep.scan(RULES, scan), owner.get, builders, self._reader(ctx))
         except Exception as e:  # one tool failing must not stop the others
             return self._failed(ctx, "semgrep", e)
         ctx.tool_status["semgrep"] = {"status": "ok", "reason": None}
@@ -182,8 +181,8 @@ class CSharpAdapter(Adapter):
 
     @staticmethod
     def _run_targets(ctx, scip, targets) -> tuple:
-        """(decoded indexes, problems, msbuild notes). One failing target does not stop the others."""
-        indexes, problems, notes = [], [], []
+        """(decoded indexes, problems, msbuild notes, project files that did not load). One failing target does not stop the others."""
+        indexes, problems, notes, unloaded = [], [], [], set()
         for n, target in enumerate(targets):
             try:
                 path, code, log = scip.index(ctx.checkout, target, ctx.area, n)
@@ -195,11 +194,12 @@ class CSharpAdapter(Adapter):
             except Exception as e:  # a bad index must not stop the other targets
                 problems.append((str(e).splitlines() or [type(e).__name__])[0])
                 continue
+            unloaded |= cs_scip.unloaded_projects(log, ctx.checkout)
             soft = cs_scip.soft_failure(log)
             if soft:
                 problems.append(f"scip-dotnet could not load every project: {soft}")
                 notes.append({"kind": "cs-note", "path": target, "note": "msbuild", "name": soft})
-        return indexes, problems, notes
+        return indexes, problems, notes, unloaded
 
     def _scip(self, ctx, out, result, st, gate) -> None:
         """Symbols and references with scip-dotnet, or the tree-sitter fallback when it could not run or gave nothing (D11)."""
@@ -211,14 +211,18 @@ class CSharpAdapter(Adapter):
         scip, problem = self._install(ctx, config.timeouts()["tool"])
         if problem:
             return self._fallback(out, st, problem[1], ctx, problem[0])
-        indexes, problems, notes = self._run_targets(ctx, scip, result["targets"])
+        indexes, problems, notes, unloaded = self._run_targets(ctx, scip, result["targets"])
         out["graph"] += notes
         index = cs_scip.join(indexes, ctx.tree)
         if not index["documents"]:
             return self._fallback(out, st, problems[0] if problems else "scip-dotnet wrote an index with no documents.", ctx, "failed")
         decls = st.get("decls", {})
         index, ambiguous = cs_scip.disambiguate(index, decls)
-        out["symbols"] += cs_scip.finish_symbols(scip_read.reduce(index), decls, st.get("generated", set()))
+        symbols = cs_scip.finish_symbols(scip_read.reduce(index), decls, st.get("generated", set()))
+        csprojects = [p for p in result["projects"] if "language" not in p]
+        symbols, dropped = cs_scip.drop_unrelated(symbols, csprojects, {f: p["path"] for p in csprojects for f in p["files"]})
+        out["symbols"] += symbols
+        ctx.details["dropped_edges"] = dropped
         indexed = {d["path"] for d in index["documents"]}
         missing = sorted(f for p in result["projects"] if "language" not in p for f in p["files"] if f not in indexed and f not in st.get("generated", ()))
         for note, count, path in (("ambiguous-symbol", ambiguous, result["targets"][0]), ("unindexed", len(missing), missing[0] if missing else None)):
@@ -228,7 +232,7 @@ class CSharpAdapter(Adapter):
             ctx.tool_status["scip-dotnet"] = {"status": "failed", "reason": problems[0]}
             return
         ctx.tool_status["scip-dotnet"] = {"status": "ok", "reason": None}
-        dead = cs_scip.dead_items(out["symbols"], decls, out["entry_points"], out["models"], out["blindspots"], st.get("generated", set()), st.get("tests", set()))
+        dead = cs_scip.dead_items(out["symbols"], decls, out["entry_points"], out["models"], out["blindspots"], st.get("generated", set()), st.get("tests", set()), unloaded)
         out["dead"] += dead
         if dead:
             out["graph"].append({"kind": "cs-note", "path": dead[0]["path"], "note": "dead", "name": str(len(dead))})

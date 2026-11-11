@@ -183,6 +183,14 @@ class TestDeadRows:
         assert [(g[0], g[1]) for g in got] == [("f", "function"), ("left-pad", "unused dependency"), ("a", "module nothing imports")]
         assert got[0][2] == "unused function 'f' (60% confidence)"
 
+    def test_unused_nuget_rows_are_left_out_and_other_ecosystems_kept(self):
+        unused = [{"n": "Serilog", "note": "x", "ecosystem": "nuget"}, {"n": "left-pad", "note": "x", "ecosystem": "npm"},
+                  {"n": "attrs", "note": "x", "ecosystem": "python"}]
+
+        got = measured_change.dead_rows({}, {"unused": unused})
+
+        assert [(g[0], g[1]) for g in got] == [("left-pad", "unused dependency"), ("attrs", "unused dependency")]
+
     def test_a_finding_with_no_confidence_has_no_percentage(self):
         extract = {"dead": [{"name": "x.ts", "type": "unused file", "message": "No entry point or other file uses this file.",
                              "confidence": None, "path": "src/x.ts", "line": None}]}

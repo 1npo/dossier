@@ -113,3 +113,42 @@ rules:
     patterns:
       - pattern: $SUB.add_parser($X, ...)
       - pattern-not: $SUB.add_parser("...", ...)
+
+  - id: dossier.python.blindspot.string-route
+    message: A route whose path is built at run time
+    languages: [python]
+    severity: INFO
+    options:
+      constant_propagation: false
+    metadata: {category: blindspot, pattern: string-route}
+    patterns:
+      - pattern-either:
+          - pattern: $A.route($P, ...)
+          - pattern: $A.add_url_rule($P, ...)
+      - pattern-not: $A.route("...", ...)
+      - pattern-not: $A.add_url_rule("...", ...)
+
+  - id: dossier.python.blindspot.route-mount
+    message: Routes mounted under a prefix
+    languages: [python]
+    severity: INFO
+    metadata: {category: blindspot, pattern: route-mount}
+    pattern-either:
+      - pattern: $A.include_router($X, ..., prefix=$P, ...)
+      - pattern: APIRouter(..., prefix=$P, ...)
+      - pattern: Blueprint(..., url_prefix=$P, ...)
+      - pattern: $A.register_blueprint($X, ..., url_prefix=$P, ...)
+      - patterns:
+          - pattern: $A.mount("...", ...)
+          - metavariable-regex:
+              metavariable: $A
+              regex: ^(app|router|server|api|.*[Rr]outer|.*[Aa]pp)$
+      - pattern: path(..., include(...), ...)
+      - pattern: re_path(..., include(...), ...)
+
+  - id: dossier.python.blindspot.barrel-reexport
+    message: Passes names on from other modules with a star import
+    languages: [python]
+    severity: INFO
+    metadata: {category: blindspot, pattern: barrel-reexport}
+    pattern-regex: (?m)^[ \t]*from[ \t]+\S+[ \t]+import[ \t]+\*

@@ -108,3 +108,88 @@ commands.add_parser(name, help=help)
 
 # ok: dossier.python.blindspot.computed-subcommand
 commands.add_parser("serve", help="run the server")
+
+
+# ruleid: dossier.python.blindspot.string-route
+@app.route(path)
+def computed_route():
+    pass
+
+
+# ruleid: dossier.python.blindspot.string-route
+@app.route(PREFIX + "/items")
+def prefixed_route():
+    pass
+
+
+# ruleid: dossier.python.blindspot.string-route
+@blueprint.route(f"/items/{kind}")
+def formatted_route():
+    pass
+
+
+# ok: dossier.python.blindspot.string-route
+@app.route("/x")
+def literal_route():
+    pass
+
+
+# ruleid: dossier.python.blindspot.string-route
+app.add_url_rule(path, "name", view)
+
+# ok: dossier.python.blindspot.string-route
+app.add_url_rule("/x", "name", view)
+
+# ok: dossier.python.blindspot.string-route
+router.get("/x")
+
+# ruleid: dossier.python.blindspot.route-mount
+app.include_router(router, prefix="/api")
+
+# ok: dossier.python.blindspot.route-mount
+app.include_router(router)
+
+# ruleid: dossier.python.blindspot.route-mount
+api = APIRouter(prefix="/v1")
+
+# ok: dossier.python.blindspot.route-mount
+api = APIRouter()
+
+# ruleid: dossier.python.blindspot.route-mount
+bp = Blueprint("items", __name__, url_prefix="/items")
+
+# ok: dossier.python.blindspot.route-mount
+bp = Blueprint("items", __name__)
+
+# ruleid: dossier.python.blindspot.route-mount
+app.register_blueprint(bp, url_prefix="/b")
+
+# ok: dossier.python.blindspot.route-mount
+app.register_blueprint(bp)
+
+# ruleid: dossier.python.blindspot.route-mount
+app.mount("/static", files)
+
+# ok: dossier.python.blindspot.route-mount
+disk.mount("/dev/sda1")
+
+urlpatterns = [
+    # ruleid: dossier.python.blindspot.route-mount
+    path("api/", include("api.urls")),
+    # ruleid: dossier.python.blindspot.route-mount
+    re_path(r"^v1/", include("v1.urls")),
+    # ok: dossier.python.blindspot.route-mount
+    path("health/", health_view),
+]
+
+# ok: dossier.python.blindspot.route-mount
+urls = include("api.urls")
+
+# ruleid: dossier.python.blindspot.barrel-reexport
+from .models import *
+
+# ok: dossier.python.blindspot.barrel-reexport
+from .models import Order
+
+# ok: dossier.python.blindspot.barrel-reexport
+import models

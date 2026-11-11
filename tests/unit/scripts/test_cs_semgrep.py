@@ -43,6 +43,29 @@ class TestItems:
 
         assert [e["trigger"] for e in kept] == ["running `dotnet run --project build/build.csproj -- default`"] and dropped == []
 
+    def test_a_multi_line_target_is_named_from_the_file_text(self):
+        text = 'Target(\n    "test",\n    DependsOn("build"),\n    () => Run());\n'
+        row = hit("entry.bullseye-target", None, snippet="Target(", path="build/Program.cs", line=1, category="entry", kind="build-target")
+        read = lambda p: text if p == "build/Program.cs" else None  # noqa: E731
+
+        got = cs_semgrep.items([row], lambda p: "b.csproj", {"b.csproj"}, read)["entry_points"]
+
+        assert [(e["name"], e["trigger"]) for e in got] == [("test", "running `dotnet run --project b.csproj -- test`")]
+
+    def test_a_target_with_a_name_from_the_rule_is_left_alone(self):
+        row = hit("entry.bullseye-target", "default", snippet='Target("default", ...', path="build/Program.cs", category="entry", kind="build-target")
+
+        got = cs_semgrep.items([row], lambda p: "b.csproj", {"b.csproj"}, lambda p: 'Target(\n"other"')["entry_points"]
+
+        assert [e["name"] for e in got] == ["default"]
+
+    def test_a_target_whose_name_cannot_be_read_keeps_the_snippet(self):
+        row = hit("entry.bullseye-target", None, snippet="Target(", path="build/Program.cs", category="entry", kind="build-target")
+
+        got = cs_semgrep.items([row], lambda p: "b.csproj", {"b.csproj"}, lambda p: None)["entry_points"]
+
+        assert [e["name"] for e in got] == ["Target("]
+
     def test_io_findings_keep_their_category_and_detail(self):
         got = cs_semgrep.items([hit("inputs.env-var", "SHOP_KEY", category="env-var")])["io_candidates"]
 

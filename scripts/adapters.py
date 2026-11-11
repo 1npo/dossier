@@ -40,6 +40,7 @@ class Context:
     trusted: bool = True
     repo_name: str = "repo"
     tool_status: dict = field(default_factory=dict)
+    details: dict = field(default_factory=dict)  # counts an adapter wants in the build log, nowhere else
 
 
 class Adapter:
@@ -221,6 +222,8 @@ def run_extract(*, adapters, checkout, sha, tree, area, out, trusted, allow_ref,
             res.update(status="failed", reason=((str(e).splitlines() or [""])[0] or type(e).__name__))
             continue
         res["tools"] = ctx.tool_status
+        if ctx.details:
+            res["details"] = ctx.details
         produced[ad.name] = (key, kept, ctx.tool_status)
         for k in totals:
             totals[k] += stats[k]

@@ -222,7 +222,7 @@ def dead_rows(extract, dependencies):
              d["path"], d.get("line")) for d in extract.get("dead", [])]
     from_knip = {d["name"] for d in extract.get("dead", []) if d.get("type") == "unused dependency"}  # knip names the same packages
     for u in (dependencies or {}).get("unused", []) or []:
-        if u["n"] not in from_knip:
+        if u["n"] not in from_knip and u.get("ecosystem") != "nuget":  # NuGet ids are not namespaces: every row on a real repository was false
             rows.append((u["n"], "unused dependency", u["note"], None, None))
     graph = extract.get("graph", [])
     imported = {p for g in graph if g.get("kind") == "import" for p in g.get("paths") or []}

@@ -114,7 +114,14 @@ class TestCSharpCoverage:
     def test_a_csharp_module_gives_the_stale_flags_and_file_link_items_only_for_csharp(self):
         got = checks_v7.cs_coverage(cs_extract())
 
-        assert [(g["report"], g["statement"]) for g in got] == [("change", "Stale feature flags and unused routes are not detected for C#."), ("interactions", checks_v7.CS_LINKS)]
+        assert [(g["report"], g["statement"]) for g in got] == [("change", "Stale feature flags and unused routes are not detected for C#."), ("interactions", checks_v7.CS_LINKS),
+                                                            ("change", checks_v7.CS_NUGET_UNUSED)]
+
+    def test_the_unused_nuget_item_appears_once_with_a_csharp_module(self):
+        got = [g for g in checks_v7.cs_coverage(cs_extract()) if g["statement"] == checks_v7.CS_NUGET_UNUSED]
+
+        assert [(g["report"], g["how_to_confirm"]) for g in got] == [("change", checks_v7.KNOWN_LIMIT)]
+        assert not [g for g in checks_v7.cs_coverage(cs_extract(module=False)) if g["statement"] == checks_v7.CS_NUGET_UNUSED]
 
     def test_no_csharp_module_gives_nothing(self):
         assert checks_v7.cs_coverage(cs_extract(module=False)) == []
@@ -153,3 +160,17 @@ class TestCSharpCoverage:
         gaps = checks.validate({}, cs_extract({"note": "framework", "name": "Carter"}))["gaps"]
 
         assert any("written for Carter" in g["statement"] for g in gaps) and any(g["statement"] == checks_v7.CS_LINKS for g in gaps)
+
+
+class TestRuntimeConfigurationItem:
+    def test_a_mixed_extract_gets_it_exactly_once(self):
+        modules = [MODULE, {**MODULE, "path": "web/a.ts", "language": "js"}, {**MODULE, "path": "Api/A.cs", "language": "csharp"}]
+
+        _, _, gaps, _ = checks_v7.v7({"blindspots": [], "graph": modules})
+
+        assert [g["statement"] for g in gaps].count(checks_v7.RUNTIME_CONFIG) == 1
+
+    def test_an_extract_without_modules_does_not_get_it(self):
+        _, _, gaps, _ = checks_v7.v7({"blindspots": [], "graph": []})
+
+        assert gaps == []

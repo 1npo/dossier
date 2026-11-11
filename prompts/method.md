@@ -385,6 +385,7 @@ The report `components` is written around a catalog of components, and `render` 
 2. Draft the catalog from those candidates. Merge small folders, split a large one, and give each component a plain name. Fill the `Paths` cell with the component's folders, files or globs in backticks, separated by commas (`src/app/alerts/`, `scripts/*.sh`). The most specific pattern wins when two overlap; a file matched equally well by two components is an error.
 3. Check what you drafted: write it to `reports/components.json`, then run `DOSSIER candidates <repo> --report components --catalog reports/components.json`. It prints the size of each component, the imports between your components (use them for `Depends on` and `Used by`) and every source file that is in no component.
 4. A file that really belongs to no component (documentation, a licence, a generated folder) goes in the catalog entry's `unassigned` list, each with a reason: `"unassigned": [{"paths": "docs/, LICENSE", "reason": "Documentation, not code."}]`.
+4a. Some files may be in a language with no static graph (the page badges its graph cards `no static graph`; `doctor` shows the language as Tier B). They are counted and listed but have no imports or calls linked to them. When a component is made mostly of such files, say in its detail entry that its links are unknown, and never infer them.
 5. Write one `components.detail` entry for every row of the catalog, with the component's name as the `component` key. A missing entry is an error.
 
 ## What render checks

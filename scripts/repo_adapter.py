@@ -50,11 +50,6 @@ def _strip_comment(value: str) -> str:
 EVENT = re.compile(r"\s*([a-z_]+)\s*:")
 
 
-def wants_triggers(tree) -> bool:
-    """`ci-trigger` rows are written for repositories with C# only: Python and JS dossiers stay as they were (plan 011, M5-33)."""
-    return any(p.endswith(".cs") for p in tree)
-
-
 def workflow_triggers(path: str, text: str) -> list:
     """One `ci-trigger` per event under a GitHub workflow's top-level `on:` (push, pull_request, workflow_dispatch...). `schedule`
     is left to the cron rows."""
@@ -83,9 +78,9 @@ def workflow_triggers(path: str, text: str) -> list:
     return found
 
 
-def workflow_entries(path: str, text: str, triggers: bool = False) -> list:
-    """`ci-schedule` entry points and `ci-command` test commands from a GitHub or GitLab CI file; with `triggers`, also `ci-trigger`."""
-    found, lines, block_indent = (workflow_triggers(path, text) if triggers else []), text.splitlines(), None
+def workflow_entries(path: str, text: str) -> list:
+    """`ci-trigger` and `ci-schedule` entry points and `ci-command` test commands from a GitHub or GitLab CI file."""
+    found, lines, block_indent = workflow_triggers(path, text), text.splitlines(), None
     for n, line in enumerate(lines, 1):
         indent = len(line) - len(line.lstrip())
         if block_indent is not None:
@@ -198,6 +193,70 @@ def sql_tables(path: str, text: str) -> list:
     return found
 
 
+NAME = r"[A-Za-z_][A-Za-z0-9_]*"
+
+
+def _variable(path: str, line: int, rule: str, category: str, detail: str, snippet: str) -> dict:
+    """An `io_candidates` item. The snippet holds the name only: values are never stored."""
+    return {"path": path, "line": line, "end_line": line, "rule": rule, "category": category, "detail": detail, "snippet": snippet}
+
+
+def dockerfile_variables(path: str, text: str) -> list:
+    """`env-var` items for the names an `ENV` or `ARG` line sets, one per name; a multi-line `ENV` keeps each name's own line."""
+    found, seen, cont = [], set(), False
+    for n, line in enumerate(text.splitlines(), 1):
+        head = re.match(r"\s*(ENV|ARG)\s+(.*)$", line, re.I) if not cont else None
+        body = head.group(2) if head else line if cont else ""
+        if not head and not cont:
+            continue
+        cont = body.rstrip().endswith("\\")
+        plain = re.sub(r"\"[^\"]*\"|'[^']*'", '""', body.rstrip().rstrip("\\"))
+        if head and head.group(1).upper() == "ENV" and not re.match(NAME + "=", plain.strip()):
+            names = [plain.split()[0]] if plain.split() else []
+        else:
+            names = re.findall(r"(?:^|\s)(" + NAME + r")(?:=|\s|$)", plain) if head and head.group(1).upper() == "ARG" \
+                else re.findall(r"(?:^|\s)(" + NAME + r")=", plain)
+        for name in names:
+            if name not in seen:
+                seen.add(name)
+                found.append(_variable(path, n, "repo.dockerfile-env", "env-var", name, f"{head.group(1).upper() if head else 'ENV'} {name}"))
+    return found
+
+
+def compose_variables(path: str, text: str) -> list:
+    """`env-var` items for each key under a service's `environment:` and `config-file` items for each `env_file:` value."""
+    lines, found, seen = text.splitlines(), [], set()
+    for i, line in enumerate(lines):
+        m = re.match(r"(\s*)(environment|env_file):\s*(.*)$", line)
+        if not m:
+            continue
+        indent, key, rest = len(m.group(1)), m.group(2), _strip_comment(m.group(3))
+        values = [(i + 1, rest)] if rest and not rest.startswith(("{", "[", "|", ">")) else []
+        for k in range(i + 1, len(lines)):
+            sub = lines[k]
+            if not sub.strip() or sub.lstrip().startswith("#"):
+                continue
+            if len(sub) - len(sub.lstrip()) <= indent:
+                break
+            values.append((k + 1, _strip_comment(sub.strip())))
+        for n, v in values:
+            if key == "environment":
+                name = re.match(r"(?:-\s+)?(" + NAME + r")\s*(?:[=:]|$)", v)
+                what = ("env-var", "repo.compose-env", name.group(1)) if name else None
+            else:
+                v = re.sub(r"^-\s+", "", v)
+                v = re.sub(r"^path:\s*", "", v)
+                what = ("config-file", "repo.compose-env-file", v) if v and not re.match(r"required:|format:", v) else None
+            if what and (what[2], what[0]) not in seen:
+                seen.add((what[2], what[0]))
+                found.append(_variable(path, n, what[1], what[0], what[2], what[2] if what[0] == "config-file" else f"{key}: {what[2]}"))
+    return found
+
+
+def _is_compose(base: str) -> bool:
+    return bool(re.match(r"(docker-)?compose[^/]*\.ya?ml$", base))
+
+
 def _is_dockerfile(base: str) -> bool:
     return base.startswith("Dockerfile") or base.endswith(".Dockerfile") or base == "Containerfile"
 
@@ -220,30 +279,32 @@ def _executable_files(checkout: Path, sha: str) -> list:
 class RepoAdapter(Adapter):
     name = "repo"
     rules = (RULES_ALL,)
-    version = "5"
+    version = "6"
     languages = ("*",)
     tools = ("semgrep",)
 
     def extract(self, ctx) -> dict:
-        out = {"entry_points": [], "models": [], "tests": [], "blindspots": []}
+        out = {"entry_points": [], "models": [], "tests": [], "blindspots": [], "io_candidates": []}
         executable = set(_executable_files(ctx.checkout, ctx.sha))
-        with_triggers = wants_triggers(ctx.tree)
         for path in sorted(ctx.tree):
             if gather.noise_reason(path):
                 continue
             base, found = path.rsplit("/", 1)[-1], []
             text = None
-            if _is_dockerfile(base) or base in ("Makefile", "makefile", "GNUmakefile") or base.endswith((".mk", ".service", ".sql")) \
+            if _is_dockerfile(base) or _is_compose(base) or base in ("Makefile", "makefile", "GNUmakefile") or base.endswith((".mk", ".service", ".sql")) \
                     or re.search(r"(^|/)\.github/workflows/[^/]+\.ya?ml$", path) or base == ".gitlab-ci.yml" or path in executable:
                 text = _read(ctx.checkout, path)
             if text is None:
                 continue
             if _is_dockerfile(base):
                 found = dockerfile_entries(path, text)
+                out["io_candidates"] += dockerfile_variables(path, text)
+            elif _is_compose(base):
+                out["io_candidates"] += compose_variables(path, text)
             elif base in ("Makefile", "makefile", "GNUmakefile") or base.endswith(".mk"):
                 found = makefile_targets(path, text)
             elif base == ".gitlab-ci.yml" or "/.github/workflows/" in "/" + path:
-                found = workflow_entries(path, text, triggers=with_triggers)
+                found = workflow_entries(path, text)
             elif base.endswith(".service"):
                 found = systemd_units(path, text)
             elif base.endswith(".sql"):

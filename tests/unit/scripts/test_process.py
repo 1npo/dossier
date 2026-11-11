@@ -703,3 +703,100 @@ class TestTierStats:
 
         assert html.count('class="stat "') == 4
         assert re.findall(r'<div class="k">([^<]*)</div>', html) == ["Cards", "Measured", "Adjudicated", "Read"]
+
+
+def langs(*pairs):
+    return build_with(rec("tools", details={"languages": [{"name": n, "tier": t} for n, t in pairs], "missing": []}))
+
+
+def facts_of(**files):
+    return {"languages": [{"name": n, "kind": "code", "files": c} for n, c in files.items()]}
+
+
+class TestNoGraphCards:
+    def test_a_tier_b_language_badges_the_eight_graph_cards_and_the_tip_names_it(self):
+        got = process.nograph_cards(langs(("Python", "A"), ("Shell", "B"), ("SQL", "B")), facts_of(Python=9, Shell=4, SQL=2))
+
+        assert set(got) == set(process.NOGRAPH_CARDS) and len(got) == 8
+        tip = got["components.map"]
+        assert tip == "No import or call graph was made for Shell (4 files). Their files are in the tables but have no links."
+
+    def test_languages_are_listed_by_file_count_then_name_with_one_file_singular(self):
+        got = process.nograph_cards(langs(("Rust", "B"), ("Shell", "B"), ("Lua", "B")), facts_of(Rust=1, Shell=4, Lua=1))
+
+        assert got["reading.order"].startswith("No import or call graph was made for Shell (4 files), Lua (1 file), Rust (1 file).")
+
+    def test_the_languages_the_repo_adapter_reads_give_no_badge(self):
+        assert process.nograph_cards(langs(("Dockerfile", "B"), ("Makefile", "B"), ("SQL", "B")), facts_of(Dockerfile=1, Makefile=1, SQL=3)) == {}
+
+    def test_tier_a_only_and_no_build_give_nothing(self):
+        assert process.nograph_cards(langs(("Python", "A")), facts_of(Python=3)) == {}
+        assert process.nograph_cards(None, {}) == {}
+
+    def test_the_gaps_line_is_unchanged_for_every_tier_b_language(self):
+        got = [i["statement"] for i in process.coverage_items(langs(("Shell", "B"), ("SQL", "B"), ("Python", "A")))]
+
+        assert got == ["Shell has basic support only: no import or call graph is extracted for it.", "SQL has basic support only: no import or call graph is extracted for it."]
+
+
+class TestRazorIsNotALanguage:
+    def test_a_razor_file_gives_no_language_row_and_no_tier_b_item(self):
+        import gather
+
+        assert gather.lang_of("Views/Home/Index.razor") is None
+        assert gather.lang_of("Pages/Counter.razor") is None
+        assert process.nograph_cards(langs(("C#", "A")), facts_of(**{"C#": 3})) == {}
+        assert process.coverage_items(langs(("C#", "A"))) == []
+
+
+SAMPLE = rec("check", part="verify-sample", by="verify", details={"seed": "s", "per_report": 5, "items": [{"id": "V01", "report": "entry", "card": "c", "key": "k1"}]})
+RESULT = rec("check", part="verify", by="verify", counts={"sampled": 3, "supported": 1, "not_supported": 1, "cannot_tell": 1},
+             details={"seed": "s", "per_report": 5, "results": [{"id": "V01", "report": "entry", "key": "k1", "verdict": "not supported", "reason": "Line 3 says otherwise."}]})
+
+
+class TestVerifierRow:
+    def test_build_without_verify_says_not_run(self):
+        row = verifier_cell(build_with(*FULL))
+
+        assert row == "not run (turn it on with --verify)"
+
+    def test_recorded_results_are_counted(self):
+        row = verifier_cell(build_with(*FULL, SAMPLE, RESULT))
+
+        assert row == "5 claims per report, 3 sampled: 1 supported, 1 not supported, 1 cannot tell"
+
+    def test_sample_without_results_says_so(self):
+        row = verifier_cell(build_with(*FULL, SAMPLE))
+
+        assert row == "claims were sampled but no results were recorded"
+
+
+def verifier_cell(build):
+    return dict(process._ok_rows("check", build))["Verifier"]
+
+
+class TestV10Verifier:
+    def test_sample_without_results_is_an_error(self):
+        errors, _ = process.validate_build(build_with(*FULL, SAMPLE))
+
+        assert [e for e in errors if "verifier" in e] == [
+            "V10: the verifier sampled claims but no results were recorded. Run dossier verify-record, or build again without --verify."]
+
+    def test_sample_with_later_results_is_clean(self):
+        errors, _ = process.validate_build(build_with(*FULL, SAMPLE, RESULT))
+
+        assert not [e for e in errors if "verifier" in e]
+
+    def test_verify_option_with_no_sample_is_info_only(self):
+        build = build_with(*FULL)
+        build["options"] = {"verify": True}
+
+        errors, infos = process.validate_build(build)
+
+        assert not [e for e in errors if "verif" in e]
+        assert any(i.startswith("V10: --verify is on") for i in infos)
+
+    def test_build_without_verify_has_no_verifier_line(self):
+        errors, infos = process.validate_build(build_with(*FULL))
+
+        assert not [x for x in errors + infos if "verif" in x]

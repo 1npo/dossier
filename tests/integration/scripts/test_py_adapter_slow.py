@@ -59,7 +59,7 @@ class TestFixtureOfRecord:
         assert {t: s["status"] for a in adapters.values() for t, s in a["tools"].items()} == {
             "grimp": "ok", "tree-sitter-language-pack": "ok", "semgrep": "ok", "vulture": "ok", "scip-python": "ok"}
 
-    def test_entry_points_are_exactly_the_ten_expected(self, ex):
+    def test_entry_points_are_exactly_the_eleven_expected(self, ex):
         got = {(e["kind"], e["path"], e["line"]) for e in ex.items("entry_points")}
 
         expected = {("console-script", "pyproject.toml", ex.line("pyproject.toml", "ep-script")),
@@ -71,8 +71,9 @@ class TestFixtureOfRecord:
                     ("make-target", "Makefile", ex.line("Makefile", "ep-make")),
                     ("ci-schedule", ".github/workflows/ci.yml", ex.line(".github/workflows/ci.yml", "ep-cron")),
                     ("shebang-script", "scripts/seed.sh", 1),
+                    ("ci-trigger", ".github/workflows/ci.yml", 3),
                     ("cli-command", "src/shopcart/cli.py", ex.line("src/shopcart/cli.py", "ep-subcommand"))}
-        assert got == expected and len(ex.items("entry_points")) == 10
+        assert got == expected and len(ex.items("entry_points")) == 11
 
     def test_an_argparse_subcommand_is_a_cli_command_named_by_its_literal(self, ex):
         item = next(e for e in ex.items("entry_points") if e["kind"] == "cli-command")

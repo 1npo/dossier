@@ -4,6 +4,7 @@ import cs_sdk
 import js_tools
 import restore
 import sandbox
+import toolcheck
 
 TOOLS = {"restore": [
     {"ecosystem": "python", "lockfile": "uv.lock", "command": ["uv", "sync", "--frozen"], "enabled": True},
@@ -291,3 +292,23 @@ class TestDecide:
 
     def test_nothing_stored_asks(self):
         assert decide()["action"] == "ask"
+
+
+class TestNestedPythonPlans:
+    def test_a_uv_lock_below_the_root_gives_a_plan_with_its_folder(self):
+        got = restore.plans(frozenset({"backend/uv.lock"}), toolcheck.load_tools())
+
+        assert [(p["ecosystem"], p["dir"], p["lockfile"]) for p in got] == [("python", "backend", "backend/uv.lock")]
+
+    def test_a_root_uv_lock_is_unchanged(self):
+        got = restore.plans(frozenset({"uv.lock"}), toolcheck.load_tools())
+
+        assert [(p["ecosystem"], p["dir"], p["lockfile"], p["command"]) for p in got] == [("python", "", "uv.lock", ["uv", "sync", "--frozen"])]
+
+    def test_other_ecosystems_keep_their_nesting_rules(self):
+        entries = {r["ecosystem"]: bool(r.get("nested")) for r in toolcheck.load_tools()["restore"]}
+
+        assert entries == {"python": True, "npm": True, "yarn": True, "pnpm": True, "nuget": True}
+
+    def test_a_uv_lock_in_a_vendored_folder_is_ignored(self):
+        assert restore.plans(frozenset({"node_modules/x/uv.lock"}), toolcheck.load_tools()) == []

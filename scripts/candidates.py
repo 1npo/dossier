@@ -335,16 +335,17 @@ def text(rid: str, extract: dict, reports: dict, facts: dict, *, only_open: bool
         c = d["components"]
         out.append("== Folders with source files ==")
         out += [f"{f['path']}  ({f['files']} files, {f['lines']} lines)" for f in c["folders"]]
-        if c["packages"] or "projects" not in c:
+        if c["packages"] or any(m.get("kind") == "module" and "language" not in m for m in extract.get("graph", [])):
             out.append("== Python packages ==")
-            out += [f"{p['package']}  ({p['modules']} modules)" for p in c["packages"]]
+            out += [f"{p['package']}  " + (f"[{p['project']}]  " if p.get("project") else "") + f"({p['modules']} modules)" for p in c["packages"]]
         if "projects" in c:
             out.append("== JavaScript and TypeScript projects ==")
             out += [f"{p['root']}  ({p['modules']} modules)" for p in c["projects"]]
         cs = [g for g in extract.get("graph", []) if g.get("kind") == "cs-project"]
         if cs:
             out.append("== C# projects ==")
-            files = Counter(m.get("project") for m in extract.get("graph", []) if m.get("kind") == "module" and m.get("language") == "csharp")
+            dirs = sorted(((g["path"].rsplit("/", 1)[0] if "/" in g["path"] else "", g["path"]) for g in cs), key=lambda d: -len(d[0]))
+            files = Counter(next((p for d, p in dirs if not d or f.startswith(d + "/")), None) for f in (tree or ()) if f.endswith(".cs"))
             out += [f"{g['path']}  (SDK {g['sdk']}, {g['output_type']}{', test project' if g.get('test') else ''}, {files[g['path']]} files)" for g in cs]
         out.append("== Import communities (folders that import each other most) ==")
         out += [f"{x['label']}: {', '.join(x['folders'])}" for x in c["communities"]]

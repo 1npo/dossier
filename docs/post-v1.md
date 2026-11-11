@@ -11,13 +11,29 @@ Things to consider once dossier 1.0.0 is done. Nothing here is planned yet. Each
 
 The TS and C# results in 1.0.0 are measured on public repositories, because the author has none of their own and is new to both languages. When the author takes over TS and C# codebases at work, they will learn them and correct dossier as they go: rules, entry-point kinds, what counts as an entity, and the public API. Decided in the M4 plan review (spec decisions 33 and 34).
 
-## Python projects in subfolders
-
-The Python adapter reads `pyproject.toml` at the repository root only. In a repository whose Python lives in a subfolder (for example `backend/` beside a `frontend/`), it finds no modules, so the graph, the dead-code rows and the other measured cards for that code stay empty. The JS adapter does not have this limit: it finds `package.json` files at any depth. M4 left the Python adapter alone because its output had to stay identical, and its mixed-language test keeps the Python fixture at the root. A fix would look for `pyproject.toml` (and `setup.py`, `requirements.txt`) below the root, treat each as a source root the way the JS adapter does, and keep the root-level result unchanged. Found in Phase 3 of M4 ([plans/010-m4-plan.md](plans/010-m4-plan.md), "Results (Phase 3)").
-
 ## Findings deferred from the M4 review
 
-- **P4-3.** `candidates` hides the names of Nx targets and package scripts (found on `RW`). Deferred because the reports can still name them by hand.
 - **P5-1, MSW part.** MSW mock handlers (`http.get(...)`) are not detected as entry points (found on `BP`; the `BP` reports list them by hand). Deferred because it only adds missing mock routes; the Axios false entry points were fixed in the M4 follow-up.
 
-Ruled on 2026-11-08 in [plans/010-m4-plan.md](plans/010-m4-plan.md), "Results (Phase 5)".
+Ruled on 2026-11-08 in [plans/010-m4-plan.md](plans/010-m4-plan.md), "Results (Phase 5)". P4-3 (names of Nx targets and package scripts) was found fixed in M6 and removed.
+
+## Left out of 1.0.0
+
+Each was considered during M6 and left out. Decided in [plans/012-m6-plan.md](plans/012-m6-plan.md).
+
+- **Tier B symbols.** Languages without a Tier A adapter (Shell, Rust and the rest) get counts and a file list but no tree-sitter symbols. Left out because the spec's cut line puts "Tier B polish" second, and the `no static graph` badge already says what is missing (section 3, row 5).
+- **Makefile and shell variables as inputs.** Dockerfile `ENV` and `ARG` and compose `environment:` are read; variables in Makefiles and scripts are not. Left out because without a shell parser too many matches are false (finding 2 of M5, Phase 5).
+- **`.cake` build scripts.** Cake scripts in C# repositories are not read. Found on a public C# repository in M5, Phase 2.
+- **FastAPI `Depends(...)`.** Dependency injection through `Depends` is not followed, and no blind-spot rule reports it. Decision 11 of the spec leaves Python DI alone; `Depends` is the one case worth a rule.
+- **.NET versions from Microsoft's `releases.json`.** The end-of-life snapshot comes from endoflife.date, which lags the runtime releases (it listed 10.0.13 as latest when 10.0.14 had shipped). Microsoft's own `releases.json` would be current. Found in M5, Phase 5, finding 5.
+- **Agent detection from `Agent-Logs-Url`.** Commits by an agent such as Copilot are classed as human although their messages carry an `Agent-Logs-Url` line. The classifier feeds report 02, which M6 may not change (M5, Phase 5, finding 10).
+- **Ground-truth matcher labels.** `tests/tools/ground_truth.py` drops a row's label when matching; M5, Phase 5a, noted two cases (#86 and #87). A test-tool idea only.
+- **Verifier verdicts for claims without an `id`.** A saved verdict is keyed by the claim's id, or by a hash of its text when it has none. If a later build rewords such a claim, the verdict stops matching and its Gaps item disappears at the next render. Give every sampled claim an id, or key verdicts by citation. Found in M6, Phase 4.
+
+## Findings from the M6 definition-of-done run
+
+Found in M6, Phase 8 (M6-48). Recorded in [plans/012-m6-plan.md](plans/012-m6-plan.md), "Verification results (Phase 8)".
+
+- **`soft_failure` misses real scip-dotnet log lines.** `cs_scip.soft_failure` only matches a line that starts with `Failure:`. Real logs put a timestamp and `fail:` first, so the `msbuild` note and the "could not load every project" problem are never produced from a real log (the test fakes use the bare form). Left alone because the obvious fix marks scip-dotnet `failed` and drops the dead list for every C# repository with one unloadable project. The dead list now skips unloaded projects on its own (`6fa6624`), so decide whether the page should also say which projects did not load.
+- **Recorded verifier verdicts for `RW` disappeared.** Between block V and block CP the build still said `verify: true` but the verdicts were gone, and `render` failed with V10. Cause unknown; re-running `verify-record` from the saved results fixed it. Worth finding what clears them.
+- **`prepare` reuses `extract/` after a skill code change.** With the same commit and ref, `prepare --full` kept the old extract, so a fix to an adapter rule did not show until `extract/` was moved aside. Probably by design (keyed by commit); decide whether the skill version or an adapter version should be part of the key.

@@ -1,14 +1,16 @@
 """The two measured graph cards (D8): `components.map` and `interactions.graph`.
 
-Both are tables that hold every fact, so nothing is dropped: the component table, the component edge table and
-the module table. They draw no diagram: a picture of which module imports which is noise, and the tables say it exactly.
-(`_diagram` stays for the entity-relationship diagrams of `measured_er`.)
+Both hold tables that carry every fact, so nothing is dropped: the component table, the component edge table and
+the module table. Above the tables sits an interactive graph (plan 012, D7): `graph_views` computes every collapsible view
+and the page script only switches between them. (`_diagram` also draws the entity-relationship diagrams of `measured_er`.)
 """
 from __future__ import annotations
 
+import json
 import re
 
 import components
+import graph_views
 import graphs
 import measured_tables
 
@@ -104,8 +106,62 @@ def _diagram(title: str, source: str, budget: str = "") -> str:
             f'<details><summary class="muted">Diagram source</summary><pre>{r.E(source)}</pre></details></div>')
 
 
+NO_JS = "The interactive graph needs JavaScript. Every component and link is in the tables below."
+
+
+def _json(data) -> str:
+    """JSON for a `<script>` element: `<` and `&` are escaped so the text can never close the tag."""
+    return json.dumps(data, ensure_ascii=True, separators=(",", ":")).replace("<", "\\u003c").replace("&", "\\u0026")
+
+
+def igraph(title: str, found: list) -> str:
+    """The interactive graph block: data, toolbar, host, caption and one open button per node of the root view that has a view."""
+    if not found:
+        return ""
+    r = _render()
+    root = found[0]
+    options = "".join(f'<option value="{r.E(v["id"])}"{" selected" if v is root else ""}>{r.E(v["title"])}</option>' for v in found)
+    opens = "".join(f'<button class="btn" data-variant="ghost" data-size="sm" type="button" data-open="{r.E(n["view"])}">Open {r.E(n["label"])}</button>'
+                    for n in root["nodes"] if n["view"])
+    return (f'<div class="diagram flow igraph"><script type="application/json" class="igraph-data">{_json(found)}</script>'
+            f'<div class="flow-bar"><h4>{r.E(title)}</h4></div>'
+            f'<div class="igraph-bar"><span class="igraph-crumb">{r.E(root["title"])}</span>'
+            f'<button class="btn igraph-up" data-variant="ghost" data-size="sm" type="button" hidden>Up</button>'
+            f'<label class="igraph-pick">View <select class="igraph-select">{options}</select></label></div>'
+            f'<div class="mermaid-host" data-src="{r.E(root["src"])}"><p class="muted">{NO_JS}</p></div>'
+            f'<p class="igraph-caption muted"></p><div class="igraph-open">{opens}</div></div>')
+
+
 def _area_map(rows: list, roots: list) -> dict:
     return {**{row["name"]: component_area(row["paths"], roots) for row in rows}, UNASSIGNED: UNASSIGNED}
+
+
+def _component_views(rows: list, area: dict, edges: dict) -> list:
+    """Areas -> components. Keys carry a prefix so an area and a component may share a name."""
+    names = [row["name"] for row in rows] + [UNASSIGNED]
+    levels = {**{"a:" + a: None for a in {area[n] for n in names}}, **{"c:" + n: "a:" + area[n] for n in names}}
+    labels = {k: k[2:] for k in levels}
+    return graph_views.views(levels, {("c:" + a, "c:" + b): w for (a, b), w in edges.items()}, "All areas", ("area", "component"), labels)
+
+
+def _module_views(rows: list, roots: list, group: dict, imports: list) -> list:
+    """Areas -> components -> modules, or areas -> modules without a catalog. Edge weights count imports between two files."""
+    area = _area_map(rows, roots) if rows else {}
+    levels, labels = {}, {}
+    for path, name in group.items():
+        a = "a:" + (area.get(name, UNASSIGNED) if rows else name)
+        levels[a], labels[a] = None, a[2:]
+        parent = a
+        if rows:
+            parent = "c:" + name
+            levels[parent], labels[parent] = a, name
+        levels["m:" + path], labels["m:" + path] = parent, path
+    pairs: dict = {}
+    for a, b in imports:
+        if a != b:
+            pairs[("m:" + a, "m:" + b)] = pairs.get(("m:" + a, "m:" + b), 0) + 1
+    kinds = ("area", "component", "module") if rows else ("area", "module")
+    return graph_views.views(levels, pairs, "All areas", kinds, labels)
 
 
 def _graph(cid, ctx, refs):
@@ -120,10 +176,9 @@ def _graph(cid, ctx, refs):
     rows, roots = ctx.get("catalog") or [], package_roots(extract)
     group = _group_of(extract, rows, roots)
     imports = [(g["path"], g["paths"][0]) for g in _imports(extract)]
-    edges = graphs.aggregate(imports, group)
-    area = _area_map(rows, roots) if rows else None
     kind = "component" if rows else "area"
-    return (measured_tables.heading(f"Imports between {kind}s")
+    return (igraph("Dependency graph", _module_views(rows, roots, group, imports))
+            + measured_tables.heading(f"Imports between {kind}s")
             + measured_tables.component_edges(cid, imports, group, refs, kind)
             + measured_tables.heading("Every module import")
             + measured_tables.module_imports(cid, _imports(extract), group, refs, kind)
@@ -152,7 +207,8 @@ def _map(cid, ctx, refs):
         mine = [p for p in files if owner[p] == name]
         table.append([r.E(name), r.E(area[name]), (str(len(mine)), len(mine)), (str(sum(lines.get(p, 0) for p in mine)), sum(lines.get(p, 0) for p in mine)),
                       r.E(", ".join(sorted(uses.get(name, [])))) or "-", r.E(", ".join(sorted(used.get(name, [])))) or "-"])
-    return r.render_table(["Component", "Area", "Files", "Lines", "Depends on", "Used by"], table, refs, "t-" + cid.replace(".", "-"), plain=True)
+    graph = igraph("Component map", _component_views(rows, area, edges)) if edges else ""
+    return graph + r.render_table(["Component", "Area", "Files", "Lines", "Depends on", "Used by"], table, refs, "t-" + cid.replace(".", "-"), plain=True)
 
 
 DRAWN = {"interactions.graph": _graph, "components.map": _map}

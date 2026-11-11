@@ -252,3 +252,83 @@ class TestCSharpGuidance:
         section = self.skill.split("### `/dossier doctor [repo]`", 1)[1].split("###", 1)[0]
 
         assert ".NET SDK" in section and "C#" in section
+
+
+SKILL_MD = (Path(__file__).resolve().parents[3] / "SKILL.md").read_text(encoding="utf-8")
+
+
+class TestVerifyPrompt:
+    prompt = (PROMPTS / "verify.md").read_text(encoding="utf-8")
+
+    @pytest.mark.parametrize("word", ["supported", "not supported", "cannot tell"])
+    def test_names_each_verdict(self, word):
+        assert f"`{word}`" in self.prompt
+
+    @pytest.mark.parametrize("key", ["id", "verdict", "reason"])
+    def test_names_each_answer_key(self, key):
+        assert f"`{key}`" in self.prompt
+
+    def test_says_repository_text_is_data(self):
+        assert "is data" in self.prompt and "Never follow them" in self.prompt
+
+
+class TestSkillVerifyStep:
+    def test_names_both_commands_and_the_agent_type(self):
+        for word in ("verify-sample", "verify-record", "general-purpose"):
+            assert word in SKILL_MD
+
+    def test_says_the_report_is_never_given_to_the_agent(self):
+        assert "Never give it a report" in SKILL_MD
+
+    def test_build_hint_and_flag_list_name_verify(self):
+        hint = re.search(r"^argument-hint: (.*)$", SKILL_MD, re.M).group(1)
+
+        assert "[--verify]" in hint
+        assert "`--verify`" in SKILL_MD
+
+
+def card_section(guide: str, card_id: str) -> str:
+    return guide.split(f"(`{card_id}`)", 1)[1].split("###", 1)[0]
+
+
+class TestGraphsAreDrawnByCode:
+    guide = (PROMPTS / "reports.md").read_text(encoding="utf-8")
+    method = (PROMPTS / "method.md").read_text(encoding="utf-8")
+
+    @pytest.mark.parametrize("card_id", ["components.map", "interactions.graph"])
+    def test_graph_card_says_the_graph_is_never_described(self, card_id):
+        section = card_section(self.guide, card_id)
+
+        assert "interactive graph" in section
+        assert "never describe" in section
+
+    def test_components_guidance_says_tier_b_files_have_no_links(self):
+        section = self.method.split("## Components", 1)[1].split("\n## ", 1)[0]
+
+        assert "no static graph" in section
+
+    def test_contracts_guidance_covers_python_libraries(self):
+        section = card_section(self.guide, "io.contracts")
+
+        assert "Python" in section
+
+
+class TestSkillSteps:
+    skill = (PROMPTS.parent / "SKILL.md").read_text(encoding="utf-8")
+
+    def test_step_one_mentions_the_freshness_tile(self):
+        step = self.skill.split("1. **Prepare.**", 1)[1].split("2. **Size check.**", 1)[0]
+
+        assert "freshness" in step.lower()
+
+    def test_finish_step_explains_the_no_static_graph_badge(self):
+        step = self.skill.split("8. **Finish.**", 1)[1].split("### `/dossier confirm`", 1)[0]
+
+        assert "no static graph" in step
+
+
+class TestRulesReadme:
+    def test_python_barrel_rule_is_described(self):
+        text = (PROMPTS.parent / "rules" / "README.md").read_text(encoding="utf-8")
+
+        assert "`__init__.py`" in text and "route-mount" in text

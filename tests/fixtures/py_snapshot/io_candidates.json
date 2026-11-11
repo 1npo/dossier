@@ -1,0 +1,191 @@
+[
+ {
+  "category": "cli-args",
+  "detail": null,
+  "end_line": 9,
+  "group": "iog-2c76e1c4",
+  "id": "io-11e570c9",
+  "line": 9,
+  "path": "src/shopcart/cli.py",
+  "rule": "dossier.python.input.cli-args",
+  "snippet": "parser.add_argument(\"--db\")  # @io-cli"
+ },
+ {
+  "category": "stdout",
+  "detail": null,
+  "end_line": 13,
+  "group": "iog-5c515319",
+  "id": "io-55df9ece",
+  "line": 13,
+  "path": "src/shopcart/cli.py",
+  "rule": "dossier.python.output.stdout",
+  "snippet": "print(core.total([]), store.DB, args.db)  # @io-print"
+ },
+ {
+  "category": "exit-code",
+  "detail": null,
+  "end_line": 14,
+  "group": "iog-c007a383",
+  "id": "io-4ff99d76",
+  "line": 14,
+  "path": "src/shopcart/cli.py",
+  "rule": "dossier.python.output.exit-code",
+  "snippet": "sys.exit(0)  # @io-exit"
+ },
+ {
+  "category": "log",
+  "detail": null,
+  "end_line": 3,
+  "group": "iog-7993f0d4",
+  "id": "io-5bf9b194",
+  "line": 3,
+  "path": "src/shopcart/core.py",
+  "rule": "dossier.python.observability.log",
+  "snippet": "log = logging.getLogger(__name__)  # @io-log-get"
+ },
+ {
+  "category": "global-state",
+  "detail": "CART",
+  "end_line": 4,
+  "group": "iog-fb57f253",
+  "id": "io-9c27c802",
+  "line": 4,
+  "name": "CART",
+  "path": "src/shopcart/core.py",
+  "rule": "dossier.python.state.module-mutable",
+  "snippet": "CART = {}"
+ },
+ {
+  "category": "log",
+  "detail": null,
+  "end_line": 14,
+  "group": "iog-7993f0d4",
+  "id": "io-f599d9a5",
+  "line": 14,
+  "path": "src/shopcart/core.py",
+  "rule": "dossier.python.observability.log",
+  "snippet": "log.info(\"total\")  # @io-log"
+ },
+ {
+  "category": "catch-all",
+  "detail": null,
+  "end_line": 18,
+  "group": "iog-8b62f9fe",
+  "id": "io-c25a77bc",
+  "line": 15,
+  "path": "src/shopcart/core.py",
+  "rule": "dossier.python.resilience.catch-all",
+  "snippet": "try:"
+ },
+ {
+  "category": "global-state",
+  "detail": "REGISTRY",
+  "end_line": 3,
+  "group": "iog-ecbed0ed",
+  "id": "io-2982e25b",
+  "line": 3,
+  "name": "REGISTRY",
+  "path": "src/shopcart/plugins.py",
+  "rule": "dossier.python.state.module-mutable",
+  "snippet": "REGISTRY = {}"
+ },
+ {
+  "category": "env-var",
+  "detail": "SHOP_DB",
+  "end_line": 4,
+  "group": "iog-1522264e",
+  "id": "io-f4bf7974",
+  "line": 4,
+  "path": "src/shopcart/store.py",
+  "rule": "dossier.python.input.env-var",
+  "snippet": "DB = os.environ.get(\"SHOP_DB\", \"shop.db\")  # @io-env"
+ },
+ {
+  "category": "db-connect",
+  "detail": null,
+  "end_line": 8,
+  "group": "iog-e77b9def",
+  "id": "io-0c2d8f0f",
+  "line": 8,
+  "path": "src/shopcart/store.py",
+  "rule": "dossier.python.state.db-connect",
+  "snippet": "return sqlite3.connect(DB)  # @io-db-connect"
+ },
+ {
+  "category": "file-write",
+  "detail": null,
+  "end_line": 12,
+  "group": "iog-c55d8b7f",
+  "id": "io-b066d43b",
+  "line": 12,
+  "path": "src/shopcart/store.py",
+  "rule": "dossier.python.output.file-write",
+  "snippet": "open(path, \"w\").write(text)  # @io-file-write"
+ },
+ {
+  "category": "file-read",
+  "detail": null,
+  "end_line": 16,
+  "group": "iog-b3b08039",
+  "id": "io-2e7dfdec",
+  "line": 16,
+  "path": "src/shopcart/store.py",
+  "rule": "dossier.python.input.file-read",
+  "snippet": "return open(path).read()  # @io-file-read"
+ },
+ {
+  "category": "outbound-call",
+  "detail": null,
+  "end_line": 22,
+  "group": "iog-9714beb7",
+  "id": "io-23964a1b",
+  "line": 22,
+  "path": "src/shopcart/store.py",
+  "rule": "dossier.python.output.outbound-call",
+  "snippet": "return requests.get(url, timeout=5)  # @io-outbound"
+ },
+ {
+  "category": "timeout",
+  "detail": null,
+  "end_line": 22,
+  "group": "iog-65e82ee7",
+  "id": "io-5280e62e",
+  "line": 22,
+  "path": "src/shopcart/store.py",
+  "rule": "dossier.python.resilience.timeout",
+  "snippet": "return requests.get(url, timeout=5)  # @io-outbound"
+ },
+ {
+  "category": "lock",
+  "detail": null,
+  "end_line": 4,
+  "group": "iog-ac33f80c",
+  "id": "io-18f0753d",
+  "line": 4,
+  "path": "src/shopcart/worker.py",
+  "rule": "dossier.python.concurrency.lock",
+  "snippet": "lock = threading.Lock()  # @cc-lock"
+ },
+ {
+  "category": "thread",
+  "detail": null,
+  "end_line": 8,
+  "group": "iog-f69a82dd",
+  "id": "io-61b06fa0",
+  "line": 8,
+  "path": "src/shopcart/worker.py",
+  "rule": "dossier.python.concurrency.thread",
+  "snippet": "threading.Thread(target=run).start()  # @cc-thread"
+ },
+ {
+  "category": "async",
+  "detail": null,
+  "end_line": 16,
+  "group": "iog-41f88e42",
+  "id": "io-dd261f54",
+  "line": 16,
+  "path": "src/shopcart/worker.py",
+  "rule": "dossier.python.concurrency.async",
+  "snippet": "asyncio.run(run_async())  # @cc-async"
+ }
+]

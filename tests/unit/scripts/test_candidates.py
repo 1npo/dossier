@@ -343,3 +343,14 @@ class TestCSharpStaleness:
 
     def test_moving_every_line_in_a_csharp_file_changes_no_digest(self):
         assert candidates.digests(self.extract(3)) == candidates.digests(self.extract(30))
+
+
+class TestFreshnessIsNotAFeed:
+    def test_the_digests_do_not_depend_on_the_pin_record(self):
+        extract = {"entry_points": [{"path": "a.py", "line": 1, "kind": "main-guard", "name": "x", "rule": "r", "snippet": "s"}]}
+
+        before = candidates.digests(extract)
+        behind = {"records": [{"step": "pin", "by": "prepare", "details": {"freshness": {"behind": 3}}}]}
+        ahead = {"records": [{"step": "pin", "by": "prepare", "details": {"freshness": {"behind": 0}}}]}
+
+        assert candidates.digests(extract) == before and behind != ahead and "freshness" not in str(extract)

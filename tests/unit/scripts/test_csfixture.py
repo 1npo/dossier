@@ -16,7 +16,7 @@ ep-func ep-func-timer ep-razor ep-blazor
 model-order model-enum api-interface api-method api-ext api-internal dead-type api-nested api-protected api-hidden api-polyfill
 api-partial-a api-partial-b scip-collide-a model-customer
 model-ctx io-db-connect io-connstr model-migration bs-codegen not-entity model-dapper io-dapper scip-collide-b
-test-skip test-mock test-fixture test-ignore ep-target""".split()
+test-skip test-mock test-fixture test-ignore ep-target ep-apphost""".split()
 
 
 def all_files():

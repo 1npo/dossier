@@ -1,0 +1,217 @@
+[
+ {
+  "contract": "cli above core",
+  "kind": "contract",
+  "path": "pyproject.toml",
+  "reason": null,
+  "status": "broken",
+  "type": "layers",
+  "violations": [
+   {
+    "from": "shopcart.core",
+    "line": 8,
+    "path": "src/shopcart/core.py",
+    "to": "shopcart.cli"
+   }
+  ]
+ },
+ {
+  "contract": "apps apart",
+  "kind": "contract",
+  "path": "pyproject.toml",
+  "reason": "dossier checks only layers and forbidden contracts.",
+  "status": "not-checked",
+  "type": "independence",
+  "violations": []
+ },
+ {
+  "complexity": 0,
+  "is_package": true,
+  "kind": "module",
+  "module": "shopcart",
+  "package": "shopcart",
+  "path": "src/shopcart/__init__.py"
+ },
+ {
+  "from": "shopcart.__main__",
+  "kind": "import",
+  "lines": [
+   1
+  ],
+  "path": "src/shopcart/__main__.py",
+  "paths": [
+   "src/shopcart/cli.py"
+  ],
+  "to": "shopcart.cli",
+  "via": "grimp"
+ },
+ {
+  "complexity": 0,
+  "is_package": false,
+  "kind": "module",
+  "module": "shopcart.__main__",
+  "package": "shopcart",
+  "path": "src/shopcart/__main__.py"
+ },
+ {
+  "kind": "cycle",
+  "modules": [
+   "shopcart.a",
+   "shopcart.b"
+  ],
+  "path": "src/shopcart/a.py",
+  "paths": [
+   "src/shopcart/a.py",
+   "src/shopcart/b.py"
+  ]
+ },
+ {
+  "from": "shopcart.a",
+  "kind": "import",
+  "lines": [
+   1
+  ],
+  "path": "src/shopcart/a.py",
+  "paths": [
+   "src/shopcart/b.py"
+  ],
+  "to": "shopcart.b",
+  "via": "grimp"
+ },
+ {
+  "complexity": 0,
+  "is_package": false,
+  "kind": "module",
+  "module": "shopcart.a",
+  "package": "shopcart",
+  "path": "src/shopcart/a.py"
+ },
+ {
+  "complexity": 0,
+  "is_package": false,
+  "kind": "module",
+  "module": "shopcart.api",
+  "package": "shopcart",
+  "path": "src/shopcart/api.py"
+ },
+ {
+  "from": "shopcart.b",
+  "kind": "import",
+  "lines": [
+   1
+  ],
+  "path": "src/shopcart/b.py",
+  "paths": [
+   "src/shopcart/a.py"
+  ],
+  "to": "shopcart.a",
+  "via": "grimp"
+ },
+ {
+  "complexity": 0,
+  "is_package": false,
+  "kind": "module",
+  "module": "shopcart.b",
+  "package": "shopcart",
+  "path": "src/shopcart/b.py"
+ },
+ {
+  "kind": "cycle",
+  "modules": [
+   "shopcart.cli",
+   "shopcart.core"
+  ],
+  "path": "src/shopcart/cli.py",
+  "paths": [
+   "src/shopcart/cli.py",
+   "src/shopcart/core.py"
+  ]
+ },
+ {
+  "from": "shopcart.cli",
+  "kind": "import",
+  "lines": [
+   4
+  ],
+  "path": "src/shopcart/cli.py",
+  "paths": [
+   "src/shopcart/core.py"
+  ],
+  "to": "shopcart.core",
+  "via": "grimp"
+ },
+ {
+  "from": "shopcart.cli",
+  "kind": "import",
+  "lines": [
+   4
+  ],
+  "path": "src/shopcart/cli.py",
+  "paths": [
+   "src/shopcart/store.py"
+  ],
+  "to": "shopcart.store",
+  "via": "grimp"
+ },
+ {
+  "complexity": 1,
+  "is_package": false,
+  "kind": "module",
+  "module": "shopcart.cli",
+  "package": "shopcart",
+  "path": "src/shopcart/cli.py"
+ },
+ {
+  "from": "shopcart.core",
+  "kind": "import",
+  "lines": [
+   8
+  ],
+  "path": "src/shopcart/core.py",
+  "paths": [
+   "src/shopcart/cli.py"
+  ],
+  "to": "shopcart.cli",
+  "via": "grimp"
+ },
+ {
+  "complexity": 1,
+  "is_package": false,
+  "kind": "module",
+  "module": "shopcart.core",
+  "package": "shopcart",
+  "path": "src/shopcart/core.py"
+ },
+ {
+  "complexity": 0,
+  "is_package": false,
+  "kind": "module",
+  "module": "shopcart.models",
+  "package": "shopcart",
+  "path": "src/shopcart/models.py"
+ },
+ {
+  "complexity": 0,
+  "is_package": false,
+  "kind": "module",
+  "module": "shopcart.plugins",
+  "package": "shopcart",
+  "path": "src/shopcart/plugins.py"
+ },
+ {
+  "complexity": 0,
+  "is_package": false,
+  "kind": "module",
+  "module": "shopcart.store",
+  "package": "shopcart",
+  "path": "src/shopcart/store.py"
+ },
+ {
+  "complexity": 0,
+  "is_package": false,
+  "kind": "module",
+  "module": "shopcart.worker",
+  "package": "shopcart",
+  "path": "src/shopcart/worker.py"
+ }
+]

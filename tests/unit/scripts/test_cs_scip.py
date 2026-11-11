@@ -366,18 +366,94 @@ class TestSoftFailure:
         assert cs_scip.soft_failure("all good") is None
 
 
+class TestUnloadedProjects:
+    LOG = "15:46:22 fail: Microsoft.CodeAnalysis.MSBuild.MSBuildWorkspace[0] Failure: Msbuild failed when processing the file '/w/co/src/AppHost/AppHost.csproj' with message: x"
+
+    def test_reads_the_project_relative_to_the_checkout(self):
+        assert cs_scip.unloaded_projects(self.LOG, "/w/co") == {"src/AppHost/AppHost.csproj"}
+
+    def test_a_clean_log_has_none(self):
+        assert cs_scip.unloaded_projects("done 15s", "/w/co") == set()
+
+
+class TestDeadSkipsUnloaded:
+    def test_a_type_in_an_unloaded_project_is_not_listed(self):
+        assert dead([tdecl("Ext")], path="src/AppHost/Ext.cs", unloaded={"src/AppHost/AppHost.csproj"}) == []
+
+    def test_a_type_elsewhere_is_still_listed(self):
+        assert [r["name"] for r in dead([tdecl("Ext")], path="src/Web/Ext.cs", unloaded={"src/AppHost/AppHost.csproj"})] == ["Ext"]
+
+
 def tdecl(name, mods=("internal",), kind="class", bases=(), line=3, end=9):
     return {"name": name, "kind": kind, "modifiers": list(mods), "line": line, "end_line": end, "attributes": [], "bases": list(bases), "partial": False,
             "outer": None, "namespace": "N", "params": [], "members": []}
 
 
-def dead(types, defs=None, entries=(), models=(), blindspots=(), generated=(), tests=(), idents=None, path="a.cs"):
+def dead(types, defs=None, entries=(), models=(), blindspots=(), generated=(), tests=(), idents=None, path="a.cs", unloaded=()):
     decls = {path: {"types": types, "idents": idents or {}}}
     defs = [item(f"N/{t['name']}#", path=path, line=t["line"], name=t["name"]) | {"public": "public" in t["modifiers"]} for t in types] if defs is None else defs
-    return cs_scip.dead_items(defs, decls, list(entries), list(models), list(blindspots), set(generated), set(tests))
+    return cs_scip.dead_items(defs, decls, list(entries), list(models), list(blindspots), set(generated), set(tests), unloaded)
+
+
+def edge(a, b):
+    return {"kind": "ref-edge", "path": a, "paths": [b], "count": 1}
+
+
+class TestDropUnrelated:
+    PROJECTS = [{"path": "src/Api/Api.csproj", "references": ["src/Core/Core.csproj"]}, {"path": "src/Core/Core.csproj", "references": []},
+                {"path": "tools/Legacy/Legacy.csproj", "references": []}, {"path": "tests/T/T.csproj", "references": ["src/Api/Api.csproj"]}]
+    OF = {"src/Api/Program.cs": "src/Api/Api.csproj", "src/Core/Order.cs": "src/Core/Core.csproj", "tools/Legacy/Program.cs": "tools/Legacy/Legacy.csproj",
+          "tests/T/ApiTests.cs": "tests/T/T.csproj", "src/Api/Other.cs": "src/Api/Api.csproj"}
+
+    def run(self, *edges):
+        return cs_scip.drop_unrelated(list(edges), self.PROJECTS, self.OF)
+
+    def test_edge_between_projects_that_do_not_reference_each_other_is_dropped(self):
+        assert self.run(edge("src/Api/Program.cs", "tools/Legacy/Program.cs")) == ([], 1)
+
+    def test_edge_to_a_referenced_project_is_kept(self):
+        e = edge("src/Api/Program.cs", "src/Core/Order.cs")
+
+        assert self.run(e) == ([e], 0)
+
+    def test_test_project_to_the_project_it_references_is_kept(self):
+        e = edge("tests/T/ApiTests.cs", "src/Api/Program.cs")
+
+        assert self.run(e) == ([e], 0)
+
+    def test_transitive_reference_is_kept(self):
+        e = edge("tests/T/ApiTests.cs", "src/Core/Order.cs")
+
+        assert self.run(e) == ([e], 0)
+
+    def test_edge_within_one_project_and_non_edges_are_kept(self):
+        e, s = edge("src/Api/Program.cs", "src/Api/Other.cs"), {"kind": "def", "path": "src/Api/Program.cs"}
+
+        assert self.run(e, s) == ([e, s], 0)
+
+    def test_file_with_no_project_is_kept(self):
+        e = edge("src/Api/Program.cs", "loose/File.cs")
+
+        assert self.run(e) == ([e], 0)
 
 
 class TestDeadItems:
+    def test_type_with_a_used_member_is_not_listed(self):
+        defs = [item("N/Ext#", name="Ext", line=3) | {"public": False},
+                item("N/Ext#AddAspire().", name="AddAspire", line=5) | {"public": True, "refs": 1}]
+
+        assert dead([tdecl("Ext", line=3, end=9)], defs) == []
+
+    def test_type_whose_members_are_all_unused_is_still_listed(self):
+        defs = [item("N/Ext#", name="Ext", line=3) | {"public": False}, item("N/Ext#AddAspire().", name="AddAspire", line=5) | {"public": True}]
+
+        assert [r["name"] for r in dead([tdecl("Ext", line=3, end=9)], defs)] == ["Ext"]
+
+    def test_a_used_def_outside_the_type_range_does_not_keep_it(self):
+        defs = [item("N/Ext#", name="Ext", line=3) | {"public": False}, item("N/Other#Run().", name="Run", line=20) | {"public": True, "refs": 4}]
+
+        assert [r["name"] for r in dead([tdecl("Ext", line=3, end=9)], defs)] == ["Ext"]
+
     def test_internal_type_with_no_references_is_listed(self):
         rows = dead([tdecl("Secret")])
 

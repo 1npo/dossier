@@ -1,0 +1,8 @@
+[build-system]
+requires = ["flit_core"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "flatlib"
+version = "1.0"
+description = "A flat-layout library."

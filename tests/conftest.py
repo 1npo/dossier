@@ -17,6 +17,7 @@ collect_ignore_glob = ["fixtures/*"]
 PYFIX = Path(__file__).resolve().parent / "fixtures" / "pyrepo"
 JSFIX = Path(__file__).resolve().parent / "fixtures" / "jsrepo"
 CSFIX = Path(__file__).resolve().parent / "fixtures" / "csrepo"
+PYLIB = Path(__file__).resolve().parent / "fixtures" / "pylib"
 
 
 class FakeRepo:
@@ -238,6 +239,20 @@ def build_js_repo(dest: Path):
 def build_cs_repo(dest: Path):
     """Copy the C# fixture repository (tests/fixtures/csrepo) to `dest` and commit it once on main."""
     return _commit_fixture(CSFIX, dest, "csrepo")
+
+
+def build_pylib_repo(dest: Path):
+    """Copy the Python library fixture (tests/fixtures/pylib) to `dest` and commit it once on main."""
+    return _commit_fixture(PYLIB, dest, "pylib")
+
+
+def build_mixed_pysub_repo(dest: Path):
+    """PYFIX under `backend/` and the JS fixture's web package under `frontend/`, committed once on main as `mixedsub`."""
+    parts = Path(dest) / "parts"
+    shutil.copytree(PYFIX, parts / "backend", ignore=shutil.ignore_patterns("__pycache__", "node_modules"))
+    shutil.copytree(JSFIX / "packages" / "web", parts / "frontend", ignore=shutil.ignore_patterns("node_modules"))
+    (parts / "backend" / "scripts" / "seed.sh").chmod(0o755)
+    return _commit_fixture(parts, dest, "mixedsub")
 
 
 @pytest.fixture

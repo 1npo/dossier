@@ -106,3 +106,15 @@ class TestPrepareRuns:
         code, _, err = world.prepare("--ref", "nope", "--allow-missing")
 
         assert code == 1 and "not a commit" in err
+
+
+class TestPrepareVerifyFlag:
+    def test_verify_flag_is_recorded_in_the_options(self, world):
+        world.prepare("--verify")
+
+        assert build_of(world)["options"]["verify"] is True
+
+    def test_verify_is_off_by_default(self, world):
+        world.prepare()
+
+        assert build_of(world)["options"]["verify"] is False

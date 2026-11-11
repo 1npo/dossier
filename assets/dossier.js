@@ -66,10 +66,70 @@
     });
   }
   window.addEventListener("resize", function () { $$(".report:not([hidden]) .mermaid-host").forEach(markScroll); $$(".report:not([hidden])").forEach(markTables); });
+  // ---- interactive graphs: Python computed every view, the page only switches between them
+  function graphPath(st, view) {
+    var path = [];
+    while (view) { path.unshift(view); view = view.parent ? st.byId[view.parent] : null; }
+    return path;
+  }
+  function graphShow(g, id) {
+    var st = g._graph, view = st.byId[id]; if (!view) return;
+    st.current = id;
+    var host = $(".mermaid-host", g), up = $(".igraph-up", g);
+    $(".igraph-select", g).value = id;
+    $(".igraph-crumb", g).textContent = graphPath(st, view).map(function (v) { return v.title; }).join(" > ");
+    up.hidden = !view.parent; up.dataset.to = view.parent || "";
+    var h = view.hidden;
+    $(".igraph-caption", g).textContent = h ? "Links with fewer than " + h.w + " imports are hidden in this view (" + h.shown + " of " + h.total + " shown). Every link is in the tables below." : "";
+    $(".igraph-open", g).innerHTML = view.nodes.filter(function (n) { return n.view; }).map(function (n) {
+      return '<button class="btn" data-variant="ghost" data-size="sm" type="button" data-open="' + esc(n.view) + '">Open ' + esc(n.label) + "</button>";
+    }).join("");
+    host.dataset.done = "";
+    graphDraw(g);
+  }
+  function graphDraw(g) {
+    var st = g._graph, host = $(".mermaid-host", g), view = st.byId[st.current];
+    if (!window.mermaid || host.dataset.done === theme) return;
+    var id = "dm" + (++seq);
+    host.dataset.src = view.src;
+    mermaid.render(id, view.src).then(function (out) {
+      if (st.current !== view.id) return;
+      host.innerHTML = out.svg; host.dataset.done = theme; host.classList.remove("failed");
+      var ids = {}; view.nodes.forEach(function (n) { if (n.view) ids[n.id] = n; });
+      $$("g.node", host).forEach(function (el) {
+        var m = /(?:^|-)flowchart-(.+)-\d+$/.exec(el.id), n = m && ids[m[1]]; if (!n) return;
+        el.classList.add("igraph-link"); el.setAttribute("tabindex", "0"); el.setAttribute("role", "button"); el.setAttribute("aria-label", "Open " + n.label);
+        el.addEventListener("click", function () { graphShow(g, n.view); });
+        el.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); graphShow(g, n.view); } });
+      });
+      markScroll(host);
+    }).catch(function (err) {
+      var stray = doc.getElementById("d" + id); if (stray) stray.remove();
+      host.classList.add("failed"); host.dataset.done = theme;
+      failures.push("Graph " + view.title + ": " + (err && err.message || err));
+      host.innerHTML = alertHtml("Graph could not be drawn", "Every component and link is in the tables below. " + esc(err && err.message || err));
+      var b = $("#diagram-banner"); b.hidden = false; b.innerHTML = alertHtml(failures.length + " diagram(s) could not be drawn", "The source of each is still available under the diagram.");
+    });
+  }
+  function initGraph(g) {
+    var st = { byId: {}, current: null };
+    try { JSON.parse($("script.igraph-data", g).textContent).forEach(function (v) { st.byId[v.id] = v; if (!st.current) st.current = v.id; }); } catch (e) { return; }
+    g._graph = st;
+    $(".igraph-select", g).addEventListener("change", function (e) { graphShow(g, e.target.value); });
+    $(".igraph-up", g).addEventListener("click", function (e) { if (e.currentTarget.dataset.to) graphShow(g, e.currentTarget.dataset.to); });
+    $(".igraph-open", g).addEventListener("click", function (e) { var b = e.target.closest("[data-open]"); if (b) graphShow(g, b.dataset.open); });
+  }
+  function drawGraphs(section) {
+    $$(".igraph", section).forEach(function (g) {
+      if (!g._graph) initGraph(g);
+      if (g._graph && $(".mermaid-host", g).dataset.done !== theme) graphShow(g, g._graph.current);
+    });
+  }
   function drawIn(section) {
     if (!window.mermaid) return;
+    drawGraphs(section);
     $$(".mermaid-host", section).forEach(function (host) {
-      if (host.dataset.done === theme) return;
+      if (host.closest(".igraph") || host.dataset.done === theme) return;
       var id = "dm" + (++seq);
       mermaid.render(id, host.dataset.src).then(function (out) {
         host.innerHTML = out.svg; host.dataset.done = theme; host.classList.remove("failed"); markScroll(host);

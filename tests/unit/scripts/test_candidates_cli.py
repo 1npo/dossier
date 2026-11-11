@@ -122,6 +122,17 @@ class TestText:
         assert got[1] == f"{group}  dossier.python.input.env-var  a.py  (2 hits: lines 3, 9)"
         assert got[2] == f"    {extract['io_candidates'][0]['id']}  a.py:3  os.getenv(\"A\")"
 
+    def test_an_nx_target_and_a_package_script_are_printed_with_their_names(self):
+        eps = candidates.assign_ids("entry_points", [
+            {"path": "apps/api/project.json", "line": 4, "end_line": 4, "kind": "nx-target", "name": "api:build", "rule": "dossier.js.entry.nx-target",
+             "snippet": "nx build"},
+            {"path": "package.json", "line": 7, "end_line": 7, "kind": "package-script", "name": "start:dev", "rule": "dossier.js.entry.package-script",
+             "snippet": "node server.js"}])
+
+        text = candidates.text("entry", {"entry_points": eps}, {}, {})
+
+        assert "nx build  [api:build]" in text and "node server.js  [start:dev]" in text
+
     def test_open_only_lists_the_undecided_and_nothing_when_all_are_decided(self):
         extract = build_extract()
         text = candidates.text("io", extract, reports_for(extract), {}, only_open=True)
@@ -174,6 +185,30 @@ class TestComponentCandidates:
         assert got and all(c["folders"] for c in got)
 
 
+class TestNestedPythonProjects:
+    EXTRACT = {"graph": [
+        {"kind": "module", "module": "app", "path": "backend/app/__init__.py", "package": "app", "is_package": True, "project": "backend"},
+        {"kind": "module", "module": "app.models", "path": "backend/app/models.py", "package": "app", "is_package": False, "project": "backend"},
+        {"kind": "module", "module": "lib", "path": "lib/__init__.py", "package": "lib", "is_package": True},
+        {"kind": "module", "module": "lib.x", "path": "lib/x.py", "package": "lib", "is_package": False}]}
+    TREE = frozenset(g["path"] for g in EXTRACT["graph"])
+
+    def test_a_package_of_a_nested_project_names_its_folder(self):
+        out = candidates.text("components", self.EXTRACT, {}, {}, tree=self.TREE)
+
+        assert "app  [backend]  (2 modules)" in out
+
+    def test_a_root_package_is_printed_as_before(self):
+        out = candidates.text("components", self.EXTRACT, {}, {}, tree=self.TREE)
+
+        assert "\nlib  (2 modules)" in out
+
+    def test_the_data_marks_only_nested_packages(self):
+        got = candidates.component_candidates(self.TREE, self.EXTRACT, {})["packages"]
+
+        assert got == [{"package": "app", "modules": 2, "project": "backend"}, {"package": "lib", "modules": 2}]
+
+
 class TestJavaScriptSection:
     JS = {"graph": [{"kind": "source-root", "path": "apps/web/package.json", "root": "apps"},
                     {"kind": "module", "module": "apps/web/src/main", "short": "main", "path": "apps/web/src/main.tsx", "package": None,
@@ -208,14 +243,26 @@ class TestCSharpSection:
                      "language": "csharp"}]}
 
     def text(self, extract):
-        return candidates.text("components", extract, {}, {}, tree={"src/Shop.Api/A.cs", "src/Shop.Api/B.cs"})
+        return candidates.text("components", extract, {}, {}, tree={"src/Shop.Api/A.cs", "src/Shop.Api/B.cs", "tests/Shop.Tests/A.cs",
+                                                                    "tests/Shop.Tests/B.cs", "tests/Shop.Tests/C.cs"})
 
     def test_one_line_is_printed_per_project(self):
         out = self.text(self.CS).splitlines()
 
         i = out.index("== C# projects ==")
         assert out[i + 1] == "src/Shop.Api/Shop.Api.csproj  (SDK Microsoft.NET.Sdk.Web, Exe, 2 files)"
-        assert out[i + 2] == "tests/Shop.Tests/Shop.Tests.csproj  (SDK Microsoft.NET.Sdk, Library, test project, 0 files)"
+        assert out[i + 2] == "tests/Shop.Tests/Shop.Tests.csproj  (SDK Microsoft.NET.Sdk, Library, test project, 3 files)"
+
+    def test_a_nested_project_does_not_take_its_parents_files(self):
+        extract = {"graph": [{"kind": "cs-project", "path": "a/A.csproj", "name": "A", "sdk": "S", "output_type": "Library", "test": False},
+                             {"kind": "cs-project", "path": "a/inner/I.csproj", "name": "I", "sdk": "S", "output_type": "Library", "test": False}]}
+
+        out = candidates.text("components", extract, {}, {}, tree={"a/x.cs", "a/inner/y.cs", "a/inner/z.cs", "a/readme.md"})
+
+        assert "a/A.csproj  (SDK S, Library, 1 files)" in out and "a/inner/I.csproj  (SDK S, Library, 2 files)" in out
+
+    def test_a_csharp_only_extract_prints_no_python_packages_heading(self):
+        assert "== Python packages ==" not in self.text(self.CS)
 
     def test_a_csharp_source_root_is_not_listed_as_a_javascript_project(self):
         assert "JavaScript and TypeScript" not in self.text(self.CS)

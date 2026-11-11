@@ -54,7 +54,7 @@ def safe_name(text) -> str:
 
 
 def _keys(field: dict) -> str:
-    return ", ".join(k for k, on in (("PK", field.get("pk")), ("FK", field.get("ref") and True)) if on)
+    return ", ".join(k for k, on in (("PK", field.get("pk")), ("FK", field.get("ref") and not field.get("many"))) if on)
 
 
 def _relations(group: list, everything: list, idents: dict) -> list:

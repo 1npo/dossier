@@ -32,6 +32,7 @@ class Options:
     submodules: bool = False
     restore: str | None = None
     full: bool = False
+    verify: bool = False
 
 
 class Stop(Exception):
@@ -64,10 +65,16 @@ def tree_at(top: str, sha: str) -> frozenset:
     return frozenset(p for p in out.decode("utf-8", "replace").split("\0") if p)
 
 
-def stage_pin(build, top, ref, sha) -> dict:
+def stage_pin(build, top, ref, sha, area=None) -> dict:
     t0 = time.monotonic()
     trust = workarea.trusted(top, sha)
-    record(build, t0, "pin", details={"sha": sha, "ref": ref, "branch_or_ref": ref, "trust": trust})
+    run = functools.partial(sandbox.run, area=area, cwd=Path(top), profile="restricted") if area else None
+    try:
+        fresh = workarea.freshness(top, sha, ref, run) if run else None
+    except Exception as e:  # noqa: BLE001: freshness is a nicety; it must never stop prepare
+        fresh = {"ref_kind": "commit", "compared_with": "", "source": "none", "remote_sha": None, "behind": None, "ahead": None,
+                 "checked_at": None, "reason": f"It could not be worked out: {(str(e).splitlines() or [type(e).__name__])[0]}"}
+    record(build, t0, "pin", details={"sha": sha, "ref": ref, "branch_or_ref": ref, "trust": trust, "freshness": fresh})
     return {"sha": sha, "short": sha[:7], "trust": trust}
 
 

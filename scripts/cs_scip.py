@@ -5,6 +5,7 @@ which checks a pinned SHA-512 before anything is unpacked. Nothing from the pack
 """
 import base64
 import hashlib
+import re
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -122,6 +123,17 @@ def soft_failure(log: str) -> str | None:
     return None
 
 
+def unloaded_projects(log: str, checkout) -> set:
+    """Project files (relative to the checkout) that MSBuild could not load, from `Msbuild failed when processing the file '<path>'`.
+
+    scip-dotnet logs these after a timestamp and a level, so they are not `Failure:` lines at the start; the run still gives an index for the rest."""
+    root = str(checkout).rstrip("/") + "/"
+    found = set()
+    for m in re.finditer(r"Msbuild failed when processing the file '([^']+)'", log):
+        found.add(m.group(1)[len(root):] if m.group(1).startswith(root) else m.group(1))
+    return found
+
+
 def failure(returncode, log: str, index_path) -> str | None:
     """Why a run produced nothing usable (D11), or None. A run that exits 0 with `Failure:` lines is not a failure here; see `soft_failure`."""
     if returncode is None:
@@ -225,11 +237,39 @@ def _base_name(base: str) -> str:
     return base.split("<", 1)[0].rsplit(".", 1)[-1].strip()
 
 
-def dead_items(symbols: list, decls: dict, entries: list, models: list, blindspots: list, generated, test_files) -> list:
+def drop_unrelated(items: list, projects: list, project_of: dict) -> tuple:
+    """(items, dropped): `ref-edge` items between files of two projects that do not reach each other through project references are removed.
+
+    scip-dotnet keeps only the last namespace segment, so every top-level `Program` shares one symbol and links unrelated projects."""
+    refs = {p["path"]: p.get("references", []) for p in projects}
+    reach: dict = {}
+    for start in refs:
+        seen, todo = set(), [start]
+        while todo:
+            q = todo.pop()
+            if q not in seen:
+                seen.add(q)
+                todo.extend(refs.get(q, ()))
+        reach[start] = seen
+    kept, dropped = [], 0
+    for it in items:
+        if it.get("kind") == "ref-edge":
+            a, b = project_of.get(it["path"]), project_of.get((it.get("paths") or [""])[0])
+            if a and b and a != b and b not in reach.get(a, ()) and a not in reach.get(b, ()):
+                dropped += 1
+                continue
+        kept.append(it)
+    return kept, dropped
+
+
+def dead_items(symbols: list, decls: dict, entries: list, models: list, blindspots: list, generated, test_files, unloaded=()) -> list:
     """`dead` items for internal types that no other file references (D17). Run only when scip-dotnet gave an index.
 
-    `refs` counts uses from other files, so a name used again inside its own file also keeps a type off the list."""
+    `refs` counts uses from other files, so a name used again inside its own file also keeps a type off the list.
+    `unloaded` holds project files the indexer could not load: calls made from there never resolved, so a type in them cannot be called dead."""
+    skip = tuple(u.rsplit("/", 1)[0] + "/" if "/" in u else "" for u in unloaded)
     defs = {(s["path"], s["name"]): s for s in symbols if s["kind"] == "def" and s["symbol"].endswith("#")}
+    used_members = [(s["path"], s["line"]) for s in symbols if s["kind"] == "def" and not s["symbol"].endswith("#") and s["refs"]]
     dynamic = {b["path"] for b in blindspots if b.get("pattern") in DYNAMIC_USE}
     entities = {(m["path"], m["name"]) for m in models}
     declared = {t["name"] for d in decls.values() for t in d["types"]}
@@ -237,12 +277,16 @@ def dead_items(symbols: list, decls: dict, entries: list, models: list, blindspo
     for path, d in sorted(decls.items()):
         if path in generated or path in test_files or path in dynamic:
             continue
+        if skip and any(path.startswith(k) for k in skip):  # the project did not load, so its references are missing
+            continue
         for t in d["types"]:
             found = defs.get((path, t["name"]))
             if (t["kind"] not in ("class", "record", "struct") or found is None or found["public"] or found["refs"] or (path, t["name"]) in entities
                     or not t["line"] <= found["line"] <= t["end_line"]):
                 continue
             if any(t["line"] <= e["line"] <= t["end_line"] for e in entries if e["path"] == path and e.get("line")):
+                continue
+            if any(p == path and t["line"] <= ln <= t["end_line"] for p, ln in used_members):  # x.AddAspire() references the method, not its class
                 continue
             if any(_base_name(b) not in declared for b in t["bases"]):
                 continue

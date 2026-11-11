@@ -66,5 +66,41 @@ class TestJavaScriptGaps:
 
         assert [(g["report"], g["statement"]) for g in found] == [("io", "The public API of @s/lib could not be fully worked out from ./x.")]
 
+    def test_an_unresolved_python_public_api_gives_the_io_item(self):
+        note = {"kind": "py-note", "path": "badlib/badlib/__init__.py", "note": "api", "name": "badlib|badlib"}
+
+        found = [g for g in checks.validate({}, {"graph": [PY, note]})["gaps"] if "public API" in g["statement"]]
+
+        assert [(g["report"], g["statement"], g["how_to_confirm"]) for g in found] == [
+            ("io", "The public API of badlib could not be fully worked out from badlib.", "Read this module by hand.")]
+
     def test_no_js_extract_adds_none_of_these(self):
         assert [s for s in statements({"graph": [PY]}) if "Routes written" in s or "Bun" in s or "public API" in s] == []
+
+
+def build_with_results(*rows):
+    return {"records": [{"step": "check", "part": "verify", "by": "verify", "status": "ok",
+                         "details": {"results": [{"id": f"V{n}", "report": "entry", "key": k, "verdict": v, "reason": "Line 3 says otherwise."}
+                                                 for n, (k, v) in enumerate(rows, 1)]}}]}
+
+
+REPORT = {"blocks": [{"type": "text", "text": "It starts the server [[a.py:1-2]].", "conf": "confirmed", "cite": ["a.py:1-2"], "id": "k1"},
+                     {"type": "text", "text": "It logs.", "conf": "confirmed", "cite": ["a.py:3-4"], "id": "k2"}]}
+
+
+class TestVerifierGaps:
+    def extras(self, *rows):
+        return [g for g in checks.gap_extras(build_with_results(*rows), {"entry": REPORT}, {}, result={"gaps": []}) if g["kind"] == "inference"]
+
+    def test_not_supported_claim_becomes_one_inference_item(self):
+        got = self.extras(("k1", "not supported"))
+
+        assert [(g["report"], g["statement"], g["how_to_confirm"]) for g in got] == [(
+            "entry",
+            'A separate check could not confirm this statement from the code it cites: "It starts the server."',
+            "The checker said: Line 3 says otherwise. Open the cited code, then confirm or correct the statement with /dossier confirm.")]
+
+    def test_supported_and_cannot_tell_give_no_item(self):
+        got = self.extras(("k1", "supported"), ("k2", "cannot tell"))
+
+        assert got == []

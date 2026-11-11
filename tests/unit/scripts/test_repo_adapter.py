@@ -50,7 +50,7 @@ class TestCiTriggers:
     PATH = ".github/workflows/ci.yml"
 
     def got(self, text):
-        return [(e["line"], e["name"]) for e in repo_adapter.workflow_entries(self.PATH, text, triggers=True) if e["kind"] == "ci-trigger"]
+        return [(e["line"], e["name"]) for e in repo_adapter.workflow_entries(self.PATH, text) if e["kind"] == "ci-trigger"]
 
     def test_inline_list(self):
         assert self.got("name: x\n\non: [push, pull_request]\njobs: {}\n") == [(3, "push"), (3, "pull_request")]
@@ -64,19 +64,115 @@ class TestCiTriggers:
         assert self.got("'on':\n  workflow_call:\n") == [(2, "workflow_call")]
 
     def test_trigger_entry_has_the_full_set_of_fields(self):
-        e = [e for e in repo_adapter.workflow_entries(self.PATH, "name: Build and Test\non: [push]\n", triggers=True) if e["kind"] == "ci-trigger"][0]
+        e = [e for e in repo_adapter.workflow_entries(self.PATH, "name: Build and Test\non: [push]\n") if e["kind"] == "ci-trigger"][0]
         assert (e["rule"], e["trigger"], e["target"], e["end_line"]) == ("repo.ci-trigger", "When `push` happens on GitHub", "Build and Test", 2)
 
-    def test_off_by_default_so_other_languages_are_unchanged(self):
-        assert [e for e in repo_adapter.workflow_entries(self.PATH, "on: [push]\n") if e["kind"] == "ci-trigger"] == []
-
     def test_gitlab_files_have_no_triggers(self):
-        assert [e for e in repo_adapter.workflow_entries(".gitlab-ci.yml", "on: [push]\n", triggers=True)] == []
+        assert [e for e in repo_adapter.workflow_entries(".gitlab-ci.yml", "on: [push]\n")] == []
 
-    def test_adapter_emits_them_only_for_a_repository_with_csharp(self, tmp_path):
-        files = {".github/workflows/ci.yml": "on: [push]\n", "a.txt": "x\n"}
-        assert repo_adapter.wants_triggers(frozenset(files)) is False
-        assert repo_adapter.wants_triggers(frozenset({*files, "src/A.cs"})) is True
+    def test_python_only_repository_gets_a_row_for_each_event(self, tmp_path):
+        wf = tmp_path / ".github" / "workflows"
+        wf.mkdir(parents=True)
+        (wf / "ci.yml").write_text("name: CI\non: [push, pull_request]\njobs: {}\n")
+        (tmp_path / "app.py").write_text("x = 1\n")
+        ctx = SimpleNamespace(checkout=tmp_path, sha="HEAD", tree=frozenset({".github/workflows/ci.yml", "app.py"}), semgrep=FakeSemgrep(), tool_status={})
+
+        out = repo_adapter.RepoAdapter().extract(ctx)
+
+        assert [(e["kind"], e["name"]) for e in out["entry_points"]] == [("ci-trigger", "push"), ("ci-trigger", "pull_request")]
+
+
+class TestDockerfileVariables:
+    def got(self, text):
+        return [(i["line"], i["detail"], i["category"], i["rule"]) for i in repo_adapter.dockerfile_variables("Dockerfile", text)]
+
+    def test_env_with_several_pairs_gives_one_item_each(self):
+        assert self.got("FROM x\nENV A=1 B=2\n") == [(2, "A", "env-var", "repo.dockerfile-env"), (2, "B", "env-var", "repo.dockerfile-env")]
+
+    def test_env_without_equals_gives_the_first_word(self):
+        assert self.got("ENV APP_HOME /srv/app\n") == [(1, "APP_HOME", "env-var", "repo.dockerfile-env")]
+
+    def test_arg_with_and_without_default(self):
+        assert [g[1] for g in self.got("ARG V\nARG W=1\n")] == ["V", "W"]
+
+    def test_multi_line_env_keeps_each_physical_line(self):
+        text = "ENV A=1 \\\n    B=\"x y=z\" \\\n    C=3\nRUN echo K=v\n"
+
+        assert [(g[0], g[1]) for g in self.got(text)] == [(1, "A"), (2, "B"), (3, "C")]
+
+    def test_a_name_set_twice_is_listed_once(self):
+        assert [g[1] for g in self.got("ENV A=1\nENV A=2\nARG A\n")] == ["A"]
+
+    def test_no_value_is_stored(self):
+        items = repo_adapter.dockerfile_variables("Dockerfile", "ENV TOKEN=hunter2\n")
+
+        assert "hunter2" not in str(items)
+
+    def test_lower_case_instruction_and_comments(self):
+        assert [g[1] for g in self.got("# ENV NOT=this\nenv Z=1\n")] == ["Z"]
+
+
+COMPOSE_LIST = """services:
+  web:
+    image: x
+    environment:
+      - DB_URL=postgres://u:secret@db/x
+      - DEBUG
+      # - OFF=1
+    env_file: .env
+  worker:
+    image: y
+"""
+COMPOSE_MAP = """services:
+  web:
+    environment:
+      LOG_LEVEL: info
+      <<: *common
+      PORT: 80
+    env_file:
+      - ./a.env
+      - path: ./b.env
+        required: false
+    ports:
+      - "80:80"
+"""
+
+
+class TestComposeVariables:
+    def got(self, text):
+        return [(i["line"], i["category"], i["detail"], i["rule"]) for i in repo_adapter.compose_variables("docker-compose.yml", text)]
+
+    def test_environment_as_a_list(self):
+        got = self.got(COMPOSE_LIST)
+
+        assert got == [(5, "env-var", "DB_URL", "repo.compose-env"), (6, "env-var", "DEBUG", "repo.compose-env"),
+                       (8, "config-file", ".env", "repo.compose-env-file")]
+
+    def test_environment_as_a_map_skips_merge_keys(self):
+        got = self.got(COMPOSE_MAP)
+
+        assert [(g[1], g[2]) for g in got] == [("env-var", "LOG_LEVEL"), ("env-var", "PORT"), ("config-file", "./a.env"), ("config-file", "./b.env")]
+
+    def test_service_with_neither_gives_nothing(self):
+        assert self.got("services:\n  db:\n    image: x\n    ports:\n      - '1:1'\n") == []
+
+    def test_no_value_is_stored(self):
+        items = repo_adapter.compose_variables("compose.yaml", COMPOSE_LIST)
+
+        assert "secret" not in str(items)
+
+
+class TestVariablesInExtract:
+    def test_adapter_reads_dockerfile_and_compose_names_only_from_those_files(self, tmp_path):
+        (tmp_path / "Dockerfile").write_text("ENV A=1\n")
+        (tmp_path / "compose.yaml").write_text("services:\n  a:\n    environment:\n      - B=1\n")
+        (tmp_path / "docs.yml").write_text("services:\n  a:\n    environment:\n      - C=1\n")
+        ctx = SimpleNamespace(checkout=tmp_path, sha="HEAD", tree=frozenset({"Dockerfile", "compose.yaml", "docs.yml"}),
+                              semgrep=FakeSemgrep(), tool_status={})
+
+        out = repo_adapter.RepoAdapter().extract(ctx)
+
+        assert sorted(i["detail"] for i in out["io_candidates"]) == ["A", "B"]
 
 
 class TestWorkflowEntries:
@@ -234,7 +330,8 @@ class TestExtract:
         assert got == {("container", "Dockerfile", py_repo.line_of("Dockerfile", "ep-docker") + 1),
                        ("make-target", "Makefile", py_repo.line_of("Makefile", "ep-make")),
                        ("ci-schedule", ".github/workflows/ci.yml", py_repo.line_of(".github/workflows/ci.yml", "ep-cron")),
-                       ("shebang-script", "scripts/seed.sh", 1)}
+                       ("shebang-script", "scripts/seed.sh", 1),
+                       ("ci-trigger", ".github/workflows/ci.yml", 3)}
 
     def test_sql_table_is_an_entity(self, out):
         assert [(m["name"], m["kind"]) for m in out["models"]] == [("orders", "sql-table")]
@@ -283,5 +380,5 @@ class TestTestCommand:
     def test_other_commands_are_not(self, command):
         assert not repo_adapter.TEST_COMMAND.search(command)
 
-    def test_the_adapter_version_changed_with_the_pattern_and_the_triggers(self):
-        assert repo_adapter.RepoAdapter.version == "5"
+    def test_the_adapter_version_changed_with_the_variables_and_the_triggers(self):
+        assert repo_adapter.RepoAdapter.version == "6"

@@ -50,10 +50,11 @@ def ensure_installed(run, cache_root, version: str, timeout: float) -> Path:
     return index
 
 
-def environment(checkout) -> list:
-    """The packages installed in `<checkout>/.venv` as [{"name", "version", "files"}]; [] when there is no .venv."""
+def environment(checkout, venv=None) -> list:
+    """The packages installed in `venv` (default `<checkout>/.venv`) as [{"name", "version", "files"}]; [] when there is none."""
     found = []
-    for dist in sorted(Path(checkout).glob(".venv/lib/python*/site-packages/*.dist-info")):
+    venv = Path(venv) if venv else Path(checkout) / ".venv"
+    for dist in sorted(venv.glob("lib/python*/site-packages/*.dist-info")):
         meta = (dist / "METADATA")
         if not meta.is_file():
             continue
@@ -67,16 +68,17 @@ def environment(checkout) -> list:
     return found
 
 
-def run_index(run, index_js, checkout, area, repo_name: str, sha: str, timeout: float) -> Path:
-    """Index the checkout. The index and the environment file go into `<area>/scip/`, outside the checkout."""
+def run_index(run, index_js, checkout, area, repo_name: str, sha: str, timeout: float, cwd=None, project_name=None, venv=None) -> Path:
+    """Index the checkout, or the project folder `cwd` inside it. The index and the environment file go into `<area>/scip/`."""
     out = Path(area) / "scip"
     out.mkdir(parents=True, exist_ok=True)
     index, env_file = out / "index.scip", out / "env.json"
     index.unlink(missing_ok=True)
-    env_file.write_text(json.dumps(environment(checkout)))
-    cmd = ["node", str(index_js), "index", ".", "--project-name", repo_name, "--project-version", sha, "--output", str(index),
+    env_file.write_text(json.dumps(environment(checkout, venv)))
+    cmd = ["node", str(index_js), "index", ".", "--project-name", project_name or repo_name, "--project-version", sha, "--output", str(index),
            "--quiet", "--environment", str(env_file)]
-    _check(run(cmd, stage="scip-python", profile="restricted", timeout=timeout), "scip-python")
+    extra = {"cwd": cwd} if cwd else {}
+    _check(run(cmd, stage="scip-python", profile="restricted", timeout=timeout, **extra), "scip-python")
     if not index.is_file() or index.stat().st_size == 0:
         raise ToolError("scip-python finished without writing an index.")
     return index
