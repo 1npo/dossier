@@ -424,14 +424,18 @@ def inline(s, refs):
     return code_files(re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s))
 
 
+_UL_ITEM = re.compile(r"^\s*[-*] ")
+_OL_ITEM = re.compile(r"^\s*\d+[.)] ")
+
+
 def md(text, refs):
     out = []
     for para in re.split(r"\n\s*\n", str(text or "").strip()):
         lines = [l for l in para.split("\n") if l.strip()]
-        if lines and all(re.match(r"^\s*[-*] ", l) for l in lines):
-            out.append("<ul>" + "".join(f"<li>{inline(re.sub(r'^\s*[-*] ', '', l), refs)}</li>" for l in lines) + "</ul>")
-        elif lines and all(re.match(r"^\s*\d+[.)] ", l) for l in lines):
-            out.append("<ol>" + "".join(f"<li>{inline(re.sub(r'^\s*\d+[.)] ', '', l), refs)}</li>" for l in lines) + "</ol>")
+        if lines and all(_UL_ITEM.match(l) for l in lines):
+            out.append("<ul>" + "".join(f"<li>{inline(_UL_ITEM.sub('', l), refs)}</li>" for l in lines) + "</ul>")
+        elif lines and all(_OL_ITEM.match(l) for l in lines):
+            out.append("<ol>" + "".join(f"<li>{inline(_OL_ITEM.sub('', l), refs)}</li>" for l in lines) + "</ol>")
         elif lines:
             out.append("<p>" + inline(" ".join(l.strip() for l in lines), refs) + "</p>")
     return "".join(out)
@@ -778,7 +782,8 @@ def render_table(columns, rows, refs, tid, filterable=True, plain=False, group=N
         cites_ = new_cites(list(r.get("cite") or []) + lifted, *cells)
         body.append("<tr>" + "".join(tds) + f'<td class="basis-cell">{basis_for(r)}{added_tag(r)}{gid_tag(r)}{note}{user_note(r.get("user"))}</td><td class="src-cell">{refs.mark(cites_)}</td></tr>')
     flt = f'<input class="input tbl-filter" type="search" data-target="{tid}" placeholder="Filter rows" aria-label="Filter rows">' if filterable and len(rows) > 6 else ""
-    top = ("<tr class=\"group-row\">" + "".join(f'<th colspan="{n}"{" class=\"grp\"" if lbl else ""}>{E(lbl)}</th>' for lbl, n in group) + "</tr>") if group else ""
+    grp_attr = ' class="grp"'
+    top = ('<tr class="group-row">' + "".join(f'<th colspan="{n}"{grp_attr if lbl else ""}>{E(lbl)}</th>' for lbl, n in group) + "</tr>") if group else ""
     tf = f'<tfoot><tr class="total-row">{"".join(f"<td>{c}</td>" for c in foot)}</tr></tfoot>' if foot else ""
     return f'{flt}<div class="table-container{" tall" if len(rows) > TALL_ROWS else ""}"><table class="table{" " + cls if cls else ""}" id="{tid}"{"" if sort else " data-nosort"}><thead>{top}<tr>{head}</tr></thead><tbody>{"".join(body)}</tbody>{tf}</table></div>'
 
@@ -1143,10 +1148,14 @@ def freshness_tile(rec):
     return label, "Up to date", f"with {where}, {when}"
 
 
+def stat_sub(s):
+    return f'<div class="s">{E(s)}</div>' if s else ""
+
+
 def stats_html(items):
     cols = 3 if len(items) in (6, 9) else 4 if len(items) == 8 else min(len(items), 5)
     return f'<div class="stats" style="grid-template-columns:repeat({cols},minmax(0,1fr))">' + "".join(
-        f'<div class="stat {extra[0] if extra else ""}"><div class="k">{k if isinstance(k, Raw) else E(k)}</div><div class="v">{v if isinstance(v, Raw) else E(v)}</div>{f'<div class="s">{E(s)}</div>' if s else ""}</div>' for k, v, s, *extra in items) + "</div>"
+        f'<div class="stat {extra[0] if extra else ""}"><div class="k">{k if isinstance(k, Raw) else E(k)}</div><div class="v">{v if isinstance(v, Raw) else E(v)}</div>{stat_sub(s)}</div>' for k, v, s, *extra in items) + "</div>"
 
 
 def fact_box(title, rows):
