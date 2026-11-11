@@ -278,6 +278,7 @@ Claude runs these; you can too: `uv run ~/.claude/skills/dossier/scripts/dossier
 |---|---|
 | `version` | none |
 | `home [dir]` | none |
+| `portfolio` | none (rewrites `<home>/index.html`, the page that lists every dossier, without building anything) |
 | `doctor [repo]` | `--all` (check the tools for every supported language), `--json` |
 | `clean [repo]` | none |
 | `prepare [repo]` | `--ref REF` (default `HEAD`), `--chunk-tokens N` (default 400000), `--full`, `--allow-missing`, `--no-restore`, `--allow-ref`, `--submodules`, `--restore yes\|no` (answer the restore question), `--verify` |
