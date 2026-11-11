@@ -11,7 +11,7 @@ import summary
 
 SKILL = Path(__file__).resolve().parents[3]
 FIXTURE = SKILL / "tests" / "fixtures" / "encamp-m0"
-REPO = SKILL.parents[5]
+REPO = Path(os.environ.get("DOSSIER_SUBJECT_REPO", SKILL.parent / "encamp"))  # the repository the frozen fixture was made from; only read when the fixture exists
 pytestmark = pytest.mark.skipif(not FIXTURE.exists(), reason="the frozen fixture is not in this checkout")
 
 
