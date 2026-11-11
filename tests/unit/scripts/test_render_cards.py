@@ -481,3 +481,9 @@ def test_nine_tiles_make_three_columns():
     h = render.stats_html([(str(i), "v", "") for i in range(9)])
 
     assert "repeat(3," in h
+
+
+def test_questions_are_one_table_with_a_heading_row_per_category(make_cites):
+    h = render.questions_body(refs(make_cites))
+    assert h.count("<table") == 1 and 'id="t-questions"' in h
+    assert h.count('class="band-row"') == len(schema.load_categories())

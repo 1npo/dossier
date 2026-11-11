@@ -792,6 +792,9 @@ def render_table(columns, rows, refs, tid, filterable=True, plain=False, group=N
         head += f'<th class="basis-cell">{basis_h}</th><th class="src-cell">{cite_h}</th>'
     body = []
     for r in rows:
+        if isinstance(r, dict) and "band" in r:      # a full-width heading row that groups the rows after it
+            body.append(f'<tr class="band-row"><td colspan="{len(columns)}">{r["band"]}</td></tr>')
+            continue
         if plain:
             body.append("<tr>" + "".join(f'<td data-sort="{E(c[1])}">{keep_whole(str(c[0]))}</td>' if isinstance(c, tuple) else f"<td>{keep_whole(str(c))}</td>" for c in r) + "</tr>")
             continue
@@ -1867,15 +1870,14 @@ def question_links(q, cards):
 
 
 def questions_body(refs):
-    """One table per category, under its heading, with the questions numbered across the page."""
+    """One table for all the questions, numbered across the page, with a heading row at the start of each category."""
     cards = schema_cards_by_id()
     qs = schema.load_questions()
-    out = []
+    rows = []
     for cat in schema.load_categories():
-        rows = [[E(q["id"]), E(q["question"]), question_links(q, cards)] for q in qs if q.get("category") == cat["id"]]
-        table = render_table(["No.", "Question", "Answered in"], rows, refs, f't-questions-{cat["id"]}', False, True, sort=False)
-        out.append(f'<section class="q-group"><h3>{E(cat["title"])}</h3><p class="muted">{E(cat["why"])}</p>{table}</section>')
-    return "".join(out)
+        rows.append({"band": f'<strong>{E(cat["title"])}</strong> <span class="muted">{E(cat["why"])}</span>'})
+        rows += [[E(q["id"]), E(q["question"]), question_links(q, cards)] for q in qs if q.get("category") == cat["id"]]
+    return f'<div class="q-group">{render_table(["No.", "Question", "Answered in"], rows, refs, "t-questions", False, True, sort=False)}</div>'
 
 
 WRITERS = {"script": "A tool", "claude": "Claude"}
@@ -2043,7 +2045,7 @@ def render_html(facts, reports, state, history, version, cites, build=None, cove
     head = (f'<header class="masthead"><div class="masthead-inner"><div class="mh-row">'
             f'<button class="btn" data-variant="outline" data-size="sm" id="menu-toggle" type="button">Menu</button>'
             f'<h1>{E(mh["name"])}</h1>{source}'
-            f'<span class="chips">{badge(mh["ref"], "", "outline")}{badge("commit " + mh["short"], "", "outline")}{badge("Last built " + built, "", "outline")}{open_pills(reports)}</span>'
+            f'<span class="chips">{badge("Last built " + built, "", "outline")}{badge(mh["ref"], "", "outline")}{badge("commit " + mh["short"], "", "outline")}{open_pills(reports)}</span>'
             '</div>'
             f'<div class="mh-row2"><p class="lede" title="{E(mh["description"])}">{E(mh["description"][:300])}</p></div></div>'
             '</header>')
