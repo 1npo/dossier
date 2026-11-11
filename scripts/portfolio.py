@@ -114,7 +114,7 @@ def card(e: dict) -> str:
     key = E(" ".join([e["name"], e["description"], e["branch"]] + [l["name"] for l in e["languages"]]).lower())
     return (f'<a class="card dcard" href="{E(e["page"])}" data-key="{key}" data-built="{E(e["built"])}" data-name="{E(e["name"].lower())}">'
             f'<header class="dhead"><div class="dhead-row"><h2>{E(e["name"])}</h2>{stale}</div>'
-            f'<div class="dhead-row">{built_pill(e["built"])}</div>'
+            f'<div class="dhead-row"><span class="chips">{built_pill(e["built"])}</span></div>'
             f'<div class="dhead-row"><span class="chips">{commit_pills}</span><span class="muted">{builds}</span></div></header>'
             f'<section><p class="desc">{E(e["description"][:200]) or "No description found in the repository."}</p>'
             f'{stats}{lang_bar(e["languages"])}<div class="chips">{risk_pills(e["risks"])}</div></section>{change}</a>')
