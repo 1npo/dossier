@@ -104,7 +104,7 @@ def risk_pills(risks: dict) -> str:
 def card(e: dict) -> str:
     open_n = e["open_inferences"] + e["open_unknowns"]
     stale = '<span class="badge" data-variant="secondary" title="Built by an older version of the skill. Build again to refresh it.">older skill</span>' if e["outdated"] else ""
-    commit = f'<span class="badge" data-variant="outline">{E(e["branch"])}</span><span class="badge" data-variant="outline">{E(e["sha"])}</span>' if e["sha"] else ""
+    commit = f'<div class="chips"><span class="badge" data-variant="outline">{E(e["branch"])}</span><span class="badge" data-variant="outline">{E(e["sha"])}</span></div>' if e["sha"] else ""
     change = f'<p class="muted change">{E(e["change"])}</p>' if e["change"] and e["builds"] > 1 else ""
     stats = (f'<dl class="stats"><div><dt>Components</dt><dd>{e["components"]}</dd></div>'
              f'<div><dt>Entry points</dt><dd>{e["entry_points"]}</dd></div>'
@@ -112,11 +112,10 @@ def card(e: dict) -> str:
     builds = f" · {e['builds']} builds" if e["builds"] > 1 else ""
     key = E(" ".join([e["name"], e["description"], e["branch"]] + [l["name"] for l in e["languages"]]).lower())
     return (f'<a class="card dcard" href="{E(e["page"])}" data-key="{key}" data-built="{E(e["built"])}" data-name="{E(e["name"].lower())}">'
-            f'<header><h2>{E(e["name"])}</h2><div class="card-badges">{stale}</div>'
+            f'<div class="bar"><span class="muted">{ago(e["age_days"])}{builds}</span>{stale}</div>'
+            f'<header><h2>{E(e["name"])}</h2>{commit}'
             f'<p>{E(e["description"][:200]) or "No description found in the repository."}</p></header>'
-            f'<section>{stats}{lang_bar(e["languages"])}<div class="chips">{risk_pills(e["risks"])}</div></section>'
-            f'<footer><span class="chips">{commit}</span><span class="muted">{ago(e["age_days"])}'
-            f'{builds}</span></footer>{change}</a>')
+            f'<section>{stats}{lang_bar(e["languages"])}<div class="chips">{risk_pills(e["risks"])}</div></section>{change}</a>')
 
 
 EXTRA_CSS = """
@@ -134,9 +133,8 @@ body { min-height: 100vh; }
 a.dcard { display: flex; flex-direction: column; text-decoration: none; color: inherit; transition: border-color .15s, transform .15s; }
 a.dcard:hover, a.dcard:focus-visible { border-color: var(--foreground); transform: translateY(-1px); outline: none; }
 .dcard header { display: grid; gap: .25rem; } .dcard h2 { font-size: 1.125rem; } .dcard header p { margin: 0; color: var(--muted-foreground); font-size: .875rem; }
-.dcard .card-badges { position: absolute; top: 1rem; right: 1rem; }
+.dcard .bar { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin-top: -1rem; padding: .6rem 1rem; border-bottom: 1px solid var(--border); background: var(--muted); font-size: .8125rem; }
 .dcard { position: relative; } .dcard section { display: grid; gap: .85rem; flex: 1; }
-.dcard footer { display: flex; justify-content: space-between; align-items: center; gap: .5rem; flex-wrap: wrap; }
 .dcard .change { margin: 0; padding: 0 1.5rem 1rem; font-size: .8125rem; }
 .langs .bar { display: flex; height: .45rem; border-radius: 99px; overflow: hidden; gap: 2px; margin-bottom: .35rem; } .langs .bar i { display: block; min-width: 4px; }
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin: 0; }
