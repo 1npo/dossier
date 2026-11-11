@@ -112,7 +112,8 @@ Open points the author may change: whether "People" (35) moves earlier (who do I
 - P13-12: user guide section "Read the questions card".
 - Extra, by the author's request: `render.py` failed to parse before Python 3.12 (backslash and reused quotes inside f-strings, three sites). Fixed on `fix/py310-render`, with `test_py310_syntax.py` (parses every script under 3.10).
 - Default suite: 2888 passed, 294 skipped (was 2887 plus the new test).
-- **Found, not fixed:** `scripts/py_packages.py` imports `tomllib` (3.11+) with no fallback, so the stated floor of 3.10 is false for Python projects; five test files fail to collect on 3.10. Decide: raise the floor to 3.11 or add a fallback.
+- **Python floor:** `py_packages.py` and `py_api.py` import `tomllib` (3.11+), so the 3.10 floor was false. Raised to 3.11 for the CLI and page check; the three worker scripts keep 3.10 (they run under the repository's own Python). Suite passes on 3.11 and 3.13.
+- **Released 1.2.1** (author approved): the 3.10 syntax fix, the Windows sandbox fix (from `~/dossier-sandbox.patch`), `/dossier build` printing the version first, and the 3.11 floor.
 - **Found, not fixed (item 7):** the `encamp` repository now has two root commits, so `out_dir` resolves the fixture to `encamp-<hash>` and every fixture-based slow test fails with "No facts.json found".
 
 ---

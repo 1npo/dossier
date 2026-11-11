@@ -24,7 +24,6 @@ Do these first: each one can make a build silently wrong or hide a failure.
 7. **Retire the M0 fixture, `migrate` and `DOSSIER_SUBJECT_REPO`.** `test_summary_render.py` is gone, but `tests/tools/m3_page.py` (which builds the M3, M4, M5 and M6 slow-suite pages) and `test_check_page_slow.py` still copy `tests/fixtures/encamp-m0` and run `migrate` on it, so those cannot go until the pages are built from a small repository instead. Then delete `scripts/migrate.py`, `scripts/migrate_map.json`, the `migrate` command, the fixture line in `.gitignore`, and the `golden02` baseline's dependence on the fixture. **Already broken:** `encamp` gained a second root commit, so `root_commit()` no longer matches the fixture's recorded one and the fixture tests fail with "No facts.json found"; they cannot run until this item is done.
 8. **One test counts differently in a fresh clone** (2901 passed against 2902 in the working tree). Find which and why.
 
-- **Python floor.** `py_packages.py` imports `tomllib` (3.11+), so the 3.10 floor in the docs and script headers is wrong. Raise it to 3.11 or add a fallback.
 
 ### 3. Finish v1's open acceptance item
 
