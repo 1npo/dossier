@@ -1172,6 +1172,15 @@ Next session: **Sonnet**, `Start Phase C in docs/plans/014-package-refactor-plan
 
 ### Results (Phase B)
 
+Session: Sonnet 5.5, 2026-11-11. Branch `refactor/package-b-data`, three commits (B1 `3b5ed39`, B2, B3).
+
+- **New base.** `main` had moved past `2b6a480` to **`7f51be9`** (1.10.4: the portfolio header fix). `$SCR/base` is now detached at `7f51be9`, and **`BASE_SHA=7f51be9`** for Phases C onward. `$SCR/golden/a1` is stale (it records `dossier_version` 1.10.3): the reference for later GF runs is a fresh `fa` capture of `$SCR/base`, which Phase B left in `$SCR/golden/fa`.
+- **B1.** Pure `git mv` of schemas (`data/schemas/cards/`, `data/schemas/summary.schema.json`), `rules/`, `assets/`, `vendor/`, `tools.json`, `eol.json`. Code and docstrings updated as in section 6; `method.md:47` names `${CLAUDE_SKILL_DIR}/src/dossier/data/schemas/cards/...`. Tests updated: `test_rules`, `test_prompts`, `test_docs`, `test_cs_config_keys_slow`, `test_cs_semgrep_slow`, `test_shared_layer`, `tests/tools/refresh_eol.py`. `reports.md` has no schema path, so it needed no change.
+- **B2.** Workers, their three `.lock` files and `node/` are 100% renames. `lock --check` passes for all three workers. `SCRIPTS` is gone from `shared_tools`, `js_tools` and `scip_tool`. `tests/support/workers.py` (`load(name)`) is on pytest's `pythonpath`; `test_py_tools` and `test_shared_tools` use it.
+- **B3.** `stages.py` uses `resources.skill_root()`. `adapters.code_hash` hashes every `*.py` under `src/dossier/` and `scripts/*.py` by path relative to the skill root, then `data/tools.json` and `VERSION`; `PACKAGE` replaces `SCRIPTS`. The new content test is `tests/unit/scripts/test_no_file_paths.py` (2 tests). It also allows `scripts/bump_version.py`, which still uses `__file__` until C11 moves it to `tools/`.
+- **Deviation.** The plan's GF block recaptures the base each time; I compared against the stored `fa` instead (same base).
+- **Results.** Default suite **3060 passed, 305 skipped** (3058 baseline plus the 2 new tests). `ruff check` exit 0. Block GF after B3: **`SAME`** in all 12 fast cases, and the gatherer review shows no line other than import and `__all__` lines (B1 was also `SAME` on its own). `scripts/` holds only `.py` files; `prompts/` holds only the three Markdown files.
+
 ---
 
 ## Phase C: Module moves
