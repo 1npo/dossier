@@ -15,6 +15,7 @@ from pathlib import Path
 FILE, PREV = "build.json", "build.prev.json"
 STEPS = ("pin", "tools", "copy", "measure", "extract", "read", "write", "check", "gaps", "render")
 STATUSES = ("ok", "skipped", "failed", "reused")
+VERIFIER_PARTS = ("verify-sample", "verify")
 WRITERS = ("prepare", "render", "check_page", "verify")
 
 
@@ -36,11 +37,17 @@ def start(out: Path, *, repo: str, sha: str, ref: str, version: str, options: di
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     path = out / FILE
+    carried: list = []
     if path.exists():
+        # The checker's sample and verdicts are about the claims at one commit: a new build of the same commit keeps them
+        # (a `prepare` would otherwise drop them and the page would lose its Gaps items), a build of another commit does not.
+        old = load(path) or {}
+        if old.get("sha") == sha:
+            carried = [r for r in old.get("records", []) if r.get("step") == "check" and r.get("part") in VERIFIER_PARTS]
         os.replace(path, out / PREV)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     _write(path, {"schema": 1, "build_id": f"{stamp}-{sha[:7]}", "dossier_version": version, "repo": repo,
-                  "sha": sha, "ref": ref, "options": options, "records": []})
+                  "sha": sha, "ref": ref, "options": options, "records": carried})
     return path
 
 

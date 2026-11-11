@@ -30,6 +30,44 @@ class TestStart:
         assert buildlog.load(path)["build_id"].endswith("-5923c09")
 
 
+class TestVerifierRecordsSurviveAPrepare:
+    """A `prepare` starts a new build.json; the verifier's sample and verdicts for the same commit must not be lost with the old one."""
+
+    SAMPLE = {"step": "check", "part": "verify-sample", "by": "verify", "status": "ok", "details": {"seed": "s", "per_report": 5, "items": []}}
+    RESULT = {"step": "check", "part": "verify", "by": "verify", "status": "ok", "counts": {"sampled": 1}, "details": {"seed": "s", "per_report": 5, "results": []}}
+
+    def build_with_verdicts(self, tmp_path):
+        p = buildlog.start(tmp_path, repo="r", sha=SHA, ref="main", version="1", options={"verify": True})
+        buildlog.append(p, dict(self.SAMPLE))
+        buildlog.append(p, dict(self.RESULT))
+        buildlog.append(p, {"step": "render", "by": "render", "status": "ok"})
+
+    def test_the_sample_and_the_verdicts_are_carried_to_the_next_build_of_the_same_commit(self, tmp_path):
+        self.build_with_verdicts(tmp_path)
+
+        buildlog.start(tmp_path, repo="r", sha=SHA, ref="main", version="1", options={"verify": True})
+
+        build = buildlog.load(tmp_path)
+        assert buildlog.latest(build, "check", "verify")["counts"] == {"sampled": 1}
+        assert buildlog.latest(build, "check", "verify-sample") is not None
+        assert buildlog.latest(build, "render") is None   # nothing else is carried over
+
+    def test_the_verdicts_stay_after_the_sample_so_the_build_has_no_v10_error(self, tmp_path):
+        self.build_with_verdicts(tmp_path)
+
+        buildlog.start(tmp_path, repo="r", sha=SHA, ref="main", version="1", options={"verify": True})
+
+        parts = [r.get("part") for r in buildlog.load(tmp_path)["records"]]
+        assert parts == ["verify-sample", "verify"]
+
+    def test_nothing_is_carried_to_a_build_of_another_commit(self, tmp_path):
+        self.build_with_verdicts(tmp_path)
+
+        buildlog.start(tmp_path, repo="r", sha="a" * 40, ref="main", version="1", options={"verify": True})
+
+        assert buildlog.load(tmp_path)["records"] == []
+
+
 class TestAppend:
     def test_keeps_earlier_records_in_order(self, path):
         buildlog.append(path, rec("pin"))
