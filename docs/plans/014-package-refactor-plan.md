@@ -1095,10 +1095,26 @@ Session: Opus 5.5, 2026-11-11.
 - New `tests/unit/scripts/test_launcher.py`, 9 tests: the PEP 723 header against `pyproject.toml`; `data()` and its `isinstance` guard; `skill_root()`, including a copy of `resources.py` with no `SKILL.md`; `version()`.
 - Done-checks:
   - `uv run scripts/dossier.py version` (run from `/tmp`) prints `dossier 1.10.3`.
-  - `doctor` ends `skill: b682b2b (dirty)` before the commit and `skill: <A4 sha> (clean)` after.
+  - `doctor` ends `skill: b682b2b (dirty)` before the commit and `skill: aa3cfe2 (clean)` after.
   - Default suite: **3058 passed, 305 skipped**. That is 2995 + 22 golden + 1 golden mask test (below) + 31 codemod + 9 launcher.
   - `uv run ruff check`: exit 0.
-- **Block GF after A4: `SAME`** in all 12 fast cases, with an empty gatherer review. The first branch-side compare differed only in the process card's skill line, in a third HTML shape (`<th scope="row">Skill</th><td>2b6a480</td>`). The determinism run could not show it, since both of its sides ran the same commit. This is D14's existing "process card's skill line" mask, so the regex was widened (`594cd25`, one more test); no new mask was added.
+- **Block GF after A4: `SAME`** in all 12 fast cases, with an empty gatherer review. The first branch-side compare differed only in the process card's skill line, in a third HTML shape (`<th scope="row">Skill</th><td>2b6a480</td>`). The determinism run could not show it, since both of its sides ran the same commit. This is D14's existing "process card's skill line" mask, so the regex was widened (`c0ec1b0`, one more test); no new mask was added.
+- **History of the CLI file.** `scripts/dossier.py` still exists (it is the launcher now), so git records `src/dossier/cli/app.py` as a copy, not a rename. `git log --follow -- src/dossier/cli/app.py` still reaches the old history (`a2a9a93`, `a3d2b87`, ...). The later Phase C moves are plain renames.
+
+**Phase A acceptance** (on `aa3cfe2`):
+
+- Default suite: **3058 passed, 305 skipped** (72 s).
+- Block L: `ruff check` exit 0.
+- Block GF: `SAME`.
+- Block FC steps 1 to 3, from a fresh clone of the branch: `dossier 1.10.3`; `skill: aa3cfe2 (clean)`; no `.venv` in the clone, and the clone stays clean.
+- `git grep -n "sys.path.insert(0" -- tests scripts` shows no `"scripts"` insert.
+- The slow suite was not run in Phase A; section 2 asks for it at the end of C, E, F and H.
+
+**For Phase B.**
+
+- `$SCR` holds `base` (the `2b6a480` worktree), `repos`, `src` (block S), `golden/a1` (the base reference), `maps/a4.map` and `fc`.
+- Use `uv run pytest -q` from here on.
+- `tests/tools/m3_page.py` and `layout_probe.py` now put `src` first and append `scripts`.
 
 ---
 
