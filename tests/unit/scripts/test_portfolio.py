@@ -93,3 +93,12 @@ def test_last_built_pill_stays_inside_chips_so_it_gets_the_outline_stroke(tmp_pa
 def test_card_body_children_have_no_extra_margins(tmp_path):
     make(tmp_path, "a")
     assert ".dcard .langs { margin: 0; }" in portfolio.write(tmp_path, "1.5.0").read_text()
+
+
+def test_last_built_pill_sits_under_the_brand_level_with_the_keys_button(tmp_path):
+    make(tmp_path, "a")
+    text = portfolio.write(tmp_path, "1.5.0").read_text()
+    header, rest = text.split("</header>", 1)
+    assert "Last built" not in header
+    subbar = rest.split('<section class="hero">', 1)[0]
+    assert 'class="subbar"' in subbar and subbar.index("Last built") < subbar.index('id="keys-btn"')
