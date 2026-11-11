@@ -1,4 +1,6 @@
 import json
+
+import pytest
 from pathlib import Path
 
 import re
@@ -210,16 +212,29 @@ class TestDotnetFromReleasesIndex:
     def test_garbage_gives_no_cycles(self):
         assert measured_upgrade.dotnet_cycles_from_index(None) == [] and measured_upgrade.dotnet_cycles_from_index({"releases-index": [{"channel-version": "x"}]}) == []
 
-    def test_the_live_index_replaces_the_snapshot_and_the_card_says_so(self):
-        snap, note = measured_upgrade.resolve_snapshot(fetch=lambda: json.loads(INDEX.read_text()))
+    def test_the_pinned_fetch_replaces_the_snapshot_and_the_card_names_its_date(self):
+        refdata = measured_upgrade.fetch_refdata(fetch=lambda: json.loads(INDEX.read_text()), today="2026-11-11")
+        snap, note = measured_upgrade.resolve_snapshot(refdata)
 
-        assert snap["products"]["dotnet"][0]["latest"] == "11.0.0" and "fetched now" in note
+        assert snap["products"]["dotnet"][0]["latest"] == "11.0.0" and note.endswith("fetched 2026-11-11")
 
-    def test_with_no_network_the_snapshot_is_used_and_named(self):
-        snap, note = measured_upgrade.resolve_snapshot(fetch=lambda: None)
+    def test_a_failed_fetch_pins_nothing(self):
+        assert measured_upgrade.fetch_refdata(fetch=lambda: None) == {}
+
+    def test_with_nothing_pinned_the_snapshot_is_used_and_named_and_nothing_is_fetched(self, monkeypatch):
+        monkeypatch.setattr(measured_upgrade, "fetch_dotnet_index", lambda: pytest.fail("render must not fetch"))
+        snap, note = measured_upgrade.resolve_snapshot(None)
 
         assert snap["products"]["dotnet"] == measured_upgrade.load_snapshot()["products"]["dotnet"]
-        assert "offline snapshot" in note and snap["as_of"] in note
+        assert "offline snapshot" in note and snap["as_of"] in note and "--refresh-refdata" in note
+
+    def test_two_renders_of_one_pin_agree_even_when_the_index_changes(self):
+        refdata = measured_upgrade.fetch_refdata(fetch=lambda: json.loads(INDEX.read_text()), today="2026-11-11")
+        c = csctx(("src/A/A.csproj", ["net10.0"], False))
+        c["facts"]["manifests"] = [{"path": "x"}]
+        c["facts"]["refdata"] = refdata
+
+        assert measured.body("change.upgrade-burden", c, Refs()) == measured.body("change.upgrade-burden", c, Refs())
 
     def test_fetch_is_off_when_dossier_offline_is_set_and_survives_an_os_error_otherwise(self, monkeypatch):
         assert measured_upgrade.fetch_dotnet_index() is None  # conftest sets DOSSIER_OFFLINE
@@ -228,12 +243,22 @@ class TestDotnetFromReleasesIndex:
 
         assert measured_upgrade.fetch_dotnet_index() is None
 
-    def test_the_card_names_the_dotnet_source_only_with_a_dotnet_row(self, monkeypatch):
+    def test_the_card_names_the_dotnet_source_only_with_a_dotnet_row(self):
         c = csctx(("src/A/A.csproj", ["net10.0"], False))
         c["facts"]["manifests"] = [{"path": "x"}]
-        monkeypatch.setattr(measured_upgrade, "fetch_dotnet_index", lambda: json.loads(INDEX.read_text()))
+        c["facts"]["refdata"] = measured_upgrade.fetch_refdata(fetch=lambda: json.loads(INDEX.read_text()), today="2026-11-11")
 
         html = measured.body("change.upgrade-burden", c, Refs())
 
-        assert "from Microsoft&#x27;s releases-index.json, fetched now" in html or "releases-index.json, fetched now" in html
+        assert "releases-index.json, fetched 2026-11-11" in html
         assert "offline snapshot" not in measured.body("change.upgrade-burden", ctx(requires=">=3.10"), Refs())
+
+
+class TestRefreshOption:
+    def test_render_takes_refresh_refdata_and_it_is_off_by_default(self):
+        import dossier
+
+        parser = dossier.build_parser()
+
+        assert parser.parse_args(["render"]).refresh_refdata is False
+        assert parser.parse_args(["render", "--refresh-refdata"]).refresh_refdata is True

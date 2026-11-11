@@ -281,7 +281,7 @@ Claude runs these; you can too: `uv run ~/.claude/skills/dossier/scripts/dossier
 | `doctor [repo]` | `--all` (check the tools for every supported language), `--json` |
 | `clean [repo]` | none |
 | `prepare [repo]` | `--ref REF` (default `HEAD`), `--chunk-tokens N` (default 400000), `--full`, `--allow-missing`, `--no-restore`, `--allow-ref`, `--submodules`, `--restore yes\|no` (answer the restore question), `--verify` |
-| `render [repo]` | `--readers N` (parallel readers Claude used, shown on the process card), `--partial` (allow missing reports), `--allow-errors` (write the HTML even if validation fails), `--apply-corrections` (mark pending corrections as applied) |
+| `render [repo]` | `--readers N` (parallel readers Claude used, shown on the process card), `--partial` (allow missing reports), `--allow-errors` (write the HTML even if validation fails), `--apply-corrections` (mark pending corrections as applied), `--refresh-refdata` (fetch the .NET release data again; see below) |
 | `check [repo]` | none |
 | `candidates [repo]` | `--report ID` (required), `--open` (only findings no report has decided), `--catalog FILE`, `--json` |
 | `verify-sample [repo]` | `--seed S`, `--per-report N` |
@@ -303,7 +303,10 @@ Claude runs these; you can too: `uv run ~/.claude/skills/dossier/scripts/dossier
 | `state.json` | Your confirmations and corrections. Back-ups `state.backup-v<version>.json` are made when the skill version changes. |
 | `build.json` | The record of what each build step did. Never edit it. |
 | `facts.json`, `knowledge.json`, `activity.json`, `dependencies.json`, `chunks.json`, `extract/`, `notes/` | Measured data and Claude's working notes. |
+| `refdata.json` | The .NET release data the upgrade-burden card used, fetched once by `build` and kept with its date. |
 | `.check-shots/` | Screenshots from `check`. |
+
+**Reference data is pinned.** The upgrade-burden card shows how far .NET target frameworks are from end of support. `build` fetches Microsoft's `releases-index.json` once and stores it in `refdata.json`; every `render` after that draws from the stored copy, so rendering one build twice gives the same card. The card says "fetched <date>". To pick up newer releases, run `render --refresh-refdata`; if the fetch fails, the stored data is kept. With no stored data (no network at build time, `DOSSIER_OFFLINE=1`, or a dossier built by an older version) the card uses the snapshot shipped with the skill and says so.
 
 ## Configuration
 

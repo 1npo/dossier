@@ -11,8 +11,9 @@ Plan documents quote commit hashes from before the repository was split out of `
 
 ## Open
 
-1. **The upgrade-burden card is not a pure function of the commit.** It reads Microsoft's `releases-index.json` at render time; two renders can differ (Phase 6 Results). Decide whether to pin the fetch date in the build.
+Nothing.
 
 ## Done since 1.4.0
 
 - **C# configuration binding as inputs** (was item 1). Keys read through `IConfiguration` are a new input kind, `config-key`, drawn as a separate **Configuration keys** group under the Inputs card; see the user guide. Names only, never values. Not done: keys that appear only in `appsettings.json` (the file is still a `config-file` row) and keys built at run time.
+- **Upgrade-burden card pinned** (was Open item 1). `prepare` fetches Microsoft's `releases-index.json` once and stores it with its date in `refdata.json`; `render` reads only that file, so two renders of one build agree. `render --refresh-refdata` refetches (a failed fetch keeps the old pin). The card says "fetched <date>", or names the offline snapshot when nothing is pinned. Not done: the endoflife.date snapshot (`scripts/eol.json`) is still shipped, not fetched, so it changes only with a skill release.
