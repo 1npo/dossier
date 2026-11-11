@@ -99,3 +99,9 @@ class TestReadmeLinks:
         missing = [l for l in links if not (ROOT / l).exists()]
 
         assert missing == []
+
+
+def test_build_starts_by_showing_the_version():
+    text = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+    build = text[text.index("### `/dossier build"):]
+    assert build.index("run `DOSSIER version`") < build.index("1. **Prepare.**")
