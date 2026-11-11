@@ -9,11 +9,32 @@ VERDICTS = ("supported", "not supported", "cannot tell")
 SKIPPED_REPORTS = ("gaps",)
 
 
-def claim_key(c):
-    """The claim's own id when it has one, else the SHA-1 of its text."""
+def base_key(c):
+    """The claim's own id when it has one. Without one, a hash of its card and its citations, so rewording the claim keeps its
+    verdict; a claim with no citation falls back to a hash of its text."""
     node = c.get("node") or {}
     label = node.get("id") or node.get("label")
-    return str(label) if label else hashlib.sha1(str(c.get("text") or "").encode()).hexdigest()
+    if label:
+        return str(label)
+    cites = sorted({str(x) for x in c.get("cites") or []})
+    if cites:
+        return "c:" + hashlib.sha1("\0".join([str(c.get("where") or ""), *cites]).encode()).hexdigest()
+    return hashlib.sha1(str(c.get("text") or "").encode()).hexdigest()
+
+
+def keyed(claims):
+    """`claims` (one report's, in page order) with a unique `key` in each: the base key, and `#2`, `#3` for a repeat of it."""
+    seen, out = {}, []
+    for c in claims:
+        k = base_key(c)
+        seen[k] = seen.get(k, 0) + 1
+        out.append({**c, "key": k if seen[k] == 1 else f"{k}#{seen[k]}"})
+    return out
+
+
+def claim_key(c):
+    """The key `keyed` gave the claim, else its base key."""
+    return c.get("key") or base_key(c)
 
 
 def plain_text(text):
@@ -45,7 +66,7 @@ def eligible(reports, cites):
     for rid, rep in reports.items():
         if rid in SKIPPED_REPORTS:
             continue
-        good = [c for c in render.claims_of(rid, rep or {})
+        good = [c for c in keyed(render.claims_of(rid, rep or {}))
                 if c.get("conf") in ("confirmed", "inferred") and plain_text(c.get("text")) and line_cites(cites, c)]
         if good:
             out[rid] = sorted(good, key=lambda c: (str(c.get("where") or ""), claim_key(c)))

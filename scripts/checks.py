@@ -462,5 +462,5 @@ cs_coverage = checks_v7.cs_coverage
 def gap_extras(build, reports, extract, cites=None, facts=None, result=None) -> list:
     """The one list `cmd_render` and `cmd_confirm` both pass to `collect_gaps`: the build's coverage items, then the checks' items."""
     result = result if result is not None else validate(reports, extract, cites, facts)
-    claims = {(rid, verify.claim_key(c)): verify.plain_text(c["text"]) for rid, rep in reports.items() for c in render.claims_of(rid, rep or {})}
+    claims = {(rid, c["key"]): verify.plain_text(c["text"]) for rid, rep in reports.items() for c in verify.keyed(render.claims_of(rid, rep or {}))}
     return process.coverage_items(build) + process.verifier_items(build, claims) + result["gaps"]

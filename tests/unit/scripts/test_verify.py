@@ -70,6 +70,31 @@ class TestEligible:
         assert got == {}
 
 
+class TestClaimKeys:
+    def claim(self, text, cites=("a.py:2-4",), where="Entry points", **node):
+        return {"where": where, "text": text, "cites": list(cites), "node": node}
+
+    def test_a_claim_with_an_id_is_keyed_by_it(self):
+        assert verify.claim_key(self.claim("x", id="e1")) == "e1"
+
+    def test_rewording_a_claim_without_an_id_keeps_its_key(self):
+        assert verify.claim_key(self.claim("The job runs nightly.")) == verify.claim_key(self.claim("It runs every night."))
+
+    def test_another_citation_or_card_gives_another_key(self):
+        base = verify.claim_key(self.claim("x"))
+
+        assert verify.claim_key(self.claim("x", cites=("a.py:9-10",))) != base
+        assert verify.claim_key(self.claim("x", where="Components")) != base
+
+    def test_a_claim_with_no_citation_is_keyed_by_its_text(self):
+        assert verify.claim_key(self.claim("one", cites=())) != verify.claim_key(self.claim("two", cites=()))
+
+    def test_two_claims_with_the_same_card_and_citation_get_different_keys(self):
+        keys = [c["key"] for c in verify.keyed([self.claim("first"), self.claim("second"), self.claim("third")])]
+
+        assert len(set(keys)) == 3 and keys[1].endswith("#2") and keys[2].endswith("#3")
+
+
 class TestSample:
     def test_same_seed_gives_same_sample(self, make_cites):
         cites = make_cites({"a.py": BLOB})

@@ -245,6 +245,15 @@ class TestScip:
         assert any(s["kind"] == "def" and "via" not in s for s in out["symbols"])
         assert notes(out, "msbuild") == [("Shop.Api.csproj could not load", "Shop.slnx")]
 
+    def test_projects_msbuild_could_not_load_are_named_and_the_tool_stays_ok(self, cs_repo, tmp_path, monkeypatch):
+        files = {"src/Shop.Core/Order.cs": [("Shop.Core/Order#", 1, 2)]}
+        log = ("15:46:22 fail: Microsoft.CodeAnalysis.MSBuild.MSBuildWorkspace[0] Failure: Msbuild failed when processing the file "
+               f"'{cs_repo.path}/src/Shop.Api/Shop.Api.csproj' with message: x")
+        out, ctx = self.run(cs_repo, tmp_path, monkeypatch, {"Shop.slnx": (0, log, files)})
+
+        assert ctx.tool_status["scip-dotnet"] == {"status": "ok", "reason": None}
+        assert notes(out, "msbuild") == [("src/Shop.Api/Shop.Api.csproj", "Shop.slnx")]
+
     def test_zero_documents_after_dropping_untracked_files_is_a_failure(self, cs_repo, tmp_path, monkeypatch):
         plan = {"Shop.slnx": (0, "", {"src/Shop.Core/obj/Debug/x.g.cs": [("N/X#", 1, 0)]})}
 

@@ -116,7 +116,10 @@ def _lines(log: str) -> list:
 
 
 def soft_failure(log: str) -> str | None:
-    """The first `Failure:` line of the log without its label, or None. scip-dotnet exits 0 after these, with the projects it could load."""
+    """The first line that starts with `Failure:`, without its label, or None. scip-dotnet exits 0 after these, with the projects it could load.
+
+    Real scip-dotnet logs put a time and a level before the text (`15:46:22 fail: ... Failure: Msbuild failed ...`), so they do not match here;
+    `unloaded_projects` reads those, and the adapter names the projects on the page without failing the tool."""
     for line in _lines(log):
         if line.startswith("Failure:"):
             return line[len("Failure:"):].strip()

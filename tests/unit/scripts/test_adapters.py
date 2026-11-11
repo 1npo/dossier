@@ -123,6 +123,34 @@ class TestKey:
 
         assert not adapters._reusable(tmp_path, adapter, key)
 
+    def test_a_change_to_the_skills_code_changes_the_key(self, tmp_path, monkeypatch):
+        (tmp_path / "a.yml").write_text("rules: []\n")
+        code = tmp_path / "code"
+        code.mkdir()
+        (code / "x.py").write_text("A = 1\n")
+        adapter = WithRules()
+        adapter.rules = (tmp_path,)
+        monkeypatch.setattr(adapters, "SCRIPTS", code)
+        before = adapters._key(adapter, "sha", {})
+
+        (code / "x.py").write_text("A = 2\n")
+
+        assert adapters._key(adapter, "sha", {}) != before
+
+    def test_the_same_code_gives_the_same_key(self, tmp_path):
+        assert adapters.code_hash() == adapters.code_hash()
+
+    def test_a_build_stored_without_a_code_hash_is_not_reusable(self, tmp_path):
+        (tmp_path / "a.yml").write_text("rules: []\n")
+        adapter = WithRules()
+        adapter.rules = (tmp_path,)
+        key = adapters._key(adapter, "sha", {})
+        old = {k: v for k, v in key.items() if k != "code"}
+        (tmp_path / "extract").mkdir()
+        (tmp_path / "extract" / "entry_points.json").write_text('{"adapters": {"with-rules": %s}}' % json.dumps(old))
+
+        assert not adapters._reusable(tmp_path, adapter, key)
+
     def test_shipped_adapters_name_their_rule_folders(self):
         assert [a.rules for a in (js_adapter.JsAdapter, py_adapter.PythonAdapter, repo_adapter.RepoAdapter)] == [
             (js_adapter.RULES,), (py_adapter.RULES,), (repo_adapter.RULES_ALL,)]
