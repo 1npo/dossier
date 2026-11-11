@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-import measured_people  # noqa: E402
+from dossier.render.measured import people as measured_people  # noqa: E402
 
 
 def file_item(path, authors=None, blame=None, owner_lines=None):

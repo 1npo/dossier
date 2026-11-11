@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-import summary  # noqa: E402
-import summary_check  # noqa: E402
+from dossier.render import summary  # noqa: E402
+from dossier.render import summary_check  # noqa: E402
 
 NOW = "2026-11-05T10:00:00Z"
 ANN, BOB, BOT = "ann@users.noreply.github.com", "bob@example.org", "ci@example.org"

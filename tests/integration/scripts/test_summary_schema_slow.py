@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-import summary
+from dossier.render import summary
 
 pytestmark = pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs the jsonschema package: set DOSSIER_SLOW=1")
 SCHEMA = Path(summary.summary_check.SCHEMA_PATH)

@@ -15,7 +15,7 @@ PERIODS = (("12m", "Past 12 months"), ("all", "All time"))
 
 
 def _render():
-    import render  # imported late: render imports measured, which imports this module
+    from dossier.render import page as render  # imported late: render imports measured, which imports this module
 
     return render
 

@@ -2,7 +2,7 @@ import json
 
 from pygments.token import Comment, Generic, Keyword, Name, Number, Operator, String
 
-import viewer
+from dossier.render import viewer
 
 
 def numbered(n, width=10):

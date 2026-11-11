@@ -15,7 +15,7 @@ import re
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-import render
+from dossier.render import page as render
 
 FILE = "index.html"
 E = html.escape

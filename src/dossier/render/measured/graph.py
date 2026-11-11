@@ -10,13 +10,13 @@ import re
 
 from dossier.findings import components
 from dossier.core import graphs
-import measured_tables
+from dossier.render.measured import tables as measured_tables
 
 UNASSIGNED = "unassigned"
 
 
 def _render():
-    import render  # imported late: render imports measured, which imports this module
+    from dossier.render import page as render  # imported late: render imports measured, which imports this module
 
     return render
 

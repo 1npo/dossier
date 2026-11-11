@@ -3,7 +3,7 @@ from pathlib import Path
 
 import checks  # noqa: E402
 import checks_v3  # noqa: E402
-import render  # noqa: E402
+from dossier.render import page as render  # noqa: E402
 
 
 def mod(name, path, pkg="app"):

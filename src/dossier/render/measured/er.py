@@ -11,8 +11,8 @@ import re
 from collections import Counter
 
 from dossier.findings import components
-import measured_graph
-import measured_tables
+from dossier.render.measured import graph as measured_graph
+from dossier.render.measured import tables as measured_tables
 
 MAX_ENTITIES = 12
 SQL = "sql-table"
@@ -20,7 +20,7 @@ EF_KINDS = ("ef-entity", "ef-owned", "cs-enum")
 
 
 def _render():
-    import render  # imported late: render imports measured, which imports this module
+    from dossier.render import page as render  # imported late: render imports measured, which imports this module
 
     return render
 

@@ -5,8 +5,8 @@ import pytest
 
 import checks_people
 from dossier.facts import gather
-import render
-import viewer
+from dossier.render import page as render
+from dossier.render import viewer
 
 
 def cite(raw):

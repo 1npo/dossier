@@ -3,8 +3,8 @@ import re
 import pytest
 
 from dossier.core import buildlog
-import process
-import render
+from dossier.render import process
+from dossier.render import page as render
 
 SHA = "5923c09" + "0" * 33
 

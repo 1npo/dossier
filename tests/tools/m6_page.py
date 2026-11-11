@@ -96,7 +96,7 @@ def pin_and_tools(out: Path, sha: str) -> None:
 def verifier_records(out: Path, sha: str, count: int = 3) -> None:
     """A `verify-sample` and a `verify` record whose `count` verdicts are all `not supported`, on claims the reports already hold."""
     from dossier.core import buildlog
-    import render
+    from dossier.render import page as render
     import verify
 
     picked = []

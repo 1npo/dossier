@@ -13,8 +13,8 @@ import checks_people
 import checks_v3
 import checks_v7
 from dossier.findings import components
-import process
-import render
+from dossier.render import process
+from dossier.render import page as render
 from dossier.core import schema
 import verify
 

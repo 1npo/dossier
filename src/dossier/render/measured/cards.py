@@ -11,19 +11,19 @@ from collections import defaultdict
 
 from dossier.findings import components
 from dossier.facts import gather
-import measured_blast
-import measured_change
-import measured_cs
-import measured_env
-import measured_er
-import measured_graph
-import measured_js
-import measured_people
-import measured_upgrade
+from dossier.render.measured import blast as measured_blast
+from dossier.render.measured import change as measured_change
+from dossier.render.measured import cs as measured_cs
+from dossier.render.measured import env as measured_env
+from dossier.render.measured import er as measured_er
+from dossier.render.measured import graph as measured_graph
+from dossier.render.measured import js as measured_js
+from dossier.render.measured import people as measured_people
+from dossier.render.measured import upgrade as measured_upgrade
 
 
 def _render():
-    import render  # imported late: render imports this module
+    from dossier.render import page as render  # imported late: render imports this module
 
     return render
 

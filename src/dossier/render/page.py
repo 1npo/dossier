@@ -24,12 +24,12 @@ from dossier.history import scan as historyscan
 from dossier.facts import gather
 from dossier.findings import candidates
 from dossier.findings import components
-import measured
-import measured_people
-import measured_tables
-import process
+from dossier.render.measured import cards as measured
+from dossier.render.measured import people as measured_people
+from dossier.render.measured import tables as measured_tables
+from dossier.render import process
 from dossier.core import schema
-import viewer
+from dossier.render import viewer
 from dossier.facts.gather import Repo
 from dossier import resources
 

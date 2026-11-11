@@ -14,9 +14,9 @@ from pathlib import Path
 from dossier.core import buildlog
 from dossier.findings import candidates
 from dossier.findings import components
-import measured_change
-import measured_people
-import summary_check
+from dossier.render.measured import change as measured_change
+from dossier.render.measured import people as measured_people
+from dossier.render import summary_check
 
 FILE = "summary.json"
 SEVERITIES = ("critical", "high", "medium", "low", "info")
@@ -148,7 +148,7 @@ def _ownership(reports, ctx):
 
 def build(facts, reports, extract, build_, gap_counts, version, dependencies, tree, tools=None, now=None) -> dict:
     """The summary document. `tools` is `candidates.tool_list(out)`; `build_` is the loaded build.json or None."""
-    import render  # late: render imports this module's neighbours
+    from dossier.render import page as render  # late: render imports this module's neighbours
 
     repo = facts.get("repo") or {}
     tiers = {l["name"]: l.get("tier") for l in ((buildlog.latest(build_, "tools") or {}).get("details") or {}).get("languages") or []} if build_ else {}

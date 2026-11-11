@@ -10,7 +10,7 @@ from __future__ import annotations
 import posixpath
 import re
 
-from render import INLINE_CITE, parse_cite
+from dossier.render.page import INLINE_CITE, parse_cite
 
 HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", re.M)
 REPO_WIDE = ("overview", "contributors")   # restate things that move with every commit

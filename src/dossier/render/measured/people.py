@@ -4,11 +4,11 @@ from __future__ import annotations
 import re
 
 from dossier.findings import components
-import measured_change
+from dossier.render.measured import change as measured_change
 
 
 def _render():
-    import render  # imported late: render imports measured, which imports this module
+    from dossier.render import page as render  # imported late: render imports measured, which imports this module
 
     return render
 

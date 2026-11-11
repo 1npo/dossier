@@ -5,7 +5,7 @@ hold the path, line and pattern name only.
 """
 from __future__ import annotations
 
-import measured_change
+from dossier.render.measured import change as measured_change
 
 ENV_COLUMNS = ["Variable", "Read at", "Default", "Also declared in", "Source"]
 SECRET_COLUMNS = ["Path", "Line", "Pattern", "Note", "Source"]
@@ -13,7 +13,7 @@ SENSITIVE_PATTERN = "sensitive file name"
 
 
 def _render():
-    import render  # imported late: render imports measured, which imports this module
+    from dossier.render import page as render  # imported late: render imports measured, which imports this module
 
     return render
 

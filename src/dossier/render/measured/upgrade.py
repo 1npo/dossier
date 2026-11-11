@@ -12,7 +12,7 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-import measured_change
+from dossier.render.measured import change as measured_change
 from dossier import resources
 
 SNAPSHOT = resources.data("eol.json")
@@ -21,7 +21,7 @@ PACKAGE_PRODUCTS = {"django": "django", "react": "react", "next": "nextjs"}
 
 
 def _render():
-    import render  # imported late: render imports measured, which imports this module
+    from dossier.render import page as render  # imported late: render imports measured, which imports this module
 
     return render
 

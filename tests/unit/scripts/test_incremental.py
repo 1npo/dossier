@@ -1,5 +1,5 @@
 import incremental
-import render
+from dossier.render import page as render
 
 
 def report(*cites, text=""):

@@ -15,7 +15,7 @@ import m3_page  # noqa: E402
 
 
 import check_layout  # noqa: E402
-import measured_er  # noqa: E402
+from dossier.render.measured import er as measured_er  # noqa: E402
 
 CHECK = SKILL / "scripts" / "check_page.py"
 DIAGRAM_TEXT = SKILL / "tests" / "tools" / "diagram_text.py"
@@ -237,7 +237,7 @@ class TestNewCardsOnTheM3Page:
     def test_the_page_audit_accepts_every_new_card(self, m3):
         from dossier.findings import candidates
         import page_audit
-        import render
+        from dossier.render import page as render
 
         page, _ = m3
         out = page.parent
@@ -254,7 +254,7 @@ class TestNewCardsOnTheM3Page:
     def test_a_missing_hotspot_row_is_reported_by_the_page_audit(self, m3):
         from dossier.findings import candidates
         import page_audit
-        import render
+        from dossier.render import page as render
 
         page, _ = m3
         out = page.parent
@@ -311,7 +311,7 @@ class TestNewTablesOnTheM4Page:
     def test_the_page_audit_accepts_every_new_table(self, m4):
         from dossier.findings import candidates
         import page_audit
-        import render
+        from dossier.render import page as render
 
         page, _ = m4
         out = page.parent
@@ -330,7 +330,7 @@ class TestNewTablesOnTheM4Page:
 
         from dossier.findings import candidates
         import page_audit
-        import render
+        from dossier.render import page as render
 
         page, _ = m4
         out = page.parent
@@ -380,7 +380,7 @@ class TestNewTablesOnTheM5Page:
     def test_the_page_audit_accepts_every_new_table(self, m5):
         from dossier.findings import candidates
         import page_audit
-        import render
+        from dossier.render import page as render
 
         page, _ = m5
         out = page.parent

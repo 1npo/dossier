@@ -7,7 +7,7 @@ from __future__ import annotations
 import re
 
 from dossier.findings import components
-import measured_people
+from dossier.render.measured import people as measured_people
 from dossier.core import scip_read
 
 TOP_QUARTER = 4

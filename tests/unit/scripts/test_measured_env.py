@@ -1,6 +1,6 @@
 import re
 
-import measured
+from dossier.render.measured import cards as measured
 import page_audit
 
 

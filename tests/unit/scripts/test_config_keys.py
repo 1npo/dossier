@@ -1,6 +1,6 @@
 from dossier.findings import candidates
 import cs_adapter
-import measured_tables
+from dossier.render.measured import tables as measured_tables
 
 
 def row(path, line, rule, detail, category="config-key"):

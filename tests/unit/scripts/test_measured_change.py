@@ -1,8 +1,8 @@
 import re
 
-import measured
-import measured_change
-import render
+from dossier.render.measured import cards as measured
+from dossier.render.measured import change as measured_change
+from dossier.render import page as render
 
 
 class Refs:

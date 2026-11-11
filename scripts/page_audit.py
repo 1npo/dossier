@@ -13,12 +13,12 @@ from html.parser import HTMLParser
 
 from dossier.core import buildlog
 from dossier.findings import components
-import measured_blast
-import measured_change
-import measured_env
-import measured_er
-import measured_tables
-import measured_upgrade
+from dossier.render.measured import blast as measured_blast
+from dossier.render.measured import change as measured_change
+from dossier.render.measured import env as measured_env
+from dossier.render.measured import er as measured_er
+from dossier.render.measured import tables as measured_tables
+from dossier.render.measured import upgrade as measured_upgrade
 from dossier.core import schema
 
 VOID = frozenset("area base br col embed hr img input link meta param source track wbr".split())
@@ -97,8 +97,8 @@ def _plain_tables(card: Node) -> list:
 
 
 def _check_table(cid: str, n: int, table: Node, columns: list, rows: int, authored: bool) -> list:
-    import render  # late: render calls this module
-    import render  # late: render calls this module
+    from dossier.render import page as render  # late: render calls this module
+    from dossier.render import page as render  # late: render calls this module
     errs, want = [], list(columns) + (list(render.auto_columns(columns)) if authored else [])
     have = _head(table)
     for col in want:
@@ -322,7 +322,7 @@ def _check_env_cards(cards: dict, m) -> list:
 
 
 def _check_unfinished(cards: dict) -> list:
-    import render  # late: render calls this module
+    from dossier.render import page as render  # late: render calls this module
 
     return [f"V11: {cid}: the card still says 'Not yet generated'." for cid, v in sorted(cards.items())
             if cid.startswith(("change.", "contributors.")) and cid not in render.CUT_CARDS and "Not yet generated" in v[0].text()]

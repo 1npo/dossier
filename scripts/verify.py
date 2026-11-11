@@ -3,7 +3,7 @@ import hashlib
 import random
 import re
 
-import render
+from dossier.render import page as render
 
 VERDICTS = ("supported", "not supported", "cannot tell")
 SKIPPED_REPORTS = ("gaps",)

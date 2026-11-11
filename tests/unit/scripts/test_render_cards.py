@@ -1,6 +1,6 @@
 import re
 
-import render
+from dossier.render import page as render
 from dossier.core import schema
 
 

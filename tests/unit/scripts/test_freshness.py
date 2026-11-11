@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-import render
+from dossier.render import page as render
 from dossier.pipeline import workarea
 
 SHA = "a" * 40

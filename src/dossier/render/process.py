@@ -220,7 +220,7 @@ def run_cell(step, build) -> str:
 
 def tier_stats():
     """Four BANs for the Cards card: how many cards the layout has, and how many are measured by tools, adjudicated (tool candidates sorted by Claude) or read by Claude."""
-    import render  # imported late: render imports this module
+    from dossier.render import page as render  # imported late: render imports this module
 
     cards = [c for s in schema.load_all().values() for c in s["cards"]]
     m = sum(c["tier"] == "M" for c in cards)
@@ -247,7 +247,7 @@ def _status_badges(step, build, badge) -> str:
 
 
 def process_body(build) -> str:
-    import render  # imported late: render imports this module
+    from dossier.render import page as render  # imported late: render imports this module
 
     rows = []
     for n, step in enumerate(buildlog.STEPS, 1):

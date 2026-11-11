@@ -39,7 +39,7 @@ from pathlib import Path
 from dossier.core import buildlog
 import check_layout
 
-from viewer import TOKEN_CLASSES
+from dossier.render.viewer import TOKEN_CLASSES
 
 from playwright.sync_api import sync_playwright
 

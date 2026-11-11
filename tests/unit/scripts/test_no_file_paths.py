@@ -26,4 +26,4 @@ class TestNoFilePaths:
     def test_the_module_attribute_is_used_only_by_the_gatherer_reader(self):
         users = [p.relative_to(ROOT).as_posix() for p in sources() if MODULE_FILE.search(p.read_text(encoding="utf-8"))]
 
-        assert users == ["scripts/render.py"]
+        assert users == ["src/dossier/render/page.py"]

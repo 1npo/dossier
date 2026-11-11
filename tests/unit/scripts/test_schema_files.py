@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-import render  # noqa: E402
+from dossier.render import page as render  # noqa: E402
 from dossier.core import schema  # noqa: E402
 
 

@@ -22,7 +22,7 @@ OUT = resources.data("eol.json")
 
 def fetch(name):
     if name == "dotnet":  # Microsoft's own index, the same source the skill reads live
-        import measured_upgrade
+        from dossier.render.measured import upgrade as measured_upgrade
         with urllib.request.urlopen(measured_upgrade.DOTNET_INDEX, timeout=30) as r:
             return measured_upgrade.dotnet_cycles_from_index(json.load(r))
     with urllib.request.urlopen(SOURCE + name, timeout=30) as r:
