@@ -1312,7 +1312,7 @@ As M6-49. CI does not tag this skill; whether to tag `v1.0.0` or publish it is t
 
 - **Merge.** `git merge --no-ff feat/dossier-m6` on `main`, local only: `8564155`.
 - **Block FC.** Fresh clone at `8564155`: `dossier 1.0.0`; `doctor` on `RW` exit 0, `skill: 8564155 (clean)`, "Nothing is missing"; default suite **2901 passed, 305 skipped** (70 s). Deviation: block I had 2902 passed, 304 skipped; one test that passes in the working tree is skipped in the clone. Not investigated (total 3206 in both).
-- **Author's answer on pushing `main` and deleting the branch:** pending.
+- **Author's answer on pushing `main` and deleting the branch (2026-11-10):** yes. `main` pushed to `origin` (`51b056e..239233f`); local branch `feat/dossier-m6` deleted.
 
 **Findings for the milestone review (Phase 8).**
 
