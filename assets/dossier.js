@@ -672,6 +672,7 @@
     else if (e.key === "g") { e.preventDefault(); gopen(); }
     else if (e.key === "?") setKeys(!keysOpen);
     else if (e.key === "t") $("#theme-toggle").click();
+    else if (e.key === "h") { var pl = $("#portfolio-link"); if (pl) pl.click(); }
   });
 
   // ---- calendar zoom

@@ -667,4 +667,9 @@ table.happened { width: 100%; border-collapse: collapse; font-size: .8125rem; }
 .legend-list dt { margin: 0; padding-top: .1rem; } .legend-list dd { margin: 0; }
 .cp-empty { padding: 1.5rem .9rem; font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif); color: var(--muted-foreground); } .cp-empty[hidden] { display: none; }
 .code-panel.empty .cp-nav, .code-panel.empty #cp-goto, .code-panel.empty .cp-title { display: none; } .code-panel.empty .cp-body { flex: 0; }
+/* the link from a dossier back to the portfolio */
+.side-link { display: flex; align-items: center; gap: .5rem; margin: 0 .5rem .5rem; padding: .4rem .5rem; border-radius: var(--radius-md, .375rem); font-size: .875rem; color: var(--foreground); text-decoration: none; }
+.side-link:hover { background: var(--accent); }
+.side-link kbd { margin-left: auto; }
+html.rail .side-link { justify-content: center; margin: 0 0 .5rem; }
 :root { --dossier-css-end: 1; }

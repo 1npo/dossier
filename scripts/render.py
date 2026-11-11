@@ -12,6 +12,7 @@ import html
 import json
 import re
 import subprocess
+import urllib.parse
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
@@ -453,6 +454,20 @@ def new_cites(cite, *texts):
     """The sources in `cite` that the texts do not already mark inline, so a statement never shows one source twice."""
     seen = {parse_cite(x)["key"] for x in inline_cites(*texts)}
     return [x for x in dict.fromkeys(cite or []) if parse_cite(x)["key"] not in seen]
+
+
+FAVICON_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#18181b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+               '<style>@media (prefers-color-scheme: dark) { svg { stroke: #fafafa } }</style><circle cx="12" cy="12" r="11"/>'
+               '<g transform="translate(12 12) scale(0.625) translate(-12 -12)" stroke-width="3.2"><path d="M12 22V12"/><path d="M20.27 18.27 22 20"/>'
+               '<path d="M21 10.498V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.729l7 4a2 2 0 0 0 2 .001l.98-.559"/>'
+               '<path d="M3.29 7 12 12l8.71-5"/><path d="m7.5 4.27 8.997 5.148"/><circle cx="18.5" cy="16.5" r="2.5"/></g></svg>')
+FAVICON = '<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,' + urllib.parse.quote(FAVICON_SVG, safe="/:=,;()") + '">'
+
+
+def joined_pill(*parts):
+    """One outline pill holding several facts, separated by bullets."""
+    text = " \u2022 ".join(E(str(x)) for x in parts if x)
+    return f'<span class="badge" data-variant="outline">{text}</span>'
 
 
 def badge(label, cls="", variant="outline"):
@@ -1798,7 +1813,7 @@ def legend_html():
 
 
 KEYS_INFO = (
-    ("Anywhere", (("<kbd>/</kbd> <kbd>Ctrl</kbd>+<kbd>K</kbd>", "Search the dossier."), ("<kbd>b</kbd>", "Collapse or expand the sidebar."), ("<kbd>t</kbd>", "Switch between light and dark."),
+    ("Anywhere", (("<kbd>/</kbd> <kbd>Ctrl</kbd>+<kbd>K</kbd>", "Search the dossier."), ("<kbd>b</kbd>", "Collapse or expand the sidebar."), ("<kbd>t</kbd>", "Switch between light and dark."), ("<kbd>h</kbd>", "Go to the portfolio page that lists every dossier."),
                   ("<kbd>j</kbd> <kbd>k</kbd>", "Go to the next or previous report."), ("<kbd>g</kbd>", "Go to a report, card or entry by number or name."),
                   ("<kbd>l</kbd>", "Show or hide the legend."), ("<kbd>v</kbd>", "Show or hide the code viewer."), ("<kbd>?</kbd>", "Show or hide this list."))),
     ("In the code viewer", (("<kbd>[</kbd> <kbd>]</kbd>", "Previous or next source reference."), ("<kbd>p</kbd>", "Pin the viewer so the page makes room for it."),
@@ -2018,14 +2033,14 @@ def render_html(facts, reports, state, history, version, cites, build=None, cove
     head = (f'<header class="masthead"><div class="masthead-inner"><div class="mh-row">'
             f'<button class="btn" data-variant="outline" data-size="sm" id="menu-toggle" type="button">Menu</button>'
             f'<h1>{E(mh["name"])}</h1>{source}'
-            f'<span class="chips">{badge(mh["ref"], "", "outline")}{badge("commit " + mh["short"], "", "outline")}{badge(mh["date"], "", "outline")}{open_pills(reports)}</span>'
+            f'<span class="chips">{joined_pill(mh["ref"], mh["short"], mh["date"])}{badge("Last built " + built, "", "outline")}{open_pills(reports)}</span>'
             '</div>'
             f'<div class="mh-row2"><p class="lede" title="{E(mh["description"])}">{E(mh["description"][:300])}</p></div></div>'
             '</header>')
     css = load_asset(VENDOR / "basecoat.min.css") + "\n" + load_asset(ASSETS / "dossier.css")
     mermaid = load_asset(VENDOR / "mermaid.min.js").replace("</script", "<\\/script").replace("<!--", "<\\!--")
     out = load_asset(ASSETS / "template.html")
-    for k, v in {"TITLE": E(f"dossier: {mh['name']}: {TITLES[REPORTS[0][0]]}"), "CSS": css, "NAV": groups, "RAIL": rail, "MASTHEAD": head, "REPORTS": pages, "MERMAID": mermaid,
+    for k, v in {"TITLE": E(f"dossier: {mh['name']}: {TITLES[REPORTS[0][0]]}"), "FAVICON": FAVICON, "CSS": css, "NAV": groups, "RAIL": rail, "MASTHEAD": head, "REPORTS": pages, "MERMAID": mermaid,
                  "BASECOAT_JS": load_asset(VENDOR / "basecoat.min.js"), "JS": load_asset(ASSETS / "dossier.js"),
                  "SKILLVER": E(str(version)), "LEGEND": legend_html(), "KEYS": keys_html(), "NAME": E(mh["name"]), "SHORT": E(mh["short"]), "CODE": viewer.embed(files, windows),
                  "CAL": jsn(calendar_data(facts)), "FACTS": jsn({k: {"t": v[0], "x": v[1]} for k, v in FACT_INFO.items()})}.items():
