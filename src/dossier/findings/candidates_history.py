@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import re
 
-import components
+from dossier.findings import components
 import measured_people
 from dossier.core import scip_read
 

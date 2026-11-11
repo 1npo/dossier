@@ -5,7 +5,7 @@ request. With one human in the whole history, that human owns everything.
 """
 from __future__ import annotations
 
-import github_owners
+from dossier.history import github_owners
 
 MESSAGES = {"no-slug": "the repository is not on GitHub", "no-login": "gh is not installed or not logged in"}
 

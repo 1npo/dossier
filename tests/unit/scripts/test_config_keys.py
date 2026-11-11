@@ -1,4 +1,4 @@
-import candidates
+from dossier.findings import candidates
 import cs_adapter
 import measured_tables
 

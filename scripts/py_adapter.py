@@ -12,7 +12,7 @@ import re
 import shutil
 from pathlib import Path, PurePosixPath
 
-import candidates
+from dossier.findings import candidates
 from dossier.core import config
 from dossier.facts import gather
 from dossier.core import graphs

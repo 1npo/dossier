@@ -235,7 +235,7 @@ class TestNewCardsOnTheM3Page:
         assert owner_page_has_buttons(m3[0])
 
     def test_the_page_audit_accepts_every_new_card(self, m3):
-        import candidates
+        from dossier.findings import candidates
         import page_audit
         import render
 
@@ -252,7 +252,7 @@ class TestNewCardsOnTheM3Page:
         assert [e for e in errs if "change." in e or "contributors." in e or "t-people-owner" in e] == []
 
     def test_a_missing_hotspot_row_is_reported_by_the_page_audit(self, m3):
-        import candidates
+        from dossier.findings import candidates
         import page_audit
         import render
 
@@ -309,7 +309,7 @@ class TestNewTablesOnTheM4Page:
         assert named == [] and done.returncode == 0, done.stdout[-1500:]
 
     def test_the_page_audit_accepts_every_new_table(self, m4):
-        import candidates
+        from dossier.findings import candidates
         import page_audit
         import render
 
@@ -328,7 +328,7 @@ class TestNewTablesOnTheM4Page:
     def test_a_missing_react_row_is_reported_by_the_page_audit(self, m4):
         import re
 
-        import candidates
+        from dossier.findings import candidates
         import page_audit
         import render
 
@@ -378,7 +378,7 @@ class TestNewTablesOnTheM5Page:
         assert named == [] and done.returncode == 0, done.stdout[-1500:]
 
     def test_the_page_audit_accepts_every_new_table(self, m5):
-        import candidates
+        from dossier.findings import candidates
         import page_audit
         import render
 

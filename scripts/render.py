@@ -20,10 +20,10 @@ from pathlib import Path
 from urllib.parse import quote
 
 from dossier.facts import deps as depscan
-import history as historyscan
+from dossier.history import scan as historyscan
 from dossier.facts import gather
-import candidates
-import components
+from dossier.findings import candidates
+from dossier.findings import components
 import measured
 import measured_people
 import measured_tables

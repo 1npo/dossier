@@ -1,4 +1,4 @@
-import candidates_history
+from dossier.findings import candidates_history
 
 
 def sym(path, name, descriptors):

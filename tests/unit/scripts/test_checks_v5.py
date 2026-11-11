@@ -187,7 +187,7 @@ class TestV5EnvRetired:
 
 class TestMarkerDecisions:
     def markers(self):
-        import candidates
+        from dossier.findings import candidates
 
         items = candidates.assign_ids("history", [{"kind": "marker", "path": "src/a.py", "line": n, "end_line": n, "rule": "marker.hack", "snippet": "# HACK"}
                                                  for n in (3, 9)])

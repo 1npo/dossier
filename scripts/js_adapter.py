@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import candidates
+from dossier.findings import candidates
 from dossier.core import config
 import js_api
 import js_entries

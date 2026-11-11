@@ -13,11 +13,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterator, NamedTuple
 
-import candidates
+from dossier.findings import candidates
 from dossier.facts import gather
 from dossier.facts import markers
-import ownership
-import workflow
+from dossier.history import ownership
+from dossier.history import workflow
 
 RECENT_DAYS = gather.KNOWLEDGE_RECENT_DAYS
 

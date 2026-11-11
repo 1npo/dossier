@@ -4,7 +4,7 @@ import subprocess
 
 import pytest
 
-import candidates
+from dossier.findings import candidates
 from dossier.tooling import toolcheck
 
 TOOLS = toolcheck.load_tools()

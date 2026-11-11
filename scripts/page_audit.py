@@ -12,7 +12,7 @@ import re
 from html.parser import HTMLParser
 
 from dossier.core import buildlog
-import components
+from dossier.findings import components
 import measured_blast
 import measured_change
 import measured_env

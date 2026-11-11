@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from collections import Counter
 
-import components
+from dossier.findings import components
 import measured_graph
 import measured_tables
 

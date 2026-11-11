@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 
-import components
+from dossier.findings import components
 from dossier.facts import gather
 import measured_blast
 import measured_change

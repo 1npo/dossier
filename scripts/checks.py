@@ -8,11 +8,11 @@ import builtins
 import keyword
 import re
 
-import candidates
+from dossier.findings import candidates
 import checks_people
 import checks_v3
 import checks_v7
-import components
+from dossier.findings import components
 import process
 import render
 from dossier.core import schema

@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from dossier.core import buildlog
-import candidates
+from dossier.findings import candidates
 import stages
 from dossier.pipeline import workarea
 from conftest import build_mixed_pysub_repo

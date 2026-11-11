@@ -11,7 +11,7 @@ import json
 import re
 from pathlib import Path
 
-from components import catalog_edges, catalog_rows, component_candidates, component_of, file_lines, parse_paths, source_files  # noqa: F401
+from dossier.findings.components import catalog_edges, catalog_rows, component_candidates, component_of, file_lines, parse_paths, source_files  # noqa: F401
 from dossier import resources
 
 ID_OUTPUTS = {"entry_points": "ep", "io_candidates": "io", "models": "md", "dead": "dd", "blindspots": "bs", "history": "mk"}
@@ -315,7 +315,7 @@ def report_data(rid: str, extract: dict, reports: dict, facts: dict, *, only_ope
                            for m in sorted(mods, key=lambda m: (-rank.get(m["module"], 0), m["module"]))]
         data["entry_points"] = sorted({e["path"] for e in extract.get("entry_points", [])})
         data["tests"] = sorted({t["path"] for t in extract.get("tests", []) if t.get("kind") == "test-file"})
-    import candidates_history  # late: it imports this module
+    from dossier.findings import candidates_history  # late: it imports this module
 
     extra = candidates_history.data(rid, extract, reports, catalog, tree)
     if extra:
@@ -366,7 +366,7 @@ def text(rid: str, extract: dict, reports: dict, facts: dict, *, only_open: bool
         out += d["entry_points"]
         out.append("== Test files ==")
         out += d["tests"]
-    import candidates_history  # late: it imports this module
+    from dossier.findings import candidates_history  # late: it imports this module
 
     out += candidates_history.lines(rid, extract, reports, catalog, tree, only_open)
     return "\n".join(out) + ("\n" if out else "")

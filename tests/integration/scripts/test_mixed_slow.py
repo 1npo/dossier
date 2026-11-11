@@ -5,7 +5,7 @@ import shutil
 import pytest
 
 from dossier.core import buildlog
-import candidates
+from dossier.findings import candidates
 import stages
 from dossier.pipeline import workarea
 from conftest import JSFIX, PYFIX, _commit_fixture

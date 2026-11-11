@@ -14,7 +14,7 @@ from pathlib import Path
 
 import adapters
 from dossier.core import buildlog
-import candidates
+from dossier.findings import candidates
 from dossier.core import config
 import restore
 from dossier.tooling import sandbox

@@ -8,7 +8,7 @@ import base64
 import json
 import re
 
-import components
+from dossier.findings import components
 from dossier.core import graphs
 import measured_change
 

@@ -12,8 +12,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from dossier.core import buildlog
-import candidates
-import components
+from dossier.findings import candidates
+from dossier.findings import components
 import measured_change
 import measured_people
 import summary_check

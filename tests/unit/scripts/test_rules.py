@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-import candidates
+from dossier.findings import candidates
 from dossier import resources
 import checks_v7
 

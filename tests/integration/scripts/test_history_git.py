@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from dossier.facts import gather
-import history
+from dossier.history import scan as history
 from dossier.tooling import sandbox
 
 
@@ -73,7 +73,7 @@ class TestCollect:
         assert meta["blame_done"] == meta["blame_total"] > 0
 
     def test_write_puts_the_envelope_where_candidates_load_finds_it(self, world, tmp_path):
-        import candidates
+        from dossier.findings import candidates
         data = world()
 
         history.write(tmp_path / "out", data)
@@ -178,7 +178,7 @@ class TestShape:
         assert seen == FIELDS
 
     def test_candidates_load_returns_the_items(self, data, tmp_path):
-        import candidates
+        from dossier.findings import candidates
         history.write(tmp_path / "o", data)
 
         assert candidates.load(tmp_path / "o")["history"] == history.items_of(data)

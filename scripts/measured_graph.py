@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 
-import components
+from dossier.findings import components
 from dossier.core import graphs
 import measured_tables
 

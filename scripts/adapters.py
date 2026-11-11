@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Callable
 
-import candidates
+from dossier.findings import candidates
 from dossier import resources
 from dossier.facts import gather
 from dossier.tooling import sandbox

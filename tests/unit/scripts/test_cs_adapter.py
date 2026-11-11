@@ -2,7 +2,7 @@ import subprocess
 from types import SimpleNamespace
 
 import adapters
-import candidates
+from dossier.findings import candidates
 import cs_adapter
 import cs_scip
 from dossier.tooling import dotnet_sdk as cs_sdk

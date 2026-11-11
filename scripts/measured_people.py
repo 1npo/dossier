@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 
-import components
+from dossier.findings import components
 import measured_change
 
 

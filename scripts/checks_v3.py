@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import re
 
-import components
+from dossier.findings import components
 from dossier.core import schema
 
 FLOW_CARDS = ("entry.startup", "interactions.flows")

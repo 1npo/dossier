@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 
-import candidates
+from dossier.findings import candidates
 from dossier.core import schema
 
 STATUSES = ("single owner", "departed", "shared")

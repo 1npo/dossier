@@ -37,19 +37,19 @@ from pathlib import Path
 from dossier import resources
 
 from dossier.core import buildlog  # noqa: E402
-import candidates  # noqa: E402
+from dossier.findings import candidates  # noqa: E402
 import checks  # noqa: E402
-import components  # noqa: E402
+from dossier.findings import components  # noqa: E402
 from dossier.core import config  # noqa: E402
 from dossier.facts import gather  # noqa: E402
-import history as historyscan  # noqa: E402
+from dossier.history import scan as historyscan  # noqa: E402
 import incremental  # noqa: E402
 import measured_upgrade  # noqa: E402
 import page_audit  # noqa: E402
 import portfolio  # noqa: E402
 import process  # noqa: E402
 import render  # noqa: E402
-import resolve  # noqa: E402
+from dossier.findings import resolve  # noqa: E402
 from dossier.tooling import sandbox  # noqa: E402
 from dossier.core import schema  # noqa: E402
 import stages  # noqa: E402
