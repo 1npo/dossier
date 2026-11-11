@@ -2043,7 +2043,7 @@ def render_html(facts, reports, state, history, version, cites, build=None, cove
     head = (f'<header class="masthead"><div class="masthead-inner"><div class="mh-row">'
             f'<button class="btn" data-variant="outline" data-size="sm" id="menu-toggle" type="button">Menu</button>'
             f'<h1>{E(mh["name"])}</h1>{source}'
-            f'<span class="chips">{badge(mh["ref"], "", "outline")}{badge("commit " + mh["short"], "", "outline")}{badge(mh["date"], "", "outline")}{badge("Last built " + built, "", "outline")}{open_pills(reports)}</span>'
+            f'<span class="chips">{badge(mh["ref"], "", "outline")}{badge("commit " + mh["short"], "", "outline")}{badge("Last built " + built, "", "outline")}{open_pills(reports)}</span>'
             '</div>'
             f'<div class="mh-row2"><p class="lede" title="{E(mh["description"])}">{E(mh["description"][:300])}</p></div></div>'
             '</header>')
