@@ -1964,7 +1964,8 @@ def build_page(rid, reports, facts, state, ctx):
         if rid == "gaps":
             parts.append(panel_gaps(ctx["gaps"], refs))
     body, toc = with_contents(rid, "".join(parts))
-    top = "" if rid in BARE_REPORTS else (f'<div class="card summary llm"><header><h2>Executive summary</h2></header><section>{summary_html}</section></div>' if rid not in NO_SUMMARY else "") + toc
+    summary_card = "" if rid in NO_SUMMARY else f'<div class="card summary llm"><header><h2>Executive summary</h2></header><section>{summary_html}</section></div>'
+    top = "" if rid in BARE_REPORTS else toc + summary_card      # the Contents card is always first
     return (f'<section class="report" id="{rid}" hidden>{head_html(rid, title, inline(headline, refs), sch)}{pre}'
             + top + body + f'<div class="card refs-card" id="{rid}-refs"><header><h2>References</h2><p>Links open the source at the pinned commit.</p></header><section>{refs.listing()}</section></div></section>')
 
