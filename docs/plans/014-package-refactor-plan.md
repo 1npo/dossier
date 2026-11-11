@@ -1236,6 +1236,14 @@ Before the merge: `git reset --hard <sha of the last good task>` on the branch. 
 
 ### Results (Phase C)
 
+Session 1: Sonnet 5.5, 2026-11-11. Branch `refactor/package-c-moves`, one commit per task (C1 to C5), not merged.
+
+- **Done.** C1 to C5. Maps are in `$SCR/maps/c1.map` to `c5.map`. Default suite **3060 passed, 305 skipped** after every task; `--check` exit 0 each time; `ruff check` passes.
+- **Deviation 1.** `uv run scripts/dossier.py version` prints `dossier 1.10.4` (the plan's `1.10.2` is stale; `VERSION` is 1.10.4).
+- **Deviation 2.** C5 changed one assertion's path literal in `tests/unit/scripts/test_no_file_paths.py`: the only user of `module.__file__` is now `src/dossier/render/page.py` (was `scripts/render.py`). Same rule, new location.
+- **Deviation 3.** Block GF compared against the stored `$SCR/golden/fa` (base `7f51be9`), as in Phase B. After C5: **`SAME`** in all fast cases; the gatherer review shows no line besides imports; the diffs of `facts/gather.py` and `history/scan.py` are import lines only, `facts/deps.py` unchanged.
+- **Note.** ruff warns about `# noqa` directives with a non-code text at `pipeline/workarea.py:163` and `scripts/stages.py:75`; the warning is cosmetic and does not fail the check.
+
 ---
 
 ## Phase D: The CLI split
