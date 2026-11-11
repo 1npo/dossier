@@ -296,10 +296,10 @@ class TestGraphsAreDrawnByCode:
     method = (PROMPTS / "method.md").read_text(encoding="utf-8")
 
     @pytest.mark.parametrize("card_id", ["components.map", "interactions.graph"])
-    def test_graph_card_says_the_graph_is_never_described(self, card_id):
+    def test_graph_card_says_the_diagrams_are_never_described(self, card_id):
         section = card_section(self.guide, card_id)
 
-        assert "interactive graph" in section
+        assert "diagrams" in section
         assert "never describe" in section
 
     def test_components_guidance_says_tier_b_files_have_no_links(self):

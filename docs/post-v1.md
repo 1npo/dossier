@@ -1,39 +1,57 @@
 # After 1.0.0
 
-Things to consider once dossier 1.0.0 is done. Nothing here is planned yet. Each entry says what it is, why it was left out, and where it was decided. Work that the spec itself defers (cross-repository views, running the target's tests, uncommitted work, a custom Roslyn analyser) is listed in [plans/004-v1-spec.md](plans/004-v1-spec.md), section 1.
+Things to consider after 1.0.0, in a proposed order. Nothing here is planned yet: the author reviews the order, then each group gets a plan in `docs/plans/`. Work that the spec itself defers (cross-repository views, running the target's tests, uncommitted work, a custom Roslyn analyser) is listed in [plans/004-v1-spec.md](plans/004-v1-spec.md), section 1.
 
-## Cards to consider re-adding
+Plan documents quote commit hashes from before the repository was split out of `encamp`; those hashes no longer resolve. Use `git log --grep` on the subject instead.
 
-- **Environment variables.** The measured panel "Environment variables read by the code" (anchor `facts-env_vars`, drawn by `panel_env` in `render.py`) listed the variables the gatherer found by pattern matching. It was removed in M0 because the 1.0.0 card set has no place for it: `ops.config-secrets` and `io.inputs` hold the written account of configuration instead. It also capped its rows, which goes against the spec's "no caps" principle. Citations of `facts:env_vars` now link to the repository overview card. Decided in [plans/005-m0-plan.md](plans/005-m0-plan.md), question Q4.
-- **Secrets.** The measured panel "Secret scan" (anchor `facts-secret_signals`, drawn by `panel_secrets`) listed files and lines that looked like committed secrets. It was removed in M0 for the same reasons. Citations of `facts:secret_signals` now link to the repository overview card. If it returns, it must still not present dossier as a security scanner (spec section 1, permanent non-goals). Decided in [plans/005-m0-plan.md](plans/005-m0-plan.md), question Q4.
+## Decided against
 
-## Correct TS and C# against real codebases
+- **The interactive graph.** M6 built it (D7 of [plans/012-m6-plan.md](plans/012-m6-plan.md)); the author reviewed it on 2026-11-10 and removed it. The component map and dependency graph cards are back to static diagrams plus tables.
 
-The TS and C# results in 1.0.0 are measured on public repositories, because the author has none of their own and is new to both languages. When the author takes over TS and C# codebases at work, they will learn them and correct dossier as they go: rules, entry-point kinds, what counts as an entity, and the public API. Decided in the M4 plan review (spec decisions 33 and 34).
+## Proposed order
 
-## Findings deferred from the M4 review
+### 1. Make builds trustworthy (bugs found in M6)
 
-- **P5-1, MSW part.** MSW mock handlers (`http.get(...)`) are not detected as entry points (found on `BP`; the `BP` reports list them by hand). Deferred because it only adds missing mock routes; the Axios false entry points were fixed in the M4 follow-up.
+Do these first: each one can make a build silently wrong or hide a failure.
 
-Ruled on 2026-11-08 in [plans/010-m4-plan.md](plans/010-m4-plan.md), "Results (Phase 5)". P4-3 (names of Nx targets and package scripts) was found fixed in M6 and removed.
+1. **Verifier verdicts disappear.** Between two steps of the M6 run, `RW`'s build still said `verify: true` but its recorded verdicts were gone, and `render` failed with V10. Cause unknown; re-running `verify-record` fixed it. Find what clears them.
+2. **`prepare` keeps a stale `extract/` after the skill changes.** Same commit and ref reuse the old extract, so an adapter fix does not show. Decide whether the skill version (or an adapter version) joins the cache key.
+3. **`soft_failure` misses real scip-dotnet logs.** It only matches lines that start with `Failure:`; real logs put a timestamp and `fail:` first, so the "could not load every project" problem is never reported. The dead-code list already skips unloaded projects; decide whether the page should also name which projects did not load.
+4. **Verdicts for claims without an `id`.** They are keyed by a hash of the claim text, so rewording a claim drops its verdict and its Gaps item. Give every sampled claim an id, or key by citation.
 
-## Left out of 1.0.0
+### 2. Clean up the split and the graph removal (small, mechanical)
 
-Each was considered during M6 and left out. Decided in [plans/012-m6-plan.md](plans/012-m6-plan.md).
+5. **Retake the README screenshot.** `docs/images/dossier.png` still shows the removed graph.
+6. **Remove duplicated test classes.** `tests/integration/scripts/test_check_page_slow.py` defines `TestNewTablesOnTheM4Page`, `TestNewTablesOnTheM5Page` and the `m4`/`m5` fixtures twice (it was like that before the graph removal).
+7. **Fix `test_summary_render.py` with the frozen fixture present.** With `tests/fixtures/encamp-m0` in place it fails (on `main` too). CI never has the fixture, so CI is unaffected. Either repair it or delete the M0 fixture tests, `migrate.py` and `migrate_map.json`, which were meant to go after M2.
+8. **One test counts differently in a fresh clone** (2901 passed against 2902 in the working tree). Find which and why.
 
-- **Tier B symbols.** Languages without a Tier A adapter (Shell, Rust and the rest) get counts and a file list but no tree-sitter symbols. Left out because the spec's cut line puts "Tier B polish" second, and the `no static graph` badge already says what is missing (section 3, row 5).
-- **Makefile and shell variables as inputs.** Dockerfile `ENV` and `ARG` and compose `environment:` are read; variables in Makefiles and scripts are not. Left out because without a shell parser too many matches are false (finding 2 of M5, Phase 5).
-- **`.cake` build scripts.** Cake scripts in C# repositories are not read. Found on a public C# repository in M5, Phase 2.
-- **FastAPI `Depends(...)`.** Dependency injection through `Depends` is not followed, and no blind-spot rule reports it. Decision 11 of the spec leaves Python DI alone; `Depends` is the one case worth a rule.
-- **.NET versions from Microsoft's `releases.json`.** The end-of-life snapshot comes from endoflife.date, which lags the runtime releases (it listed 10.0.13 as latest when 10.0.14 had shipped). Microsoft's own `releases.json` would be current. Found in M5, Phase 5, finding 5.
-- **Agent detection from `Agent-Logs-Url`.** Commits by an agent such as Copilot are classed as human although their messages carry an `Agent-Logs-Url` line. The classifier feeds report 02, which M6 may not change (M5, Phase 5, finding 10).
-- **Ground-truth matcher labels.** `tests/tools/ground_truth.py` drops a row's label when matching; M5, Phase 5a, noted two cases (#86 and #87). A test-tool idea only.
-- **Verifier verdicts for claims without an `id`.** A saved verdict is keyed by the claim's id, or by a hash of its text when it has none. If a later build rewords such a claim, the verdict stops matching and its Gaps item disappears at the next render. Give every sampled claim an id, or key verdicts by citation. Found in M6, Phase 4.
+### 3. Finish v1's open acceptance item
 
-## Findings from the M6 definition-of-done run
+9. **Python ground truth.** Definition-of-done item 3 is still open for Python: the author's own knowledge of a Python repository (for example `cannalerts`), scored the way the C# truth was (`tests/tools/ground_truth.py`). TS has none by decision (risk 4 of the M6 plan).
 
-Found in M6, Phase 8 (M6-48). Recorded in [plans/012-m6-plan.md](plans/012-m6-plan.md), "Verification results (Phase 8)".
+### 4. Close detection gaps (each adds missing rows; none changes existing ones)
 
-- **`soft_failure` misses real scip-dotnet log lines.** `cs_scip.soft_failure` only matches a line that starts with `Failure:`. Real logs put a timestamp and `fail:` first, so the `msbuild` note and the "could not load every project" problem are never produced from a real log (the test fakes use the bare form). Left alone because the obvious fix marks scip-dotnet `failed` and drops the dead list for every C# repository with one unloadable project. The dead list now skips unloaded projects on its own (`6fa6624`), so decide whether the page should also say which projects did not load.
-- **Recorded verifier verdicts for `RW` disappeared.** Between block V and block CP the build still said `verify: true` but the verdicts were gone, and `render` failed with V10. Cause unknown; re-running `verify-record` from the saved results fixed it. Worth finding what clears them.
-- **`prepare` reuses `extract/` after a skill code change.** With the same commit and ref, `prepare --full` kept the old extract, so a fix to an adapter rule did not show until `extract/` was moved aside. Probably by design (keyed by commit); decide whether the skill version or an adapter version should be part of the key.
+10. **FastAPI `Depends(...)`.** Dependency injection through `Depends` is not followed and no blind-spot rule reports it. It is the one Python DI case worth a rule (spec decision 11).
+11. **MSW mock handlers.** `http.get(...)` handlers are not detected as entry points (found on `BP`). Only adds missing mock routes. (P5-1, ruled in [plans/010-m4-plan.md](plans/010-m4-plan.md), "Results (Phase 5)".)
+12. **Makefile and shell variables as inputs.** Dockerfile `ENV`/`ARG` and compose `environment:` are read; Makefile and script variables are not, because without a shell parser too many matches are false.
+13. **`.cake` build scripts.** Cake scripts in C# repositories are not read.
+14. **Agent commits classed as human.** Commits by an agent such as Copilot carry an `Agent-Logs-Url` line but are classified as human. The classifier feeds report 02, which M6 could not change.
+
+### 5. Freshness of reference data
+
+15. **.NET versions from `releases.json`.** The end-of-life snapshot comes from endoflife.date, which lags runtime releases (it listed 10.0.13 as latest after 10.0.14 shipped). Microsoft's own `releases.json` is current.
+
+### 6. Features to reconsider
+
+16. **Tier B symbols.** Shell, Rust and other languages without a Tier A adapter get counts and a file list but no tree-sitter symbols. The `no static graph` badge says what is missing.
+17. **Environment variables card.** The measured panel "Environment variables read by the code" (`facts-env_vars`, `panel_env`) was removed in M0: the 1.0.0 card set has no place for it, and it capped its rows, against the spec's "no caps" principle. `ops.config-secrets` and `io.inputs` hold the written account today. ([plans/005-m0-plan.md](plans/005-m0-plan.md), Q4.)
+18. **Secrets card.** The "Secret scan" panel (`facts-secret_signals`, `panel_secrets`) was removed for the same reasons. If it returns it must not present dossier as a security scanner (spec section 1, permanent non-goals).
+
+### 7. Ongoing, driven by the author's work
+
+19. **Correct TS and C# against real codebases.** The 1.0.0 results come from public repositories because the author has none of their own in those languages. When the author takes over TS and C# code at work, they correct rules, entry-point kinds, what counts as an entity, and the public API as they learn (spec decisions 33 and 34).
+
+### 8. Test tooling idea (lowest priority)
+
+20. **Ground-truth matcher labels.** `tests/tools/ground_truth.py` drops a row's label when matching; M5 noted two cases (#86 and #87).

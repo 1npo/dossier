@@ -636,7 +636,7 @@ Read section 2, D7, D14, D15 and "Results" of Phases 1 and 2. Load the skills in
 
 ### Tasks (Phase 3)
 
-- [x] **M6-18. Compute the graph views.**
+- [ ] **M6-18. Compute the graph views.**
   - Goal: D7's views, budgets and filter, as pure Python.
   - Files: new `scripts/graph_views.py`, `tests/unit/scripts/test_graph_views.py`.
   - Interface: `views(levels, edges, title) -> list` where `levels` is `{node: parent}` with `None` for top-level nodes and `edges` is `{(a, b): weight}` at leaf level; `mermaid(view) -> str`.
@@ -644,28 +644,28 @@ Read section 2, D7, D14, D15 and "Results" of Phases 1 and 2. Load the skills in
   - Done-check: `... pytest tests/unit/scripts/test_graph_views.py -q` passes.
   - Commit: `feat(dossier): compute collapsible views of the component and module graphs`
 
-- [x] **M6-19. Draw the graph in the two cards.**
+- [ ] **M6-19. Draw the graph in the two cards.**
   - Goal: D7's markup and data.
   - Files: `scripts/measured_graph.py`, `tests/unit/scripts/test_measured.py`.
   - Steps: (1) Tests: `components.map` and `interactions.graph` hold one `igraph-data` script, a host with the root view's `data-src`, the no-JavaScript sentence, a select with one option per view, a button per node with a view; the existing tables come after, byte-identical to today's; a card with no imports keeps its `No imports between modules were found.` line and draws no graph. (2) Implement. (3) Block E.
   - Done-check: the test file passes; block E prints `OK`.
   - Commit: `feat(dossier): add the interactive graph to the component map and dependency graph`
 
-- [x] **M6-20. The page script for the graph.**
+- [ ] **M6-20. The page script for the graph.**
   - Goal: D7's script.
   - Files: `assets/dossier.js`, `assets/dossier.css`, `tests/integration/scripts/test_check_page_slow.py` (a first browser test).
   - Steps: (1) Slow test on a small page (build it with the M5 page helper plus a catalog of 15 components): the root view draws; choosing a view in the select draws it and updates the breadcrumb; clicking an SVG node that has a view opens it; `Up` returns; the caption shows the hidden-links sentence when the data says so. (2) Implement `initGraphs`. (3) Block E.
   - Done-check: the new slow test passes; block E prints `OK`.
   - Commit: `feat(dossier): open and close graph views in the page`
 
-- [x] **M6-21. V11 for the graph views.**
+- [ ] **M6-21. V11 for the graph views.**
   - Goal: every component and module is in a view, and every view edge exists.
   - Files: `scripts/page_audit.py`, `tests/unit/scripts/test_page_audit.py`.
   - Steps: tests: a page whose views lack one component fails with `components.map: graph views leave out <name>`; a view edge between two nodes with no import between their members fails; a correct page passes. Implement.
   - Done-check: the test file passes.
   - Commit: `feat(dossier): check that the graph views hold every component and module`
 
-- [x] **M6-22. V12 for the graph views, and the 30-edge budget.**
+- [ ] **M6-22. V12 for the graph views, and the 30-edge budget.**
   - Goal: D7's per-view checks; section 3, row 3.
   - Files: `scripts/check_layout.py`, `scripts/check_page.py`, `tests/integration/scripts/test_check_page_slow.py`.
   - Interface: `MAX_FLOW_EDGES = 30` (count drawn edges in a flowchart SVG; confirm the element Mermaid 12.2.0 uses for an edge path on a drawn page first, and record it); `check_page.check_graphs(page, scheme) -> list`, run in each theme at both widths: for every view in the select, draw it, then count nodes and edges and the smallest text size.

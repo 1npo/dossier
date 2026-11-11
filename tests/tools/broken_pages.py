@@ -208,61 +208,6 @@ def owner_buttons_dead(html: str) -> str:
     return out
 
 
-GRAPH_DATA = re.compile(r'(<script type="application/json" class="igraph-data">)(.*?)(</script>)', re.S)
-
-
-def _edit_views(html: str, edit) -> str:
-    """Change the views of the first graph card on the page: `edit(views)` mutates the decoded list in place."""
-    m = GRAPH_DATA.search(html)
-    if not m:
-        raise ValueError("the page has no graph views")
-    views = json.loads(m.group(2))
-    edit(views)
-    data = json.dumps(views).replace("<", "\\u003c")
-    return html[:m.start()] + m.group(1) + data + m.group(3) + html[m.end():]
-
-
-def graph_data_removed(html: str) -> str:
-    """The first graph card has lost its views."""
-    out = GRAPH_DATA.sub("", html, count=1)
-    if out == html:
-        raise ValueError("the page has no graph views")
-    return out
-
-
-def graph_view_over_budget(html: str) -> str:
-    """A view with 13 nodes is added to the first graph card, and to its select."""
-    def add(views):
-        nodes = [{"id": f"n{i}", "label": f"Injected{i}", "kind": "component", "view": None} for i in range(13)]
-        src = "flowchart LR\n" + "\n".join(f'  n{i}["Injected{i}"]' for i in range(13))
-        views.append({"id": "v-over", "title": "Injected 13 nodes", "parent": views[0]["id"], "children": [], "nodes": nodes, "edges": [], "hidden": None, "src": src})
-
-    out = _edit_views(html, add)
-    start = GRAPH_DATA.search(out).end()
-    end = out.index("</select>", start)
-    return out[:end] + '<option value="v-over">Injected 13 nodes</option>' + out[end:]
-
-
-def graph_buttons_dead(html: str) -> str:
-    """The script looks for another attribute than the one the open buttons carry, so a click opens nothing."""
-    out = html.replace('closest("[data-open]")', 'closest("[data-xx-open]")')
-    if out == html:
-        raise ValueError("the page has no graph script")
-    return out
-
-
-def graph_node_missing(html: str, name: str | None = None) -> str:
-    """One leaf (the first it finds, or `name`) is in no view of the first graph card."""
-    def drop(views):
-        label = name or next(n["label"] for v in views for n in v["nodes"] if not n["view"] and not n.get("ext") and n["kind"] != "other")
-        for v in views:
-            gone = {n["id"] for n in v["nodes"] if n["label"] == label}
-            v["nodes"] = [n for n in v["nodes"] if n["id"] not in gone]
-            v["edges"] = [e for e in v["edges"] if e["from"] not in gone and e["to"] not in gone]
-
-    return _edit_views(html, drop)
-
-
 def nograph_badges_added(html: str) -> str:
     """A `no static graph` badge after the title of every card header (a test page has none of its own)."""
     badge = '<span class="badge nograph" data-variant="outline" tabindex="0" data-tip="No import or call graph was made for Shell." data-tip-kind="note">no static graph</span>'
@@ -283,8 +228,7 @@ MUTATIONS = {"km-row-taller": km_row_taller, "wide-element": wide_element, "icon
              "overlap": overlap, "table-hidden": table_hidden, "drop-row": drop_row, "drop-column": drop_column, "table-as-text": table_as_text, "entry-no-kv": entry_no_kv,
              "drop-entry": drop_entry, "drop-er-field": drop_er_field, "conflict-css": conflict_css, "no-js-sentinel": no_js_sentinel, "big-diagrams": big_diagrams, "wide-tables": wide_tables, "blast-data-removed": blast_data_removed, "hotspot-row-removed": hotspot_row_removed,
              "chart-text-small": chart_text_small, "workflow-table-to-text": workflow_table_to_text, "owner-buttons-dead": owner_buttons_dead,
-             "graph-data-removed": graph_data_removed, "graph-view-over-budget": graph_view_over_budget, "graph-buttons-dead": graph_buttons_dead,
-             "graph-node-missing": graph_node_missing, "nograph-badge-overlap": nograph_badge_overlap}
+             "nograph-badge-overlap": nograph_badge_overlap}
 
 
 def mutate(html: str, name: str, **kw) -> str:

@@ -42,7 +42,7 @@ Report 05: Components. Question: *What are the main parts, what does each do, an
 
 ### Component map (`components.map`)
 
-Drawn by code from the tool findings: a table, and above it an interactive graph that opens on the areas and lets the reader open each one. **Do not write this card:** leave it out of the file, and never describe the graph or its boxes in any card you write; the page computes every view of it. A component made of files in a language with no static graph (the `no static graph` badge) has no links in it: say so in that component's detail entry.
+Drawn by code from the tool findings: a table, and above it diagrams of the areas. **Do not write this card:** leave it out of the file, and never describe the diagrams or their boxes in any card you write. A component made of files in a language with no static graph (the `no static graph` badge) has no links in it: say so in that component's detail entry.
 
 ### Component catalog (`components.catalog`)
 
@@ -76,7 +76,7 @@ Report 06: Interactions. Question: *How do the parts talk to each other, and whe
 
 ### Dependency graph (`interactions.graph`)
 
-Drawn by code from the tool findings: a table, and above it an interactive graph of areas, components and modules. **Do not write this card:** leave it out of the file, and never describe the graph or its boxes in any card you write. In a React repository the card also lists the React components, with what each renders and which hooks and context it uses; use that list when you write the flows. How context values reach their consumers, and what a custom hook wires up, are not worked out: Gaps says so.
+Drawn by code from the tool findings: a table, and above it diagrams of areas, components and modules. **Do not write this card:** leave it out of the file, and never describe the diagrams or their boxes in any card you write. In a React repository the card also lists the React components, with what each renders and which hooks and context it uses; use that list when you write the flows. How context values reach their consumers, and what a custom hook wires up, are not worked out: Gaps says so.
 
 ### Cycles and layer violations (`interactions.violations`)
 
