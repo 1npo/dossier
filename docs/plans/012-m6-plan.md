@@ -1293,6 +1293,39 @@ As M6-49. CI does not tag this skill; whether to tag `v1.0.0` or publish it is t
 
 ### Verification results (Phase 8)
 
+**M6-48 (2026-11-10, Sonnet 5.5).** Finding 1 of M6-47 was fixed first, as the author chose option (b): skip the dead list for a type in a project the indexer failed to load (commit `6fa6624`).
+
+- **Fix for finding 1.** The cause was narrower than M6-47 said. scip-dotnet logs `Msbuild failed when processing the file '<path>'` after a timestamp and a level (`15:46:22 fail: ... Failure: Msbuild ...`), so `soft_failure`, which looks for a line that starts with `Failure:`, never matched and the unloaded projects were not noticed at all. New `cs_scip.unloaded_projects(log, checkout)` reads the project files from those lines; `_run_targets` returns them; `dead_items` takes `unloaded` and skips every file under a project folder that did not load. Tests: two for the log parser, two for the dead list (a type in the unloaded project is skipped, a type elsewhere is still listed); they were written with the change (the existing `dead` helper gained the argument). `test_cs_scip.py` and `test_cs_adapter.py`: 124 passed. **Block W re-run on `CA`:** `prepare --full --restore yes` exit 0 after moving `extract` aside (without that, `prepare` reused the old extract and `dead.json` did not change); `AspireExtensions` is gone from `dead.json` (0 matches; the two JS rows `globals` and `getApiBaseUrl` stay); `render` exit 0, 0 `error:`; `check` `problems: 0` (3 diagrams). The block W expectation "`AspireExtensions` no longer in `change.dead-code`" is now **met**. The `msbuild` note for the two unloaded projects is still not drawn because `soft_failure` is unchanged: that is a separate, smaller gap (finding 2).
+- **Block CP.** `check` then `render`, each: `RW` `problems: 0`, `BP` `problems: 0`, `CA` `problems: 0`, block M `problems: 0` (repo `$SCR/m/repo/mixedsub`), block TB `problems: 0` (repo `$SCR/tb/tierb`), golden side b `problems: 0`. Every `render` exit 0 with 0 `error:`; warnings `RW` 70, `BP` 22, `CA` 18, golden b 55. `check` of `BP` took over ten minutes (the browser check; the first foreground call timed out and ran in the background).
+- **Deviation (CP, `RW`).** The first `render` of `RW` exited 1: `error: V10: the verifier sampled claims but no results were recorded`. `RW`'s `build.json` still said `verify: true` but the recorded verdicts were gone. I did not find the cause. I ran `D verify-record $RW --results $SCR/v-results.json` (the saved file of block V, "Recorded 55 verdicts") and `render` again: exit 0. The verdicts are those of block V, not new ones. Finding 3.
+- **Block X.** `skeleton.py` on the six pages (`RW`, `BP`, `CA`, block M, golden b, block TB): 56 cards each, same order and same `M`/`A`/`R` kinds, exit 0.
+- **Block E.** `OK`; 248,746 characters on both sides (as in M5).
+- **Block I, default.** 2902 passed, 304 skipped (72 s). Baseline at `51b056e` was 2631 passed, 274 skipped.
+- **Block Z.** `repo-status` of `cannalerts` unchanged (diff prints nothing); `worktree list` showed two entries, the second the block P baseline worktree `$SCR/p/code` (`51b056e`), which I removed with `git worktree remove`, leaving one; all seven clones under `$SCR/src` have an empty `git status --porcelain`; `sha256sum $TRUTH/rw.json` prints `a7fc87a9...8098`. `$SCR` is kept: `/home/nick/.cache/dossier-m6-g4vm`.
+- **Block I, slow.** Run alone with `DOSSIER_SLOW=1` and `--basetemp=$HOME/.cache/dossier-m6-slow` (removed afterwards): **3 failed, 3202 passed, 1 skipped, 4 warnings (52 min 34 s).** The three failures are the known ones: `test_overlapping_paragraphs_are_reported`, `test_each_browser_mutation_makes_a_fail[chart-text-small-chart text]`, `test_golden02_slow.py::...looks_as_the_pre_m0_page_did` (G2). `test_summary_schema_slow.py` passed.
+
+**Findings for the milestone review (Phase 8).**
+
+1. `AspireExtensions` fixed (above). In a repository that does restore, M6-3's member-use rule still does the work; the new rule covers the one where the indexer cannot load the project.
+2. `cs_scip.soft_failure` only matches a line that starts with `Failure:`. Real scip-dotnet logs put a timestamp and `fail:` first, so the `msbuild` note and the `scip-dotnet could not load every project` problem are never produced from a real log (the fakes in the tests use the bare form). Not fixed: the tool status stays `ok` for `CA` today and changing it would turn the status `failed` and drop the dead list for every C# repository with one unloadable project. For the author's review.
+3. `RW`'s recorded verdicts were lost between block V and block CP; cause unknown.
+4. A `prepare` that finds the same sha and an unchanged ref reuses `extract/` even when the skill's code changed. A re-run after a code fix needs the extract moved aside. (Likely by design: the extract is keyed by the commit; noting it because it hid the first re-run of block W.)
+
+**The DoD table.**
+
+| Item | What shows it | Result |
+|---|---|---|
+| 1 P0 cards exist, validate, right badge | `render` exit 0 on every dossier (V6), `test_schema_files.py`, block H | **met.** Block CP: `render` exit 0 on all six pages, 0 `error:`. `test_schema_files.py` is in the default suite (2902 passed). Block H on `CA` (M6-47): 0 `partial` badges on a C# and JS repository, 8 `nograph` (PowerShell); block TB: 8 `nograph`; block N: 3 `partial` with the degraded build. |
+| 2 three repositories, identical skeletons | blocks P2, R, B to G, X | **met.** Block X: six pages (`RW` C#, `BP` React, `CA` C#/JS, mixed, golden Python, Tier B), 56 cards each, same order, exit 0. |
+| 3 ground truth | block T (C#, provisional); TS: none kept (risk 4); Python: the author's (section 8) | **met for C#, open for the others.** C# block T after M6-44: entry points recall 98% (53 of 54), precision 100%; inputs 99% (88 of 89); outputs 93% (95 of 102); both `truth-ok` lines. TS: no ground truth by decision (risk 4). Python: the author's call (section 8); not done here. |
+| 4 doctor, flags, clean, tool removed, hygiene | blocks A, N, NR, K, SUB, CL, HY | **met.** Block A (`CA`): `doctor` exit 0. Block N: `doctor` exit 1, `prepare` exit 2, `--allow-missing` exit 0. Block NR: restore `skipped`. Block K: untrusted ref, scip-dotnet `skipped`; with `--allow-ref` `ok`. Block SUB: the Gaps item appears and disappears with the flag. Block CL: `clean` then "Nothing to clean". Block HY: 15 passed. |
+| 5 small and largest skeletons identical | block X (block M and `CA`) | **met.** Block X lists both with the same 56 cards. |
+| 5 `summary.json` valid, no extra fields | V8 in every render and check; `test_summary_schema_slow.py` | **met.** V8 passed in all six `check` runs and `test_summary_schema_slow.py` passed in block I, slow. V8 passed in all six `check` runs; `summary.json` of `CA` lists eight tools `ok` (M6-47). |
+| 6 tests and `check_page` | block I, block CP | **met.** Default: 2902 passed, 304 skipped. Slow: 3202 passed, only the three known failures. `check`: `problems: 0` on all six. |
+| 7 docs, prompts, `VERSION` | `test_docs.py`, `test_prompts.py`, `cat VERSION` | **met.** Both tests are in the default suite and pass; `VERSION` prints `1.0.0`. |
+| Regression | blocks P, P2, JS, E, T, W against plan 011's figures | **met.** Block E `OK`; block T holds M5's bars (96%, 94%, 91%); block W now meets every expectation (`AspireExtensions` gone; M6-1 framework note; M6-5 file counts; `problems: 0`). Blocks P, P2 and JS were run in Phase 6; their figures are in "Results (Phase 6)". |
+
+
 ---
 
 ## 7. Verification
