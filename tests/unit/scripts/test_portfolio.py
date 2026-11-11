@@ -42,6 +42,6 @@ def test_empty_home_still_writes_a_page(tmp_path):
 def test_header_pill_brand_version_and_search_hint(tmp_path):
     make(tmp_path, "a")
     text = portfolio.write(tmp_path, "1.5.0").read_text()
-    assert 'class="built-pill">Last built ' in text and 'class="brand-ver">v1.5.0' in text
+    assert 'data-variant="outline">Last built ' in text and 'class="brand-ver">v1.5.0' in text
     assert '<kbd id="search-hint">/</kbd>' in text and "press /" not in text
     assert "Cited, commit-pinned" not in text and 'e.key === "t"' in text
