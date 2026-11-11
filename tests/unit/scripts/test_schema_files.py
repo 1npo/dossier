@@ -80,7 +80,7 @@ def test_card_counts():
     reports = {"entry": {"cards": [{"card": "entry.catalog", "blocks": []}, {"card": "entry.startup", "pending": True}]},
                "risks": {"cards": [{"card": "risks.tracker", "na": "x", "cite": ["a"]}]}}
     filled, pending = render.card_counts(reports)
-    assert filled == 2 and filled + pending == 41
+    assert filled == 2 and filled + pending == 42
 
 
 def test_risks_table_ends_with_a_source_column():

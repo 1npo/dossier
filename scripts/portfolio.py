@@ -140,6 +140,7 @@ a.dcard:hover, a.dcard:focus-visible { border-color: var(--foreground); transfor
 .dcard .dhead-row { display: flex; justify-content: space-between; align-items: center; gap: .5rem; flex-wrap: wrap; } .dcard .dhead .muted { font-size: .8125rem; }
 .dcard { position: relative; } .dcard section { display: grid; gap: .85rem; flex: 1; }
 .dcard .change { margin: 0; padding: 0 1.5rem 1rem; font-size: .8125rem; }
+.dcard .langs { margin: 0; }
 .langs .bar { display: flex; height: .45rem; border-radius: 99px; overflow: hidden; gap: 2px; margin-bottom: .35rem; } .langs .bar i { display: block; min-width: 4px; }
 .dstats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin: 0; }
 .dstats > div { padding: .5rem .6rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--muted); }
