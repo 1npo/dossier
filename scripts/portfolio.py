@@ -114,7 +114,7 @@ def card(e: dict) -> str:
     return (f'<a class="card dcard" href="{E(e["page"])}" data-key="{key}" data-built="{E(e["built"])}" data-name="{E(e["name"].lower())}">'
             f'<header><h2>{E(e["name"])}</h2><div class="card-badges">{stale}</div>'
             f'<p>{E(e["description"][:200]) or "No description found in the repository."}</p></header>'
-            f'<section>{lang_bar(e["languages"])}{stats}<div class="chips">{risk_pills(e["risks"])}</div></section>'
+            f'<section>{stats}{lang_bar(e["languages"])}<div class="chips">{risk_pills(e["risks"])}</div></section>'
             f'<footer><span class="chips">{commit}</span><span class="muted">{ago(e["age_days"])}'
             f'{builds}</span></footer>{change}</a>')
 
