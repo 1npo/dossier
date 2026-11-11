@@ -31,11 +31,11 @@ Do these first: each one can make a build silently wrong or hide a failure.
 
 ### 4. Close detection gaps (each adds missing rows; none changes existing ones)
 
-10. **FastAPI `Depends(...)`.** Dependency injection through `Depends` is not followed and no blind-spot rule reports it. It is the one Python DI case worth a rule (spec decision 11).
-11. **MSW mock handlers.** `http.get(...)` handlers are not detected as entry points (found on `BP`). Only adds missing mock routes. (P5-1, ruled in [plans/010-m4-plan.md](plans/010-m4-plan.md), "Results (Phase 5)".)
-12. **Makefile and shell variables as inputs.** Dockerfile `ENV`/`ARG` and compose `environment:` are read; Makefile and script variables are not, because without a shell parser too many matches are false.
-13. **`.cake` build scripts.** Cake scripts in C# repositories are not read.
-14. **Agent commits classed as human.** Commits by an agent such as Copilot carry an `Agent-Logs-Url` line but are classified as human. The classifier feeds report 02, which M6 could not change.
+10. **FastAPI `Depends(...)`. Done (2026-11-11).** Dependency injection through `Depends` is not followed and no blind-spot rule reports it. It is the one Python DI case worth a rule (spec decision 11).
+11. **MSW mock handlers. Done (2026-11-11).** `http.get(...)` handlers are not detected as entry points (found on `BP`). Only adds missing mock routes. (P5-1, ruled in [plans/010-m4-plan.md](plans/010-m4-plan.md), "Results (Phase 5)".)
+12. **Makefile and shell variables as inputs. Done (2026-11-11).** Dockerfile `ENV`/`ARG` and compose `environment:` are read; Makefile and script variables are not, because without a shell parser too many matches are false.
+13. **`.cake` build scripts. Done (2026-11-11).** Cake scripts in C# repositories are not read.
+14. **Agent commits classed as human. Done (2026-11-11).** Commits by an agent such as Copilot carry an `Agent-Logs-Url` line but are classified as human. The classifier feeds report 02, which M6 could not change.
 
 ### 5. Freshness of reference data
 

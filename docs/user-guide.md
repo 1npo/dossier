@@ -349,6 +349,7 @@ A bad value stops the command with a message that names the key.
 ## Limitations
 
 - **Blind spots.** Code that is wired up at run time cannot be followed by a static tool: dynamic imports, plugins loaded by name, dependency injection containers (including FastAPI `Depends`), reflection, decorator and route registries, source generators, and routes mounted under computed prefixes. Where dossier sees a sign of one, report 15 (Gaps) says so and names the file. It does not guess the link.
+- **Mocks, build scripts and shell variables.** `msw` request handlers are listed as entry points of their own kind, `mock-route`, apart from the routes the program serves. The tasks of a Cake script (`.cake`) are `build-task` entry points. A Makefile or shell script variable is listed as an input only when the file gives it a default (`VAR ?= x`, `${VAR:-x}`) or exports it by name (`export VAR`); a plain `$HOME` is not.
 - **Tier B languages** have no import or call graph and no symbols. Report 15 lists each one.
 - **TypeScript and C# figures** were measured on public repositories and are provisional until corrected against real codebases.
 - **Razor** files (`.razor`, `.cshtml`) are not read; Gaps says so.
