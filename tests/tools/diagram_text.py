@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.11"
 # dependencies = ["playwright"]
 # ///
 """Print, as JSON, the smallest rendered text height in each diagram of a dossier page at each width.

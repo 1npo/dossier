@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.11"
 # dependencies = ["playwright"]
 # ///
 """Print, as JSON, the V12 layout problems (scripts/check_layout.py) of a page at one width in one theme.

@@ -1,4 +1,4 @@
-"""The skill runs on Python 3.10+, so no script may use syntax that only 3.12 accepts
+"""The skill runs on Python 3.11+, so no script may use syntax that only 3.12 accepts
 (a backslash or reused quote inside an f-string expression)."""
 import pathlib
 import shutil
@@ -17,15 +17,15 @@ CHECK = (
 )
 
 
-def test_scripts_parse_on_python_310():
+def test_scripts_parse_on_python_311():
     uv = shutil.which("uv")
     if not uv:
         pytest.skip("uv not available")
     files = [str(p) for p in sorted((ROOT / "scripts").rglob("*.py"))]
     r = subprocess.run(
-        [uv, "run", "--python", "3.10", "--no-project", "python", "-I", "-c", CHECK, *files],
+        [uv, "run", "--python", "3.11", "--no-project", "python", "-I", "-c", CHECK, *files],
         capture_output=True, text=True,
     )
     if r.returncode != 0 and "No interpreter found" in r.stderr:
-        pytest.skip("Python 3.10 not available")
+        pytest.skip("Python 3.11 not available")
     assert r.returncode == 0, r.stdout + r.stderr

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.11"
 # dependencies = ["playwright"]
 # ///
 """Open a rendered dossier in a headless browser and check what only a browser can show.
