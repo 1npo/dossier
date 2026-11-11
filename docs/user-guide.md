@@ -157,6 +157,10 @@ The card "Questions this dossier answers" in report 01 lists the 40 questions a 
 
 Report 12 (Build, run and ship) ends with two cards the page draws from the code, not from Claude. **Environment variables** lists every variable the code reads: the files and lines that read it, the default when the call gives a literal one, and the Dockerfile, compose file, CI workflow or `.env` file that also names it. Python (`os.environ`, `os.getenv`), JavaScript and TypeScript (`process.env`, `import.meta.env`) and C# (`Environment.GetEnvironmentVariable` with a literal name) are read; a name built at run time is missed. **Secret signals** lists strings that match a credential pattern and tracked files whose names usually hold secrets, by path, line and pattern name. It is for human review and is not a security scanner, and it never prints or stores the matched text. Neither card is capped: sort and filter the table instead.
 
+### Read the configuration keys
+
+A C# program reads much of its input through `IConfiguration`, and those keys are not environment variables, so the Environment variables card does not list them. Under the **Inputs** card in report 07 the page draws a separate group, **Configuration keys**, with one row per name: a key read by name (`GetSection("Shop")`, `GetValue<int>("Port")`, `GetConnectionString("Db")`, `config["Shop:Name"]`) or an options class (`Configure<T>`, `IOptions<T>`, `Bind`), the file and line of each read, and a source link. It shows names only: no value is ever read or stored, and a key that is only set in `appsettings.json` is not listed (the file itself is a `config files` finding). A key built at run time is missed. The group is drawn only when a read is found, is not capped, and Claude does not rewrite it.
+
 ### Work with tables
 
 Click a column heading to sort (a third click restores the written order). Drag the right edge of a heading to resize it; double-click the edge, or use the arrow keys on it, to undo or nudge. The **Columns** menu above a table hides and shows columns. **Reset columns** brings back every column. The filter box above a table keeps the rows that contain what you type.

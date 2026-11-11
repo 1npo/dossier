@@ -33,7 +33,7 @@ GENERATOR_PACKAGES = ("Riok.Mapperly", "Mediator.SourceGenerator", "CommunityToo
 
 class CSharpAdapter(Adapter):
     name = "csharp"
-    version = "3"
+    version = "4"
     rules = (RULES,)
     languages = ("C#",)
     tools = ("scip-dotnet", "semgrep", "tree-sitter-language-pack")

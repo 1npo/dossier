@@ -130,6 +130,7 @@ CATEGORY_CARD = {
     "metric": "behavior.observability", "trace": "behavior.observability", "retry": "behavior.failures",
     "timeout": "behavior.failures", "catch-all": "behavior.failures", "transaction": "behavior.failures",
 }
+DRAWN_CATEGORIES = ("config-key",)  # findings the page draws itself (a group under the Inputs card): no home card, the writer does not decide about them
 DECIDED_OUTPUTS = ("entry_points", "io_candidates", "models", "history")
 
 

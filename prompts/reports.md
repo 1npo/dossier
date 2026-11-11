@@ -110,7 +110,7 @@ Report 07: Inputs and outputs. Question: *What goes in and what comes out?*
 
 ### Inputs (`io.inputs`)
 
-Everything the program takes in. Decide about every finding. One row per CLI command's arguments. The `environment variables` row says how the program reads them in one line and points to the `ops.env-vars` card, which the page draws with every variable; do not list the variables here. The fixed categories stay as rows; a category that does not apply is a row whose input is `none`, with evidence. Network routes are one row per route group.
+Everything the program takes in. Decide about every finding. One row per CLI command's arguments. The `environment variables` row says how the program reads them in one line and points to the `ops.env-vars` card, which the page draws with every variable; do not list the variables here. The page also draws a **Configuration keys** group under this card (C# keys and options classes read through `IConfiguration`); do not list those keys here either, and do not mention it in the `config files` row beyond the files themselves. The fixed categories stay as rows; a category that does not apply is a row whose input is `none`, with evidence. Network routes are one row per route group.
 
 Shape: a table with columns Category, Input, Format, Validation, Where read.
 
