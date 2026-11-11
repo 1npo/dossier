@@ -57,7 +57,7 @@ def module_name(path: str, roots=(), base: str = "") -> str:
 class PythonAdapter(Adapter):
     name = "python"
     rules = (RULES,)
-    version = "5"
+    version = "6"
     languages = ("Python",)
     tools = ("grimp", "vulture", "scip-python", "semgrep", "tree-sitter-language-pack")
     expected_untracked = (".venv/**",)

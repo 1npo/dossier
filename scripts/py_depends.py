@@ -1,8 +1,9 @@
-"""FastAPI `Depends(...)`: a `ref-edge` from the function that declares a dependency to the file that defines it.
+"""FastAPI `Depends(...)` and `Security(...)`: a `ref-edge` from the function that declares a dependency to the file that defines it.
 
-The blind-spot rule `dependency-injection` reports every `Depends(...)`. Where the dependency is a name that the file imports from
-another file of the project, this module adds one `ref-edge` symbol for each (function, dependency) pair, so the route reaches the
-dependency in the graph. A dependency defined in the same file, a lambda, a class call and a name from outside the project add no edge.
+The blind-spot rule `dependency-injection` reports every `Depends(...)` and `Security(...)`. Where the dependency is a name that the
+file imports from another file of the project, this module adds one `ref-edge` symbol for each (function, dependency) pair, so the
+route reaches the dependency in the graph. A dependency that is an instance, `Depends(Auth())` or `Security(Auth(), scopes=[...])`,
+counts as the class it calls. A dependency defined in the same file, a lambda and a name from outside the project add no edge.
 """
 from __future__ import annotations
 
@@ -10,9 +11,18 @@ import ast
 from collections.abc import Callable
 
 
+INJECTORS = ("Depends", "Security")
+
+
 def _is_depends(call: ast.Call) -> bool:
     f = call.func
-    return (isinstance(f, ast.Name) and f.id == "Depends") or (isinstance(f, ast.Attribute) and f.attr == "Depends" and isinstance(f.value, ast.Name) and f.value.id == "fastapi")
+    return (isinstance(f, ast.Name) and f.id in INJECTORS) or (isinstance(f, ast.Attribute) and f.attr in INJECTORS and isinstance(f.value, ast.Name) and f.value.id == "fastapi")
+
+
+def _dependency(call: ast.Call):
+    """The expression `Depends`/`Security` is given: the first argument or `dependency=`; a call (`Auth()`) stands for the callee."""
+    arg = call.args[0] if call.args else next((k.value for k in call.keywords if k.arg == "dependency"), None)
+    return arg.func if isinstance(arg, ast.Call) else arg
 
 
 def _imports(tree: ast.Module, module: str, is_package: bool) -> dict:
@@ -58,7 +68,7 @@ def _target(name: str, imports: dict, module_paths: dict) -> str | None:
 
 
 def _calls(func) -> list:
-    """The `Depends(...)` calls in a function's decorators, parameter defaults and annotations and return annotation, which are not in a nested function."""
+    """The `Depends(...)` and `Security(...)` calls in a function's decorators, parameter defaults and annotations and return annotation, which are not in a nested function."""
     found, stack = [], [*func.decorator_list, func.args, *([func.returns] if func.returns else [])]
     while stack:
         node = stack.pop()
@@ -69,7 +79,7 @@ def _calls(func) -> list:
 
 
 def edges(paths: list, read: Callable[[str], str], module_paths: dict, path_module: dict) -> list:
-    """`ref-edge` symbols for the `Depends(name)` calls in `paths` (files the rule matched), in path and line order."""
+    """`ref-edge` symbols for the `Depends(name)` and `Security(name)` calls in `paths` (files the rule matched), in path and line order."""
     out = []
     for path in sorted(set(paths)):
         try:
@@ -85,7 +95,7 @@ def edges(paths: list, read: Callable[[str], str], module_paths: dict, path_modu
             if not isinstance(func, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 continue
             for call in _calls(func):
-                name = _dotted(call.args[0]) if call.args else None
+                name = _dotted(_dependency(call))
                 dst = _target(name, imports, module_paths) if name else None
                 if not dst or dst == path:
                     continue

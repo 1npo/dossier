@@ -1,9 +1,9 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Security
 
 from . import deps
-from .deps import get_db
+from .deps import Auth, get_db
 
 router = APIRouter()
 
@@ -25,3 +25,8 @@ def read_me(user: Annotated[str, Depends(deps.current_user)]):  # @dep-me
 @router.get("/health")
 def health(x=Depends(lambda: 1)):
     return "ok"
+
+
+@router.get("/admin")
+def admin(user=Security(Auth(), scopes=["admin"])):  # @dep-admin
+    return user
