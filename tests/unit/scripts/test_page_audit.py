@@ -5,7 +5,6 @@ from pathlib import Path
 import pytest
 
 SKILL = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(SKILL / "scripts"))
 sys.path.insert(0, str(SKILL / "tests" / "tools"))
 
 import broken_pages  # noqa: E402

@@ -1,0 +1,85 @@
+[project]
+name = "dossier"
+dynamic = ["version"]
+description = "Build a cited, commit-pinned HTML dossier that explains a git repository."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Nick OMalley", email = "nickpeteromalley@gmail.com" }]
+requires-python = ">=3.11"
+dependencies = ["pygments"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "VERSION"
+pattern = "^(?P<version>[^\\s]+)\\s*$"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dossier"]
+
+[dependency-groups]
+dev = ["pytest>=9.2", "ruff==0.17.4", "mypy==2.4.1"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "scripts"]          # "scripts" is the transition entry, removed in C11; E1 adds "tests/support" and "tools"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["src", "tests", "tools"]
+extend-exclude = ["tests/fixtures", "src/dossier/data/vendor", "src/dossier/data/node"]
+
+[tool.ruff.lint]
+select = ["E", "F", "UP", "B", "SIM", "I"]
+# E501 by design (plan 014, D2). The rest is the lint baseline of the code at the start of the refactor
+# (ruff 0.17.4, 337 findings); each comment is that rule's count. Fixing them is out of scope (plan 014, section 11).
+ignore = [
+    "E501",
+    "I001",    # 68
+    "E741",    # 47
+    "E731",    # 40
+    "E702",    # 26
+    "F401",    # 24
+    "UP017",   # 21
+    "B905",    # 21
+    "UP031",   # 20
+    "B007",    # 15
+    "F841",    # 11
+    "SIM905",  # 9
+    "SIM115",  # 5
+    "B904",    # 4
+    "SIM105",  # 4
+    "UP035",   # 3
+    "F811",    # 3
+    "SIM300",  # 3
+    "UP033",   # 2
+    "E402",    # 2
+    "SIM102",  # 1
+    "F541",    # 1
+    "B023",    # 1
+    "SIM401",  # 1
+    "SIM114",  # 1
+    "E401",    # 1
+    "E701",    # 1
+    "SIM117",  # 1
+    "B006",    # 1
+]
+
+[tool.ruff.lint.per-file-ignores]
+"src/dossier/data/workers/*" = ["UP"]    # they target Python 3.10
+
+[tool.ruff.format]
+quote-style = "double"                   # the code's style; formatting is not enforced (plan 014, section 11)
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src/dossier"]
+exclude = ["src/dossier/data/"]
+ignore_missing_imports = true
+no_implicit_optional = true
+warn_unused_ignores = true
+check_untyped_defs = false

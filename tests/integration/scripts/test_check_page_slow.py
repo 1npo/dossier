@@ -13,7 +13,6 @@ sys.path.insert(0, str(SKILL / "tests" / "tools"))
 import broken_pages  # noqa: E402
 import m3_page  # noqa: E402
 
-sys.path.insert(0, str(SKILL / "scripts"))
 
 import check_layout  # noqa: E402
 import measured_er  # noqa: E402

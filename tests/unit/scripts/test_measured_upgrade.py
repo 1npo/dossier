@@ -256,7 +256,7 @@ class TestDotnetFromReleasesIndex:
 
 class TestRefreshOption:
     def test_render_takes_refresh_refdata_and_it_is_off_by_default(self):
-        import dossier
+        from dossier.cli import app as dossier
 
         parser = dossier.build_parser()
 

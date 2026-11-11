@@ -17,7 +17,8 @@ import sys
 from pathlib import Path
 
 SKILL = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(SKILL / "scripts"))
+sys.path[:0] = [str(SKILL / "src")]
+sys.path.append(str(SKILL / "scripts"))  # TRANSITION: removed in C11
 
 import components  # noqa: E402
 

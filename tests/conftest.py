@@ -8,7 +8,8 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+sys.path[:0] = [str(Path(__file__).resolve().parent.parent / "src")]
+sys.path.append(str(Path(__file__).resolve().parent.parent / "scripts"))  # TRANSITION: removed in C11
 
 import render  # noqa: E402
 
