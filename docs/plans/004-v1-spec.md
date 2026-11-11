@@ -56,7 +56,7 @@ Tags: S static extraction, G git history, L Claude reading, X outside the reposi
 | 1 | Orient | In what order should I read the code, and where do config, tests, build and docs live? | S, L | 03 `reading.order`, `reading.map` |
 | 2 | Orient | What do the domain terms mean? | L | 03 `reading.glossary` |
 | 3 | Orient | What technologies and idioms must I know, and which are probably new to me? | S, L | 03 `reading.technologies` |
-| 4 | Get it running | What do I need locally? | S, L | 12 `ops.local` |
+| 4 | Get it running | What do I need locally? | S, L | 12 `ops.local`, `ops.env-vars` |
 | 5 | Get it running | How do I build, test, run, release, roll back and deploy? | S, L | 12 `ops.*` |
 | 6 | Get it running | What do the CI gates guarantee? | S, L | 12 `ops.ci` |
 | 7 | Shape | What are the main components? | S, L | 05 `components.map`, `components.catalog` |
@@ -67,13 +67,13 @@ Tags: S static extraction, G git history, L Claude reading, X outside the reposi
 | 12 | Execution | Where is execution entered? | S, L | 04 `entry.catalog` |
 | 13 | Execution | What happens from entry to ready? | L | 04 `entry.startup` |
 | 14 | Execution | What is the concurrency model? | S, L | 06 `interactions.concurrency` |
-| 15 | Boundaries | What are all the inputs and outputs? | S, L | 07 `io.inputs`, `io.outputs` |
+| 15 | Boundaries | What are all the inputs and outputs? | S, L | 07 `io.inputs`, `io.outputs`; 12 `ops.env-vars` |
 | 16 | Boundaries | What contracts do I owe other systems, and who consumes them? | S, L, X | 07 `io.contracts` |
 | 17 | Boundaries | What extension points exist? | L | 05 `components.extension-points` |
 | 18 | Data | What are the data structures and schema? | S | 08 `data.entities`, `data.relationships` |
 | 19 | Data | Where does state live, and who writes and reads it? | S, L | 06 `interactions.state` |
 | 20 | Data | What is the source of truth, what is derived, and which stores hold it? | A, L | 08 `data.truth`, `data.stores` |
-| 21 | Data | What is the data lifecycle, and where are the sensitive fields? | S, L | 08 `data.lifecycle` |
+| 21 | Data | What is the data lifecycle, and where are the sensitive fields? | S, L | 08 `data.lifecycle`; 12 `ops.secret-signals` |
 | 22 | Behaviour | What are the business rules and invariants? | L | 09 `behavior.rules` |
 | 23 | Behaviour | How does it fail, and how would I notice in production? | S, L | 09 `behavior.failures`, `behavior.observability` |
 | 24 | Working here | How do I write code that fits here? | L | 11 `conventions.*` |
@@ -252,7 +252,9 @@ Question: *How do I get it running and into production?*
 | `ops.run` | Running it | A | Table: Mode, Command, Needs | Entry points plus config | P0 |
 | `ops.ci` | CI gates | A | Table: Pipeline, Trigger, Steps, Blocks merge?, Publishes | Workflow definitions. States what the gates do and do not guarantee | P0 |
 | `ops.release` | Release, deploy and rollback | A | Table: Environment, How released, How rolled back, Versioning | Deploy workflows, IaC, release scripts. Anything outside the repo is `unknown` | P0 |
-| `ops.config-secrets` | Configuration and secrets | A | Two tables: settings (Setting, Default, Overridden by) and secrets by name only (Secret, Unlocks, Supplied how). Never values | `facts:env_vars`, `facts:secret_signals`, config loaders | P0 |
+| `ops.config-secrets` | Configuration and secrets | A | Two tables: settings (Setting, Default, Overridden by) and secrets by name only (Secret, Unlocks, Supplied how). Never values. The full lists are the two cards below | `facts:env_vars`, `facts:secret_signals`, config loaders | P0 |
+| `ops.env-vars` | Environment variables | M | Table: Variable, Read at, Default, Also declared in, Source. Every variable the code reads, no cap; empty table with a line saying so when there are none | `facts:env_vars` (added after 1.0.0, plan 013 phase 4) | P1 |
+| `ops.secret-signals` | Secret signals | M | Table: Path, Line, Pattern, Note, Source. Pattern matches and secret-prone file names for human review, never the value; the first line says it is not a security scanner (section 1) | `facts:secret_signals` (likewise) | P1 |
 
 ### 13 Contributors
 In the code today, the Contributors card, the contributor knowledge map and the commit calendar render inside report 02 (`panel_contributors`, attached to the overview in `render.py`). They stay in 02, together with the Dependencies card, unchanged apart from the Owner and Author buttons. Report 13 holds only the written interpretation, which currently has free-form headings. It moves to a fixed card set:

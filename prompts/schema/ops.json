@@ -151,6 +151,24 @@
         }
       ],
       "fixed": null
+    },
+    {
+      "id": "ops.env-vars",
+      "title": "Environment variables",
+      "tier": "M",
+      "priority": "P1",
+      "writer": "script",
+      "shape": "computed",
+      "fixed": null
+    },
+    {
+      "id": "ops.secret-signals",
+      "title": "Secret signals",
+      "tier": "M",
+      "priority": "P1",
+      "writer": "script",
+      "shape": "computed",
+      "fixed": null
     }
   ]
 }
