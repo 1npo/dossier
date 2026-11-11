@@ -194,9 +194,13 @@ class CSharpAdapter(Adapter):
             except Exception as e:  # a bad index must not stop the other targets
                 problems.append((str(e).splitlines() or [type(e).__name__])[0])
                 continue
-            unloaded |= cs_scip.unloaded_projects(log, ctx.checkout)
+            here = cs_scip.unloaded_projects(log, ctx.checkout)
+            unloaded |= here
             soft = cs_scip.soft_failure(log)
-            if soft:
+            if here:
+                # Real scip-dotnet logs: name the projects on the page, but the run still indexed the rest, so the tool stays ok
+                notes.append({"kind": "cs-note", "path": target, "note": "msbuild", "name": ", ".join(sorted(here))})
+            elif soft:
                 problems.append(f"scip-dotnet could not load every project: {soft}")
                 notes.append({"kind": "cs-note", "path": target, "note": "msbuild", "name": soft})
         return indexes, problems, notes, unloaded
