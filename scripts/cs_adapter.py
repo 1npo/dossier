@@ -33,7 +33,7 @@ GENERATOR_PACKAGES = ("Riok.Mapperly", "Mediator.SourceGenerator", "CommunityToo
 
 class CSharpAdapter(Adapter):
     name = "csharp"
-    version = "2"
+    version = "3"
     rules = (RULES,)
     languages = ("C#",)
     tools = ("scip-dotnet", "semgrep", "tree-sitter-language-pack")
@@ -250,7 +250,7 @@ class CSharpAdapter(Adapter):
         self._syntax(ctx, out, result, read, st)
         self._semgrep(ctx, out, result, st)
         out["io_candidates"] += cs_semgrep.config_inputs(sorted(ctx.tree), read)
-        out["entry_points"] += cs_entries.page_routes(sorted(ctx.tree), read)
+        out["entry_points"] += cs_entries.page_routes(sorted(ctx.tree), read) + cs_entries.cake_tasks(sorted(ctx.tree), read)
         if "decls" in st:
             decls = {f: d for f, d in st["decls"].items() if f not in st["generated"]}
             out["entry_points"] += (cs_entries.controller_routes(decls) + cs_entries.program_entries(result, decls)

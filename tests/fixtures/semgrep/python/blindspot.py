@@ -193,3 +193,18 @@ from .models import Order
 
 # ok: dossier.python.blindspot.barrel-reexport
 import models
+
+# ruleid: dossier.python.blindspot.dependency-injection
+def read_item(db=Depends(get_db)): ...
+
+# ruleid: dossier.python.blindspot.dependency-injection
+def read_user(user: Annotated[User, Depends(current_user)]): ...
+
+# ruleid: dossier.python.blindspot.dependency-injection
+router = APIRouter(dependencies=[fastapi.Depends(verify_token)])
+
+# ok: dossier.python.blindspot.dependency-injection
+db = get_db()
+
+# ok: dossier.python.blindspot.dependency-injection
+def depends(x): ...

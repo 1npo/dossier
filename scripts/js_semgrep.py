@@ -4,7 +4,8 @@ from __future__ import annotations
 import js_reduce
 
 TRIGGERS = {"cli-command": "the `{name}` command", "http-route": "a web request to `{name}`", "queue-consumer": "a message for the task `{name}`",
-            "scheduled-job": "a schedule", "server-listen": "when the server starts"}
+            "scheduled-job": "a schedule", "server-listen": "when the server starts",
+            "mock-route": "a request that the msw mock `{name}` answers in tests or in the browser"}
 SCANNED = (".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs")
 
 
@@ -38,7 +39,7 @@ def items(results: list) -> dict:
             if r["rule"].endswith(".entry.static-files"):
                 name = "static files"
                 base["snippet"] = name
-            elif kind == "http-route":
+            elif kind in ("http-route", "mock-route"):
                 name = _route_name(r.get("detail"), r["snippet"])
                 base["snippet"] = name
             elif kind == "server-listen":

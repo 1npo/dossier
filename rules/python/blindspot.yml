@@ -152,3 +152,12 @@ rules:
     severity: INFO
     metadata: {category: blindspot, pattern: barrel-reexport}
     pattern-regex: (?m)^[ \t]*from[ \t]+\S+[ \t]+import[ \t]+\*
+
+  - id: dossier.python.blindspot.dependency-injection
+    message: Gets a dependency from FastAPI's Depends, so the function that runs is chosen by the framework
+    languages: [python]
+    severity: INFO
+    metadata: {category: blindspot, pattern: dependency-injection}
+    pattern-either:
+      - pattern: Depends(...)
+      - pattern: fastapi.Depends(...)

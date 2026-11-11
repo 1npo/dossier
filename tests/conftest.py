@@ -18,6 +18,8 @@ PYFIX = Path(__file__).resolve().parent / "fixtures" / "pyrepo"
 JSFIX = Path(__file__).resolve().parent / "fixtures" / "jsrepo"
 CSFIX = Path(__file__).resolve().parent / "fixtures" / "csrepo"
 PYLIB = Path(__file__).resolve().parent / "fixtures" / "pylib"
+CSCAKE = Path(__file__).resolve().parent / "fixtures" / "cscake"
+PYFASTAPI = Path(__file__).resolve().parent / "fixtures" / "pyfastapi"
 
 
 class FakeRepo:
@@ -241,6 +243,16 @@ def build_cs_repo(dest: Path):
     return _commit_fixture(CSFIX, dest, "csrepo")
 
 
+def build_fastapi_repo(dest: Path):
+    """Copy the FastAPI fixture (tests/fixtures/pyfastapi: two routes with a dependency each, and one with a lambda) to `dest` and commit it once on main."""
+    return _commit_fixture(PYFASTAPI, dest, "pyfastapi")
+
+
+def build_cake_repo(dest: Path):
+    """Copy the Cake fixture (tests/fixtures/cscake: a `build.cake` with four tasks and a one-file program) to `dest` and commit it once on main."""
+    return _commit_fixture(CSCAKE, dest, "cscake")
+
+
 def build_pylib_repo(dest: Path):
     """Copy the Python library fixture (tests/fixtures/pylib) to `dest` and commit it once on main."""
     return _commit_fixture(PYLIB, dest, "pylib")
@@ -262,9 +274,21 @@ def py_repo(tmp_path):
 
 
 @pytest.fixture
+def fastapi_repo(tmp_path):
+    """The FastAPI fixture repository as a git repository with one commit on main."""
+    return build_fastapi_repo(tmp_path)
+
+
+@pytest.fixture
 def js_repo(tmp_path):
     """The JavaScript fixture repository as a git repository with one commit on main."""
     return build_js_repo(tmp_path)
+
+
+@pytest.fixture
+def cake_repo(tmp_path):
+    """The Cake fixture repository as a git repository with one commit on main."""
+    return build_cake_repo(tmp_path)
 
 
 @pytest.fixture

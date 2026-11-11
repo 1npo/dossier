@@ -9,6 +9,7 @@ BLIND_SPOTS = {
     "dynamic-import": ("imports made at run time", "interactions"),
     "entry-point-loading": ("plugins loaded from installed packages", "interactions"),
     "string-plugin": ("plugins named by a string", "interactions"),
+    "dependency-injection": ("functions chosen by FastAPI `Depends` and passed in when a request arrives", "interactions"),
     "decorator-registry": ("handlers registered by decorator and called through a table", "interactions"),
     "getattr-dispatch": ("methods chosen by name at run time", "interactions"),
     "django-apps": ("Django apps loaded from settings", "interactions"),

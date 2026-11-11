@@ -223,6 +223,43 @@ def dockerfile_variables(path: str, text: str) -> list:
     return found
 
 
+MAKE_DEFAULT = re.compile(r"^(?:(?:export|override)\s+)*(" + NAME + r")\s*\?=")
+BARE_EXPORT = re.compile(r"^\s*export\s+(" + NAME + r"(?:\s+" + NAME + r")*)\s*(?:#.*)?$")
+SHELL_DEFAULT = re.compile(r"\$\$?\{(" + NAME + r")(?::?[-=])")
+SHELL_SHEBANG = re.compile(r"^#!.*\b(?:ba|z|k|da|a)?sh\b")
+
+
+def shell_variables(path: str, text: str, makefile: bool = False) -> list:
+    """`env-var` items for the environment variables a Makefile or shell script takes from outside, one per name.
+
+    A name counts only where the file itself says it may come from outside: `VAR ?= x` in a Makefile, `${VAR:-x}`, `${VAR-x}`,
+    `${VAR:=x}` or `${VAR=x}` in either, and a bare `export VAR` line. A plain `$HOME` or `${HOME}`, `VAR=x`, `export VAR=x` and
+    `${VAR:?}` are not listed, so ordinary use of the shell's own variables adds nothing. The row is at the first line that says so.
+    Values are never stored."""
+    found, seen = [], set()
+
+    def add(name, n, rule, snippet):
+        if name not in seen:
+            seen.add(name)
+            found.append(_variable(path, n, rule, "env-var", name, snippet))
+
+    for n, line in enumerate(text.splitlines(), 1):
+        if line.lstrip().startswith("#"):
+            continue
+        rule = "repo.makefile-var" if makefile else "repo.shell-var"
+        if makefile and not line.startswith("\t"):
+            m = MAKE_DEFAULT.match(line)
+            if m:
+                add(m.group(1), n, rule, f"{m.group(1)} ?=")
+        for m in SHELL_DEFAULT.finditer(line):
+            add(m.group(1), n, rule, "${" + m.group(1) + ":-}")
+        m = BARE_EXPORT.match(line)
+        if m:
+            for name in m.group(1).split():
+                add(name, n, rule, f"export {name}")
+    return found
+
+
 def compose_variables(path: str, text: str) -> list:
     """`env-var` items for each key under a service's `environment:` and `config-file` items for each `env_file:` value."""
     lines, found, seen = text.splitlines(), [], set()
@@ -279,7 +316,7 @@ def _executable_files(checkout: Path, sha: str) -> list:
 class RepoAdapter(Adapter):
     name = "repo"
     rules = (RULES_ALL,)
-    version = "6"
+    version = "7"
     languages = ("*",)
     tools = ("semgrep",)
 
@@ -291,7 +328,7 @@ class RepoAdapter(Adapter):
                 continue
             base, found = path.rsplit("/", 1)[-1], []
             text = None
-            if _is_dockerfile(base) or _is_compose(base) or base in ("Makefile", "makefile", "GNUmakefile") or base.endswith((".mk", ".service", ".sql")) \
+            if _is_dockerfile(base) or _is_compose(base) or base in ("Makefile", "makefile", "GNUmakefile") or base.endswith((".mk", ".service", ".sql", ".sh", ".bash")) \
                     or re.search(r"(^|/)\.github/workflows/[^/]+\.ya?ml$", path) or base == ".gitlab-ci.yml" or path in executable:
                 text = _read(ctx.checkout, path)
             if text is None:
@@ -303,12 +340,15 @@ class RepoAdapter(Adapter):
                 out["io_candidates"] += compose_variables(path, text)
             elif base in ("Makefile", "makefile", "GNUmakefile") or base.endswith(".mk"):
                 found = makefile_targets(path, text)
+                out["io_candidates"] += shell_variables(path, text, makefile=True)
             elif base == ".gitlab-ci.yml" or "/.github/workflows/" in "/" + path:
                 found = workflow_entries(path, text)
             elif base.endswith(".service"):
                 found = systemd_units(path, text)
             elif base.endswith(".sql"):
                 out["models"] += sql_tables(path, text)
+            if (base.endswith((".sh", ".bash")) or (path in executable and SHELL_SHEBANG.match(text))) and not base.endswith(".mk"):
+                out["io_candidates"] += shell_variables(path, text)
             if path in executable and not found:
                 found = shebang_scripts(path, text)
             for it in found:

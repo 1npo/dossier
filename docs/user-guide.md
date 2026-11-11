@@ -163,7 +163,7 @@ Click a column heading to sort (a third click restores the written order). Drag 
 
 ### Read who knows what
 
-Report 13 (Contributors) shows who the people are, who to ask about each component, how concentrated the knowledge is (with the bus factor), which commits came from agents and bots, and how the team works. A commit belongs to the person who wrote it. When an agent or a bot wrote it, it belongs to the person who approved its pull request, and on a project with one person, to that person. The Contributors card in report 02 has **Owner** and **Author** buttons to switch between the two views.
+Report 13 (Contributors) shows who the people are, who to ask about each component, how concentrated the knowledge is (with the bus factor), which commits came from agents and bots, and how the team works. A commit counts as an agent's when its author is a known agent, or its message has an `Agent-Logs-Url:` line or a `Co-authored-by:` trailer from an agent account such as Claude or Copilot. A commit belongs to the person who wrote it. When an agent or a bot wrote it, it belongs to the person who approved its pull request, and on a project with one person, to that person. The Contributors card in report 02 has **Owner** and **Author** buttons to switch between the two views.
 
 The knowledge map is a tree of directories and files with one bar per row, split by contributor:
 
@@ -348,7 +348,8 @@ A bad value stops the command with a message that names the key.
 
 ## Limitations
 
-- **Blind spots.** Code that is wired up at run time cannot be followed by a static tool: dynamic imports, plugins loaded by name, dependency injection containers, reflection, decorator and route registries, source generators, and routes mounted under computed prefixes. Where dossier sees a sign of one, report 15 (Gaps) says so and names the file. It does not guess the link.
+- **Blind spots.** Code that is wired up at run time cannot be followed by a static tool: dynamic imports, plugins loaded by name, dependency injection containers (including FastAPI `Depends`), reflection, decorator and route registries, source generators, and routes mounted under computed prefixes. Where dossier sees a sign of one, report 15 (Gaps) says so and names the file. It does not guess the link.
+- **Mocks, build scripts and shell variables.** `msw` request handlers are listed as entry points of their own kind, `mock-route`, apart from the routes the program serves. The tasks of a Cake script (`.cake`) are `build-task` entry points. A Makefile or shell script variable is listed as an input only when the file gives it a default (`VAR ?= x`, `${VAR:-x}`) or exports it by name (`export VAR`); a plain `$HOME` is not.
 - **Tier B languages** have no import or call graph and no symbols. Report 15 lists each one.
 - **TypeScript and C# figures** were measured on public repositories and are provisional until corrected against real codebases.
 - **Razor** files (`.razor`, `.cshtml`) are not read; Gaps says so.
