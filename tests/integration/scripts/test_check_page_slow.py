@@ -11,14 +11,13 @@ SKILL = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(SKILL / "tests" / "tools"))
 
 import broken_pages  # noqa: E402
+import m3_page  # noqa: E402
 
 sys.path.insert(0, str(SKILL / "scripts"))
 
 import check_layout  # noqa: E402
 import measured_er  # noqa: E402
 
-FIX = SKILL / "tests" / "fixtures" / "encamp-m0"
-TOP = Path(os.environ.get("DOSSIER_SUBJECT_REPO", SKILL.parent / "encamp"))  # the repository the frozen fixture was made from; only read when the fixture exists
 CHECK = SKILL / "scripts" / "check_page.py"
 DIAGRAM_TEXT = SKILL / "tests" / "tools" / "diagram_text.py"
 TABLE_FIT = SKILL / "tests" / "tools" / "table_fit.py"
@@ -26,7 +25,6 @@ LAYOUT_PROBE = SKILL / "tests" / "tools" / "layout_probe.py"
 
 pytestmark = [
     pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs a browser: set DOSSIER_SLOW=1"),
-    pytest.mark.skipif(not FIX.exists(), reason="the frozen fixture tests/fixtures/encamp-m0 is absent"),
 ]
 
 
@@ -34,42 +32,13 @@ def run(*args, env, cwd=SKILL):
     return subprocess.run(["uv", "run", *map(str, args)], capture_output=True, text=True, env=env, cwd=cwd)
 
 
-def number_flow_notes(reports):
-    """The migrated M0 notes under flow diagrams are prose or missing; the checks want numbered ones. Only the test's own copy changes."""
-    notes = {"type": "text", "text": "1. First step.\n2. Second step.", "conf": "confirmed", "cite": ["pyproject.toml"]}
-    for f in reports.glob("*.json"):
-        data = json.loads(f.read_text())
-        for entry in data.get("cards", []):
-            if entry.get("card") not in ("interactions.flows", "entry.startup") or not entry.get("blocks"):
-                continue
-            fixed = []
-            for i, b in enumerate(entry["blocks"]):
-                if b.get("type") == "diagram":
-                    fixed.append(b)
-                    fixed.append(dict(notes))
-                elif i and entry["blocks"][i - 1].get("type") == "diagram":
-                    continue  # the old notes of the diagram before it
-                else:
-                    fixed.append(b)
-            entry["blocks"] = fixed
-        f.write_text(json.dumps(data))
-
-
 @pytest.fixture(scope="module")
 def rendered_page(tmp_path_factory):
-    """The migrated M0 fixture, rendered once for the whole module."""
+    """The base page (pyrepo plus generated history), rendered once for the whole module."""
     base = tmp_path_factory.mktemp("page")
-    home = base / "home"
-    shutil.copytree(FIX, home / "encamp")
-    for p in (home / "encamp").rglob("*"):
-        p.chmod(p.stat().st_mode | 0o200)
-    (home / "encamp" / "dossier-encamp.html").unlink(missing_ok=True)
-    env = {**os.environ, "DOSSIER_HOME": str(home), "DOSSIER_CONFIG": str(base / "cfg.json"), "DOSSIER_CACHE": str(base / "cache")}
-    assert run(SKILL / "scripts" / "dossier.py", "migrate", TOP, env=env).returncode == 0
-    number_flow_notes(home / "encamp" / "reports")
-    done = run(SKILL / "scripts" / "dossier.py", "render", TOP, "--allow-errors", env=env)
-    assert done.returncode == 0, done.stdout[-500:] + done.stderr[-500:]
-    return home / "encamp" / "dossier-encamp.html", env
+    page = m3_page.make(base)
+    env = {**os.environ, "DOSSIER_HOME": str(base / "home"), "DOSSIER_CONFIG": str(base / "cfg.json"), "DOSSIER_CACHE": str(base / "cache")}
+    return page, env
 
 
 def check(path, env):
@@ -232,7 +201,6 @@ class TestLayoutChecks:
         assert any("the card shows no table" in g for g in got)
 
 
-import m3_page  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -381,6 +349,7 @@ class TestNewTablesOnTheM4Page:
 
 
 import m5_page  # noqa: E402
+import m6_page  # noqa: E402
 
 M5_CARDS = ("io.contracts", "change.dead-code", "data.entities", "data.relationships", "change.upgrade-burden")
 

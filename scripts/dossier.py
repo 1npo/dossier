@@ -18,7 +18,6 @@
   dossier.py confirm [REPO] [IDS] ...                         list open items, or confirm / answer / dispute them
   dossier.py verify-sample [REPO] [--seed S] [--per-report N]   pick cited claims for the independent check and print them as JSON
   dossier.py verify-record [REPO] --results FILE               record the checker's verdicts
-  dossier.py migrate [REPO] [--dry-run]                       one-off: convert an old-layout dossier (used for the M0 check)
 """
 from __future__ import annotations
 
@@ -44,7 +43,6 @@ import config  # noqa: E402
 import gather  # noqa: E402
 import history as historyscan  # noqa: E402
 import incremental  # noqa: E402
-import migrate  # noqa: E402
 import page_audit  # noqa: E402
 import process  # noqa: E402
 import render  # noqa: E402
@@ -588,50 +586,6 @@ def cmd_verify_record(a):
     print(f"Recorded {len(results)} verdicts.")
 
 
-def cmd_migrate(a):
-    top = toplevel(a.repo)
-    out, _, _ = out_dir(top)
-    reports_dir = out / "reports"
-    old = {p.stem: load(p) for p in sorted(reports_dir.glob("*.json"))}
-    mapping = migrate.load_map()
-    schemas = schema.load_all()
-    retired = [r for r in old if r in mapping["retired"] and r not in schemas]
-    stale = [r for r, sch in schemas.items() if r in old and any(c["writer"] == "claude" for c in sch["cards"]) and "cards" not in old[r]]
-    if not retired and not stale:
-        print("Nothing to migrate.")
-        return
-    result = migrate.convert(old, mapping, schemas)
-    gaps_new = migrate.remap_gaps(old["gaps"], mapping["retired"]) if "gaps" in old else None
-    problems = []
-    for rid, rep in result["reports"].items():
-        errs, _ = schema.validate(rid, rep, schemas[rid], allow_pending=True, strict_notes=False)
-        problems += errs
-    if problems:
-        for e in problems:
-            print(f"error: {e}")
-        sys.exit(1)
-    cards = [c for rep in result["reports"].values() for c in rep["cards"]]
-    state_version = (load(out / "state.json", {}) or {}).get("skill_version") or "unknown"
-    backup = out / f"reports.legacy-v{state_version}"
-    summary = {"backup": str(backup), "written": list(result["reports"]),
-               "cards_filled": sum(1 for c in cards if c.get("blocks")), "cards_pending": sum(1 for c in cards if c.get("pending")),
-               "carried": len(result["carried"]),
-               "not_carried": [{"report": r, "block": i + 1, "heading": h, "reason": why} for r, i, h, why in result["not_carried"]]}
-    if a.dry_run:
-        print(json.dumps(summary, indent=1))
-        return
-    if backup.exists():
-        die(f"{backup} already exists. Move it away first; a backup is never overwritten.")
-    shutil.copytree(reports_dir, backup)
-    for rid, rep in result["reports"].items():
-        save(reports_dir / f"{rid}.json", rep)
-    if gaps_new is not None:
-        save(reports_dir / "gaps.json", gaps_new)
-    for rid in retired:
-        (reports_dir / f"{rid}.json").unlink()
-    print(json.dumps(summary, indent=1))
-
-
 def cmd_correct(a):
     top = toplevel(a.repo)
     out, _, _ = out_dir(top)
@@ -791,10 +745,6 @@ def build_parser():
     p.add_argument("repo", nargs="?")
     p.add_argument("--results", required=True, metavar="FILE", help="the checker's answers: a JSON array of id, verdict and reason")
     p.set_defaults(fn=cmd_verify_record)
-    p = sub.add_parser("migrate")
-    p.add_argument("repo", nargs="?")
-    p.add_argument("--dry-run", action="store_true", help="show what would change and write nothing")
-    p.set_defaults(fn=cmd_migrate)
     p = sub.add_parser("confirm")
     p.add_argument("repo", nargs="?", help="repository path; omit to use the current directory")
     p.add_argument("--ids", nargs="+", metavar="ID", help="item IDs to decide, such as G003 G007")

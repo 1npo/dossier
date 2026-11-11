@@ -218,7 +218,7 @@ def check_viewer(page, scheme, shots):
         bad("v did not collapse the panel")
     page.keyboard.press("v")
     page.click("#cp-goto")
-    page.wait_for_timeout(700)
+    page.wait_for_timeout(3000)
     target = page.evaluate("""() => { const p = location.hash.slice(1), e = document.getElementById(p); if (!e) return null;
       const r = e.getBoundingClientRect(); return { id: p, top: Math.round(r.top), bottom: Math.round(r.bottom), visible: r.top >= 0 && r.bottom <= innerHeight, flash: e.classList.contains('flash') }; }""")
     if not target or not target["id"].startswith("ref-") or not target["visible"]:

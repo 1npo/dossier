@@ -282,7 +282,6 @@ Claude runs these; you can too: `uv run ~/.claude/skills/dossier/scripts/dossier
 | `candidates [repo]` | `--report ID` (required), `--open` (only findings no report has decided), `--catalog FILE`, `--json` |
 | `verify-sample [repo]` | `--seed S`, `--per-report N` |
 | `verify-record [repo]` | `--results FILE` (required) |
-| `migrate [repo]` | `--dry-run` |
 | `confirm [repo]` | `--ids ID...`, `--note`, `--answer`, `--wrong`, `--undo ID...`, `--all`, `--report`, `--kind`, `--json` |
 | `correct [repo]` | `--report`, `--said`, `--text`, `--apply ID...`, `--contributor`, `--type` |
 

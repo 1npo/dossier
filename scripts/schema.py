@@ -204,7 +204,7 @@ def validate(rid, rep, sch, allow_pending=None, strict_notes=True):
         return [], []
     if "cards" not in rep:
         if isinstance(rep.get("blocks"), list):
-            return [f"V6: report {rid} uses the old layout ('blocks' without 'cards'). Run: dossier.py migrate"], []
+            return [f"V6: report {rid} uses the old layout ('blocks' without 'cards'); write it as a list of 'cards'"], []
         return [f"V6: report {rid} needs a 'cards' list"], []
     if not isinstance(rep["cards"], list):
         return [f"V6: report {rid}: 'cards' must be a list"], []

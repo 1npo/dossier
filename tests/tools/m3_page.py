@@ -2,10 +2,9 @@
 
   make(tmp) -> Path to the rendered page
 
-It copies the frozen fixture `tests/fixtures/encamp-m0`, adds extractor output made from the paths of that fixture's own repository at
-its own commit, adds reports 10 and 13 whose cards Claude would write (all "not applicable"), and renders. Nothing real is read except the
-file list of the repository. The numbers are made up but fixed. With 600 or so source files, the hotspot and blast-radius tables are far
-taller than 40 rows.
+It commits the small repository `tests/fixtures/pyrepo`, runs `prepare` on it, adds extractor output made from its file list plus
+generated paths (so the tables are far taller than 40 rows), adds the reports whose cards Claude would write (all "not applicable"), and
+renders. The numbers are made up but fixed.
 """
 from __future__ import annotations
 
@@ -22,8 +21,9 @@ sys.path.insert(0, str(SKILL / "scripts"))
 
 import components  # noqa: E402
 
-FIX = SKILL / "tests" / "fixtures" / "encamp-m0"
-TOP = Path(os.environ.get("DOSSIER_SUBJECT_REPO", SKILL.parent / "encamp"))  # the repository the frozen fixture was made from; only read when the fixture exists
+PYREPO = SKILL / "tests" / "fixtures" / "pyrepo"
+TOP = None  # the committed copy of pyrepo; set by make()
+GENERATED = 600  # extra source paths, so the hotspot and blast-radius tables are taller than 40 rows
 SCRIPT = SKILL / "scripts" / "dossier.py"
 NA_CARDS = {"change": ("change.unfinished", "change.decisions", "change.docs-drift"),
             "contributors": ("contributors.people", "contributors.ask", "contributors.concentration", "contributors.agents", "contributors.doubts")}
@@ -31,6 +31,17 @@ NA_CARDS = {"change": ("change.unfinished", "change.decisions", "change.docs-dri
 
 def envelope(sha, adapter, items):
     return {"schema": 1, "sha": sha, "adapters": {adapter: {"sha": sha, "version": "1", "tools": {}, "tool_status": {}, "items": items}}}
+
+
+def commit_pyrepo(dest: Path) -> Path:
+    """Copy tests/fixtures/pyrepo to dest/pyrepo and commit it once on main; return the repository path."""
+    repo = Path(dest) / "pyrepo"
+    shutil.copytree(PYREPO, repo, ignore=shutil.ignore_patterns("__pycache__"))
+    env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull, "GIT_AUTHOR_NAME": "T", "GIT_AUTHOR_EMAIL": "t@x.io",
+           "GIT_COMMITTER_NAME": "T", "GIT_COMMITTER_EMAIL": "t@x.io"}
+    for args in (("init", "-b", "main"), ("add", "-A"), ("commit", "-m", "fixture")):
+        subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, env=env)
+    return repo
 
 
 def tree_at(sha):
@@ -66,39 +77,20 @@ def history_items(source, people):
     return items
 
 
-def number_flow_notes(reports: Path) -> None:
-    """The migrated M0 notes under flow diagrams are prose or missing; the checks want numbered ones. Only this copy changes."""
-    notes = {"type": "text", "text": "1. First step.\n2. Second step.", "conf": "confirmed", "cite": ["pyproject.toml"]}
-    for f in reports.glob("*.json"):
-        data = json.loads(f.read_text())
-        for entry in data.get("cards", []):
-            if entry.get("card") not in ("interactions.flows", "entry.startup") or not entry.get("blocks"):
-                continue
-            fixed = []
-            for i, b in enumerate(entry["blocks"]):
-                if b.get("type") == "diagram":
-                    fixed += [b, dict(notes)]
-                elif not (i and entry["blocks"][i - 1].get("type") == "diagram"):
-                    fixed.append(b)
-            entry["blocks"] = fixed
-        f.write_text(json.dumps(data))
-
-
 def make(tmp: Path, extend=None) -> Path:
     """Render the page. `extend(out, sha, source)`, when given, runs after the M3 extractor output is written and before the render."""
+    global TOP
     home = Path(tmp) / "home"
-    shutil.copytree(FIX, home / "encamp")
-    for p in (home / "encamp").rglob("*"):
-        p.chmod(p.stat().st_mode | 0o200)
-    out = home / "encamp"
-    (out / "dossier-encamp.html").unlink(missing_ok=True)
+    TOP = commit_pyrepo(Path(tmp) / "repo")
+    out = home / "pyrepo"
     env = {**os.environ, "DOSSIER_HOME": str(home), "DOSSIER_CONFIG": str(Path(tmp) / "cfg.json"), "DOSSIER_CACHE": str(Path(tmp) / "cache")}
     run = lambda *a: subprocess.run(["uv", "run", str(SCRIPT), *a], capture_output=True, text=True, env=env, cwd=SKILL)
-    assert run("migrate", str(TOP)).returncode == 0
+    assert run("prepare", str(TOP), "--allow-missing").returncode == 0
     facts = json.loads((out / "facts.json").read_text())
     sha = facts["repo"]["sha"]
     tree = tree_at(sha)
     source = components.source_files(set(tree), {})
+    source += [f"src/generated/mod_{i:03d}.py" for i in range(GENERATED)]
     py = [p for p in source if p.endswith(".py")][:40]
     mod = lambda p: p[:-3].replace("/", ".")
     graph = [{"kind": "module", "path": p, "module": mod(p), "package": None, "is_package": False} for p in py]
@@ -112,15 +104,21 @@ def make(tmp: Path, extend=None) -> Path:
     for name, adapter, items in (("graph", "python", graph), ("tests", "python", tests), ("dead", "python", dead), ("history", "git", history_items(source, people))):
         (out / "extract" / f"{name}.json").write_text(json.dumps(envelope(sha, adapter, items)))
     (out / "reports").mkdir(exist_ok=True)
-    number_flow_notes(out / "reports")
     for rid, cards in NA_CARDS.items():
         entries = [{"card": c, "na": "The fixture page does not write this card.", "cite": ["facts:history"]} for c in cards]
         (out / "reports" / f"{rid}.json").write_text(json.dumps({"report": rid, "cards": entries}))
+    flow = {"card": "interactions.flows", "blocks": [
+        {"type": "diagram", "title": "Checkout from the command line", "conf": "confirmed", "cite": ["src/shopcart/cli.py:4", "src/shopcart/core.py:1", "src/shopcart/store.py:1"],
+         "mermaid": "sequenceDiagram\n    participant cli as shopcart.cli\n    participant core as shopcart.core\n    participant store as shopcart.store\n"
+                    "    cli->>core: checkout\n    core->>store: save", "note": ""},
+        {"type": "text", "text": "1. The command line parses its arguments.\n2. The core builds the order and asks the store to save it.",
+         "conf": "confirmed", "cite": ["src/shopcart/cli.py:4"]}]}
+    (out / "reports" / "interactions.json").write_text(json.dumps({"report": "interactions", "cards": [flow]}))
     if extend:
         extend(out, sha, source)
     done = run("render", str(TOP), "--allow-errors")
     assert done.returncode == 0, done.stdout[-600:] + done.stderr[-600:]
-    return out / "dossier-encamp.html"
+    return out / "dossier-pyrepo.html"
 
 
 if __name__ == "__main__":

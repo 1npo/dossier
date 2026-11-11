@@ -36,7 +36,7 @@ An authored table gets two columns after the schema columns: `Basis` (the confid
 
 ## Temporary tools and defaults
 
-`scripts/migrate.py` and `scripts/migrate_map.json` exist only to convert the old encamp fixture for the M0 check. They can be deleted once M2 can write the new layout, together with the fixture folder `tests/fixtures/encamp-m0/` and its line in `.gitignore`.
+(None at present: the `migrate` command and the old encamp fixture were retired in 1.3.x.)
 
 Defaults the spec did not give (marked † in plan 005), open for review:
 

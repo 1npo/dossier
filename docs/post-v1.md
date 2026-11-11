@@ -21,7 +21,7 @@ Do these first: each one can make a build silently wrong or hide a failure.
 
 ### 2. Clean up the split and the graph removal (small, mechanical)
 
-7. **Retire the M0 fixture, `migrate` and `DOSSIER_SUBJECT_REPO`.** `test_summary_render.py` is gone, but `tests/tools/m3_page.py` (which builds the M3, M4, M5 and M6 slow-suite pages) and `test_check_page_slow.py` still copy `tests/fixtures/encamp-m0` and run `migrate` on it, so those cannot go until the pages are built from a small repository instead. Then delete `scripts/migrate.py`, `scripts/migrate_map.json`, the `migrate` command, the fixture line in `.gitignore`, and the `golden02` baseline's dependence on the fixture. **Already broken:** `encamp` gained a second root commit, so `root_commit()` no longer matches the fixture's recorded one and the fixture tests fail with "No facts.json found"; they cannot run until this item is done. **Decided (author, 2026-11-10):** build the M3 to M6 pages from `tests/fixtures/pyrepo`, and drop the `golden02` test with the fixture instead of re-baselining it (the V11 and V12 page checks still cover report 02).
+7. **Retire the M0 fixture, `migrate` and `DOSSIER_SUBJECT_REPO`. Done (2026-11-11).** The M3 to M6 slow-suite pages and `test_check_page_slow.py` are built from `tests/fixtures/pyrepo`; `migrate`, `migrate_map.json`, the fixture line in `.gitignore`, `DOSSIER_SUBJECT_REPO`, the `golden02` test, tool and baselines are deleted (the V11 and V12 page checks still cover report 02). The local folder `tests/fixtures/encamp-m0/` is no longer used and can be removed.
 8. **One test counts differently in a fresh clone** (2901 passed against 2902 in the working tree). Find which and why.
 
 
