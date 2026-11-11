@@ -15,6 +15,7 @@ import buildlog
 import components
 import measured_blast
 import measured_change
+import measured_env
 import measured_er
 import measured_tables
 import measured_upgrade
@@ -275,6 +276,52 @@ def _check_measured(cards: dict, m, page: str) -> list:
     return errs
 
 
+ENV_CARD_TABLES = {"ops.env-vars": ("t-ops-env-vars", measured_env.ENV_COLUMNS), "ops.secret-signals": ("t-ops-secret-signals", measured_env.SECRET_COLUMNS)}
+
+
+def _env_rows(m) -> dict:
+    """card id -> (rows the facts hold, [(path, line)] every row cites) for the environment-variable and secret-signal cards."""
+    facts = m.get("facts") or {}
+    out = {}
+    if "env_vars" in facts:
+        places = [(s["path"], s["line"]) for v in facts["env_vars"] for s in v.get("sites") or []] + [(v["first"]["path"], v["first"]["line"]) for v in facts["env_vars"] if not v.get("sites")]
+        out["ops.env-vars"] = (len(facts["env_vars"]), places)
+    if "secret_signals" in facts:
+        sig = facts["secret_signals"]
+        out["ops.secret-signals"] = (len(sig.get("hits") or []) + len(sig.get("sensitive_files") or []), [(h["path"], h["line"]) for h in sig.get("hits") or []])
+    return out
+
+
+def _check_env_cards(cards: dict, m) -> list:
+    """V11: the two cards draw every row of the facts, and every file and line a row names exists at the pinned commit."""
+    errs, tree, read = [], m.get("tree"), m.get("read")
+    for cid, (rows, places) in _env_rows(m).items():
+        if cid not in cards or "Not yet generated" in cards[cid][0].text():
+            continue
+        card = cards[cid][0]
+        tid, cols = ENV_CARD_TABLES[cid]
+        found = card.find("table", id=tid)
+        if not found:
+            errs.append(f"V11: {cid}: the table {tid} is not drawn.")
+        else:
+            errs += _check_table(cid, tid, found[0], cols, rows, False)
+        if rows == 0 and not card.find(cls="none-found"):
+            errs.append(f"V11: {cid}: the source has nothing to list, and the card does not say so.")
+        if tree is None:
+            continue
+        counted = {}
+        for path, line in places:
+            if path not in tree:
+                errs.append(f"V11: {cid}: a row names {path}, which is not tracked at the pinned commit.")
+            elif read is not None:
+                if path not in counted:
+                    text = read(path) or ""
+                    counted[path] = text.count("\n") + (1 if text and not text.endswith("\n") else 0)
+                if not 1 <= line <= counted[path]:
+                    errs.append(f"V11: {cid}: a row names {path}:{line}, but the file has {counted[path]} lines.")
+    return errs
+
+
 def _check_unfinished(cards: dict) -> list:
     import render  # late: render calls this module
 
@@ -328,4 +375,5 @@ def audit(page: str, reports: dict, extract=None, facts=None, whole_page=True, b
     errs += _check_freshness(cards, build)
     if measured is not None:
         errs += _check_measured(cards, measured, page)
+        errs += _check_env_cards(cards, measured)
     return errs
