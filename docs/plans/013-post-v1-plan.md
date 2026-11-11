@@ -237,3 +237,11 @@ Done 2026-11-11 by Sonnet 5.5 on `feat/csharp-config-keys` (Open item 1 of `post
 - **Rules.** New `rules/csharp/config.yml`: `config-key` (`GetSection`, `GetRequiredSection`, `GetValue<T>`, `GetConnectionString`, `BindConfiguration`, an indexer on a config-named variable, literal key only) and `config-binding` (`Configure<T>`, `AddOptions<T>`, `IOptions<T>`, `IOptionsSnapshot<T>`, `IOptionsMonitor<T>`, `.Get<T>()` and `.Bind(...)` on a config or section). Rows only: the existing `config-file` rule and its rows are unchanged, so a site can have both a `config-file` and a `config-key` finding. The rules sit in their own file because a semgrep test file flags any line matched by a rule that has no comment.
 - **Adapter.** C# adapter version 3 to 4. Fixture `tests/fixtures/cscfg`; tests `test_config_keys.py` (unit) and `test_cs_config_keys_slow.py` (real semgrep on the fixture).
 - **Not done.** Keys that exist only in `appsettings.json` (not parsed, so no value risk), keys built at run time, and `IOptions<T>` used only through a generic helper. JavaScript and Python have no equivalent yet.
+
+## After 1.4.0: pinned reference data
+
+Done 2026-11-11 by Sonnet 5.5 on `feat/pin-refdata` (Open item 1 of `post-v1.md`). Default suite 2978 passed, 305 skipped (start 2975 passed), run with `test_summary_render.py` ignored as the shared rules say.
+
+- **Choices (author asked for defaults).** The fetch happens in `prepare` and is stored in its own file `refdata.json` (not in `facts.json`, so staleness digests and the plan are untouched). Shape `{"dotnet": {"fetched": date, "cycles": [...]}}`, loaded into `facts["refdata"]` by `render`. `render` never fetches. `render --refresh-refdata` refetches; on failure the old pin stays. No pin (offline build, older dossier) uses the shipped snapshot and the card says so and names the flag. The fetch date is the day of the build, not the commit date; end-of-support gaps still compare against the commit date, as before.
+- **Not done.** Dossiers built before this change have no pin until the next build or `--refresh-refdata`; they show the snapshot meanwhile.
+
