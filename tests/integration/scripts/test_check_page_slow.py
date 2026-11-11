@@ -485,6 +485,189 @@ class TestInteractiveGraph:
 
         assert got["root"]["caption"] == "Links with fewer than 2 imports are hidden in this view (1 of 40 shown). Every link is in the tables below."
 
+    @pytest.mark.parametrize("mutation, wanted", [("blast-data-removed", "blast"), ("chart-text-small", "chart text"), ("workflow-table-to-text", "contributors.workflow"),
+                                                        ("owner-buttons-dead", "overview.contributors")])
+    def test_each_browser_mutation_makes_a_fail(self, m3, tmp_path, mutation, wanted):
+        page, env = m3
+        broken = tmp_path / "broken.html"
+        broken.write_text(broken_pages.mutate(page.read_text(), mutation))
+
+        done = check(broken, env)
+
+        assert done.returncode == 1 and any(wanted in line for line in fails(done)), done.stdout[-1500:]
+
+
+import m4_page  # noqa: E402
+
+M4_CARDS = ("interactions.graph", "io.contracts", "change.dead-code", "data.entities", "data.relationships")
+
+
+@pytest.fixture(scope="module")
+def m4(tmp_path_factory):
+    """A page holding what M4 adds (60 React components, a Prisma model set, knip rows, a public API), built once: (page, env)."""
+    base = tmp_path_factory.mktemp("m4")
+    page = m4_page.make(base)
+    env = {**os.environ, "DOSSIER_HOME": str(base / "home"), "DOSSIER_CONFIG": str(base / "cfg.json"), "DOSSIER_CACHE": str(base / "cache")}
+    return page, env
+
+
+class TestNewTablesOnTheM4Page:
+    def test_the_page_draws_every_new_table(self, m4):
+        text = m4[0].read_text()
+
+        for tid in ("t-interactions-graph-react", "t-io-contracts-api", "t-change-dead-code"):
+            assert f'id="{tid}"' in text
+
+    def test_the_browser_check_names_no_new_table(self, m4):
+        page, env = m4
+
+        done = check(page, env)
+
+        named = [line for line in fails(done) if any(cid in line for cid in M4_CARDS)]
+        assert named == [] and done.returncode == 0, done.stdout[-1500:]
+
+    def test_the_page_audit_accepts_every_new_table(self, m4):
+        import candidates
+        import page_audit
+        import render
+
+        page, _ = m4
+        out = page.parent
+        facts = json.loads((out / "facts.json").read_text())
+        facts["dependencies"] = json.loads((out / "dependencies.json").read_text())
+        reports = {p.stem: json.loads(p.read_text()) for p in (out / "reports").glob("*.json")}
+        extract = candidates.load(out)
+        measured = render.measured_ctx({"cites": render.Cites(facts), "extract": extract}, reports, facts)
+
+        errs = page_audit.audit(page.read_text(), reports, extract, facts, measured=measured)
+
+        assert [e for e in errs if any(cid in e for cid in M4_CARDS) or "t-interactions-graph-react" in e] == []
+
+    def test_a_missing_react_row_is_reported_by_the_page_audit(self, m4):
+        import re
+
+        import candidates
+        import page_audit
+        import render
+
+        page, _ = m4
+        out = page.parent
+        facts = json.loads((out / "facts.json").read_text())
+        facts["dependencies"] = json.loads((out / "dependencies.json").read_text())
+        extract = candidates.load(out)
+        measured = render.measured_ctx({"cites": render.Cites(facts), "extract": extract}, {}, facts)
+        text = page.read_text()
+        body = text[text.index("<tbody>", text.index('id="t-interactions-graph-react"')):]
+        broken = text.replace(re.search(r"<tr>.*?</tr>", body, re.S).group(0), "", 1)
+
+        errs = page_audit.audit(broken, {}, extract, facts, measured=measured)
+
+        assert any("t-interactions-graph-react" in e and "59 rows, expected 60" in e for e in errs)
+
+
+import m5_page  # noqa: E402
+
+M5_CARDS = ("io.contracts", "change.dead-code", "data.entities", "data.relationships", "change.upgrade-burden")
+
+
+@pytest.fixture(scope="module")
+def m5(tmp_path_factory):
+    """A page holding what M5 adds (80 public names, three friend lines, 20 EF entities, unreferenced types, .NET rows), built once: (page, env)."""
+    base = tmp_path_factory.mktemp("m5")
+    page = m5_page.make(base)
+    env = {**os.environ, "DOSSIER_HOME": str(base / "home"), "DOSSIER_CONFIG": str(base / "cfg.json"), "DOSSIER_CACHE": str(base / "cache")}
+    return page, env
+
+
+class TestNewTablesOnTheM5Page:
+    def test_the_page_draws_the_api_table_the_friend_lines_and_the_dotnet_rows(self, m5):
+        text = m5[0].read_text()
+
+        assert 'id="t-io-contracts-api"' in text and text.count("(InternalsVisibleTo)") == 3
+        assert ">.NET<" in text and "TargetFramework net10.0" in text and "Entity19" in text
+
+    def test_the_browser_check_names_no_new_table(self, m5):
+        page, env = m5
+
+        done = check(page, env)
+
+        named = [line for line in fails(done) if any(cid in line for cid in M5_CARDS)]
+        assert named == [] and done.returncode == 0, done.stdout[-1500:]
+
+    def test_the_page_audit_accepts_every_new_table(self, m5):
+        import candidates
+        import page_audit
+        import render
+
+        page, _ = m5
+        out = page.parent
+        facts = json.loads((out / "facts.json").read_text())
+        facts["dependencies"] = json.loads((out / "dependencies.json").read_text())
+        reports = {p.stem: json.loads(p.read_text()) for p in (out / "reports").glob("*.json")}
+        extract = candidates.load(out)
+        measured = render.measured_ctx({"cites": render.Cites(facts), "extract": extract}, reports, facts)
+
+        errs = page_audit.audit(page.read_text(), reports, extract, facts, measured=measured)
+
+        assert [e for e in errs if any(cid in e for cid in M5_CARDS)] == []
+
+
+class TestInteractiveGraph:
+    @pytest.fixture(scope="class")
+    def small(self, tmp_path_factory):
+        """The M3 page plus a catalog of 15 components, so both graph cards have views, groups among them."""
+        base = tmp_path_factory.mktemp("small")
+        page = m6_page.make_small(base)
+        env = {**os.environ, "DOSSIER_HOME": str(base / "home"), "DOSSIER_CONFIG": str(base / "cfg.json"), "DOSSIER_CACHE": str(base / "cache")}
+        return page, env
+
+    def probe(self, page, env, *args):
+        done = run(GRAPH_PROBE, page, *args, env=env)
+        assert done.returncode == 0, done.stderr[-800:]
+        return json.loads(done.stdout)
+
+    @pytest.mark.parametrize("report, card", [("components", "components.map"), ("interactions", "interactions.graph")])
+    def test_root_view_draws_with_a_node_for_each_area(self, small, report, card):
+        page, env = small
+
+        got = self.probe(page, env, "--report", report, "--card", card)
+
+        assert got["root"]["nodes"] >= 2 and not got["root"]["failed"]
+        assert got["root"]["crumb"] == "All areas" and not got["root"]["up"]
+
+    def test_choosing_a_view_in_the_select_draws_it_and_updates_the_breadcrumb(self, small):
+        page, env = small
+
+        got = self.probe(page, env)
+
+        assert got["picked"]["select"] == got["views"][1][0]
+        assert got["picked"]["crumb"] == "All areas > " + got["views"][1][1]
+        assert got["picked"]["nodes"] >= 1 and got["picked"]["up"]
+
+    def test_clicking_a_node_that_has_a_view_opens_it_and_up_returns(self, small):
+        page, env = small
+
+        got = self.probe(page, env)
+
+        assert got["has_link"] >= 1
+        assert got["clicked"]["up"] and got["clicked"]["crumb"].startswith("All areas > ")
+        assert got["back"]["crumb"] == "All areas" and not got["back"]["up"]
+
+    def test_the_caption_shows_the_hidden_links_sentence_when_the_data_says_so(self, small, tmp_path):
+        page, env = small
+        text = page.read_text()
+        marker = 'class="igraph-data">'
+        start = text.index(marker) + len(marker)
+        end = text.index("</script>", start)
+        views = json.loads(text[start:end])
+        views[0]["hidden"] = {"w": 2, "shown": 1, "total": 40}
+        patched = tmp_path / "hidden.html"
+        patched.write_text(text[:start] + json.dumps(views).replace("<", "\\u003c") + text[end:])
+
+        got = self.probe(patched, env)
+
+        assert got["root"]["caption"] == "Links with fewer than 2 imports are hidden in this view (1 of 40 shown). Every link is in the tables below."
+
     def test_the_page_passes_the_browser_check_with_every_view_drawn(self, small):
         page, env = small
 
