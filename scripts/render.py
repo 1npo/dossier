@@ -87,7 +87,7 @@ FACT_INFO = {
     "manifests": ("Project manifests", "Package manifests such as pyproject.toml or package.json, read for the project name, version and dependencies. Values that are template placeholders are ignored.",
                   r"^def _dep\(", r"# -+ areas"),
     "env_vars": ("Environment variables", "Reads of environment variables found by pattern matching in the source. Names built at run time are missed.",
-                 r"^    env_refs, secret_hits", r"# ---- areas"),
+                 r"^    env_reads, env_decl", r"# ---- areas"),
     "secret_signals": ("Secret scan", "Strings shaped like credentials, and tracked files that often hold secrets. These are pattern matches only: the values are never stored, and each match needs a person to review it.",
                        r"^def sensitive_verdict\(", r"^def noise_reason\("),
     "contributors": ("Contributors", "Every author in the history, with identities merged when they share an email address or a full name, and classified as human, agent or bot from names, emails and commit-message markers. The classification is a heuristic.",

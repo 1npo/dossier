@@ -56,7 +56,7 @@ A card entry is exactly one of:
 - `entries`: for cards whose shape is `entries`. Each entry has the key the schema names (for example `component`), a `fields` object holding **every** field id as non-empty text, and `conf`, `cite`, `note` like any statement.
 - `na`: a plain-text reason the card does not apply, with a non-empty `cite` list pointing at the evidence. Use it instead of an empty table.
 
-Every card of the reports you write must be filled. `pending` is not allowed. Do **not** write cards the schema marks as drawn by a script (`writer: script`, tier M): leave them out of the file, because the page draws them from the tool findings. The cards of `change` (report 10) and `contributors` (report 13) that a script draws are left out. Where a card you write has a measured column (`Share`, `Areas touched`, `Share of commits`), write `-` in it: the page fills it from the history, and a figure you write is replaced.
+Every card of the reports you write must be filled. `pending` is not allowed. Do **not** write cards the schema marks as drawn by a script (`writer: script`, tier M): leave them out of the file, because the page draws them from the tool findings (and, for `ops.env-vars` and `ops.secret-signals`, from the gatherer's facts). The cards of `change` (report 10) and `contributors` (report 13) that a script draws are left out. Where a card you write has a measured column (`Share`, `Areas touched`, `Share of commits`), write `-` in it: the page fills it from the history, and a figure you write is replaced.
 
 Blocks inside a card are:
 

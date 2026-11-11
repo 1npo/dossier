@@ -110,7 +110,7 @@ Report 07: Inputs and outputs. Question: *What goes in and what comes out?*
 
 ### Inputs (`io.inputs`)
 
-Everything the program takes in. Decide about every finding. One row per CLI command's arguments and one row per environment variable. The fixed categories stay as rows; a category that does not apply is a row whose input is `none`, with evidence. Network routes are one row per route group.
+Everything the program takes in. Decide about every finding. One row per CLI command's arguments. The `environment variables` row says how the program reads them in one line and points to the `ops.env-vars` card, which the page draws with every variable; do not list the variables here. The fixed categories stay as rows; a category that does not apply is a row whose input is `none`, with evidence. Network routes are one row per route group.
 
 Shape: a table with columns Category, Input, Format, Validation, Where read.
 
@@ -272,9 +272,17 @@ Shape: a table with columns Environment, How released, How rolled back, Versioni
 
 ### Configuration and secrets (`ops.config-secrets`)
 
-Two tables: settings (default, what overrides it) and secrets by name only, never values. Start from `facts:env_vars` and `facts:secret_signals`.
+Two tables: settings (default, what overrides it) and secrets by name only, never values. Do not list every environment variable or every credential-shaped string here: the page draws them in the next two cards (`ops.env-vars`, `ops.secret-signals`) from the gatherer's facts. Write the settings that matter and how they are overridden (a config file, a flag, an environment variable named in the card above), and the secrets the program needs, what each unlocks and how it is supplied. Refer to the cards below for the full lists.
 
 Shape: a table with columns Setting, Default, Overridden by; then a table with columns Secret, Unlocks, Supplied how.
+
+### Environment variables (`ops.env-vars`)
+
+Drawn by code from the gatherer's facts: every environment variable the code reads, with the files and lines that read it, a literal default when the call has one, and the Dockerfile, compose file, CI workflow or `.env` file that also names it. **Do not write this card:** leave it out of the file. The Inputs card (`io.inputs`) keeps its one `environment variables` row and points to this card.
+
+### Secret signals (`ops.secret-signals`)
+
+Drawn by code from the gatherer's facts: pattern matches (by path, line and pattern name, never the value) and tracked files whose names usually hold secrets. It is for human review and is not a security scanner. **Do not write this card:** leave it out of the file, and never copy a matched string into any card you write.
 
 ## change
 

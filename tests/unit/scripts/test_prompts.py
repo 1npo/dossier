@@ -88,8 +88,9 @@ class TestCompleteness:
     def test_merging_is_limited_to_call_sites(self, both):
         assert "Never merge entities (`md-`) or entry points (`ep-`)" in both
 
-    def test_each_cli_command_and_environment_variable_gets_a_row(self, both):
-        assert "one row per command" in both and "one row per environment variable" in both
+    def test_each_cli_command_gets_a_row_and_environment_variables_are_left_to_their_card(self, both):
+        assert "one row per command" in both
+        assert "One row per CLI command's arguments." in both and "do not list the variables here" in both
 
     def test_recipes_cite_a_commit_or_say_unknown(self, both):
         assert "[[commit:<sha>]]" in both and "`unknown` with a note" in both

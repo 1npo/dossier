@@ -153,6 +153,10 @@ The Legend and Code tabs sit in each report's title bar. The panel also has a ro
 
 The card "Questions this dossier answers" in report 01 lists the 40 questions a person asks when starting on a new codebase. They are grouped into 12 headed sets and numbered 1 to 40 in the order you would ask them: orient yourself, get it running, the shape of the parts, execution, boundaries, data, behaviour, working here, history and change, health and risk, people, and last how far to trust the dossier. Read from the top and you go from "what is this" to "where can I be wrong", and each question links to the cards that answer it. The numbering differs from versions before 1.3.0; a dossier built by an older version is rebuilt in full anyway.
 
+### Read the environment variable and secret cards
+
+Report 12 (Build, run and ship) ends with two cards the page draws from the code, not from Claude. **Environment variables** lists every variable the code reads: the files and lines that read it, the default when the call gives a literal one, and the Dockerfile, compose file, CI workflow or `.env` file that also names it. Python (`os.environ`, `os.getenv`), JavaScript and TypeScript (`process.env`, `import.meta.env`) and C# (`Environment.GetEnvironmentVariable` with a literal name) are read; a name built at run time is missed. **Secret signals** lists strings that match a credential pattern and tracked files whose names usually hold secrets, by path, line and pattern name. It is for human review and is not a security scanner, and it never prints or stores the matched text. Neither card is capped: sort and filter the table instead.
+
 ### Work with tables
 
 Click a column heading to sort (a third click restores the written order). Drag the right edge of a heading to resize it; double-click the edge, or use the arrow keys on it, to undo or nudge. The **Columns** menu above a table hides and shows columns. **Reset columns** brings back every column. The filter box above a table keeps the rows that contain what you type.

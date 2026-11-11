@@ -92,7 +92,8 @@
       "category": "run",
       "question": "What do I need locally?",
       "answers": [
-        "ops.local"
+        "ops.local",
+        "ops.env-vars"
       ]
     },
     {
@@ -188,7 +189,8 @@
       "question": "What are all the inputs and outputs?",
       "answers": [
         "io.inputs",
-        "io.outputs"
+        "io.outputs",
+        "ops.env-vars"
       ]
     },
     {
@@ -238,7 +240,8 @@
       "category": "data",
       "question": "What is the data lifecycle, and where are the sensitive fields?",
       "answers": [
-        "data.lifecycle"
+        "data.lifecycle",
+        "ops.secret-signals"
       ]
     },
     {

@@ -140,7 +140,15 @@ Post-v1 items 17 and 18, which the author wants added. Branch `feat/env-and-secr
 
 ### Results (Phase 4)
 
-*(not started)*
+Done 2026-11-10 by Sonnet 5.5 on `feat/env-and-secrets-cards`. Default suite: start 2888 passed, 294 skipped; end **2912 passed, 298 skipped** (the 4 new skips are `test_env_cards_slow.py`, which passes under `DOSSIER_SLOW=1`). Slow suite once: 3173 passed, 1 skipped, 36 errors, all in `test_check_page_slow.py` (33) and `test_golden02_slow.py` (3), all "No facts.json found" from the encamp fixture (item 7); no other failure.
+
+- **P13-13.** New `scripts/env_scan.py`: Python (`os.environ`, `os.getenv`), JS/TS (`process.env`, `import.meta.env`, `Deno.env.get`) and C# (`Environment.GetEnvironmentVariable` with a literal name), plus the older Go, Java, Rust, Ruby, C and Zig forms. Each variable keeps every site, a literal default, and the Dockerfile, compose, CI and `.env` files that name it. Names are no longer limited to 3+ uppercase characters. Secret hits are every match (no 200 cap, no one-per-pattern), no value stored. A default under a secret-like name or shaped like a credential is withheld. Not done: C# configuration binding (its keys are not environment variable names).
+- **P13-14.** Two M, P1, script cards in `ops.json`; drawn by `measured_env.py`; questions 4 and 15 list `ops.env-vars`, 21 lists `ops.secret-signals`; spec updated. The skeleton is 58 cards (the plan's "56" was the skeleton count, not a number in code, so nothing else needed changing) on all six block X pages, same order, exit 0 (scratch copies of the saved pages, re-rendered with fresh facts).
+- **P13-15.** Prompts updated; V11 now checks both tables' rows and that every named file and line exists. **Retired `v5_env`** (it forced `io.inputs` to list every variable, against the new card): its four tests became one, and a prompt test that required "one row per environment variable" was reworded. `dossier check`: Tier B page and `cannalerts` `problems: 0`.
+- **P13-16.** User guide section and spec rows; items 17 and 18 removed from `post-v1.md`.
+- **Planted secret.** `test_env_cards_slow.py` finds neither fake secret in the page or any file under the dossier folder.
+- **Row counts.** `RW`: 0 variables, 0 hits, 0 sensitive files. `BP`: 12 variables (11 before; gained `CI`), 0, 0. `CA`: 8 (5 before; gained `npm_package_name`, `services__webapi__http__0`, `services__webapi__https__0`), 0 hits, 2 sensitive files.
+- **False positives.** None seen on these three. Lowercase names make a stray `process.env.<property>` possible; it would be listed, not dropped.
 
 ---
 

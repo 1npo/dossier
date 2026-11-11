@@ -20,6 +20,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import PurePosixPath
 
 import deps as depscan
+import env_scan as envscan
 import markers as markerscan
 
 import tomllib
@@ -114,17 +115,7 @@ TEST_RE = re.compile(r"(^|/)(tests?|__tests__|specs?)/|(^|/)(e2e|cypress|playwri
 
 SENSITIVE_FILE = re.compile(r"(^|/)(\.env(\.(?!example|sample|template|dist)[^/]+)?|id_rsa|id_dsa|id_ecdsa|id_ed25519|[^/]+\.(pem|key|p12|pfx|jks|keystore|kdbx)|credentials(\.json)?|\.netrc|\.npmrc|\.pypirc|[^/]+\.tfstate(\.backup)?|secrets?\.(ya?ml|json|toml|env))$")
 
-ENV_RE = re.compile(r"""(?:os\.environ(?:\.get)?\s*[\[(]\s*["']|os\.getenv\s*\(\s*["']|process\.env\.|process\.env\[\s*["']|os\.Getenv\(\s*"|System\.getenv\(\s*"|std::env::var\(\s*"|ENV\[\s*["']|ENV\.fetch\(\s*["']|[^\w.]getenv\(\s*["']|std\.(?:posix\.getenv|process\.getEnvVar(?:Owned|Map)?)\(\s*(?:[\w.]+\s*,\s*)?"|Environment\.GetEnvironmentVariable\(\s*")([A-Z][A-Z0-9_]{2,})""")
-DOTENV_RE = re.compile(r"^\s*(?:export\s+)?([A-Z][A-Z0-9_]{2,})\s*=", re.M)
-SECRET_PATTERNS = [
-    ("aws-access-key-id", re.compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b")),
-    ("private-key-block", re.compile(r"-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY")),
-    ("github-token", re.compile(r"\bgh[pousr]_[A-Za-z0-9]{36,}\b")),
-    ("slack-token", re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}")),
-    ("google-api-key", re.compile(r"\bAIza[0-9A-Za-z_\-]{35}\b")),
-    ("stripe-live-key", re.compile(r"\b[sr]k_live_[0-9A-Za-z]{20,}\b")),
-    ("jwt-like", re.compile(r"\beyJ[A-Za-z0-9_-]{15,}\.eyJ[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{10,}")),
-]
+SECRET_PATTERNS = envscan.SECRET_PATTERNS   # kept under this name for its readers; the patterns live in env_scan.py
 
 BOT_IDENT = re.compile(r"\[bot\]|\bbot\b|-bot\b|dependabot|renovate|github-actions|greenkeeper|snyk|semantic-release|pre-commit-ci|allcontributors|imgbot|mergify|web-flow|^github <|noreply@github\.com>", re.I)
 AGENT_IDENT = re.compile(r"noreply@anthropic\.com|^claude( code)?\b|copilot-swe-agent|github-copilot|cursoragent|cursor agent|devin-ai-integration|\(aider\)|openhands|all-hands\.dev|chatgpt-codex|google-labs-jules|jules\[bot\]|gemini-code-assist|sweep-ai|codegen-sh|amazon-q", re.I)
@@ -850,7 +841,7 @@ def collect(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
     excluded, excluded_dirs = Counter(), Counter()
     lang_stats = defaultdict(lambda: {"kind": "", "files": 0, "lines": 0, "bytes": 0})
     files = []                       # analyzable text files, for chunk planning
-    env_refs, secret_hits, manifests, sensitive = {}, [], [], []
+    env_reads, env_decl, infra_names, secret_hits, manifests, sensitive = defaultdict(list), defaultdict(list), {}, [], [], []
     marker_items, todo_items = [], []
     test_files = 0
     readme = None
@@ -910,24 +901,15 @@ def collect(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
             marker_items += found
             if todo_n:
                 todo_items.append({"kind": "todo", "path": path, "count": todo_n})
-            for pat_name, pat in SECRET_PATTERNS:
-                m = pat.search(text)
-                if m and len(secret_hits) < 200:
-                    nl = nl or [i for i, c in enumerate(text) if c == "\n"]
-                    secret_hits.append({"path": path, "line": bisect.bisect_left(nl, m.start()) + 1, "kind": pat_name})
-            for m in ENV_RE.finditer(text):
-                name = m.group(1)
-                if name not in env_refs:
-                    nl = nl or [i for i, c in enumerate(text) if c == "\n"]
-                    env_refs[name] = {"name": name, "count": 0, "first": {"path": path, "line": bisect.bisect_left(nl, m.start()) + 1}}
-                env_refs[name]["count"] += 1
+            lines_of = envscan.Lines(text)
+            secret_hits += [{"path": path, **h} for h in envscan.secrets(text, lines_of)]
+            for site in envscan.reads(text, lines_of):
+                env_reads[site.pop("name")].append({"path": path, **site})
             if re.search(r"(^|/)\.env[^/]*$", path):
-                for m in DOTENV_RE.finditer(text):
-                    name = m.group(1)
-                    if name not in env_refs:
-                        line = text.count("\n", 0, m.start()) + 1
-                        env_refs[name] = {"name": name, "count": 0, "first": {"path": path, "line": line}}
-                    env_refs[name]["count"] += 1
+                for site in envscan.dotenv(text, lines_of):
+                    env_decl[site["name"]].append({"path": path, "line": site["line"]})
+            if envscan.is_infra(path):
+                infra_names[path] = envscan.declared_in(path, text)
 
     # ---- areas
     area_paths = [p for p in tree_paths if not noise_reason(p)]
@@ -1199,9 +1181,9 @@ def collect(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
         "hot_files": hot,
         "manifests": manifests,
         "readme": readme,
-        "env_vars": sorted(env_refs.values(), key=lambda e: (-e["count"], e["name"])),
+        "env_vars": env_var_rows(env_reads, env_decl, infra_names),
         "secret_signals": {"note": "Pattern matches only; values are never stored. Each needs human review.",
-                           "hits": secret_hits, "sensitive_files": sensitive[:50]},
+                           "hits": secret_hits, "sensitive_files": sensitive},
         "contributors": {"people": contributors, "not_listed": max(0, len(ranked) - 60),
                          "classification_note": "Heuristic: bots and agents are recognised by name, email and commit-message markers. "
                                                 "Anything else is treated as human and is unverified."},
@@ -1225,6 +1207,19 @@ def collect(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None)
 
 
 # --------------------------------------------------------------------------- helpers
+
+
+def env_var_rows(reads, declared, infra):
+    """One row per environment variable: where the code reads it, the literal default when a read has one, and the Dockerfiles,
+    compose files, CI workflows and `.env` files that mention it. Every variable is kept, none dropped for volume."""
+    rows = []
+    for name in set(reads) | set(declared):
+        sites = sorted(reads.get(name, []), key=lambda x: (x["path"], x["line"]))
+        decl = sorted({d["path"] for d in declared.get(name, [])} | {p for p, names in infra.items() if name in names})
+        first = (sites or sorted(declared[name], key=lambda x: (x["path"], x["line"])))[0]
+        rows.append({"name": name, "count": len(sites) + len(declared.get(name, [])), "first": {"path": first["path"], "line": first["line"]},
+                     "sites": sites, "declared_in": decl})
+    return sorted(rows, key=lambda e: (-e["count"], e["name"]))
 
 
 def remote_info(url):

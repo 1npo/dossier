@@ -27,7 +27,7 @@ FROZEN_CARDS = "overview."
 SCROLLERS = ".table-container, .mermaid-host, .year-scroll, .km-scroller, pre, .code-panel, .chart-scroll, .blast-list"
 # Cards that code draws with a table of their own (M3). One that holds `.none-found` is exempt: it says there is nothing to list.
 SCRIPT_TABLE_CARDS = ("change.cochange", "change.dead-code", "change.in-flight", "contributors.workflow", "change.upgrade-burden",
-                      "change.hotspots", "change.blast-radius")
+                      "change.hotspots", "change.blast-radius", "ops.env-vars", "ops.secret-signals")
 
 LAYOUT_JS = r"""(arg) => {
   const out = [], rep = document.querySelector('.report:not([hidden])'), vw = window.innerWidth;
