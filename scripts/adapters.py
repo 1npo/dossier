@@ -160,9 +160,23 @@ def rules_hash(folders) -> str:
     return h.hexdigest()[:16]
 
 
+SCRIPTS = Path(__file__).resolve().parent
+
+
+def code_hash(folder=None) -> str:
+    """A digest of the skill's own code (every script, `tools.json` and `VERSION`), so a change to an adapter or to
+    anything it calls invalidates a saved extract. Without it a fix to extraction code kept showing the old rows for the same commit."""
+    folder = Path(folder) if folder else SCRIPTS
+    h = hashlib.sha256()
+    files = sorted(folder.glob("*.py")) + [f for f in (folder / "tools.json", folder.parent / "VERSION") if f.exists()]
+    for f in files:
+        h.update(f.name.encode() + b"\0" + f.read_bytes() + b"\0")
+    return h.hexdigest()[:16]
+
+
 def _key(adapter, sha, tool_versions):
     return {"sha": sha, "version": adapter.version, "tools": {t: tool_versions.get(t) for t in adapter.tools},
-            "rules": rules_hash(adapter.rules)}
+            "rules": rules_hash(adapter.rules), "code": code_hash()}
 
 
 def _reusable(out: Path, adapter, key) -> bool:
@@ -172,7 +186,8 @@ def _reusable(out: Path, adapter, key) -> bool:
         if sec is None:
             continue
         found = True
-        if {"sha": sec.get("sha"), "version": sec.get("version"), "tools": sec.get("tools"), "rules": sec.get("rules")} != key:
+        if {"sha": sec.get("sha"), "version": sec.get("version"), "tools": sec.get("tools"), "rules": sec.get("rules"),
+                "code": sec.get("code")} != key:
             return False
         if any(t.get("status") != "ok" for t in (sec.get("tool_status") or {}).values()):
             return False
