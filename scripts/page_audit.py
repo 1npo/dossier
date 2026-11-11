@@ -166,10 +166,24 @@ def _check_entry(card: Node, cid: str, entry: dict, sch_card: dict) -> list:
     return []
 
 
+def _check_questions(card) -> list:
+    """V11: every category is drawn as a heading over a table holding exactly its questions."""
+    errs, qs = [], schema.load_questions()
+    for cat in schema.load_categories():
+        want = sum(1 for q in qs if q.get("category") == cat["id"])
+        table = card.find("table", id=f"t-questions-{cat['id']}")
+        if not table:
+            errs.append(f"V11: dossier.questions: the table for the category {cat['title']} is not drawn.")
+        elif len(_rows(table[0])) != want:
+            errs.append(f"V11: dossier.questions: {cat['title']} has {len(_rows(table[0]))} questions drawn, expected {want}.")
+    if len(card.find("h3")) != len(schema.load_categories()):
+        errs.append(f"V11: dossier.questions: {len(card.find('h3'))} category headings drawn, expected {len(schema.load_categories())}.")
+    return errs
+
+
 def _drawn_counts(extract, build) -> dict:
     """card id -> (table id, rows the source has) for the cards code draws."""
-    out = {"dossier.questions": ("t-questions", len(schema.load_questions())),
-           "dossier.cards": ("t-cards", sum(len(sch["cards"]) for sch in schema.load_all().values()))}
+    out = {"dossier.cards": ("t-cards", sum(len(sch["cards"]) for sch in schema.load_all().values()))}
     if build is not None:  # a dossier without build.json has a placeholder in place of the process card
         out["dossier.process"] = ("t-dossier-process", len(buildlog.STEPS))
     extract = extract or {}
@@ -307,6 +321,8 @@ def audit(page: str, reports: dict, extract=None, facts=None, whole_page=True, b
                 errs.append(f"V11: {cid}: the table {tid} is not drawn.")
             elif len(_rows(table[0])) != rows:
                 errs.append(f"V11: {cid}: the table has {len(_rows(table[0]))} rows, expected {rows}.")
+    if "dossier.questions" in cards:
+        errs += _check_questions(cards["dossier.questions"][0])
     errs += _check_unfinished(cards)
     errs += _check_freshness(cards, build)
     if measured is not None:

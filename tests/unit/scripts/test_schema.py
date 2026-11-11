@@ -99,9 +99,9 @@ def test_lint():
 
 def test_load_all_skips_questions(tmp_path):
     (tmp_path / "a.json").write_text(json.dumps({"report": "a"}))
-    (tmp_path / "questions.json").write_text("[]")
+    (tmp_path / "questions.json").write_text('{"categories": [], "questions": []}')
     assert list(schema.load_all(tmp_path)) == ["a"]
-    assert schema.load("questions", tmp_path) is None and schema.load_questions(tmp_path) == []
+    assert schema.load("questions", tmp_path) is None and schema.load_questions(tmp_path) == [] and schema.load_categories(tmp_path) == []
 
 
 def test_card_entry_accepts_dismissed_and_unassigned_but_not_other_keys():

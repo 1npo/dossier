@@ -42,7 +42,15 @@ def test_fixed_names_a_real_column_or_key():
 def test_questions():
     ids = {c["id"]: c for c in all_cards()}
     qs = schema.load_questions()
+    cats = schema.load_categories()
     assert [q["id"] for q in qs] == [str(i) for i in range(1, len(qs) + 1)]
+    assert len(qs) == 40 and len(cats) == 12
+    assert len({c["id"] for c in cats}) == len(cats)
+    assert all(c["title"].strip() and c["why"].strip() for c in cats)
+    order = [c["id"] for c in cats]
+    assert all(q["category"] in order for q in qs)
+    assert [order.index(q["category"]) for q in qs] == sorted(order.index(q["category"]) for q in qs), "questions must follow the category order"
+    assert set(q["category"] for q in qs) == set(order), "every category holds a question"
     named = set()
     for q in qs:
         assert q["question"].strip() and q["answers"]

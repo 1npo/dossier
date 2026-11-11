@@ -1828,19 +1828,27 @@ def head_html(rid, title, headline_html, sch=None):
     return f'<header class="report-head"><div class="rh-text"><h1>{E(title)}</h1><p class="headline">{headline_html}</p></div>{REPORT_TABS}</header>'
 
 
+def question_links(q, cards):
+    links = []
+    for a in q["answers"]:
+        if isinstance(a, dict):
+            links.append(f'<a href="#{a["report"]}">{E(a["label"])}</a>')
+            continue
+        n = schema.REPORT_ORDER.index(a.split(".")[0]) + 1
+        links.append(f'<a href="#{card_anchor(a)}">{E(cards[a]["title"])}</a> <span class="muted">(report {n:02d})</span>')
+    return "<br>".join(links) or '<span class="muted">not answered in this version</span>'
+
+
 def questions_body(refs):
+    """One table per category, under its heading, with the questions numbered across the page."""
     cards = schema_cards_by_id()
-    rows = []
-    for q in schema.load_questions():
-        links = []
-        for a in q["answers"]:
-            if isinstance(a, dict):
-                links.append(f'<a href="#{a["report"]}">{E(a["label"])}</a>')
-                continue
-            n = schema.REPORT_ORDER.index(a.split(".")[0]) + 1
-            links.append(f'<a href="#{card_anchor(a)}">{E(cards[a]["title"])}</a> <span class="muted">(report {n:02d})</span>')
-        rows.append([E(q["id"]), E(q["question"]), "<br>".join(links) or '<span class="muted">not answered in this version</span>'])
-    return render_table(["No.", "Question", "Answered in"], rows, refs, "t-questions", True, True)
+    qs = schema.load_questions()
+    out = []
+    for cat in schema.load_categories():
+        rows = [[E(q["id"]), E(q["question"]), question_links(q, cards)] for q in qs if q.get("category") == cat["id"]]
+        table = render_table(["No.", "Question", "Answered in"], rows, refs, f't-questions-{cat["id"]}', False, True, sort=False)
+        out.append(f'<section class="q-group"><h3>{E(cat["title"])}</h3><p class="muted">{E(cat["why"])}</p>{table}</section>')
+    return "".join(out)
 
 
 WRITERS = {"script": "A tool", "claude": "Claude"}

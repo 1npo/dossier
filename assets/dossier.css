@@ -633,7 +633,10 @@ table.happened { width: 100%; border-collapse: collapse; font-size: .8125rem; }
 .table table.happened th, .table table.happened td { padding: .2rem .75rem .2rem 0; text-align: left; vertical-align: top; border: 0; background: none; min-width: 0; height: auto; }
 .table table.happened th { width: 10.5rem; white-space: nowrap; font-weight: 500; color: var(--muted-foreground); }
 .table table.happened tr:first-child :is(th, td) { padding-top: 0; }
-#t-questions td { vertical-align: middle; }
+.q-group { margin: 1.25rem 0 0; }
+.q-group h3 { margin: 0 0 .15rem; }
+.q-group > p { margin: 0 0 .5rem; }
+.q-group td { vertical-align: middle; }
 
 /* report 14: the key to the Source column */
 .source-key { margin: .5rem 0 1rem; }
