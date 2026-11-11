@@ -17,6 +17,7 @@ import config
 import gather
 import graphs
 import py_api
+import py_depends
 import py_packages
 import py_project
 import py_queries
@@ -56,7 +57,7 @@ def module_name(path: str, roots=(), base: str = "") -> str:
 class PythonAdapter(Adapter):
     name = "python"
     rules = (RULES,)
-    version = "4"
+    version = "5"
     languages = ("Python",)
     tools = ("grimp", "vulture", "scip-python", "semgrep", "tree-sitter-language-pack")
     expected_untracked = (".venv/**",)
@@ -158,6 +159,8 @@ class PythonAdapter(Adapter):
                 if meta.get("pattern") == "barrel-reexport" and Path(r["path"]).name != "__init__.py":
                     continue    # semgrep's test files cannot be named __init__.py, so the rule matches any file and the adapter keeps the packages
                 out["blindspots"].append({**base, "pattern": meta.get("pattern")})
+                if meta.get("pattern") == "dependency-injection":
+                    st["depends"].add(r["path"])
             elif family == "entry":
                 kind = meta["kind"]
                 name = r.get("detail") or ("__main__" if kind == "main-guard" else r["snippet"])
@@ -271,7 +274,7 @@ class PythonAdapter(Adapter):
         contracts["contracts"] = [{**c, "path": prefix + c["path"]} for c in contracts["contracts"]]
         st = {"roots": roots, "loose": [p for p in loose if p in mine], "contracts": contracts, "vulture": py_packages.vulture_config(view),
               "tests": tests, "src": [p for p in files if p not in set(tests)], "module_paths": {}, "source": {}, "folder": folder,
-              "view": view, "files": files}
+              "view": view, "files": files, "depends": set()}
         for item in py_packages.test_configs(view, vtree):
             out["tests"].append({**item, "path": prefix + item["path"]})
         self._graph(ctx, out, st, timeout)
@@ -281,6 +284,7 @@ class PythonAdapter(Adapter):
         self._entries(ctx, out, st)
         self._dead(ctx, out, st, timeout)
         self._symbols(ctx, out, st, timeout)
+        out["symbols"] += py_depends.edges(st["depends"], lambda p: (ctx.checkout / p).read_text(encoding="utf-8"), st["module_paths"], st["path_module"])
         self._api(ctx, out, proj, st)
         return out
 

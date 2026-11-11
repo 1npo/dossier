@@ -294,8 +294,8 @@ class TestHandlerArgument:
 
 
 class TestComplexityOnModules:
-    def test_adapter_version_is_4_so_old_extracts_are_not_reused(self):
-        assert py_adapter.PythonAdapter.version == "4"
+    def test_adapter_version_is_5_so_old_extracts_are_not_reused(self):
+        assert py_adapter.PythonAdapter.version == "5"
 
 
 LIBRARY = {"lib/pyproject.toml": '[build-system]\nrequires = []\n[project]\nname = "lib"\n', "lib/lib/__init__.py": "__all__ = ['f']\ndef f(): pass\n",
@@ -460,3 +460,35 @@ class TestProjects:
         py_adapter.PythonAdapter().extract(ctx)
 
         assert ctx.tool_status["grimp"] == {"status": "failed", "reason": "boom"}
+
+
+class TestDependencyInjection:
+    def hit(self, line):
+        return {"rule": "dossier.python.blindspot.dependency-injection", "path": "app/routes.py", "start_line": line, "end_line": line,
+                "snippet": "Depends(...)", "detail": None, "metadata": {"category": "blindspot", "pattern": "dependency-injection"}}
+
+    def graph(self, root):
+        return {"modules": [{"module": m, "path": str(Path(root) / p), "is_package": p.endswith("__init__.py")}
+                            for m, p in (("app", "app/__init__.py"), ("app.deps", "app/deps.py"), ("app.routes", "app/routes.py"))],
+                "imports": [], "contracts": [], "errors": []}
+
+    def test_depends_is_a_blindspot_and_adds_an_edge_for_each_route_with_a_project_dependency(self, fastapi_repo, tmp_path):
+        FakeGrimp.response = self.graph(fastapi_repo.path)
+        lines = [fastapi_repo.line_of("app/routes.py", "dep-items"), fastapi_repo.line_of("app/routes.py", "dep-me")]
+        semgrep = FakeSemgrep([self.hit(n) for n in lines])
+        ctx = context(fastapi_repo, tmp_path, semgrep=semgrep)
+        ctx.repo_name = "pyfastapi"
+
+        out = py_adapter.PythonAdapter().extract(ctx)
+
+        assert [(b["pattern"], b["line"]) for b in out["blindspots"]] == [("dependency-injection", n) for n in lines]
+        edges = [(e["from"], e["to"], e["path"], e["paths"], e["via"]) for e in out["symbols"] if e.get("via") == "fastapi-depends"]
+        assert edges == [("read_items", "get_db", "app/routes.py", ["app/deps.py"], "fastapi-depends"),
+                         ("read_me", "deps.current_user", "app/routes.py", ["app/deps.py"], "fastapi-depends")]
+
+    def test_no_depends_hit_means_no_edge(self, fastapi_repo, tmp_path):
+        FakeGrimp.response = self.graph(fastapi_repo.path)
+
+        out = py_adapter.PythonAdapter().extract(context(fastapi_repo, tmp_path))
+
+        assert [e for e in out["symbols"] if e.get("via") == "fastapi-depends"] == []
