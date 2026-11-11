@@ -176,8 +176,9 @@ def _check_questions(card) -> list:
             errs.append(f"V11: dossier.questions: the table for the category {cat['title']} is not drawn.")
         elif len(_rows(table[0])) != want:
             errs.append(f"V11: dossier.questions: {cat['title']} has {len(_rows(table[0]))} questions drawn, expected {want}.")
-    if len(card.find("h3")) != len(schema.load_categories()):
-        errs.append(f"V11: dossier.questions: {len(card.find('h3'))} category headings drawn, expected {len(schema.load_categories())}.")
+    groups = card.find("section", cls="q-group")
+    if len(groups) != len(schema.load_categories()) or not all(g.find("h3") for g in groups):
+        errs.append(f"V11: dossier.questions: {len(groups)} category headings drawn, expected {len(schema.load_categories())}.")
     return errs
 
 

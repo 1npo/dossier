@@ -637,6 +637,9 @@ table.happened { width: 100%; border-collapse: collapse; font-size: .8125rem; }
 .q-group h3 { margin: 0 0 .15rem; }
 .q-group > p { margin: 0 0 .5rem; }
 .q-group td { vertical-align: middle; }
+.q-group table { table-layout: fixed; width: 100%; }
+.q-group :is(th, td):nth-child(1) { width: 3.5rem; }
+.q-group :is(th, td):nth-child(3) { width: 40%; }
 
 /* report 14: the key to the Source column */
 .source-key { margin: .5rem 0 1rem; }
