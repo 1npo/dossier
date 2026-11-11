@@ -1310,7 +1310,9 @@ As M6-49. CI does not tag this skill; whether to tag `v1.0.0` or publish it is t
 - `$SCR/truth-m6/`: `/home/nick/.cache/dossier-m6-g4vm/truth-m6` (the M6 re-score review files).
 - `$SCR`: `/home/nick/.cache/dossier-m6-g4vm` (19 GB; the clones, pages and logs of every block).
 
-The merge, block FC and the author's push answer are recorded in the commit after the merge.
+- **Merge.** `git merge --no-ff feat/dossier-m6` on `main`, local only: `8564155`.
+- **Block FC.** Fresh clone at `8564155`: `dossier 1.0.0`; `doctor` on `RW` exit 0, `skill: 8564155 (clean)`, "Nothing is missing"; default suite **2901 passed, 305 skipped** (70 s). Deviation: block I had 2902 passed, 304 skipped; one test that passes in the working tree is skipped in the clone. Not investigated (total 3206 in both).
+- **Author's answer on pushing `main` and deleting the branch:** pending.
 
 **Findings for the milestone review (Phase 8).**
 
