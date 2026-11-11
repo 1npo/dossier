@@ -82,3 +82,9 @@ def test_keybinds_button_panel_and_selection_keys(tmp_path):
     assert 'id="keys-panel" class="keys-panel shut"' in text and "translateX(100%)" in text
     assert 'id="keys-panel"' in text and "Open the selected dossier." in text
     assert "ArrowDown" in text and 'e.key === "Enter"' in text
+
+
+def test_last_built_pill_stays_inside_chips_so_it_gets_the_outline_stroke(tmp_path):
+    make(tmp_path, "a")
+    text = portfolio.write(tmp_path, "1.5.0").read_text()
+    assert '<span class="chips"><span class="badge" data-variant="outline">Last built' in text
