@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2].parent / "scripts"))
 
 import buildlog  # noqa: E402
 import dossier  # noqa: E402
+import render  # noqa: E402
 import page_audit  # noqa: E402
 
 
@@ -156,7 +157,7 @@ class TestBrowserCheckLine:
     def test_a_record_says_how_many_problems_and_when(self):
         rec = {"step": "check", "part": "browser", "by": "check_page", "status": "ok", "counts": {"problems": 0}, "started": "2026-11-02T10:04:05Z"}
 
-        assert dossier.browser_check_line({"records": [rec]}) == "0 problems at 2026-11-02 10:04 UTC"
+        assert dossier.browser_check_line({"records": [rec]}) == f"0 problems at {render.local_stamp('2026-11-02 10:04')}"
 
     def test_one_problem_is_singular(self):
         rec = {"step": "check", "part": "browser", "by": "check_page", "status": "failed", "reason": "x", "counts": {"problems": 1}, "started": "2026-11-02T10:04:05Z"}

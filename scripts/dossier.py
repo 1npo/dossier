@@ -503,7 +503,7 @@ def browser_check_line(build) -> str:
     if not rec:
         return "not run"
     n = (rec.get("counts") or {}).get("problems", 0)
-    return f"{n} problem{'' if n == 1 else 's'} at {(rec.get('started') or '')[:16].replace('T', ' ')} UTC"
+    return f"{n} problem{'' if n == 1 else 's'} at {render.local_stamp(rec.get('started') or '')}"
 
 
 def run_browser_check(html: Path, out: Path):

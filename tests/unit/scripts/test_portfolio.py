@@ -60,9 +60,9 @@ def test_stamp_uses_12_hour_clock_and_falls_back_to_date():
     assert portfolio.stamp("2026-11-11") == "2026-11-11"
 
 
-def test_title_favicon_and_joined_git_pill(tmp_path):
+def test_title_favicon_and_separate_git_pills(tmp_path):
     d = tmp_path / "a"; d.mkdir(); (d / "dossier-a.html").write_text("<html></html>")
     (d / "summary.json").write_text('{"repo": {"name": "a", "branch": "main", "sha": "5923c09081abc", "commit_date": "2026-10-24T10:00:00Z"}}')
     text = portfolio.write(tmp_path, "1.6.5").read_text()
     assert "<title>dossier portfolio</title>" in text and 'rel="icon"' in text
-    assert "main \u2022 5923c09081 \u2022 2026-10-24" in text
+    assert 'data-variant="outline">main</span><span class="badge" data-variant="outline">5923c09081</span>' in text and "2026-10-24" not in text
