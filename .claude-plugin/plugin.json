@@ -1,0 +1,10 @@
+{
+  "name": "dossier",
+  "version": "1.0.0",
+  "description": "Build a cited, commit-pinned HTML dossier that explains a git repository: entry points, components, data model, behaviour and tests, with every claim tied to a line of code.",
+  "author": { "name": "1npo" },
+  "homepage": "https://github.com/1npo/dossier",
+  "repository": "https://github.com/1npo/dossier",
+  "license": "MIT",
+  "keywords": ["codebase", "documentation", "repository", "analysis", "dossier"]
+}

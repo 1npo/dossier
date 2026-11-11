@@ -205,11 +205,11 @@ The config keys are in the [user guide](user-guide.md#configuration). Commands t
 
 ## Build, release and deploy
 
-The version is the one line in `VERSION`. The skill has no bump tool and no CI. A release is: finish the work on a feature branch, set `VERSION`, run both suites, merge to `main` with `git merge --no-ff`, push `main`. Nobody tags by hand; add the release workflow from the `py-projects` template if the repository ever gets CI.
+The version lives in `VERSION` and `.claude-plugin/plugin.json`; `python3 scripts/bump_version.py {major|minor|patch}` sets both. A release is: finish the work on a feature branch, create `chore/release-X.Y.Z`, run the bump tool, commit as `Bump version to X.Y.Z`, merge to `main` with `git merge --no-ff`, push `main`. The workflow `.github/workflows/release.yaml` runs when a push to `main` changes `VERSION`: it runs the tests, then tags `vX.Y.Z` if the tag is new and makes a GitHub release with a zip of the skill. Nobody tags by hand. The repository is its own plugin marketplace (`.claude-plugin/marketplace.json`), so pushing to `main` is what publishes it. Run the workflow by hand from the Actions tab to run the tests alone. Set `PUBLISH_RELEASES` to `'false'` in the workflow to stop releases.
 
 A new minor or major version makes `update_plan` rebuild every dossier in full the next time it is built. `summary.json` carries its own `schema_version`, which changes only when a field is added or removed.
 
-To install a released version, the user copies the folder to `~/.claude/skills/dossier`. In the author's setup, `~/.claude/skills/dossier` points at a clone that `encamp-sync` updates.
+To install a released version, see the README. In the author's setup, `~/.claude/skills/dossier` is vendored into the `encamp` repository (as a `git subtree` of this repository) and updated by `encamp-sync pull`. Never edit that copy; change this repository.
 
 ## Debugging and troubleshooting
 
@@ -228,7 +228,7 @@ Useful commands: `dossier doctor <repo> --json`, `dossier candidates <repo> --re
 ## Gotchas
 
 - **Report 02 is frozen.** Its panels, CSS and JS keep the layout of the pre-0.5 skill, and no file in `prompts/schema/*.json` changes casually. After any edit to `render.py`, `measured*.py`, `process.py`, `assets/dossier.css` or `assets/dossier.js`, check that report 02 is byte for byte the same.
-- **`~/.claude/skills/dossier` may be a clone.** Never edit the installed copy; edit the development copy and sync.
+- **`~/.claude/skills/dossier` may be a clone or a vendored copy.** Never edit the installed copy; edit this repository.
 - **`/tmp` is small.** Put every scratch folder under `~/.cache`.
 - **Name clashes.** Two Python projects in one repository may each have a package with the same name. Graph items keep their paths, so the graphs are right; name-based checks (V2, V3) may match the wrong one.
 - **Rule ids are in Gaps item ids.** Renaming a rule or rewording its Gaps statement changes every saved decision's id.

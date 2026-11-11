@@ -31,11 +31,25 @@ Requires Claude Code, [uv](https://docs.astral.sh/uv/) and `git`.
 - Playwright's Chromium for `/dossier check`: `uv run --with playwright python -m playwright install chromium`.
 - `gh` is optional; it adds pull request approvals to the Contributors report.
 
-Copy this folder into your skills folder:
+Pick one:
 
-```sh
-cp -r dossier ~/.claude/skills/dossier
-```
+- **Plugin marketplace** (Claude Code 2.1.275 or later):
+
+  ```sh
+  /plugin install dossier --marketplace 1npo/dossier
+  ```
+
+  The same in a shell: `claude plugin marketplace add 1npo/dossier`, then `claude plugin install dossier@1npo-tools`.
+- **Clone into your skills folder**, for machines that allow only internal plugins. The repository root is the skill root:
+
+  ```sh
+  git clone https://github.com/1npo/dossier ~/.claude/skills/dossier
+  ```
+
+  Update with `git -C ~/.claude/skills/dossier pull`, or check out a release tag such as `v1.1.0`.
+- **Zip**: download `dossier-skill-vX.Y.Z.zip` from the [releases](https://github.com/1npo/dossier/releases) and unzip it into `~/.claude/skills/`.
+
+Do not install it both ways: the marketplace copy wins and the cloned one shows as "Not loaded".
 
 The skill runs only when you type `/dossier ...`. Claude does not start it on its own. Run `/dossier doctor` to see what is missing.
 

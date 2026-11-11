@@ -19,7 +19,7 @@ import check_layout  # noqa: E402
 import measured_er  # noqa: E402
 
 FIX = SKILL / "tests" / "fixtures" / "encamp-m0"
-TOP = SKILL.parents[5]
+TOP = Path(os.environ.get("DOSSIER_SUBJECT_REPO", SKILL.parent / "encamp"))  # the repository the frozen fixture was made from; only read when the fixture exists
 CHECK = SKILL / "scripts" / "check_page.py"
 DIAGRAM_TEXT = SKILL / "tests" / "tools" / "diagram_text.py"
 TABLE_FIT = SKILL / "tests" / "tools" / "table_fit.py"

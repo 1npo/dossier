@@ -23,7 +23,7 @@ sys.path.insert(0, str(SKILL / "scripts"))
 import components  # noqa: E402
 
 FIX = SKILL / "tests" / "fixtures" / "encamp-m0"
-TOP = SKILL.parents[5]
+TOP = Path(os.environ.get("DOSSIER_SUBJECT_REPO", SKILL.parent / "encamp"))  # the repository the frozen fixture was made from; only read when the fixture exists
 SCRIPT = SKILL / "scripts" / "dossier.py"
 NA_CARDS = {"change": ("change.unfinished", "change.decisions", "change.docs-drift"),
             "contributors": ("contributors.people", "contributors.ask", "contributors.concentration", "contributors.agents", "contributors.doubts")}

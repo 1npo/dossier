@@ -1,0 +1,87 @@
+name: Test and release
+
+# Runs when a push to main changes VERSION (a version bump), or by hand (tests only).
+# After the tests pass, a release is made when the tag vX.Y.Z does not exist yet:
+# the tag, a GitHub release with a zip of the skill, and nothing else to publish.
+# The plugin marketplace is this repository (.claude-plugin/marketplace.json), so pushing to main publishes it.
+#
+# Set PUBLISH_RELEASES to 'false' to stop tagging and releasing (tests still run).
+on:
+  push:
+    branches: [main]
+    paths: [VERSION]
+  workflow_dispatch:
+
+env:
+  PUBLISH_RELEASES: 'true'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the history tests read git history
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Tests
+        run: uv run --with pytest --with pygments python -m pytest tests -q
+      - name: Validate the plugin and marketplace manifests
+        run: npx --yes @anthropic-ai/claude-code plugin validate . --strict
+
+  release:
+    needs: test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version
+        id: version
+        run: |
+          if [ "$PUBLISH_RELEASES" != "true" ]; then
+            echo "new=false" >> "$GITHUB_OUTPUT"
+            echo "PUBLISH_RELEASES is off; not tagging or releasing"
+            exit 0
+          fi
+          version=$(tr -d '[:space:]' < VERSION)
+          echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "VERSION '$version' is not X.Y.Z"; exit 1; }
+          manifest=$(python3 -c "import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])")
+          [ "$manifest" = "$version" ] || { echo "plugin.json says $manifest but VERSION says $version"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then
+            echo "new=false" >> "$GITHUB_OUTPUT"
+            echo "v$version already tagged; nothing to release"
+          else
+            echo "new=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Tag
+        if: steps.version.outputs.new == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${{ steps.version.outputs.version }}" -m "v${{ steps.version.outputs.version }}"
+          git push origin "v${{ steps.version.outputs.version }}"
+
+      - name: Zip the skill
+        if: steps.version.outputs.new == 'true'
+        run: git archive --format=zip --prefix=dossier/ -o "dossier-skill-v${{ steps.version.outputs.version }}.zip" HEAD
+
+      - name: GitHub release
+        if: steps.version.outputs.new == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ steps.version.outputs.version }}" \
+            "dossier-skill-v${{ steps.version.outputs.version }}.zip" \
+            --title "v${{ steps.version.outputs.version }}" --generate-notes

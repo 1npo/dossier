@@ -2,3 +2,9 @@
 # Kept out of git; delete the folder once M2 no longer needs it.
 tests/fixtures/encamp-m0/
 tests/fixtures/golden02/*.png
+
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.venv/
+.claude/scheduled_tasks.lock

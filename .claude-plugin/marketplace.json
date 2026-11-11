@@ -1,0 +1,11 @@
+{
+  "name": "1npo-tools",
+  "owner": { "name": "1npo" },
+  "plugins": [
+    {
+      "name": "dossier",
+      "source": "./",
+      "description": "Build a cited, commit-pinned HTML dossier that explains a git repository."
+    }
+  ]
+}
