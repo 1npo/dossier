@@ -71,6 +71,7 @@ scripts/              the CLI and everything it imports (flat folder)
   sandbox.py            every child process goes through here
   tools.json            tool versions, scopes, minimum versions, install hints
   eol.json              the end-of-life snapshot
+  tier_b.py             top-level definitions for Shell, Rust, Go, Ruby and Java (the Tier B adapter)
 prompts/              method.md, reports.md, verify.md; schema/*.json is one card schema per report
 rules/                Semgrep rules: python/, js/, csharp/, all/
 assets/               dossier.css, dossier.js (the page)
@@ -165,7 +166,9 @@ Every recipe starts with a failing test. Run it, see it fail, then make it pass.
 
 **Update the docs.** Any change to behaviour, options, setup or architecture updates `README.md`, `docs/user-guide.md` and this guide in the same change. `test_docs.py` catches the drift it can: a missing command or flag, and report names that no longer exist.
 
-**Change the end-of-life snapshot.** Run `tests/tools/refresh_eol.py` as its docstring says and commit `scripts/eol.json`.
+**Change the end-of-life snapshot.** Run `tests/tools/refresh_eol.py` as its docstring says and commit `scripts/eol.json`. The `.NET` data is read live from Microsoft's `releases-index.json` when the upgrade-burden card is drawn (5 second timeout); the `dotnet` list in the snapshot, also from that index, is the fallback, and the card's note says which was used. `DOSSIER_OFFLINE=1` turns the fetch off (the test suite sets it).
+
+**Add a Tier B language.** Add a row to `LANGUAGES` in `scripts/tier_b.py` (grammar name, extensions, a query anchored at the root so only top-level definitions match, one capture name per kind), a fixture file in `tests/fixtures/tierb/` and an expected row in `tests/integration/scripts/test_tier_b_slow.py`. The symbols have kind `decl`, not `def`.
 
 ## Testing
 

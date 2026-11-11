@@ -10,12 +10,18 @@ import urllib.request
 from datetime import date
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+
 SOURCE = "https://endoflife.date/api/v1/products/"
 PRODUCTS = ("python", "django", "nodejs", "dotnet", "postgresql", "react", "nextjs")
 OUT = Path(__file__).resolve().parents[2] / "scripts" / "eol.json"
 
 
 def fetch(name):
+    if name == "dotnet":  # Microsoft's own index, the same source the skill reads live
+        import measured_upgrade
+        with urllib.request.urlopen(measured_upgrade.DOTNET_INDEX, timeout=30) as r:
+            return measured_upgrade.dotnet_cycles_from_index(json.load(r))
     with urllib.request.urlopen(SOURCE + name, timeout=30) as r:
         releases = json.load(r)["result"]["releases"]
     return [{"cycle": x["name"], "eol": x.get("eolFrom"), "latest": (x.get("latest") or {}).get("name")} for x in releases]
@@ -33,7 +39,7 @@ def add(names):
 def main():
     if sys.argv[1:2] == ["--add"] and sys.argv[2:]:
         return add(sys.argv[2:])
-    data = {"as_of": date.today().isoformat(), "source": SOURCE, "products": {p: fetch(p) for p in PRODUCTS}}
+    data = {"as_of": date.today().isoformat(), "source": SOURCE + " (dotnet: Microsoft releases-index.json)", "products": {p: fetch(p) for p in PRODUCTS}}
     OUT.write_text(json.dumps(data, indent=1) + "\n")
     print(f"wrote {OUT} ({sum(len(v) for v in data['products'].values())} releases)")
 

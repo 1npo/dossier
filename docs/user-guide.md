@@ -24,7 +24,7 @@ Terms used below:
 | Card | One block of a report: a table, a graph, a list of findings or written text. |
 | Measured, Analysed, Reasoned (`M`, `A`, `R`) | The badge on a card. `M` was counted by code, `A` combines tool findings with Claude's reading, `R` is Claude's reasoning. |
 | Confirmed, inferred, unknown | The label on each written statement. Confirmed: the cited code says it. Inferred: it follows from the code but the code does not say it. Unknown: the code cannot answer. |
-| Tier A, Tier B | Tier A languages (Python, TypeScript, JavaScript, C#) have full import and call graphs. Tier B languages (for example Shell or Rust) are counted and listed but have no graph. |
+| Tier A, Tier B | Tier A languages (Python, TypeScript, JavaScript, C#) have full import and call graphs. Tier B languages (for example Shell or Rust) are counted and listed but have no graph; a few of them (Shell, Rust, Go, Ruby, Java) also list their top-level definitions. |
 
 The reports, in page order:
 
@@ -350,7 +350,7 @@ A bad value stops the command with a message that names the key.
 
 - **Blind spots.** Code that is wired up at run time cannot be followed by a static tool: dynamic imports, plugins loaded by name, dependency injection containers (including FastAPI `Depends`), reflection, decorator and route registries, source generators, and routes mounted under computed prefixes. Where dossier sees a sign of one, report 15 (Gaps) says so and names the file. It does not guess the link.
 - **Mocks, build scripts and shell variables.** `msw` request handlers are listed as entry points of their own kind, `mock-route`, apart from the routes the program serves. The tasks of a Cake script (`.cake`) are `build-task` entry points. A Makefile or shell script variable is listed as an input only when the file gives it a default (`VAR ?= x`, `${VAR:-x}`) or exports it by name (`export VAR`); a plain `$HOME` is not.
-- **Tier B languages** have no import or call graph and no symbols. Report 15 lists each one.
+- **Tier B languages** have no import or call graph. Shell, Rust, Go, Ruby and Java also get a list of their top-level definitions (functions, types, modules; no members, no calls); other Tier B languages have no symbols. Report 15 lists each one.
 - **TypeScript and C# figures** were measured on public repositories and are provisional until corrected against real codebases.
 - **Razor** files (`.razor`, `.cshtml`) are not read; Gaps says so.
 - **Unused NuGet packages** are not listed. A package is often used through extension methods, analysers or build files that no import names.

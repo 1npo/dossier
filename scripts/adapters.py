@@ -1,7 +1,7 @@
 """The adapter interface, the extract stage and the path filter.
 
 An adapter turns one language's code into the standard outputs (entry points, import graph, symbols, ...).
-The C#, JavaScript, Python and repository-wide adapters are registered in `_registered()`.
+The C#, JavaScript, Python, Tier B symbols and repository-wide adapters are registered in `_registered()`.
 """
 from __future__ import annotations
 
@@ -67,7 +67,8 @@ def _registered() -> tuple:
     from js_adapter import JsAdapter
     from py_adapter import PythonAdapter
     from repo_adapter import RepoAdapter
-    return (CSharpAdapter, JsAdapter, PythonAdapter, RepoAdapter)
+    from tier_b import TierBAdapter
+    return (CSharpAdapter, JsAdapter, PythonAdapter, RepoAdapter, TierBAdapter)
 
 
 def detect(languages: list, adapters=None) -> list:

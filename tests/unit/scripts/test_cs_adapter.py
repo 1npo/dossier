@@ -47,7 +47,7 @@ class TestDetect:
         assert "csharp" not in [a.name for a in adapters.detect(["JavaScript", "TypeScript"])]
 
     def test_registered_order_puts_csharp_first(self):
-        assert [a.name for a in adapters._registered()] == ["csharp", "js", "python", "repo"]
+        assert [a.name for a in adapters._registered()] == ["csharp", "js", "python", "repo", "tier-b"]
 
     def test_declared_properties(self):
         ad = cs_adapter.CSharpAdapter

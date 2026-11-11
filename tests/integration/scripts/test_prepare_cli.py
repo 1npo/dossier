@@ -69,7 +69,7 @@ class TestPrepareRuns:
         assert [s[0] for s in steps(build_of(world))] == ["pin", "tools", "copy", "copy", "extract", "measure"]
         assert payload["checkout"]["verified"] and payload["extract"]["status"] == "ok"
         extract = next(r for r in build_of(world)["records"] if r["step"] == "extract")
-        assert [a["name"] for a in extract["details"]["adapters"]] == ["python", "repo"]
+        assert [a["name"] for a in extract["details"]["adapters"]] == ["python", "repo", "tier-b"]
 
     def test_prepare_writes_the_history_and_keeps_the_hand_over_out_of_facts(self, world):
         code, _, err = world.prepare("--ref", "main", "--allow-missing", "--restore", "no")

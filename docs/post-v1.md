@@ -39,11 +39,11 @@ Do these first: each one can make a build silently wrong or hide a failure.
 
 ### 5. Freshness of reference data
 
-15. **.NET versions from `releases.json`.** The end-of-life snapshot comes from endoflife.date, which lags runtime releases (it listed 10.0.13 as latest after 10.0.14 shipped). Microsoft's own `releases.json` is current.
+15. **.NET versions from `releases.json`. Done (2026-11-11).** The end-of-life snapshot comes from endoflife.date, which lags runtime releases (it listed 10.0.13 as latest after 10.0.14 shipped). Microsoft's own `releases.json` is current.
 
 ### 6. Features to reconsider
 
-16. **Tier B symbols.** Shell, Rust and other languages without a Tier A adapter get counts and a file list but no tree-sitter symbols. The `no static graph` badge says what is missing.
+16. **Tier B symbols. Done (2026-11-11).** Shell, Rust and other languages without a Tier A adapter get counts and a file list but no tree-sitter symbols. The `no static graph` badge says what is missing.
 
 ### 7. Ongoing, driven by the author's work
 
