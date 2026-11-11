@@ -24,8 +24,14 @@ ALLOWED_NAMES = frozenset({
     "DOTNET_GENERATE_ASPNET_CERTIFICATE", "DOTNET_ADD_GLOBAL_TOOLS_TO_PATH", "DOTNET_SKIP_FIRST_TIME_EXPERIENCE", "PIP_CACHE_DIR", "npm_config_userconfig", "UV_PYTHON_INSTALL_DIR",
     "GH_CONFIG_DIR", "GH_PROMPT_DISABLED", "GH_NO_UPDATE_NOTIFIER",
     "YARN_CACHE_FOLDER", "YARN_GLOBAL_FOLDER", "YARN_ENABLE_TELEMETRY",
+    "SYSTEMROOT", "SystemDrive", "WINDIR", "COMSPEC", "PATHEXT", "NUMBER_OF_PROCESSORS", "PROCESSOR_ARCHITECTURE", "OS",
+    "USERPROFILE", "TEMP", "TMP", "APPDATA", "LOCALAPPDATA", "HOMEDRIVE", "HOMEPATH",
 })
 SAFE_PATH = ("/usr/local/bin", "/usr/bin", "/bin")
+# Windows needs these from the parent or most programs (uv, git, python) cannot start or fall back to C:\Windows.
+WINDOWS_PASS_THROUGH = ("SYSTEMROOT", "SystemDrive", "WINDIR", "COMSPEC", "PATHEXT", "NUMBER_OF_PROCESSORS",
+                        "PROCESSOR_ARCHITECTURE", "OS")
+WINDOWS = os.name == "nt"   # a module flag, so tests can exercise the Windows branches on any system
 
 
 @dataclass
@@ -43,6 +49,24 @@ def tools_cache(area: Path) -> Path:
     return Path(area).parent / ".dossier-tools"
 
 
+def _parent_get(parent: Mapping[str, str], name: str) -> str | None:
+    """Windows environment names are case-insensitive, and os.environ upper-cases them."""
+    if name in parent:
+        return parent[name]
+    if WINDOWS:
+        for k, v in parent.items():
+            if k.upper() == name.upper():
+                return v
+    return None
+
+
+def _safe_path(parent: Mapping[str, str]) -> tuple[str, ...]:
+    if WINDOWS:
+        root = _parent_get(parent, "SYSTEMROOT") or _parent_get(parent, "WINDIR") or r"C:\Windows"
+        return (os.path.join(root, "System32"), root)
+    return SAFE_PATH
+
+
 def _host_path(parent: Mapping[str, str]) -> str:
     dirs: list[str] = []
     for t in toolcheck.load_tools()["host"]:
@@ -51,8 +75,9 @@ def _host_path(parent: Mapping[str, str]) -> str:
         if d and d not in dirs:
             dirs.append(d)
     # git lives in /usr/bin and comes first, so a newer node from a version manager must be moved ahead of the system folders
-    dirs = [d for d in dirs if d not in SAFE_PATH] + [d for d in dirs if d in SAFE_PATH]
-    for d in SAFE_PATH:
+    safe = _safe_path(parent)
+    dirs = [d for d in dirs if d not in safe] + [d for d in dirs if d in safe]
+    for d in safe:
         if d not in dirs:
             dirs.append(d)
     return os.pathsep.join(dirs)
@@ -91,6 +116,17 @@ def build_env(area: Path, *, profile: str = "restricted", ecosystem: str | None 
                XDG_CONFIG_HOME=str(home / ".config"), DOTNET_CLI_TELEMETRY_OPTOUT="1", DOTNET_NOLOGO="1",
                MSBUILDDISABLENODEREUSE="1", DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE="1", DOTNET_GENERATE_ASPNET_CERTIFICATE="false",
                DOTNET_ADD_GLOBAL_TOOLS_TO_PATH="false", DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1")
+    if WINDOWS:
+        for k in WINDOWS_PASS_THROUGH:
+            v = _parent_get(parent, k)
+            if v is not None:
+                env[k] = v
+        # Point every per-user location at the scratch home so nothing falls back to C:\Windows or the real profile.
+        env.update(USERPROFILE=str(home), TEMP=str(home / "tmp"), TMP=str(home / "tmp"),
+                   APPDATA=str(home / "AppData" / "Roaming"), LOCALAPPDATA=str(home / "AppData" / "Local"),
+                   HOMEDRIVE=home.drive, HOMEPATH=str(home)[len(home.drive):])
+        for d in (home / "AppData" / "Roaming", home / "AppData" / "Local"):
+            d.mkdir(parents=True, exist_ok=True)
     cache = area / "cache"
     env.update(npm_config_cache=str(cache / "npm"), NUGET_PACKAGES=str(cache / "nuget"),
                DOTNET_CLI_HOME=str(cache / "dotnet"), PIP_CACHE_DIR=str(cache / "pip"),
@@ -113,9 +149,17 @@ def build_env(area: Path, *, profile: str = "restricted", ecosystem: str | None 
     return env
 
 
-def _kill_group(pid: int, sig: int) -> None:
+def _kill_group(pid: int, sig: int | None = None) -> None:
+    if WINDOWS:
+        # Windows has no process groups or SIGKILL: kill the whole process tree.
+        try:
+            subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL, timeout=10)
+        except (OSError, subprocess.SubprocessError):
+            pass
+        return
     try:
-        os.killpg(pid, sig)
+        os.killpg(pid, sig if sig is not None else signal.SIGKILL)
     except (ProcessLookupError, PermissionError):
         pass
 
@@ -139,7 +183,7 @@ def run(cmd: list[str], *, area: Path, cwd: Path, stage: str, timeout: float, pr
     timed_out = False
     with open(out_p, "wb") as fo, open(err_p, "wb") as fe:
         try:
-            p = subprocess.Popen(cmd, cwd=cwd, env=env, stdin=stdin, stdout=fo, stderr=fe, start_new_session=True)
+            p = subprocess.Popen(cmd, cwd=cwd, env=env, stdin=stdin, stdout=fo, stderr=fe, start_new_session=not WINDOWS)
         except OSError as e:
             fe.write(f"Could not start {cmd[0]}: {e}\n".encode())
             return Result(list(cmd), 127, False, 0.0, out_p, err_p, sorted(env))
@@ -150,14 +194,14 @@ def run(cmd: list[str], *, area: Path, cwd: Path, stage: str, timeout: float, pr
             p.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
             timed_out = True
-            _kill_group(p.pid, signal.SIGTERM)
+            _kill_group(p.pid, getattr(signal, "SIGTERM", None))
             try:
                 p.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 pass
-            _kill_group(p.pid, signal.SIGKILL)
+            _kill_group(p.pid)
             p.wait()
         else:
-            _kill_group(p.pid, signal.SIGKILL)
+            _kill_group(p.pid)
     return Result(list(cmd), None if timed_out else p.returncode, timed_out, round(time.monotonic() - t0, 2),
                   out_p, err_p, sorted(env))
