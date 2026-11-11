@@ -44,6 +44,38 @@ class TestEdges:
 
         assert len(edges(src)) == 1
 
+    def test_security_is_matched_like_depends_and_scopes_are_ignored(self):
+        src = ("from fastapi import Security\nfrom app.deps import current_user\n\n\n"
+               "def a(u=Security(current_user, scopes=['items'])): ...\n")
+
+        assert pairs(edges(src)) == [("a", "current_user", "app/deps.py", 5, 1)]
+
+    def test_fastapi_dot_security_is_recognised(self):
+        src = "import fastapi\nfrom app.deps import current_user\n\n\ndef a(u=fastapi.Security(current_user)): ...\n"
+
+        assert len(edges(src)) == 1
+
+    def test_an_instance_stands_for_its_class(self):
+        src = "from fastapi import Depends, Security\nfrom app.deps import Auth\n\n\ndef a(x=Depends(Auth()), y=Security(Auth(scopes=['a']))): ...\n"
+
+        assert pairs(edges(src)) == [("a", "Auth", "app/deps.py", 5, 2)]
+
+    def test_an_instance_through_a_module_attribute(self):
+        src = "from fastapi import Depends\nfrom . import deps\n\n\ndef a(x=Depends(deps.Auth())): ...\n"
+
+        assert pairs(edges(src)) == [("a", "deps.Auth", "app/deps.py", 5, 1)]
+
+    def test_the_dependency_keyword_is_read(self):
+        src = "from fastapi import Depends\nfrom app.deps import get_db\n\n\ndef a(x=Depends(dependency=get_db)): ...\n"
+
+        assert len(edges(src)) == 1
+
+    def test_an_instance_of_a_same_file_or_outside_class_gives_no_edge(self):
+        src = ("from fastapi import Depends\nfrom requests import Session\n\n\nclass Local: ...\n\n\n"
+               "def a(x=Depends(Local()), y=Depends(Session()), z=Depends()): ...\n")
+
+        assert edges(src) == []
+
     def test_same_file_lambda_outside_project_and_class_free_names_give_no_edge(self):
         src = ("from fastapi import Depends\nfrom requests import get\n\n\ndef local(): ...\n\n\n"
                "def a(x=Depends(local), y=Depends(lambda: 1), z=Depends(get), w=Depends(missing)): ...\n")

@@ -203,6 +203,15 @@ def read_user(user: Annotated[User, Depends(current_user)]): ...
 # ruleid: dossier.python.blindspot.dependency-injection
 router = APIRouter(dependencies=[fastapi.Depends(verify_token)])
 
+# ruleid: dossier.python.blindspot.dependency-injection
+def read_secure(user=Security(current_user, scopes=["items"])): ...
+
+# ruleid: dossier.python.blindspot.dependency-injection
+def read_admin(user=Depends(Auth())): ...
+
+# ruleid: dossier.python.blindspot.dependency-injection
+router = APIRouter(dependencies=[fastapi.Security(verify_token)])
+
 # ok: dossier.python.blindspot.dependency-injection
 db = get_db()
 
