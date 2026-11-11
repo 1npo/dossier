@@ -11,7 +11,7 @@ import zipfile
 from pathlib import Path
 
 import cs_api
-import scip_read
+from dossier.core import scip_read
 from shared_tools import ToolError
 
 SUPPORTED_MAJORS = (10, 9, 8)

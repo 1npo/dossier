@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-import buildlog
+from dossier.core import buildlog
 import verify
 
 SCRIPT = Path(verify.__file__).resolve().parent / "dossier.py"

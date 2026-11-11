@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
 
-import config
+from dossier.core import config
 import toolcheck
 
 PASS_THROUGH = ("LANG", "LC_ALL", "TERM")

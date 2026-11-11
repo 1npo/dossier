@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 
 import candidates
-import config
+from dossier.core import config
 import js_api
 import js_entries
 import js_prisma
@@ -18,7 +18,7 @@ import js_queries
 import js_reduce
 import js_semgrep
 import js_tools
-import scip_read
+from dossier.core import scip_read
 from adapters import OUTPUTS, Adapter
 from gather import TEST_RE
 from dossier import resources

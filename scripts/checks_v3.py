@@ -7,7 +7,7 @@ from __future__ import annotations
 import re
 
 import components
-import schema
+from dossier.core import schema
 
 FLOW_CARDS = ("entry.startup", "interactions.flows")
 SKIP_LINE = re.compile(r"^\s*(%%|flowchart\b|graph\b|subgraph\b|end\s*$|style\b|classDef\b|class\b|click\b|direction\b|linkStyle\b)")

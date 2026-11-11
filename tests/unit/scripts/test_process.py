@@ -2,7 +2,7 @@ import re
 
 import pytest
 
-import buildlog
+from dossier.core import buildlog
 import process
 import render
 

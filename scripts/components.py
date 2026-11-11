@@ -8,7 +8,7 @@ import fnmatch
 import re
 
 import gather
-import graphs
+from dossier.core import graphs
 
 
 # A `]` may sit inside the path (a Next.js `[id]` folder); `]]` ends the citation.

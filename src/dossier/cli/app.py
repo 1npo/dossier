@@ -36,11 +36,11 @@ from pathlib import Path
 
 from dossier import resources
 
-import buildlog  # noqa: E402
+from dossier.core import buildlog  # noqa: E402
 import candidates  # noqa: E402
 import checks  # noqa: E402
 import components  # noqa: E402
-import config  # noqa: E402
+from dossier.core import config  # noqa: E402
 import gather  # noqa: E402
 import history as historyscan  # noqa: E402
 import incremental  # noqa: E402
@@ -51,7 +51,7 @@ import process  # noqa: E402
 import render  # noqa: E402
 import resolve  # noqa: E402
 import sandbox  # noqa: E402
-import schema  # noqa: E402
+from dossier.core import schema  # noqa: E402
 import stages  # noqa: E402
 import summary  # noqa: E402
 import toolcheck  # noqa: E402

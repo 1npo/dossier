@@ -11,7 +11,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-import config
+from dossier.core import config
 
 DROP_ENV = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY")
 

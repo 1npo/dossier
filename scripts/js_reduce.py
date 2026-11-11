@@ -5,8 +5,8 @@ import posixpath
 import re
 
 import gather
-import graphs
-import scip_read
+from dossier.core import graphs
+from dossier.core import scip_read
 
 JS_EXT = (".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs")
 

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-import buildlog
+from dossier.core import buildlog
 import stages
 import workarea
 from conftest import build_py_repo

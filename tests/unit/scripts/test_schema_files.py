@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 
 import render  # noqa: E402
-import schema  # noqa: E402
+from dossier.core import schema  # noqa: E402
 
 
 def all_cards():

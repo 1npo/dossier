@@ -1195,7 +1195,7 @@ Every task's done-check is the same: `--check` exits 0; `uv run pytest -q` at th
 
 ### Tasks (Phase C)
 
-- [ ] **C1. `dossier.core`.** Map: `config core.config`, `buildlog core.buildlog`, `graphs core.graphs`, `schema core.schema`, `scip_read core.scip_read`.
+- [x] **C1. `dossier.core`.** Map: `config core.config`, `buildlog core.buildlog`, `graphs core.graphs`, `schema core.schema`, `scip_read core.scip_read`.
 - [ ] **C2. `dossier.facts`.** Map: `gather facts.gather`, `deps facts.deps`, `env_scan facts.env_scan`, `markers facts.markers`. After the run, `git diff -M HEAD -- src/dossier/facts/gather.py src/dossier/facts/deps.py` must show changes only in the import block (rule "Embedded modules").
 - [ ] **C3. `dossier.tooling` and the work area.** Map: `toolcheck tooling.toolcheck`, `sandbox tooling.sandbox`, `shared_tools tooling.shared_tools`, `cs_sdk tooling.dotnet_sdk`, `workarea pipeline.workarea` (it moves early because `adapters` imports it; its home is `pipeline`).
 - [ ] **C4. `dossier.findings` and `dossier.history`.** Map: `components findings.components`, `candidates findings.candidates`, `candidates_history findings.candidates_history`, `resolve findings.resolve`, `history history.scan`, `ownership history.ownership`, `github_owners history.github_owners`, `workflow history.workflow`. Check `history/scan.py` as in C2.

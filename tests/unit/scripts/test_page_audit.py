@@ -8,10 +8,10 @@ SKILL = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(SKILL / "tests" / "tools"))
 
 import broken_pages  # noqa: E402
-import buildlog  # noqa: E402
+from dossier.core import buildlog  # noqa: E402
 import page_audit  # noqa: E402
 import render  # noqa: E402
-import schema  # noqa: E402
+from dossier.core import schema  # noqa: E402
 
 
 def card_of(cid):

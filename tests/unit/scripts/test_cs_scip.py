@@ -7,7 +7,7 @@ import zipfile
 import pytest
 
 import cs_scip
-import scip_read
+from dossier.core import scip_read
 import shared_tools
 import toolcheck
 

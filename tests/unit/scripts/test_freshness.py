@@ -211,12 +211,12 @@ class TestTile:
 
 class TestStagePin:
     def build(self, tmp_path):
-        import buildlog
+        from dossier.core import buildlog
 
         return buildlog.start(tmp_path / "out", repo="r", sha=SHA, ref="main", version="test", options={})
 
     def pin_details(self, build):
-        import buildlog
+        from dossier.core import buildlog
 
         return buildlog.latest(buildlog.load(build), "pin")["details"]
 

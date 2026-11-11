@@ -36,7 +36,7 @@ import re
 import sys
 from pathlib import Path
 
-import buildlog
+from dossier.core import buildlog
 import check_layout
 
 from viewer import TOKEN_CLASSES

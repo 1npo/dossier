@@ -6,7 +6,7 @@ import pytest
 
 import adapters
 import py_adapter
-import scip_read
+from dossier.core import scip_read
 import scip_tool
 from shared_tools import ToolError
 

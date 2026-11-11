@@ -28,7 +28,7 @@ import measured
 import measured_people
 import measured_tables
 import process
-import schema
+from dossier.core import schema
 import viewer
 from gather import Repo
 from dossier import resources

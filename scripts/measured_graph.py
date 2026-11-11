@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 
 import components
-import graphs
+from dossier.core import graphs
 import measured_tables
 
 UNASSIGNED = "unassigned"

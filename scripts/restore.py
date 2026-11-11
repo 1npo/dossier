@@ -10,7 +10,7 @@ import functools
 import re
 from pathlib import Path
 
-import config
+from dossier.core import config
 import cs_sdk
 import gather
 import js_tools

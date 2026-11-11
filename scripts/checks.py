@@ -15,7 +15,7 @@ import checks_v7
 import components
 import process
 import render
-import schema
+from dossier.core import schema
 import verify
 
 FIXED_ROW_CARDS = ("io.inputs", "io.outputs")

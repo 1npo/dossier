@@ -16,7 +16,7 @@ Nothing here imports playwright: it is given an open page.
 """
 from __future__ import annotations
 
-import schema
+from dossier.core import schema
 
 SIZES = ((1500, 1000), (400, 900))
 MIN_TEXT_PX, MAX_ICON_PX, MAX_FLOW_NODES, MAX_PARTICIPANTS, MAX_ENTITIES, MIN_OVERLAP_PX2 = 11, 48, 12, 10, 12, 4

@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 
 import candidates
-import schema
+from dossier.core import schema
 
 STATUSES = ("single owner", "departed", "shared")
 RISK_SOURCES = ("extractor", "read")

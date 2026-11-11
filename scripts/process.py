@@ -7,8 +7,8 @@ from __future__ import annotations
 import html
 from datetime import datetime, timezone
 
-import buildlog
-import schema
+from dossier.core import buildlog
+from dossier.core import schema
 import toolcheck
 
 E = lambda s: html.escape(str(s if s is not None else ""), quote=True)

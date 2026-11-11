@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-import config
+from dossier.core import config
 import sandbox
 
 FORBIDDEN = {"SSH_AUTH_SOCK": "a", "GIT_AUTHOR_NAME": "b", "AWS_SECRET_ACCESS_KEY": "c", "GITHUB_TOKEN": "d",

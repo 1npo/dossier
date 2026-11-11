@@ -9,7 +9,7 @@ import json
 import re
 
 import components
-import graphs
+from dossier.core import graphs
 import measured_change
 
 

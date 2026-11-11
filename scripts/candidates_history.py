@@ -8,7 +8,7 @@ import re
 
 import components
 import measured_people
-import scip_read
+from dossier.core import scip_read
 
 TOP_QUARTER = 4
 SOLE_OWNER = 80

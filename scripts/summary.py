@@ -11,7 +11,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-import buildlog
+from dossier.core import buildlog
 import candidates
 import components
 import measured_change

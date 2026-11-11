@@ -11,7 +11,7 @@ import json
 import re
 from html.parser import HTMLParser
 
-import buildlog
+from dossier.core import buildlog
 import components
 import measured_blast
 import measured_change
@@ -19,7 +19,7 @@ import measured_env
 import measured_er
 import measured_tables
 import measured_upgrade
-import schema
+from dossier.core import schema
 
 VOID = frozenset("area base br col embed hr img input link meta param source track wbr".split())
 SKIP_TEXT = frozenset(("script", "style"))

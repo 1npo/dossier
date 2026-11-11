@@ -13,9 +13,9 @@ from datetime import date
 from pathlib import Path
 
 import adapters
-import buildlog
+from dossier.core import buildlog
 import candidates
-import config
+from dossier.core import config
 import restore
 import sandbox
 import shared_tools

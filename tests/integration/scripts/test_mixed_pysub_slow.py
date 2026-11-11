@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-import buildlog
+from dossier.core import buildlog
 import candidates
 import stages
 import workarea

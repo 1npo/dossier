@@ -13,16 +13,16 @@ import shutil
 from pathlib import Path, PurePosixPath
 
 import candidates
-import config
+from dossier.core import config
 import gather
-import graphs
+from dossier.core import graphs
 import py_api
 import py_depends
 import py_packages
 import py_project
 import py_queries
 import sandbox
-import scip_read
+from dossier.core import scip_read
 import scip_tool
 import toolcheck
 from adapters import OUTPUTS, Adapter

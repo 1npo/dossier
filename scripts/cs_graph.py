@@ -6,7 +6,7 @@ through extension methods, `var`, reflection or dependency injection are not lin
 """
 from __future__ import annotations
 
-import graphs
+from dossier.core import graphs
 
 
 def module_name(path: str) -> str:

@@ -307,7 +307,7 @@ def report_data(rid: str, extract: dict, reports: dict, facts: dict, *, only_ope
                 "edges": catalog_edges(rows, extract),
                 "unassigned": [p for p in files if component_of(p, rows)[0] is None]}
     if rid == "reading":
-        import graphs
+        from dossier.core import graphs
 
         mods = [g for g in extract.get("graph", []) if g.get("kind") == "module"]
         rank = graphs.pagerank([m["module"] for m in mods], [(g["from"], g["to"]) for g in extract.get("graph", []) if g.get("kind") == "import"])

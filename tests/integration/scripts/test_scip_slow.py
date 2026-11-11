@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-import scip_read
+from dossier.core import scip_read
 import scip_tool
 import sandbox
 import toolcheck

@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-import buildlog
+from dossier.core import buildlog
 import cs_sdk
 import process
 import restore
@@ -86,7 +86,7 @@ class TestRestoreHygiene:
         assert not any(v in text for v in [*FORBIDDEN.values(), PROXY])
 
     def test_registry_credentials_are_opt_in(self, stage, monkeypatch):
-        import config
+        from dossier.core import config
         area, co = stage
         parent = {**os.environ, "MY_INDEX_TOKEN": "tok"}
         cmd = ["sh", "-c", "env | cut -d= -f1 > \"$HOME/names\""]

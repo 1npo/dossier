@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import candidates
-import config
+from dossier.core import config
 import cs_api
 import cs_entries
 import cs_graph
@@ -19,7 +19,7 @@ import cs_scip
 import cs_sdk
 import cs_semgrep
 import cs_tests
-import scip_read
+from dossier.core import scip_read
 import toolcheck
 from adapters import OUTPUTS, Adapter
 from gather import TEST_RE
