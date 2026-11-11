@@ -47,6 +47,7 @@ Done 2026-11-10 by Sonnet 5.5 on `fix/trusted-builds`. Default suite: start 2875
 - **P13-2.** The key already held the adapter version, tool versions and a rules hash; it lacked the code. `adapters.code_hash()` hashes `scripts/*.py`, `tools.json` and `VERSION` and is part of `_key`, so any change to the skill's code re-extracts (and every saved extract re-extracts once after this change). Three tests in `test_adapters.py`. Cost: a change to any script, even one an adapter does not use, re-extracts the next `prepare`; judged acceptable because it is cheap to be right.
 - **P13-3.** The plan assumed `soft_failure` should match the real line; it stays as the bare-form reader. The adapter now adds the `msbuild` note from `unloaded_projects` (the Gaps item reads "scip-dotnet could not load every project: <paths>") and the tool stays `ok`, so the dead list still runs and skips the unloaded projects (`6fa6624` in the old history). One test in `test_cs_adapter.py` with a real-shape log.
 - **P13-4.** Verdict key: the claim's id, else a hash of its card and sorted citations (`c:<sha1>`), else a hash of its text when it has no citation; repeats of a key get `#2`, `#3` (`verify.keyed`). Five tests in `test_verify.py`. Verdicts saved before this change used text hashes, so they stop matching once; a new minor version rebuilds anyway.
+- **Release.** Shipped in **1.2.0** (tag `v1.2.0`, merge `5820f9a`).
 
 ---
 
@@ -70,6 +71,7 @@ Done 2026-11-10 by Sonnet 5.5 on `chore/cleanup-after-split`. Default suite: sta
 - **P13-7, partly done.** Deleted `test_summary_render.py` (its one test needed the fixture and `migrate`, failed where the fixture exists, and was skipped in CI). Its coverage of "render writes `summary.json`" is now only in the unit tests of `summary.py`. **Not deleted:** `migrate.py`, `migrate_map.json`, the `migrate` command, the `.gitignore` line and `DOSSIER_SUBJECT_REPO`. The grep showed `tests/tools/m3_page.make` copies the fixture and runs `migrate`, and the M4, M5 and M6 page builders and `test_check_page_slow.py` all sit on it, so deleting them breaks the slow suite (the plan said to delete only if nothing else needs them). `golden02` also still reads the fixture. Left as item 7 in `docs/post-v1.md`, reworded.
 - **P13-7, finished 2026-11-11 (post-v1 item 7), on `refactor/retire-m0-fixture`.** `tests/tools/m3_page.py` and `test_check_page_slow.py` now commit `tests/fixtures/pyrepo` in a temporary folder, run `prepare`, and add 600 generated source paths and one `interactions.flows` card (a diagram with numbered notes and three citations, which two mutation tests need). Deleted: `scripts/migrate.py`, `migrate_map.json`, the `migrate` command, `test_migrate.py` (13 tests), `golden02` (`test_golden02_slow.py` with 3 tests, `tests/tools/golden02.py`, the baselines), the `.gitignore` lines and `DOSSIER_SUBJECT_REPO`. Default suite 2912 passed, 298 skipped to **2899 passed, 295 skipped** (the 13 and 3 deleted tests, no others). Two slow-suite findings: `test_check_page_slow.py` never imported `m6_page`, so `TestHeaderBadges` and `TestLargeM6Page` had always errored (import added); and the "Go to reference" check in `scripts/check_page.py` waited 700 ms for a smooth scroll, too short on the large page (now 3 s). The local folder `tests/fixtures/encamp-m0/` is unused; it is hidden in this clone's `.git/info/exclude` and left for the author to delete.
 - **P13-8.** The one test that differed was `test_summary_render.py` (it ran with the fixture present and failed). With it deleted the counts are equal and the skip lists identical.
+- **Release.** Shipped in **1.2.0** (tag `v1.2.0`, merge `c0df189`); the P13-7 finish went out in 1.4.0 (tag `v1.4.0`).
 
 ---
 
@@ -116,6 +118,7 @@ Open points the author may change: whether "People" (35) moves earlier (who do I
 - **Python floor:** `py_packages.py` and `py_api.py` import `tomllib` (3.11+), so the 3.10 floor was false. Raised to 3.11 for the CLI and page check; the three worker scripts keep 3.10 (they run under the repository's own Python). Suite passes on 3.11 and 3.13.
 - **Released 1.2.1** (author approved): the 3.10 syntax fix, the Windows sandbox fix (from `~/dossier-sandbox.patch`), `/dossier build` printing the version first, and the 3.11 floor.
 - **Found, not fixed (item 7):** the `encamp` repository now has two root commits, so `out_dir` resolves the fixture to `encamp-<hash>` and every fixture-based slow test fails with "No facts.json found".
+- **Release.** Shipped in **1.2.1** (tag `v1.2.1`, merge `1a2ecc0`; the Python 3.10 fix `40d2f6c`). The found item 7 was fixed later (Phase 2).
 
 ---
 
@@ -148,6 +151,7 @@ Done 2026-11-10 by Sonnet 5.5 on `feat/env-and-secrets-cards`. Default suite: st
 - **P13-15.** Prompts updated; V11 now checks both tables' rows and that every named file and line exists. **Retired `v5_env`** (it forced `io.inputs` to list every variable, against the new card): its four tests became one, and a prompt test that required "one row per environment variable" was reworded. `dossier check`: Tier B page and `cannalerts` `problems: 0`.
 - **P13-16.** User guide section and spec rows; items 17 and 18 removed from `post-v1.md`.
 - **Planted secret.** `test_env_cards_slow.py` finds neither fake secret in the page or any file under the dossier folder.
+- **Release.** Shipped in **1.3.0** (tag `v1.3.0`, merge `7e0a9c7`).
 - **Row counts.** `RW`: 0 variables, 0 hits, 0 sensitive files. `BP`: 12 variables (11 before; gained `CI`), 0, 0. `CA`: 8 (5 before; gained `npm_package_name`, `services__webapi__http__0`, `services__webapi__https__0`), 0 hits, 2 sensitive files.
 - **False positives.** None seen on these three. Lowercase names make a stray `process.env.<property>` possible; it would be listed, not dropped.
 

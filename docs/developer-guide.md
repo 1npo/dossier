@@ -21,7 +21,7 @@ dossier is a Claude Code skill. A Python CLI (`scripts/dossier.py`) measures a g
 
 Stack: Python 3.11+ run by `uv` (the Python, TypeScript and Semgrep workers keep `>=3.10` because they run under the repository's own Python and import nothing newer), tree-sitter, Semgrep, grimp, vulture and import-linter for Python, scip-python, dependency-cruiser, knip and scip-typescript for JS and TS, scip-dotnet for C#, Mermaid in the page. Linux and macOS. The page works in current Chromium, Firefox and Safari; the page check needs Playwright's Chromium.
 
-What to build is decided in [plans/004-v1-spec.md](plans/004-v1-spec.md). How milestones are planned and reviewed is in [process.md](process.md). What waits until after 1.0.0 is in [post-v1.md](post-v1.md). The user-visible behaviour is in the [user guide](user-guide.md).
+What to build is decided in [plans/004-v1-spec.md](plans/004-v1-spec.md). How milestones are planned and reviewed is in [process.md](process.md). What is left after 1.4.0 is in [post-v1.md](post-v1.md). The user-visible behaviour is in the [user guide](user-guide.md).
 
 ## Getting started
 
@@ -33,7 +33,7 @@ cd encamp/configs/user/claude/.claude/skills/dossier
 uv run --with pytest --with pygments python -m pytest tests -q
 ```
 
-Expected: no failures. On the M6 branch the result is **2889 passed, 304 skipped** in about 70 seconds (a fresh clone of the branch gave the same, give or take a skip that depends on the tools installed). The skips are the slow tests.
+Expected: no failures. At 1.4.0 the result is **2957 passed, 301 skipped** in about 70 seconds (a fresh clone gives the same skip list; the count can differ by a skip that depends on the tools installed). The skips are the slow tests.
 
 The slow tests run the real tools, need the network and a browser, and take about 45 minutes:
 
