@@ -13,7 +13,7 @@ TARGETS = SKILL / "tests" / "fixtures" / "semgrep"
 IO_CATEGORIES = {"cli-args", "env-var", "config-file", "file-read", "stdin", "message-consume", "db-connect", "db-access",
                  "global-state", "cache", "thread", "async", "process-pool", "lock", "queue", "stdout", "file-write",
                  "outbound-call", "message-produce", "exit-code", "error-response", "log", "metric", "trace", "retry",
-                 "timeout", "catch-all", "transaction", "request-header"}
+                 "timeout", "catch-all", "transaction", "request-header", "config-key"}
 OTHER_CATEGORIES = {"entry", "blindspot"}
 BLIND_SPOTS = {"dynamic-import", "entry-point-loading", "string-plugin", "decorator-registry", "dependency-injection", "getattr-dispatch", "django-apps",
                "django-signals", "pytest-fixtures", "codegen", "feature-flag", "computed-subcommand",
@@ -116,12 +116,12 @@ class TestRuleFiles:
 
 class TestCategoryMap:
     def test_every_rule_category_has_a_home_card(self):
-        found = {r["category"] for _, r in cases()} - OTHER_CATEGORIES
+        found = {r["category"] for _, r in cases()} - OTHER_CATEGORIES - set(candidates.DRAWN_CATEGORIES)
 
         assert found <= set(candidates.CATEGORY_CARD)
 
     def test_the_home_card_table_has_exactly_the_rule_categories(self):
-        assert set(candidates.CATEGORY_CARD) == IO_CATEGORIES
+        assert set(candidates.CATEGORY_CARD) | set(candidates.DRAWN_CATEGORIES) == IO_CATEGORIES
 
     def test_every_home_card_is_a_card_in_the_schema(self):
         assert set(candidates.CATEGORY_CARD.values()) <= set(candidates.card_titles())

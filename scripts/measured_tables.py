@@ -114,3 +114,31 @@ def public_api(ctx: dict, refs) -> str:
         rows.append([r.E(s["package"]), r.E(importable), r.E(s["name"]), r.E(s["symbol_kind"]), where, r.E(s["audience"]),
                      r.source_cell(refs, (s["path"], s.get("line"))) if s.get("path") and not s.get("external") else ""])
     return heading("Public API of each package") + r.render_table(API_COLUMNS, rows, refs, "t-io-contracts-api", plain=True) + lines
+
+
+CONFIG_COLUMNS = ["Name", "Kind", "Read at", "Source"]
+CONFIG_KINDS = {"dossier.csharp.config.config-key": "key", "dossier.csharp.config.config-binding": "options class"}
+
+
+def config_key_rows(extract: dict) -> list:
+    """`config-key` findings grouped by (name, kind): [(name, kind, [(path, line), ...])], sorted. A name is a literal key or an options class; a value is never stored."""
+    groups: dict = {}
+    for i in extract.get("io_candidates", []):
+        if i.get("category") == "config-key":
+            name = i.get("detail") or i.get("snippet") or "?"
+            groups.setdefault((name, CONFIG_KINDS.get(i.get("rule"), "key")), set()).add((i["path"], i["line"]))
+    return [(n, k, sorted(places)) for (n, k), places in sorted(groups.items())]
+
+
+def config_keys(ctx: dict, refs) -> str:
+    """The group under the Inputs card: configuration read by name (C# `IConfiguration`, `GetSection`, `Bind`, `IOptions<T>`). Empty when there are none.
+
+    These are not environment variables, so the environment-variable card skips them. Every row is listed; only names are shown."""
+    rows = config_key_rows(ctx.get("extract") or {})
+    if not rows:
+        return ""
+    r = _render()
+    body = [[(f"<code>{r.E(n)}</code>", n), r.E(k), "<br>".join(f"{r.path_code(p)}:{ln}" for p, ln in places), r.source_cell(refs, *places)] for n, k, places in rows]
+    note = ('<p class="muted">Configuration read by name, as a key or through an options class. These are not environment variables. '
+            'Values are never shown: a key set in <code>appsettings.json</code> or an environment variable is not read here.</p>')
+    return heading("Configuration keys") + note + r.render_table(CONFIG_COLUMNS, body, refs, "t-io-inputs-config", plain=True)

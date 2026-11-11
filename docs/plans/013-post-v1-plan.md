@@ -226,3 +226,14 @@ Post-v1 item 9 (definition of done 3) and item 20. Branch `test/python-ground-tr
 ## Last: wrap up
 
 After Phase 7 move every finished item out of `docs/post-v1.md` (keep only what was cut or newly found), update `docs/developer-guide.md` if the workflow changed, and add a one-line note under each phase's Results of the release it went out in (`git ls-remote --tags origin`).
+
+---
+
+## After 1.4.0: C# configuration keys
+
+Done 2026-11-11 by Sonnet 5.5 on `feat/csharp-config-keys` (Open item 1 of `post-v1.md`). Default suite 2975 passed, 305 skipped (start 2942 passed). Slow, C# and shared layer (`test_cs_adapter_slow`, `test_cs_semgrep_slow`, `test_cs_config_keys_slow`, `test_shared_layer`, `test_mixed_slow`): 141 passed.
+
+- **Choices (author asked for defaults).** A new input category `config-key`, not `env-var`. Its own group, **Configuration keys**, drawn under the Inputs card (as the public API table is under Contracts), not a new card, so the card count stays 58. The writer is not asked to decide about these findings (`candidates.DRAWN_CATEGORIES`, no home card), so no existing report is invalidated. One row per name and kind (key or options class) with every read site; names only, never a value, and no row when there are none.
+- **Rules.** New `rules/csharp/config.yml`: `config-key` (`GetSection`, `GetRequiredSection`, `GetValue<T>`, `GetConnectionString`, `BindConfiguration`, an indexer on a config-named variable, literal key only) and `config-binding` (`Configure<T>`, `AddOptions<T>`, `IOptions<T>`, `IOptionsSnapshot<T>`, `IOptionsMonitor<T>`, `.Get<T>()` and `.Bind(...)` on a config or section). Rows only: the existing `config-file` rule and its rows are unchanged, so a site can have both a `config-file` and a `config-key` finding. The rules sit in their own file because a semgrep test file flags any line matched by a rule that has no comment.
+- **Adapter.** C# adapter version 3 to 4. Fixture `tests/fixtures/cscfg`; tests `test_config_keys.py` (unit) and `test_cs_config_keys_slow.py` (real semgrep on the fixture).
+- **Not done.** Keys that exist only in `appsettings.json` (not parsed, so no value risk), keys built at run time, and `IOptions<T>` used only through a generic helper. JavaScript and Python have no equivalent yet.

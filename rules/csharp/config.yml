@@ -1,0 +1,40 @@
+rules:
+  - id: dossier.csharp.config.config-key
+    message: Reads a configuration key by name
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: config-key, detail: '(?:GetSection\(|GetRequiredSection\(|GetValue<[^>]*>\(|GetConnectionString\(|BindConfiguration\(|\[)\s*"([^"]*)'}
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern: $C["..."]
+              - metavariable-regex:
+                  metavariable: $C
+                  regex: (?i)^.*config.*$
+          - pattern: $C.GetValue<$T>("...", ...)
+          - pattern: $C.GetSection("...")
+          - pattern: $C.GetRequiredSection("...")
+          - pattern: $C.GetConnectionString("...")
+          - pattern: $S.BindConfiguration("...")
+
+  - id: dossier.csharp.config.config-binding
+    message: Binds configuration to an options class, or reads it through one
+    languages: [csharp]
+    severity: INFO
+    metadata: {category: config-key, detail: '(?:Configure|AddOptions|Get|IOptions|IOptionsSnapshot|IOptionsMonitor)<\s*([\w.]+)'}
+    patterns:
+      - pattern-either:
+          - pattern: $S.Configure<$T>(...)
+          - pattern: $S.AddOptions<$T>(...)
+          - pattern: $S.AddOptionsWithValidateOnStart<$T>(...)
+          - pattern-regex: (?<![\w.])IOptions(?:Snapshot|Monitor)?<\s*[\w.]+\s*>\s+\w+
+          - patterns:
+              - pattern: $C.Get<$T>(...)
+              - metavariable-regex:
+                  metavariable: $C
+                  regex: (?i)^.*(config|section).*$
+          - patterns:
+              - pattern: $C.Bind(...)
+              - metavariable-regex:
+                  metavariable: $C
+                  regex: (?i)^.*(config|section).*$

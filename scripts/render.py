@@ -1058,6 +1058,8 @@ def render_card(card, entry, refs, rid, ctx=None):
         body = placeholder_body(card)  # V6 reports the real error
     if card["id"] == "io.contracts":
         body += measured_tables.public_api(ctx or {}, refs)  # what other packages can import, measured; the authored rows are about contracts
+    if card["id"] == "io.inputs":
+        body += measured_tables.config_keys(ctx or {}, refs)  # configuration keys read by name, measured; never their values
     try:
         body += candidate_footer(card, entry, (ctx or {}).get("fed", {}).get(card["id"], 0))
     except (KeyError, TypeError, AttributeError):
