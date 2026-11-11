@@ -95,10 +95,13 @@ def test_card_body_children_have_no_extra_margins(tmp_path):
     assert ".dcard .langs { margin: 0; }" in portfolio.write(tmp_path, "1.5.0").read_text()
 
 
-def test_last_built_pill_sits_under_the_brand_level_with_the_keys_button(tmp_path):
+def test_keys_button_is_level_with_the_title_and_the_last_built_pill_is_under_it(tmp_path):
     make(tmp_path, "a")
     text = portfolio.write(tmp_path, "1.5.0").read_text()
     header, rest = text.split("</header>", 1)
-    assert "Last built" not in header
-    subbar = rest.split('<section class="hero">', 1)[0]
-    assert 'class="subbar"' in subbar and subbar.index("Last built") < subbar.index('id="keys-btn"')
+    assert "Last built" not in header and 'id="keys-btn"' not in header
+    hero = rest.split('<section class="hero">', 1)[1].split("</section>", 1)[0]
+    head = hero.split("</div>", 1)[0]
+    assert "<h1>Your dossiers</h1>" in head and 'id="keys-btn"' in head
+    assert hero.index('id="keys-btn"') < hero.index("Last built") < hero.index('class="summary"')
+
