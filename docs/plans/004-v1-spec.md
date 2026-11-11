@@ -47,54 +47,54 @@ A map is not a mental model. The map orients the reader, and the model forms whe
 
 ## 3. Questions, and where they are answered
 
-The list below is shipped as data (`prompts/schema/questions.json`: question id, text, and the cards that answer it) and is shown in every dossier as the card `dossier.questions` in report 01.
+The list below is shipped as data (`prompts/schema/questions.json`: the categories, then per question its number, category, text and the cards that answer it). The questions are grouped into 12 categories and numbered 1 to 40 in the order a person asks them when starting on a new codebase: orient, get it running, shape, execution, boundaries, data, behaviour, working here, history and change, health and risk, people, and how far to trust the dossier and is shown in every dossier as the card `dossier.questions` in report 01.
 
 Tags: S static extraction, G git history, L Claude reading, X outside the repository.
 
-| # | Question | Tags | Report / card |
-|---|---|---|---|
-| 1.1 | What do the domain terms mean? | L | 03 `reading.glossary` |
-| 1.2 | What technologies and idioms must I know, and which are probably new to me? | S, L | 03 `reading.technologies` |
-| 2.1 | Where is execution entered? | S, L | 04 `entry.catalog` |
-| 2.2 | What happens from entry to ready? | L | 04 `entry.startup` |
-| 2.3 | What are the main components? | S, L | 05 `components.map`, `components.catalog` |
-| 2.4 | What does each do and how does it work, including cross-cutting concerns? | L | 05 `components.detail`, `components.cross-cutting` |
-| 2.5 | How do components interact? | S, L | 06 `interactions.graph`, `interactions.flows` |
-| 2.6 | What are all the inputs and outputs? | S, L | 07 `io.inputs`, `io.outputs` |
-| 2.7 | In what order should I read the code, and where do config, tests, build and docs live? | S, L | 03 `reading.order`, `reading.map` |
-| 2.8 | Where does state live, and who writes and reads it? | S, L | 06 `interactions.state` |
-| 2.9 | What is the concurrency model? | S, L | 06 `interactions.concurrency` |
-| 2.10 | Where are the layer boundaries and who breaks them? | S | 06 `interactions.violations` |
-| 2.11 | What extension points exist? | L | 05 `components.extension-points` |
-| 2.12 | How do I write code that fits here? | L | 11 `conventions.*` |
-| 3.1 | What contracts do I owe other systems, and who consumes them? | S, L, X | 07 `io.contracts` |
-| 3.2 | What third-party code does each part rely on? | S | 02 Dependencies card (unchanged) |
-| 4.1 | What are the data structures and schema? | S | 08 `data.entities`, `data.relationships` |
-| 4.2 | What is the source of truth, what is derived, and which stores hold it? | A, L | 08 `data.truth`, `data.stores` |
-| 4.3 | What is the data lifecycle, and where are the sensitive fields? | S, L | 08 `data.lifecycle` |
-| 5.1 | What are the business rules and invariants? | L | 09 `behavior.rules` |
-| 5.2 | What do the tests cover, and can I trust a green run? | S, G | 09 `behavior.tests` |
-| 5.3 | How does it fail, and how would I notice in production? | S, L | 09 `behavior.failures`, `behavior.observability` |
-| 6.1 | What changes most, and what never does? | G | 10 `change.hotspots` |
-| 6.2 | What changes together without a code link? | G | 10 `change.cochange` |
-| 6.3 | What breaks if I change X? | S | 10 `change.blast-radius` |
-| 6.4 | Which refactors or migrations are half-finished? | L, G | 10 `change.unfinished` |
-| 6.5 | Why is it this way? Which decisions and oddities need explaining? | L, G | 10 `change.decisions` |
-| 6.6 | Does the documentation match the code? | L | 10 `change.docs-drift` |
-| 6.7 | Is there dead code, or are there stale flags and unused endpoints? | S | 10 `change.dead-code` |
-| 6.8 | What is the upgrade burden (end-of-life runtimes, lagging frameworks)? | S | 10 `change.upgrade-burden` |
-| 6.9 | What work is in flight? | G, X | 10 `change.in-flight` (branches only; tracker content is `unknown`) |
-| 7.1 | How do I build, test, run, release, roll back and deploy? | S, L | 12 `ops.*` |
-| 7.2 | What do the CI gates guarantee? | S, L | 12 `ops.ci` |
-| 7.3 | What do I need locally? | S, L | 12 `ops.local` |
-| 8.1 | Who owns and knows what, and what is the bus factor? | G | 02 Contributors, knowledge map and calendar cards (unchanged); 13 `contributors.*` |
-| 8.2 | What are the team's branching, commit and PR conventions? | G | 13 `contributors.workflow` |
-| 10.1 | What was not analysed, and what could not be resolved? | S | 15 Gaps, and each card's footer |
-| 10.2 | Where might the extractors be wrong? | S | 15 Gaps (blind-spot items) |
-| 10.3 | How fresh is the dossier relative to HEAD? | S | 01 This dossier |
-| 10.4 | How was this dossier produced, step by step, and what did a model do versus a tool? | S | 01 `dossier.process` |
+| # | Category | Question | Tags | Report / card |
+|---|---|---|---|---|
+| 1 | Orient | In what order should I read the code, and where do config, tests, build and docs live? | S, L | 03 `reading.order`, `reading.map` |
+| 2 | Orient | What do the domain terms mean? | L | 03 `reading.glossary` |
+| 3 | Orient | What technologies and idioms must I know, and which are probably new to me? | S, L | 03 `reading.technologies` |
+| 4 | Get it running | What do I need locally? | S, L | 12 `ops.local` |
+| 5 | Get it running | How do I build, test, run, release, roll back and deploy? | S, L | 12 `ops.*` |
+| 6 | Get it running | What do the CI gates guarantee? | S, L | 12 `ops.ci` |
+| 7 | Shape | What are the main components? | S, L | 05 `components.map`, `components.catalog` |
+| 8 | Shape | What does each do and how does it work, including cross-cutting concerns? | L | 05 `components.detail`, `components.cross-cutting` |
+| 9 | Shape | How do components interact? | S, L | 06 `interactions.graph`, `interactions.flows` |
+| 10 | Shape | Where are the layer boundaries and who breaks them? | S | 06 `interactions.violations` |
+| 11 | Shape | What third-party code does each part rely on? | S | 02 Dependencies card (unchanged) |
+| 12 | Execution | Where is execution entered? | S, L | 04 `entry.catalog` |
+| 13 | Execution | What happens from entry to ready? | L | 04 `entry.startup` |
+| 14 | Execution | What is the concurrency model? | S, L | 06 `interactions.concurrency` |
+| 15 | Boundaries | What are all the inputs and outputs? | S, L | 07 `io.inputs`, `io.outputs` |
+| 16 | Boundaries | What contracts do I owe other systems, and who consumes them? | S, L, X | 07 `io.contracts` |
+| 17 | Boundaries | What extension points exist? | L | 05 `components.extension-points` |
+| 18 | Data | What are the data structures and schema? | S | 08 `data.entities`, `data.relationships` |
+| 19 | Data | Where does state live, and who writes and reads it? | S, L | 06 `interactions.state` |
+| 20 | Data | What is the source of truth, what is derived, and which stores hold it? | A, L | 08 `data.truth`, `data.stores` |
+| 21 | Data | What is the data lifecycle, and where are the sensitive fields? | S, L | 08 `data.lifecycle` |
+| 22 | Behaviour | What are the business rules and invariants? | L | 09 `behavior.rules` |
+| 23 | Behaviour | How does it fail, and how would I notice in production? | S, L | 09 `behavior.failures`, `behavior.observability` |
+| 24 | Working here | How do I write code that fits here? | L | 11 `conventions.*` |
+| 25 | Working here | What are the team's branching, commit and PR conventions? | G | 13 `contributors.workflow` |
+| 26 | Working here | What do the tests cover, and can I trust a green run? | S, G | 09 `behavior.tests` |
+| 27 | Working here | What breaks if I change X? | S | 10 `change.blast-radius` |
+| 28 | History and change | What changes most, and what never does? | G | 10 `change.hotspots` |
+| 29 | History and change | What changes together without a code link? | G | 10 `change.cochange` |
+| 30 | History and change | What work is in flight? | G, X | 10 `change.in-flight` (branches only; tracker content is `unknown`) |
+| 31 | History and change | Which refactors or migrations are half-finished? | L, G | 10 `change.unfinished` |
+| 32 | History and change | Why is it this way? Which decisions and oddities need explaining? | L, G | 10 `change.decisions` |
+| 33 | Health and risk | Does the documentation match the code? | L | 10 `change.docs-drift` |
+| 34 | Health and risk | Is there dead code, or are there stale flags and unused endpoints? | S | 10 `change.dead-code` |
+| 35 | Health and risk | What is the upgrade burden (end-of-life runtimes, lagging frameworks)? | S | 10 `change.upgrade-burden` |
+| 36 | People | Who owns and knows what, and what is the bus factor? | G | 02 Contributors, knowledge map and calendar cards (unchanged); 13 `contributors.*` |
+| 37 | Trusting this dossier | What was not analysed, and what could not be resolved? | S | 15 Gaps, and each card's footer |
+| 38 | Trusting this dossier | Where might the extractors be wrong? | S | 15 Gaps (blind-spot items) |
+| 39 | Trusting this dossier | How fresh is the dossier relative to HEAD? | S | 01 This dossier |
+| 40 | Trusting this dossier | How was this dossier produced, step by step, and what did a model do versus a tool? | S | 01 `dossier.process` |
 
-Removed by decision: business purpose and lifecycle stage, dependence on externally operated services, performance and scaling and cost, incident history. Deferred: all of group 9.
+Removed by decision: business purpose and lifecycle stage, dependence on externally operated services, performance and scaling and cost, incident history. Deferred: the old group 9 (not in this list).
 
 ## 4. Report structure
 
@@ -125,7 +125,7 @@ New cards in 01:
 | Card id | Title | Tier | Shape | Source | P |
 |---|---|---|---|---|---|
 | `dossier.process` | How this dossier was made | M | A table with columns No., Step, What happened, Status: one row per fixed step, in plain language. What happened holds the run record (counts, tools used, and "skipped: reason" where a step did not run). Status is a badge: ok, skipped, failed, reused or not run. Ends with one line: how many cards are measured, adjudicated and read | Written by a script from `build.json` (section 5.1), using fixed wording per step. **Claude does not write this card**, because a model's account of its own process drifts from what actually happened |
-| `dossier.questions` | Questions this dossier answers | M | Table: No., Question, Answered in. One row for every question in section 3, in order. "Answered in" lists each card that answers it, as a link to that card (card title and report number), plus any panel outside the schema (for example the report 02 Dependencies card, or the report 01 freshness BAN). A question with no answering card is shown as "not answered in this version". Deferred and removed questions are not listed | Written by a script from `questions.json` and the card schemas. **Claude does not write this card.** A check fails the build if a question names a card id that does not exist, or a schema card answers no question and is not marked `informational` in the schema | P0 |
+| `dossier.questions` | Questions this dossier answers | M | Each category from section 3 is a heading with its one-line reason, over a table with the columns No., Question, Answered in. One row for every question in section 3, in order, numbered 1 to 40 across the categories. "Answered in" lists each card that answers it, as a link to that card (card title and report number), plus any panel outside the schema (for example the report 02 Dependencies card, or the report 01 freshness BAN). A question with no answering card is shown as "not answered in this version". Deferred and removed questions are not listed | Written by a script from `questions.json` and the card schemas. **Claude does not write this card.** A check fails the build if a question names a card id that does not exist, or a schema card answers no question and is not marked `informational` in the schema | P0 |
 | `dossier.cards` | Cards in this dossier | M | Table of every card in the schema, with its tier and who writes it | Written by a script from the card schemas. **Claude does not write this card** | P0 |
 
 The fixed steps, in plain words:

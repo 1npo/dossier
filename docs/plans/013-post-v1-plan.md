@@ -97,16 +97,23 @@ New item from the author. Branch `feat/question-order`. **An author decision com
 
 Open points the author may change: whether "People" (35) moves earlier (who do I ask), whether 20 belongs under Data, whether 33 belongs under Health, and whether 36 belongs with Get it running.
 
-- [ ] **P13-9. Author review (stop here first).** Show the author the draft table above and the proposed default for the open points below, and wait for the answer. The default if the author says "go": the draft as written; **renumber** the ids to the new order, because a new minor version already makes every dossier rebuild in full, so no saved dossier keeps old numbers; the page shows the category as a heading with the numbered questions under it; each question keeps its answering cards.
-- [ ] **P13-10. Reorder and group the data.** Add a `category` field to every entry in `questions.json` and a top-level `categories` list (id, title, one-line "why you ask these now") in the agreed order; reorder the entries; renumber (if agreed). Update `schema.load_questions` and every consumer; update any place that quotes a question number (prompts, spec section 3, docs); the author's request authorizes changing the spec's question list and its numbering here. Done-check: a schema test that every question has a known category, categories are in the agreed order, ids are `1..40` in file order, and every question still has at least one answering card; `grep` finds no stale number in prompts or docs (list what you changed).
-- [ ] **P13-11. Draw the card.** `dossier.questions` shows each category as a heading with its questions in order, each linking to its cards as today. Keep V-checks green (the card's text and the page audit). Done-check: render the fixture page, read the card in the browser check's shot, and `dossier check` reports `problems: 0`.
-- [ ] **P13-12. Docs.** User guide: one paragraph on how the questions are grouped and why the order. Done-check: `test_docs.py`.
+- [x] **P13-9. Author review (stop here first).** Show the author the draft table above and the proposed default for the open points below, and wait for the answer. The default if the author says "go": the draft as written; **renumber** the ids to the new order, because a new minor version already makes every dossier rebuild in full, so no saved dossier keeps old numbers; the page shows the category as a heading with the numbered questions under it; each question keeps its answering cards.
+- [x] **P13-10. Reorder and group the data.** Add a `category` field to every entry in `questions.json` and a top-level `categories` list (id, title, one-line "why you ask these now") in the agreed order; reorder the entries; renumber (if agreed). Update `schema.load_questions` and every consumer; update any place that quotes a question number (prompts, spec section 3, docs); the author's request authorizes changing the spec's question list and its numbering here. Done-check: a schema test that every question has a known category, categories are in the agreed order, ids are `1..40` in file order, and every question still has at least one answering card; `grep` finds no stale number in prompts or docs (list what you changed).
+- [x] **P13-11. Draw the card.** `dossier.questions` shows each category as a heading with its questions in order, each linking to its cards as today. Keep V-checks green (the card's text and the page audit). Done-check: render the fixture page, read the card in the browser check's shot, and `dossier check` reports `problems: 0`.
+- [x] **P13-12. Docs.** User guide: one paragraph on how the questions are grouped and why the order. Done-check: `test_docs.py`.
 
 **Acceptance.** Default suite green; the card shows 12 groups and 40 questions; the author approved the grouping before P13-10. **Branch.** Merge, push, no release yet.
 
 ### Results (Phase 3)
 
-*(not started)*
+- P13-9: the author approved the draft as written (thin groups People and Behaviour stay) and left the four open points at their defaults.
+- P13-10: `questions.json` is now `{"categories", "questions"}`; ids `1..40` in the new order; `schema.load_categories` added, `load_questions` unchanged in shape plus `category`. Spec section 3 rewritten with the new numbering. No prompt or doc quoted a question number.
+- P13-11: one headed table per category (`t-questions-<category>`), fixed column widths; V11 now checks each table's row count and the 12 groups. Rendered and read in the browser: 12 groups, 40 questions. The old single filterable table is gone (a filter over 12 small tables does not help).
+- P13-12: user guide section "Read the questions card".
+- Extra, by the author's request: `render.py` failed to parse before Python 3.12 (backslash and reused quotes inside f-strings, three sites). Fixed on `fix/py310-render`, with `test_py310_syntax.py` (parses every script under 3.10).
+- Default suite: 2888 passed, 294 skipped (was 2887 plus the new test).
+- **Found, not fixed:** `scripts/py_packages.py` imports `tomllib` (3.11+) with no fallback, so the stated floor of 3.10 is false for Python projects; five test files fail to collect on 3.10. Decide: raise the floor to 3.11 or add a fallback.
+- **Found, not fixed (item 7):** the `encamp` repository now has two root commits, so `out_dir` resolves the fixture to `encamp-<hash>` and every fixture-based slow test fails with "No facts.json found".
 
 ---
 

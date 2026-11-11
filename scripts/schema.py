@@ -31,9 +31,19 @@ def load_all(schema_dir=SCHEMA_DIR):
     return out
 
 
-def load_questions(schema_dir=SCHEMA_DIR):
+def _questions_file(schema_dir):
     p = Path(schema_dir) / QUESTIONS_FILE
-    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else []
+    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+
+
+def load_questions(schema_dir=SCHEMA_DIR):
+    """The questions in the order a person asks them; each names its category."""
+    return _questions_file(schema_dir).get("questions", [])
+
+
+def load_categories(schema_dir=SCHEMA_DIR):
+    """The question groups in order: id, title, and a line on why you ask them now."""
+    return _questions_file(schema_dir).get("categories", [])
 
 
 def lint(sch):
