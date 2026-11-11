@@ -989,7 +989,7 @@ Read section 2, section 4 (D1, D2, D7, D14) and this phase. Load the shared skil
   4. Determinism run: `git worktree add $SCR/base $BASE_SHA`; `python3 tools/golden.py repos $SCR/repos --from $SCR/base`; capture the base twice (`$SCR/golden/a1`, `$SCR/golden/a2`, `--set fast`, then the same with `--set full` after block S); `compare a1 a2` must print `SAME`. Every extra mask this needs is added with its reason; record each in Results.
   - Done-check: `uv run --with pytest --with pygments python -m pytest tests/unit/tools/test_golden.py -q` passes; the two `compare` runs print `SAME`; Results lists `BASE_SHA`, the case list with each case's exit codes, and the final mask list.
   - Commit: `test(dossier): add the golden capture and compare tool for the package refactor`
-- [ ] **A2. `pyproject.toml`, `uv.lock`, ruff and mypy baselines.** (Sonnet-level)
+- [x] **A2. `pyproject.toml`, `uv.lock`, ruff and mypy baselines.** (Sonnet-level)
   1. Write `pyproject.toml` exactly as D2, pinning `ruff` and `mypy` to the versions `uv add --dev ruff mypy` resolves today. Create `src/dossier/__init__.py` holding only the docstring `"""The dossier skill's Python package. See docs/developer-guide.md#architecture."""` and `__all__: list[str] = []`: hatchling cannot build the project without the package folder. Add `.mypy_cache/` and `/dist/` to `.gitignore`.
   2. `uv lock`; `uv run pytest -q` must give the baseline counts plus A1's new tests. Check the version source: `uvx hatch version` prints `1.10.2`. If it does not, use D2's fallback and record it.
   3. `uv run ruff check --statistics`. Add each failing rule code to `ignore` with a comment holding its count; rerun until it exits 0. Do not edit code.
@@ -1061,6 +1061,16 @@ Session: Opus 5.5, 2026-11-11.
   1. `build_id` in `build.json` / `build.prev.json` is `<UTC start time>-<short sha>`. Only the time prefix is masked; the sha is kept.
   2. `data-built="<ISO time>"` on the portfolio's cards (`index.html`): the build time.
 - Final mask list: D14's table plus these two (`golden.EXTRA_MASKS`).
+
+**A2.**
+
+- Dev tools pinned at **`ruff==0.17.4`** and **`mypy==2.4.1`** (the current releases, as `uvx ruff@latest` / `mypy@latest` report). `uv lock` resolved 14 packages.
+- **Version source:** D2's default works. `uvx hatch version` prints `1.10.3` from `VERSION` with the `^(?P<version>[^\s]+)\s*$` pattern, so the static-version fallback is not needed.
+- `uv run pytest -q`: **3048 passed, 305 skipped** (86 s). That is 2995 plus 53 new tests: A1's 22 and A3's 31, which ran from the working tree while A2 was checked.
+- **Ruff baseline:** 337 findings on today's code, every code in `ignore` with its count. `I001` 68, `E741` 47, `E731` 40, `E702` 26, `F401` 24, `UP017` 21, `B905` 21, `UP031` 20, `B007` 15, `F841` 11, `SIM905` 9, `SIM115` 5, `B904` 4, `SIM105` 4, `UP035` 3, `F811` 3, `SIM300` 3, `UP033` 2, `E402` 2, and 1 each for `SIM102`, `F541`, `B023`, `SIM401`, `SIM114`, `E401`, `E701`, `SIM117`, `B006`. The new `tools/` and `tests/unit/tools/` files were made clean instead (one `B905`, one `E731`), so the baseline covers only the old code.
+- Ruff also warns about two malformed `# noqa` comments, `scripts/stages.py:74` and `scripts/workarea.py:163`. They are warnings, not findings (exit 0) and stay as they are (no code edits).
+- `I001` is ignored, so R16 (import order around `os.environ` in `conftest.py`) is safe.
+- **mypy baseline** (`uv run mypy scripts --explicit-package-bases`): **96 errors in 33 files**: `checks` 30, `history` 9, `stages` 7, `page_audit` 5, `cs_sdk` 5, `deps` 4, `cs_queries` 4, `adapters` 4, `py_packages` 3, `py_adapter` 3, `js_project` 3, `js_prisma` 3, `scip_read` 2, `sandbox` 2, `py_project` 2, `candidates` 2, and 1 each for `tier_b`, `summary`, `summary_check`, `repo_adapter`, `py_depends`, `measured`, `measured_blast`, `js_semgrep`, `js_queries`, `js_entries`, `js_adapter`, `graphs`, `cs_semgrep`, `cs_entries`, `cs_api`, `cs_adapter`, `config`, `candidates_history`. F6 starts from these.
 
 ---
 
