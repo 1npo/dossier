@@ -996,7 +996,7 @@ Read section 2, section 4 (D1, D2, D7, D14) and this phase. Load the shared skil
   4. `uv run mypy scripts --explicit-package-bases` once and record the error count per module in Results (no gate yet).
   - Done-check: `uv run ruff check` exits 0; `uv run pytest -q` counts as above; `git diff --stat` touches only `pyproject.toml`, `uv.lock`, `.gitignore`, `src/dossier/__init__.py` and this plan.
   - Commit: `chore(dossier): add pyproject.toml with the dev tools and their baselines`
-- [ ] **A3. `tools/move_modules.py`, the import codemod.** (Opus)
+- [x] **A3. `tools/move_modules.py`, the import codemod.** (Opus)
   - `python3 tools/move_modules.py MAP [--dry-run] [--check]`. `MAP` lines are `old_flat_name new.dotted.module` (`#` comments allowed). For each line: `git mv scripts/<old>.py src/<new as path>.py`, creating folders and, for every new package folder without one, an `__init__.py` holding a one-line docstring and `__all__: list[str] = []`. The docstrings live in a `DOCS` dict in the tool: for the ten subpackages, D4's "Holds" text; for `adapters.python`, `adapters.js`, `adapters.csharp`: "The <language> adapter and its helpers."; for `render.measured`: "The measured cards: drawn by code from extract/, never written by Claude."; for `cli.commands`: "One module per group of CLI commands." F5 expands them. Then, in every tracked `*.py` under `src/`, `scripts/`, `tests/` (not `tests/fixtures/`) and `tools/`, find with `ast` every `Import` and level-0 `ImportFrom` of an `old` name, at any depth, and replace only that statement's source span: `import old` becomes `from dossier.<pkg> import <leaf>` or `... import <leaf> as old` when the names differ; `import old as x` becomes `from dossier.<pkg> import <leaf> as x` (no `as` when `leaf == x`); `import a, old, b` is split into one statement per name on its own line at the same indentation; `from old import names` gets only its module token replaced (parentheses and line breaks kept). A trailing comment on the line (`# noqa: E402`) is kept on every line it produces. String literals and attribute expressions are never touched. `--check` exits 1 and lists the file and line of any remaining level-0 import of a mapped `old` name anywhere. It refuses to run if a source is missing, a destination exists or the tree is dirty.
   - Tests in `tests/unit/tools/test_move_modules.py`, one class per behaviour: each import form above; nested (function-level) imports keep indentation; multi-line `from` imports; `noqa` kept; a string containing `import render` and the attribute `render.x` are unchanged; a dry run changes nothing; `--check` finds a leftover.
   - Done-check: its tests pass; `--dry-run` on the A4 map prints the expected rewrites of the four test files that import the CLI.
@@ -1071,6 +1071,16 @@ Session: Opus 5.5, 2026-11-11.
 - Ruff also warns about two malformed `# noqa` comments, `scripts/stages.py:74` and `scripts/workarea.py:163`. They are warnings, not findings (exit 0) and stay as they are (no code edits).
 - `I001` is ignored, so R16 (import order around `os.environ` in `conftest.py`) is safe.
 - **mypy baseline** (`uv run mypy scripts --explicit-package-bases`): **96 errors in 33 files**: `checks` 30, `history` 9, `stages` 7, `page_audit` 5, `cs_sdk` 5, `deps` 4, `cs_queries` 4, `adapters` 4, `py_packages` 3, `py_adapter` 3, `js_project` 3, `js_prisma` 3, `scip_read` 2, `sandbox` 2, `py_project` 2, `candidates` 2, and 1 each for `tier_b`, `summary`, `summary_check`, `repo_adapter`, `py_depends`, `measured`, `measured_blast`, `js_semgrep`, `js_queries`, `js_entries`, `js_adapter`, `graphs`, `cs_semgrep`, `cs_entries`, `cs_api`, `cs_adapter`, `config`, `candidates_history`. F6 starts from these.
+
+**A3.**
+
+- `tools/move_modules.py`. Tests: `tests/unit/tools/test_move_modules.py`, 31 tests in one class per behaviour.
+- Dry run of the A4 map (`dossier cli.app`): it rewrites exactly the four files that import the CLI, `test_docs.py:10`, `test_dossier_check.py:10`, `test_measured_upgrade.py:259` (function-level) and `test_update_plan.py:6`, each to `from dossier.cli import app as dossier`. It also plans the move and creates `src/dossier/cli/__init__.py`.
+- Two behaviours the plan did not spell out:
+  1. `--dry-run` skips the dirty-tree refusal, so it can run while the map's own task is uncommitted. Missing sources and existing destinations are still refused.
+  2. Once a map has moved `dossier` itself, `from dossier import <x>` is left alone when `x` is a module or package under `src/dossier/`: it names the package, not the old flat CLI. So `from dossier import resources` is not flagged by `--check`.
+- A statement that shares its line with other code (`x = 1; import a, b`) is split with `; ` instead of newlines.
+- `DOCS` text for the new `__init__.py` files is D4's "Holds" column; `adapters.js` reads "The JavaScript and TypeScript adapter and its helpers."
 
 ---
 
