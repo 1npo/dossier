@@ -21,9 +21,7 @@ Do these first: each one can make a build silently wrong or hide a failure.
 
 ### 2. Clean up the split and the graph removal (small, mechanical)
 
-5. **Retake the README screenshot.** `docs/images/dossier.png` still shows the removed graph.
-6. **Remove duplicated test classes.** `tests/integration/scripts/test_check_page_slow.py` defines `TestNewTablesOnTheM4Page`, `TestNewTablesOnTheM5Page` and the `m4`/`m5` fixtures twice (it was like that before the graph removal).
-7. **Fix `test_summary_render.py` with the frozen fixture present.** With `tests/fixtures/encamp-m0` in place it fails (on `main` too). CI never has the fixture, so CI is unaffected. Either repair it or delete the M0 fixture tests, `migrate.py` and `migrate_map.json`, which were meant to go after M2.
+7. **Retire the M0 fixture, `migrate` and `DOSSIER_SUBJECT_REPO`.** `test_summary_render.py` is gone, but `tests/tools/m3_page.py` (which builds the M3, M4, M5 and M6 slow-suite pages) and `test_check_page_slow.py` still copy `tests/fixtures/encamp-m0` and run `migrate` on it, so those cannot go until the pages are built from a small repository instead. Then delete `scripts/migrate.py`, `scripts/migrate_map.json`, the `migrate` command, the fixture line in `.gitignore`, and the `golden02` baseline's dependence on the fixture.
 8. **One test counts differently in a fresh clone** (2901 passed against 2902 in the working tree). Find which and why.
 
 ### 3. Finish v1's open acceptance item
