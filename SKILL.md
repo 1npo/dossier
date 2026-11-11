@@ -22,7 +22,10 @@ The CLI is `uv run ${CLAUDE_SKILL_DIR}/scripts/dossier.py`. Call it `DOSSIER` be
 Run `DOSSIER version` and show the output.
 
 ### `/dossier home [dir]`
-Run `DOSSIER home [dir]`. With no directory it shows the current home. Dossiers are saved under `<home>/<repo-name>/`.
+Run `DOSSIER home [dir]`. With no directory it shows the current home. Dossiers are saved under `<home>/<repo-name>/`. `<home>/index.html` is the portfolio: one self-contained page listing every dossier, which `render` rewrites after each build.
+
+### `/dossier portfolio`
+Run `DOSSIER portfolio` to rewrite `<home>/index.html` without building anything, and tell the user its path.
 
 ### `/dossier doctor [repo]`
 Run `DOSSIER doctor <repo>` and show the output. It lists the tools this repository needs, which are installed, and how to install the missing ones. It installs nothing. For C# repositories it also checks for the .NET SDK that the repository asks for (its `global.json`, or 8 or later); without it, the C# symbol and reference data is missing.
@@ -59,7 +62,7 @@ Run `DOSSIER clean <repo>`. It deletes the working copy, the scratch home folder
    2. For each report, start one subagent with `subagent_type: "general-purpose"` and `model: "sonnet"`, in parallel batches of about five. Its whole prompt is the text of the file named in `prompt` (`${CLAUDE_SKILL_DIR}/prompts/verify.md`), followed by that report's items as JSON. **Never give it a report, the dossier folder or the repository path**, and never add the confidence label, the card or any other text of the report. It answers with a JSON array of `id`, `verdict` and `reason`.
    3. Join the arrays into one file in your scratchpad, then run `DOSSIER verify-record <repo> --results <file>`. If it prints problems (a missing, repeated or unknown id, or a verdict that is not `supported`, `not supported` or `cannot tell`), ask the same subagent again for just those items and retry. Never edit `build.json`.
    4. Run `DOSSIER render <repo>` again. Each claim the checker did not support is now an item in Gaps, and the process card shows the counts. Mention them in step 8.
-8. **Finish.** Tell the user the path of the HTML file and of `summary.json` beside it (the machine-readable summary, with no email addresses), that it embeds the source of the files it cites (so it should be shared no more widely than the code), and, in a few plain sentences, the headline findings: what the project is, the top risks, and the number of unknowns and inferences. If a card carries a `no static graph` badge, tell the user in one sentence that the repository has languages (named in the badge's tip) that dossier counts but draws no import or call links for. Do not list every step you took.
+8. **Finish.** Tell the user the path of the HTML file, of the portfolio page (`<home>/index.html`, already updated by `render`) and of `summary.json` beside it (the machine-readable summary, with no email addresses), that it embeds the source of the files it cites (so it should be shared no more widely than the code), and, in a few plain sentences, the headline findings: what the project is, the top risks, and the number of unknowns and inferences. If a card carries a `no static graph` badge, tell the user in one sentence that the repository has languages (named in the badge's tip) that dossier counts but draws no import or call links for. Do not list every step you took.
 
 ### `/dossier confirm`
 For giving the dossier your answers on its open items: inferences, unknowns, assumptions and coverage notes. Every open item has an ID (G001, G002, …) shown in the page's Gap tracker and beside the statement itself. The ID stays the same across rebuilds.

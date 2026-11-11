@@ -45,6 +45,7 @@ import history as historyscan  # noqa: E402
 import incremental  # noqa: E402
 import measured_upgrade  # noqa: E402
 import page_audit  # noqa: E402
+import portfolio  # noqa: E402
 import process  # noqa: E402
 import render  # noqa: E402
 import resolve  # noqa: E402
@@ -140,6 +141,10 @@ def out_dir(top):
 
 def cmd_version(_):
     print(f"dossier {VERSION}")
+
+
+def cmd_portfolio(_):
+    print(f"Portfolio written to {portfolio.write(get_home(), VERSION)}")
 
 
 def cmd_home(a):
@@ -475,6 +480,7 @@ def cmd_render(a):
     name_out = f"dossier-{name}.html"
     (out / name_out).write_text(page, encoding="utf-8")
     summary.remove(out) if v8 else summary.write(out, summary_doc)
+    portfolio.write(get_home(), VERSION)    # the home page that lists every dossier
     state.update(history=history, last_sha=sha, snapshot=gather.snapshot(facts))
     state["extract_digests"] = {rid: dg for rid, dg in candidates.digests(extract).items() if rid in reports}
     state.pop("pending_update", None)
@@ -708,6 +714,7 @@ def build_parser():
     p = sub.add_parser("home")
     p.add_argument("dir", nargs="?")
     p.set_defaults(fn=cmd_home)
+    sub.add_parser("portfolio").set_defaults(fn=cmd_portfolio)
     p = sub.add_parser("doctor")
     p.add_argument("repo", nargs="?")
     p.add_argument("--all", action="store_true", help="check the tools for every supported language")
