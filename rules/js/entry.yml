@@ -24,6 +24,36 @@ rules:
           const $A = require("axios");
           ...
 
+  - id: dossier.js.entry.msw-handler
+    message: A request handler that msw uses to mock a route in tests or in the browser; not a route the program serves
+    languages: [js, ts]
+    severity: INFO
+    options:
+      constant_propagation: false
+    metadata: {category: entry, kind: mock-route, detail: '\.((?:get|post|put|patch|delete|options|head|all)\(\s*(?://[^\n]*\n\s*)*[''"`][^''"`]*)'}
+    patterns:
+      - pattern: $R.$M($P, ...)
+      - metavariable-regex:
+          metavariable: $P
+          regex: ^['"`]
+      - metavariable-regex:
+          metavariable: $R
+          regex: ^(http|rest)$
+      - metavariable-regex:
+          metavariable: $M
+          regex: ^(get|post|put|patch|delete|options|head|all)$
+      - pattern-either:
+          - patterns:
+              - pattern-inside: |
+                  import {...} from "$MSW";
+                  ...
+              - metavariable-regex:
+                  metavariable: $MSW
+                  regex: ^msw(/.*)?$
+          - pattern-inside: |
+              const {...} = require("msw");
+              ...
+
   - id: dossier.js.entry.route-chain
     message: A web route declared with a chain of methods
     languages: [js, ts]

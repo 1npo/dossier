@@ -79,3 +79,18 @@ class TestItems:
         out = js_semgrep.items([result("dossier.js.blindspot.react-context", None, category="blindspot", pattern="react-context")])
 
         assert out["blindspots"][0]["pattern"] == "react-context"
+
+
+class TestMockRoutes:
+    def test_an_msw_handler_is_a_mock_route_named_by_method_and_path(self):
+        out = js_semgrep.items([result("dossier.js.entry.msw-handler", "get('/api/user", "http.get(", category="entry", kind="mock-route")])
+
+        item = out["entry_points"][0]
+        assert (item["kind"], item["name"], item["path"], item["line"]) == ("mock-route", "GET /api/user", "src/a.ts", 3)
+        assert item["trigger"] == "a request that the msw mock `GET /api/user` answers in tests or in the browser"
+
+    def test_a_mock_route_is_not_an_http_route(self):
+        out = js_semgrep.items([result("dossier.js.entry.msw-handler", "get('/a", category="entry", kind="mock-route"),
+                                 result("dossier.js.entry.http-route", "get('/a", category="entry", kind="http-route")])
+
+        assert [e["kind"] for e in out["entry_points"]] == ["mock-route", "http-route"]

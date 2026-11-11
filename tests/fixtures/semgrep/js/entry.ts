@@ -138,3 +138,32 @@ const client = axios.create();
 api.post('/comments', body);
 // ok: dossier.js.entry.http-route
 api.get('/users', { params });
+
+// ok: dossier.js.entry.msw-handler
+http.get('https://example.com/health', callback);
+
+import { http, HttpResponse } from 'msw';
+
+// ruleid: dossier.js.entry.msw-handler
+http.get('/api/user', () => HttpResponse.json({ id: 1 }));
+
+// ruleid: dossier.js.entry.msw-handler
+http.post(
+  '/api/login',
+  resolver,
+);
+
+// ruleid: dossier.js.entry.msw-handler
+rest.delete('/api/items/:id', (req, res, ctx) => res(ctx.status(204)));
+
+// ruleid: dossier.js.entry.msw-handler
+http.get(`${env.API_URL}/teams`, resolver);
+
+// ok: dossier.js.entry.msw-handler
+http.get(path, resolver);
+
+// ok: dossier.js.entry.msw-handler
+http.request('/api/other', resolver);
+
+// ruleid: dossier.js.entry.msw-handler
+http.get('/api/is-a-mock-not-an-express-route', resolver);
