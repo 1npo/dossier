@@ -168,3 +168,22 @@ def page_routes(tree, read) -> list:
             full = full if full.startswith("/") else "/" + full
             out.append(_item(path, line, "http-route", f"GET {full}", f"a web request to `GET {full}`", "cs.razor-page"))
     return out
+
+
+CAKE_TASK = re.compile(r"""\bTask\(\s*(?:"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)')\s*\)""")
+
+
+def cake_tasks(tree, read) -> list:
+    """`build-task` rows for the tasks a Cake script declares with `Task("Name")`, one per declaration, in the order written.
+
+    Comments are ignored. The name is the text of the literal as written, so a task named by a variable gives no row."""
+    out = []
+    for path in sorted(tree):
+        if not path.endswith(".cake"):
+            continue
+        text = re.sub(r"//[^\n]*|/\*.*?\*/", lambda m: re.sub(r"[^\n]", " ", m.group(0)), read(path) or "", flags=re.S)
+        for found in CAKE_TASK.finditer(text):
+            name = found.group(1) if found.group(1) is not None else found.group(2)
+            line = text.count("\n", 0, found.start()) + 1
+            out.append(_item(path, line, "build-task", name, f"running `dotnet cake --target {name}`", "cs.cake-task", f'Task("{name}")'))
+    return out
