@@ -88,3 +88,8 @@ def test_last_built_pill_stays_inside_chips_so_it_gets_the_outline_stroke(tmp_pa
     make(tmp_path, "a")
     text = portfolio.write(tmp_path, "1.5.0").read_text()
     assert '<span class="chips"><span class="badge" data-variant="outline">Last built' in text
+
+
+def test_card_body_children_have_no_extra_margins(tmp_path):
+    make(tmp_path, "a")
+    assert ".dcard .langs { margin: 0; }" in portfolio.write(tmp_path, "1.5.0").read_text()

@@ -56,6 +56,7 @@ REPORTS = [  # id, title, written by Claude?  The order is schema.REPORT_ORDER.
 TITLES = {r: t for r, t, _ in REPORTS}
 CONF = ("confirmed", "inferred", "unknown")
 BLOCKS = ("text", "table", "diagram", "list")
+NO_SUMMARY = ("dossier", "overview")   # reports with no executive summary card: the first card says what the page is about
 BARE_REPORTS = ("risks", "gaps", "corrections")   # tracker pages: no executive summary or contents card
 GAP_KINDS = ("assumption", "unknown", "inference", "coverage")
 SEVERITIES = ("critical", "high", "medium", "low", "info")
@@ -1946,13 +1947,15 @@ def build_page(rid, reports, facts, state, ctx):
     else:
         headline = rep.get("headline", "This report has not been written yet.")
         summary_html = md(summary_text(rep), refs) or '<p class="muted">Not generated.</p>'
-        if rid == "overview":
+        if rid == "overview":      # the written Project summary first, then the cards drawn from measurements
+            written = {"cards": [c for c in sch["cards"] if c["writer"] == "claude"]}
+            parts.append(f'<div class="findings">{schema_cards_html(written, rep, refs, rid, measured_ctx(ctx, reports, facts))}</div>')
             parts.append(panel_git(facts, refs, ctx))
             parts.append(panel_contributors(facts, refs, ctx["extract"].get("history")))
             parts.append(panel_dependencies(facts, refs))
         if rid == "risks" and rep:
             parts.append(panel_risk_counts(rep))
-        if sch and any(c["writer"] == "claude" for c in sch["cards"]):
+        if rid != "overview" and sch and any(c["writer"] == "claude" for c in sch["cards"]):
             parts.append(f'<div class="findings">{schema_cards_html(sch, rep, refs, rid, measured_ctx(ctx, reports, facts))}</div>')
         elif not sch:
             blocks = render_blocks(rep.get("blocks", []), refs, rid)
@@ -1961,7 +1964,7 @@ def build_page(rid, reports, facts, state, ctx):
         if rid == "gaps":
             parts.append(panel_gaps(ctx["gaps"], refs))
     body, toc = with_contents(rid, "".join(parts))
-    top = "" if rid in BARE_REPORTS else f'<div class="card summary llm"><header><h2>Executive summary</h2></header><section>{summary_html}</section></div>' + toc
+    top = "" if rid in BARE_REPORTS else (f'<div class="card summary llm"><header><h2>Executive summary</h2></header><section>{summary_html}</section></div>' if rid not in NO_SUMMARY else "") + toc
     return (f'<section class="report" id="{rid}" hidden>{head_html(rid, title, inline(headline, refs), sch)}{pre}'
             + top + body + f'<div class="card refs-card" id="{rid}-refs"><header><h2>References</h2><p>Links open the source at the pinned commit.</p></header><section>{refs.listing()}</section></div></section>')
 

@@ -487,3 +487,12 @@ def test_questions_are_one_table_with_a_heading_row_per_category(make_cites):
     h = render.questions_body(refs(make_cites))
     assert h.count("<table") == 1 and 'id="t-questions"' in h
     assert h.count('class="band-row"') == len(schema.load_categories())
+
+
+def test_overview_and_dossier_have_no_executive_summary_card():
+    assert set(render.NO_SUMMARY) == {"dossier", "overview"}
+
+
+def test_overview_has_a_written_project_summary_card_first():
+    cards = schema.load("overview")["cards"]
+    assert cards[0]["id"] == "overview.summary" and cards[0]["writer"] == "claude"

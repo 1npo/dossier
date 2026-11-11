@@ -402,7 +402,13 @@ Drawn by code from the tool findings. **Do not write this card:** leave it out o
 
 ## overview
 
-The one-page answer to "what is this?". It has no cards to write: the page draws the repository, contributors and dependencies cards from measurements. Write `headline` and `summary` (what the project is, who it serves, how big and mature it looks, and the three things to know first), and optionally `update_note`: one plain sentence on what changed in the analysis this time. `cards` is not needed.
+The one-page answer to "what is this?". The page draws the repository, contributors and dependencies cards from measurements. You write one card, `overview.summary` (Project summary), and `headline` and `summary` for the report list and `summary.json` (the page itself shows no Executive summary here).
+
+### Project summary (`overview.summary`)
+
+One `text` block in the style of an executive summary: two or three short paragraphs of plain prose on what the project is, who or what it serves, what it does and how, how big and mature it looks, and the one or two things a newcomer should know first. Cite what you state. No headings, no bullet lists, no restating the headline word for word.
+
+Shape: one text block.
 
 ## risks
 

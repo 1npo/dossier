@@ -4,6 +4,23 @@
   "question": "What is this repository, who works on it, and what does it depend on?",
   "cards": [
     {
+      "id": "overview.summary",
+      "title": "Project summary",
+      "tier": "R",
+      "priority": "P0",
+      "writer": "claude",
+      "shape": "blocks",
+      "slots": [
+        {
+          "type": "text",
+          "min": 1,
+          "max": 1
+        }
+      ],
+      "informational": true,
+      "fixed": null
+    },
+    {
       "id": "overview.repository",
       "title": "Overview",
       "tier": "M",
