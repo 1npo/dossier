@@ -1,13 +1,13 @@
 import subprocess
 from types import SimpleNamespace
 
-import adapters
+from dossier.adapters import base as adapters
 from dossier.findings import candidates
 import cs_adapter
 import cs_scip
 from dossier.tooling import dotnet_sdk as cs_sdk
 import scip_fake
-from adapters import OUTPUTS
+from dossier.adapters.base import OUTPUTS
 
 
 class FakeTS:

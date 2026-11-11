@@ -1,4 +1,4 @@
-import py_depends
+from dossier.adapters.python import depends as py_depends
 
 MODULES = {"app": "app/__init__.py", "app.deps": "app/deps.py", "app.routes": "app/routes.py", "app.sub.api": "app/sub/api.py"}
 PATHS = {p: m for m, p in MODULES.items()}

@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from dossier.core import scip_read
-import scip_tool
+from dossier.adapters.python import scip as scip_tool
 from dossier.tooling import sandbox
 from dossier.tooling import toolcheck
 

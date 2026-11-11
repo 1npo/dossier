@@ -1,4 +1,4 @@
-import py_project
+from dossier.adapters.python import project as py_project
 
 
 def projects(*paths):

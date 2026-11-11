@@ -16,17 +16,17 @@ from dossier.findings import candidates
 from dossier.core import config
 from dossier.facts import gather
 from dossier.core import graphs
-import py_api
-import py_depends
-import py_packages
-import py_project
-import py_queries
+from dossier.adapters.python import api as py_api
+from dossier.adapters.python import depends as py_depends
+from dossier.adapters.python import packages as py_packages
+from dossier.adapters.python import project as py_project
+from dossier.adapters.python import queries as py_queries
 from dossier.tooling import sandbox
 from dossier.core import scip_read
-import scip_tool
+from dossier.adapters.python import scip as scip_tool
 from dossier.tooling import toolcheck
-from adapters import OUTPUTS, Adapter
-from py_tools import Grimp, Vulture
+from dossier.adapters.base import OUTPUTS, Adapter
+from dossier.adapters.python.tools import Grimp, Vulture
 from dossier import resources
 
 RULES = resources.data("rules", "python")

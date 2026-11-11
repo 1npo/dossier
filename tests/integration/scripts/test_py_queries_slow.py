@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-import py_queries
+from dossier.adapters.python import queries as py_queries
 from dossier.tooling import sandbox
 from dossier.tooling import shared_tools
 

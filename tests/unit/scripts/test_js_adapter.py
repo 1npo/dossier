@@ -4,10 +4,10 @@ from types import SimpleNamespace
 
 import pytest
 
-import adapters
+from dossier.adapters import base as adapters
 import js_adapter
 import js_tools
-from adapters import OUTPUTS
+from dossier.adapters.base import OUTPUTS
 
 NODE_TOOLS = ("dependency-cruiser", "knip", "scip-typescript", "typescript")
 

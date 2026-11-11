@@ -12,7 +12,7 @@ import re
 from pathlib import Path
 
 from dossier.tooling import toolcheck
-from scip_tool import _check
+from dossier.adapters.python.scip import _check
 from dossier import resources
 from dossier.tooling.shared_tools import ToolError
 

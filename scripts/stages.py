@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
-import adapters
+from dossier.adapters import base as adapters
 from dossier.core import buildlog
 from dossier.findings import candidates
 from dossier.core import config

@@ -19,7 +19,7 @@ import js_reduce
 import js_semgrep
 import js_tools
 from dossier.core import scip_read
-from adapters import OUTPUTS, Adapter
+from dossier.adapters.base import OUTPUTS, Adapter
 from dossier.facts.gather import TEST_RE
 from dossier import resources
 

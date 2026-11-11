@@ -3,7 +3,7 @@ import subprocess
 
 import pytest
 
-import adapters
+from dossier.adapters import base as adapters
 from dossier.pipeline import workarea
 
 

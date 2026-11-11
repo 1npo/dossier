@@ -10,7 +10,7 @@ import subprocess
 from pathlib import Path
 
 from dossier.facts import gather
-from adapters import Adapter
+from dossier.adapters.base import Adapter
 from dossier import resources
 
 RULES_ALL = resources.data("rules", "all")

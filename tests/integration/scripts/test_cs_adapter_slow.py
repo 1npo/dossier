@@ -16,7 +16,7 @@ import pytest
 from dossier.core import buildlog
 import stages
 from dossier.pipeline import workarea
-from adapters import OUTPUTS
+from dossier.adapters.base import OUTPUTS
 from conftest import build_cs_repo
 from test_cs_semgrep_slow import BLIND, IO
 
