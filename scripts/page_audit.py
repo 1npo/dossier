@@ -168,18 +168,17 @@ def _check_entry(card: Node, cid: str, entry: dict, sch_card: dict) -> list:
 
 
 def _check_questions(card) -> list:
-    """V11: every category is drawn as a heading over a table holding exactly its questions."""
-    errs, qs = [], schema.load_questions()
-    for cat in schema.load_categories():
-        want = sum(1 for q in qs if q.get("category") == cat["id"])
-        table = card.find("table", id=f"t-questions-{cat['id']}")
-        if not table:
-            errs.append(f"V11: dossier.questions: the table for the category {cat['title']} is not drawn.")
-        elif len(_rows(table[0])) != want:
-            errs.append(f"V11: dossier.questions: {cat['title']} has {len(_rows(table[0]))} questions drawn, expected {want}.")
-    groups = card.find("section", cls="q-group")
-    if len(groups) != len(schema.load_categories()) or not all(g.find("h3") for g in groups):
-        errs.append(f"V11: dossier.questions: {len(groups)} category headings drawn, expected {len(schema.load_categories())}.")
+    """V11: one table holds every question, with a heading row for each category."""
+    errs, qs, cats = [], schema.load_questions(), schema.load_categories()
+    table = card.find("table", id="t-questions")
+    if not table:
+        return ["V11: dossier.questions: the questions table is not drawn."]
+    rows = _rows(table[0])
+    bands = [r for r in rows if r.has("band-row")]
+    if len(rows) - len(bands) != len(qs):
+        errs.append(f"V11: dossier.questions: {len(rows) - len(bands)} questions drawn, expected {len(qs)}.")
+    if len(bands) != len(cats):
+        errs.append(f"V11: dossier.questions: {len(bands)} category headings drawn, expected {len(cats)}.")
     return errs
 
 

@@ -66,3 +66,17 @@ def test_title_favicon_and_separate_git_pills(tmp_path):
     text = portfolio.write(tmp_path, "1.6.5").read_text()
     assert "<title>dossier portfolio</title>" in text and 'rel="icon"' in text
     assert 'data-variant="outline">main</span><span class="badge" data-variant="outline">5923c09081</span>' in text and "2026-10-24" not in text
+
+
+def test_card_puts_last_built_before_the_git_pills(tmp_path):
+    make(tmp_path, "a")
+    card = portfolio.write(tmp_path, "1.5.0").read_text().split('<a class="card dcard"', 1)[1]
+    assert card.index("<h2>a</h2>") < card.index("Last built") < card.index(">main</span>")
+
+
+def test_keybinds_button_panel_and_selection_keys(tmp_path):
+    make(tmp_path, "a")
+    text = portfolio.write(tmp_path, "1.5.0").read_text()
+    assert text.index('id="theme-toggle"') < text.index('id="keys-btn"') < text.index('class="tools"')
+    assert 'id="keys-panel"' in text and "Open the selected dossier." in text
+    assert "ArrowDown" in text and 'e.key === "Enter"' in text

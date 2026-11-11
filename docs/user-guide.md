@@ -146,6 +146,8 @@ Hover a source marker `[n]` to see what it points to. Click it to open the cited
 | `/` | Search the dossier. |
 | `h` | Go to the portfolio page (the **Portfolio** link at the top of the sidebar does the same). |
 
+On the portfolio page, `j`/`k` (or the arrow keys) move a highlight through the dossier cards, `Enter` opens the highlighted one, and `?` (or the **Keybinds** button under the theme toggle) opens a sidebar listing these keys.
+
 The Legend and Code tabs sit in each report's title bar. The panel also has a row of the statement's other sources and a "Go to reference" button. Citations of directories and commits, and of files that are binary, minified or may hold secrets, do not open the panel; the click jumps to the reference list. A click on a "measured facts" marker explains what was measured, with a button that shows the code that measured it. A file longer than 1,500 lines is embedded as the 1,500-line window with the most cited ranges, and the panel says which lines it shows.
 
 **Sharing.** The page contains the source of every file it cites, up to 3 MB of text. Treat it like the repository: share it no more widely than the code. Files that match secret patterns are never embedded.

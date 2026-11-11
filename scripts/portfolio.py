@@ -105,7 +105,7 @@ def risk_pills(risks: dict) -> str:
 def card(e: dict) -> str:
     open_n = e["open_inferences"] + e["open_unknowns"]
     stale = '<span class="badge" data-variant="secondary" title="Built by an older version of the skill. Build again to refresh it.">older skill</span>' if e["outdated"] else ""
-    commit = f'<div class="chips"><span class="badge" data-variant="outline">{E(e["branch"])}</span><span class="badge" data-variant="outline">{E(e["sha"])}</span></div>' if e["sha"] else ""
+    commit_pills = f'<span class="badge" data-variant="outline">{E(e["branch"])}</span><span class="badge" data-variant="outline">{E(e["sha"])}</span>' if e["sha"] else ""
     change = f'<p class="muted change">{E(e["change"])}</p>' if e["change"] and e["builds"] > 1 else ""
     stats = (f'<dl class="dstats"><div><dt>Components</dt><dd>{e["components"]}</dd></div>'
              f'<div><dt>Entry points</dt><dd>{e["entry_points"]}</dd></div>'
@@ -114,7 +114,7 @@ def card(e: dict) -> str:
     key = E(" ".join([e["name"], e["description"], e["branch"]] + [l["name"] for l in e["languages"]]).lower())
     return (f'<a class="card dcard" href="{E(e["page"])}" data-key="{key}" data-built="{E(e["built"])}" data-name="{E(e["name"].lower())}">'
             f'<header class="dhead"><div class="dhead-row"><h2>{E(e["name"])}</h2>{stale}</div>'
-            f'<div class="dhead-row">{commit or "<span></span>"}<span class="chips">{built_pill(e["built"])}<span class="muted">{builds}</span></span></div></header>'
+            f'<div class="dhead-row"><span class="chips">{built_pill(e["built"])}{commit_pills}</span><span class="muted">{builds}</span></div></header>'
             f'<section><p class="desc">{E(e["description"][:200]) or "No description found in the repository."}</p>'
             f'{stats}{lang_bar(e["languages"])}<div class="chips">{risk_pills(e["risks"])}</div></section>{change}</a>')
 
@@ -132,6 +132,7 @@ body { min-height: 100vh; }
 .tools select { font: inherit; padding: .4rem .6rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); color: var(--foreground); }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr)); gap: 1rem; }
 a.dcard { display: flex; flex-direction: column; text-decoration: none; color: inherit; transition: border-color .15s, transform .15s; }
+a.dcard.sel { border-color: var(--ring); box-shadow: 0 0 0 2px var(--ring); }
 a.dcard:hover, a.dcard:focus-visible { border-color: var(--foreground); transform: translateY(-1px); outline: none; }
 .dcard h2 { font-size: 1.125rem; } .dcard .desc { margin: 0; color: var(--muted-foreground); font-size: .875rem; }
 .dcard .dhead { display: flex; flex-direction: column; align-items: stretch; gap: .5rem; margin-top: -1rem; padding: .85rem 1rem; border-bottom: 1px solid var(--border); background: var(--muted); }
@@ -146,6 +147,12 @@ a.dcard:hover, a.dcard:focus-visible { border-color: var(--foreground); transfor
 .badge.risk-critical, .badge.risk-high { color: var(--destructive); border-color: var(--destructive); }
 .badge.risk-medium { background: var(--warn-bg); color: var(--warn); border-color: var(--warn); }
 .empty { padding: 3rem 1rem; text-align: center; color: var(--muted-foreground); } .empty[hidden] { display: none; }
+.subbar { display: flex; justify-content: flex-end; padding: .6rem 0 0; }
+.keys-btn kbd, .keys-panel kbd { font: inherit; font-size: .75rem; padding: 0 .35rem; border: 1px solid var(--border); border-radius: .25rem; background: var(--muted); }
+.keys-panel { position: fixed; top: 0; right: 0; bottom: 0; width: 20rem; max-width: 90vw; z-index: 50; padding: 1.25rem; overflow-y: auto; background: var(--card); color: var(--card-foreground, var(--foreground)); border-left: 1px solid var(--border); box-shadow: -8px 0 24px rgb(0 0 0 / .15); }
+.keys-panel[hidden] { display: none; }
+.keys-panel header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; } .keys-panel h2 { font-size: 1.125rem; margin: 0; }
+.keys-panel dl { display: grid; gap: .6rem; margin: 0; } .keys-panel dl > div { display: grid; grid-template-columns: 7rem 1fr; gap: .75rem; align-items: baseline; } .keys-panel dd { margin: 0; font-size: .875rem; color: var(--muted-foreground); }
 .foot { margin-top: 3rem; text-align: center; }
 @media (max-width: 40rem) { .wrap { padding: 0 1rem 3rem; } .grid { grid-template-columns: 1fr; } }
 """
@@ -167,13 +174,29 @@ SCRIPT = """
     none.hidden = shown > 0;
   }
   q.addEventListener("input", run); sort.addEventListener("change", run);
+  var panel = document.getElementById("keys-panel"), kbtn = document.getElementById("keys-btn"), sel = -1;
+  function keys(on) { if (on === undefined) on = panel.hidden; panel.hidden = !on; kbtn.setAttribute("aria-expanded", String(on)); }
+  kbtn.addEventListener("click", function () { keys(); });
+  document.getElementById("keys-close").addEventListener("click", function () { keys(false); });
+  function shown() { return cards.filter(function (c) { return !c.hidden; }); }
+  function select(step) {
+    var list = shown(); if (!list.length) return;
+    var cur = list.indexOf(cards[sel]), next = cur < 0 ? (step > 0 ? 0 : list.length - 1) : Math.max(0, Math.min(list.length - 1, cur + step));
+    cards.forEach(function (c) { c.classList.remove("sel"); });
+    var c = list[next]; sel = cards.indexOf(c); c.classList.add("sel"); c.scrollIntoView({ block: "nearest" });
+  }
   var hint = document.getElementById("search-hint");
   if (hint) { q.addEventListener("focus", function () { hint.hidden = true; }); q.addEventListener("blur", function () { hint.hidden = false; }); }
   document.addEventListener("keydown", function (e) {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
-    var typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+    var tag = document.activeElement.tagName, typing = /^(INPUT|TEXTAREA|SELECT)$/.test(tag);
+    if (e.key === "Escape") { if (!panel.hidden) keys(false); else if (document.activeElement === q) q.blur(); return; }
     if (e.key === "/" && document.activeElement !== q) { e.preventDefault(); q.focus(); }
     else if (e.key === "t" && !typing) tg.click();
+    else if (e.key === "?" && !typing) { e.preventDefault(); keys(); }
+    else if ((e.key === "ArrowDown" || (e.key === "j" && !typing)) && tag !== "SELECT") { e.preventDefault(); select(1); }
+    else if ((e.key === "ArrowUp" || (e.key === "k" && !typing)) && tag !== "SELECT") { e.preventDefault(); select(-1); }
+    else if (e.key === "Enter" && cards[sel] && !cards[sel].hidden && tag !== "A" && tag !== "BUTTON" && tag !== "SELECT") { e.preventDefault(); cards[sel].click(); }
   });
 })();
 """
@@ -194,6 +217,11 @@ def page(items: list[dict], version: str, home: Path) -> str:
               '<svg class="sun" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>'
               '<svg class="moon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>'
               '<span class="thumb"></span></button>')
+    keys_btn = ('<div class="subbar"><button id="keys-btn" class="btn keys-btn" data-variant="outline" data-size="sm" type="button" aria-controls="keys-panel" aria-expanded="false" title="Show the keyboard shortcuts (?)">Keybinds <kbd>?</kbd></button></div>')
+    rows = (("<kbd>\u2193</kbd> <kbd>j</kbd>", "Select the next dossier."), ("<kbd>\u2191</kbd> <kbd>k</kbd>", "Select the previous dossier."), ("<kbd>Enter</kbd>", "Open the selected dossier."),
+            ("<kbd>/</kbd>", "Filter the dossiers."), ("<kbd>t</kbd>", "Switch between light and dark."), ("<kbd>?</kbd>", "Show or hide this list."), ("<kbd>Esc</kbd>", "Close this list, or leave the filter box."))
+    panel = ('<aside id="keys-panel" class="keys-panel" aria-label="Keybinds" hidden><header><h2>Keybinds</h2><button id="keys-close" class="btn" data-variant="outline" data-size="sm" type="button">Close</button></header><dl>'
+             + "".join(f"<div><dt>{k}</dt><dd>{E(d)}</dd></div>" for k, d in rows) + "</dl></aside>")
     if items:
         body = (f'<div class="tools"><div class="search"><svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>'
                 f'<input id="q" class="input" type="text" placeholder="Filter dossiers" aria-label="Filter dossiers" autocomplete="off" spellcheck="false"><kbd id="search-hint">/</kbd></div>'
@@ -204,10 +232,10 @@ def page(items: list[dict], version: str, home: Path) -> str:
     css = render.load_asset(render.VENDOR / "basecoat.min.css") + "\n" + render.load_asset(render.ASSETS / "dossier.css") + EXTRA_CSS
     return (f'<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
             f'<meta name="generator" content="dossier"><title>dossier portfolio</title>{render.FAVICON}<style>{css}</style></head><body><div class="wrap">'
-            f'<header class="top"><div class="lead"><div class="brand">{brand}{brand_text}</div>{built}</div>{toggle}</header>'
+            f'<header class="top"><div class="lead"><div class="brand">{brand}{brand_text}</div>{built}</div>{toggle}</header>{keys_btn}'
             f'<section class="hero"><h1>Your dossiers</h1>{summary if items else ""}</section>'
             f'{body}<footer class="foot muted">Generated by the dossier skill v{E(version)} from <code>{E(str(home))}</code>. This page is rewritten every time a dossier is built.</footer>'
-            f'</div><script>{SCRIPT}</script></body></html>\n')
+            f'</div>{panel}<script>{SCRIPT}</script></body></html>\n')
 
 
 def write(home: Path, version: str) -> Path:
