@@ -501,3 +501,8 @@ def test_overview_has_a_written_project_summary_card_first():
 def test_contents_card_comes_before_the_executive_summary():
     src = open(render.__file__, encoding="utf-8").read()
     assert "toc + summary_card" in src
+
+
+def test_contents_names_the_executive_summary_first_and_it_has_that_anchor():
+    body, toc = render.with_contents("entry", '<div class="card panel llm"><header><h2>A</h2></header></div>', [("entry-summary", "Executive summary")])
+    assert toc.index('href="#entry-summary">Executive summary') < toc.index(">A<")

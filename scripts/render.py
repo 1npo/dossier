@@ -1790,9 +1790,9 @@ def flags_html(rid, reports, state, ctx=None):
 CARD_HEAD = re.compile(r'<div class="card (panel|block)([^"]*)"( id="[^"]*")?( data-card="[^"]*")?><header><h([23])>(.*?)</h\5>')
 
 
-def with_contents(rid, body):
+def with_contents(rid, body, lead=()):
     """Give every named card an anchor and return (body, contents card) listing the cards in page order."""
-    entries = []
+    entries = list(lead)      # cards above the body that the list should name first (the Executive summary)
 
     def sub(m):
         kind, extra, idattr, dc, lvl, inner = m.groups()
@@ -1963,8 +1963,9 @@ def build_page(rid, reports, facts, state, ctx):
                 parts.append(f'<div class="findings">{blocks}</div>')
         if rid == "gaps":
             parts.append(panel_gaps(ctx["gaps"], refs))
-    body, toc = with_contents(rid, "".join(parts))
-    summary_card = "" if rid in NO_SUMMARY else f'<div class="card summary llm"><header><h2>Executive summary</h2></header><section>{summary_html}</section></div>'
+    has_summary = rid not in BARE_REPORTS and rid not in NO_SUMMARY
+    body, toc = with_contents(rid, "".join(parts), [(f"{rid}-summary", "Executive summary")] if has_summary else ())
+    summary_card = "" if rid in NO_SUMMARY else f'<div class="card summary llm" id="{rid}-summary"><header><h2>Executive summary</h2></header><section>{summary_html}</section></div>'
     top = "" if rid in BARE_REPORTS else toc + summary_card      # the Contents card is always first
     return (f'<section class="report" id="{rid}" hidden>{head_html(rid, title, inline(headline, refs), sch)}{pre}'
             + top + body + f'<div class="card refs-card" id="{rid}-refs"><header><h2>References</h2><p>Links open the source at the pinned commit.</p></header><section>{refs.listing()}</section></div></section>')
