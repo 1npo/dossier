@@ -209,7 +209,7 @@ The version lives in `VERSION` and `.claude-plugin/plugin.json`; `python3 script
 
 A new minor or major version makes `update_plan` rebuild every dossier in full the next time it is built. `summary.json` carries its own `schema_version`, which changes only when a field is added or removed.
 
-To install a released version, see the README. In the author's setup, `~/.claude/skills/dossier` is vendored into the `encamp` repository (as a `git subtree` of this repository) and updated by `encamp-sync pull`. Never edit that copy; change this repository.
+To install a released version, see the README. In the author's setup, `~/.claude/skills/dossier` is a plain clone of this repository, created and fast-forwarded by `encamp-sync pull` (and by `encamp`'s install). `encamp` does not hold a copy. Never edit that clone; change this repository.
 
 ## Debugging and troubleshooting
 
