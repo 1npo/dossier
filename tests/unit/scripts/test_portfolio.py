@@ -72,11 +72,13 @@ def test_card_puts_last_built_before_the_git_pills(tmp_path):
     make(tmp_path, "a")
     card = portfolio.write(tmp_path, "1.5.0").read_text().split('<a class="card dcard"', 1)[1]
     assert card.index("<h2>a</h2>") < card.index("Last built") < card.index(">main</span>")
+    assert 'Last built' in card.split('</div>', 2)[1] and 'data-variant="outline">main' not in card.split('</div>', 2)[1]
 
 
 def test_keybinds_button_panel_and_selection_keys(tmp_path):
     make(tmp_path, "a")
     text = portfolio.write(tmp_path, "1.5.0").read_text()
     assert text.index('id="theme-toggle"') < text.index('id="keys-btn"') < text.index('class="tools"')
+    assert 'id="keys-panel" class="keys-panel shut"' in text and "translateX(100%)" in text
     assert 'id="keys-panel"' in text and "Open the selected dossier." in text
     assert "ArrowDown" in text and 'e.key === "Enter"' in text

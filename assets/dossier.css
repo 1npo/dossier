@@ -638,6 +638,7 @@ table.happened { width: 100%; border-collapse: collapse; font-size: .8125rem; }
 .q-group :is(th, td):nth-child(1) { width: 3.5rem; }
 .q-group :is(th, td):nth-child(3) { width: 40%; }
 .table:not(.kv) > tbody > tr.band-row > td { padding-top: .7rem; padding-bottom: .5rem; font-size: .8125rem; background: var(--muted); }
+.band-row strong { display: block; margin-bottom: .25rem; }
 .table > tbody > tr.band-row:hover { background: var(--muted); }
 
 /* report 14: the key to the Source column */

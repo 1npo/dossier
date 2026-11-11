@@ -114,7 +114,8 @@ def card(e: dict) -> str:
     key = E(" ".join([e["name"], e["description"], e["branch"]] + [l["name"] for l in e["languages"]]).lower())
     return (f'<a class="card dcard" href="{E(e["page"])}" data-key="{key}" data-built="{E(e["built"])}" data-name="{E(e["name"].lower())}">'
             f'<header class="dhead"><div class="dhead-row"><h2>{E(e["name"])}</h2>{stale}</div>'
-            f'<div class="dhead-row"><span class="chips">{built_pill(e["built"])}{commit_pills}</span><span class="muted">{builds}</span></div></header>'
+            f'<div class="dhead-row">{built_pill(e["built"])}</div>'
+            f'<div class="dhead-row"><span class="chips">{commit_pills}</span><span class="muted">{builds}</span></div></header>'
             f'<section><p class="desc">{E(e["description"][:200]) or "No description found in the repository."}</p>'
             f'{stats}{lang_bar(e["languages"])}<div class="chips">{risk_pills(e["risks"])}</div></section>{change}</a>')
 
@@ -147,12 +148,13 @@ a.dcard:hover, a.dcard:focus-visible { border-color: var(--foreground); transfor
 .badge.risk-critical, .badge.risk-high { color: var(--destructive); border-color: var(--destructive); }
 .badge.risk-medium { background: var(--warn-bg); color: var(--warn); border-color: var(--warn); }
 .empty { padding: 3rem 1rem; text-align: center; color: var(--muted-foreground); } .empty[hidden] { display: none; }
-.subbar { display: flex; justify-content: flex-end; padding: .6rem 0 0; }
-.keys-btn kbd, .keys-panel kbd { font: inherit; font-size: .75rem; padding: 0 .35rem; border: 1px solid var(--border); border-radius: .25rem; background: var(--muted); }
-.keys-panel { position: fixed; top: 0; right: 0; bottom: 0; width: 20rem; max-width: 90vw; z-index: 50; padding: 1.25rem; overflow-y: auto; background: var(--card); color: var(--card-foreground, var(--foreground)); border-left: 1px solid var(--border); box-shadow: -8px 0 24px rgb(0 0 0 / .15); }
-.keys-panel[hidden] { display: none; }
-.keys-panel header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; } .keys-panel h2 { font-size: 1.125rem; margin: 0; }
-.keys-panel dl { display: grid; gap: .6rem; margin: 0; } .keys-panel dl > div { display: grid; grid-template-columns: 7rem 1fr; gap: .75rem; align-items: baseline; } .keys-panel dd { margin: 0; font-size: .875rem; color: var(--muted-foreground); }
+.subbar { display: flex; justify-content: flex-end; padding: 1.25rem 0 0; }
+.keys-panel { position: fixed; top: 0; right: 0; bottom: 0; z-index: 55; width: min(24rem, 100vw); display: flex; flex-direction: column; background: var(--card); color: var(--card-foreground);
+  border-left: 1px solid var(--border); box-shadow: -8px 0 24px rgb(0 0 0 / .18); transition: transform .25s cubic-bezier(.4, 0, .2, 1), visibility 0s linear 0s, box-shadow .25s ease; }
+.keys-panel.shut { transform: translateX(100%); visibility: hidden; pointer-events: none; box-shadow: none; transition: transform .25s cubic-bezier(.4, 0, .2, 1), visibility 0s linear .25s, box-shadow .25s ease; }
+.keys-panel > header { display: flex; justify-content: space-between; align-items: center; padding: .7rem .9rem; border-bottom: 1px solid var(--border); } .keys-panel h2 { font-size: 1.125rem; margin: 0; }
+.keys-panel .kp-body { flex: 1; min-height: 0; overflow: auto; padding: 1rem .9rem; }
+@media (prefers-reduced-motion: reduce) { .keys-panel, .keys-panel.shut { transition: none !important; } }
 .foot { margin-top: 3rem; text-align: center; }
 @media (max-width: 40rem) { .wrap { padding: 0 1rem 3rem; } .grid { grid-template-columns: 1fr; } }
 """
@@ -175,7 +177,7 @@ SCRIPT = """
   }
   q.addEventListener("input", run); sort.addEventListener("change", run);
   var panel = document.getElementById("keys-panel"), kbtn = document.getElementById("keys-btn"), sel = -1;
-  function keys(on) { if (on === undefined) on = panel.hidden; panel.hidden = !on; kbtn.setAttribute("aria-expanded", String(on)); }
+  function keys(on) { if (on === undefined) on = panel.classList.contains("shut"); panel.classList.toggle("shut", !on); kbtn.setAttribute("aria-pressed", String(on)); }
   kbtn.addEventListener("click", function () { keys(); });
   document.getElementById("keys-close").addEventListener("click", function () { keys(false); });
   function shown() { return cards.filter(function (c) { return !c.hidden; }); }
@@ -190,7 +192,7 @@ SCRIPT = """
   document.addEventListener("keydown", function (e) {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     var tag = document.activeElement.tagName, typing = /^(INPUT|TEXTAREA|SELECT)$/.test(tag);
-    if (e.key === "Escape") { if (!panel.hidden) keys(false); else if (document.activeElement === q) q.blur(); return; }
+    if (e.key === "Escape") { if (!panel.classList.contains("shut")) keys(false); else if (document.activeElement === q) q.blur(); return; }
     if (e.key === "/" && document.activeElement !== q) { e.preventDefault(); q.focus(); }
     else if (e.key === "t" && !typing) tg.click();
     else if (e.key === "?" && !typing) { e.preventDefault(); keys(); }
@@ -217,11 +219,11 @@ def page(items: list[dict], version: str, home: Path) -> str:
               '<svg class="sun" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>'
               '<svg class="moon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>'
               '<span class="thumb"></span></button>')
-    keys_btn = ('<div class="subbar"><button id="keys-btn" class="btn keys-btn" data-variant="outline" data-size="sm" type="button" aria-controls="keys-panel" aria-expanded="false" title="Show the keyboard shortcuts (?)">Keybinds <kbd>?</kbd></button></div>')
+    keys_btn = ('<div class="subbar"><button id="keys-btn" class="panel-tab" type="button" aria-controls="keys-panel" aria-pressed="false" title="Show the keyboard shortcuts (?)">Keys <kbd>?</kbd></button></div>')
     rows = (("<kbd>\u2193</kbd> <kbd>j</kbd>", "Select the next dossier."), ("<kbd>\u2191</kbd> <kbd>k</kbd>", "Select the previous dossier."), ("<kbd>Enter</kbd>", "Open the selected dossier."),
             ("<kbd>/</kbd>", "Filter the dossiers."), ("<kbd>t</kbd>", "Switch between light and dark."), ("<kbd>?</kbd>", "Show or hide this list."), ("<kbd>Esc</kbd>", "Close this list, or leave the filter box."))
-    panel = ('<aside id="keys-panel" class="keys-panel" aria-label="Keybinds" hidden><header><h2>Keybinds</h2><button id="keys-close" class="btn" data-variant="outline" data-size="sm" type="button">Close</button></header><dl>'
-             + "".join(f"<div><dt>{k}</dt><dd>{E(d)}</dd></div>" for k, d in rows) + "</dl></aside>")
+    panel = ('<aside id="keys-panel" class="keys-panel shut" aria-label="Keyboard shortcuts"><header><h2>Keyboard shortcuts</h2><button id="keys-close" class="btn" data-variant="outline" data-size="sm" type="button">Close</button></header><div class="kp-body"><dl class="legend-list keys">'
+             + "".join(f"<div><dt>{k}</dt><dd>{E(d)}</dd></div>" for k, d in rows) + "</dl></div></aside>")
     if items:
         body = (f'<div class="tools"><div class="search"><svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>'
                 f'<input id="q" class="input" type="text" placeholder="Filter dossiers" aria-label="Filter dossiers" autocomplete="off" spellcheck="false"><kbd id="search-hint">/</kbd></div>'
