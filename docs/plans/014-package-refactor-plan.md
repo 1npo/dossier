@@ -979,7 +979,7 @@ Read section 2, section 4 (D1, D2, D7, D14) and this phase. Load the shared skil
 
 ### Tasks (Phase A)
 
-- [ ] **A1. Goldens: `tools/golden.py` and the before-capture.** (Opus)
+- [x] **A1. Goldens: `tools/golden.py` and the before-capture.** (Opus)
   1. If the two doc moves are uncommitted: `git switch -c refactor/package-a-packaging`, `git add -A docs/process.md docs/plans/process.md docs/post-v1.md docs/prompts/post-v1.md docs/prompts/plan-package-refactor.md docs/plans/014-package-refactor-plan.md`, commit `docs(dossier): move process.md and post-v1.md (the author's change) and add plan 014`.
   2. Write `tools/golden.py` (standard library only, `python3 tools/golden.py ...`), with a module docstring that states D14's masks and their reasons. Subcommands:
      - `repos OUT`: build the seven fixture repositories of D14's fast set into `OUT/` by importing the base side's builders (`tests/conftest.py` today, `tests/support/repos.py` after E1; take the folder with `--from SKILL_DIR`) with `GIT_AUTHOR_DATE` and `GIT_COMMITTER_DATE` set to `2026-01-01T12:00:00+00:00`, so the commit hashes are fixed. Run once; both sides read the same repositories.
@@ -1040,7 +1040,27 @@ Before the merge: `git switch main && git branch -D refactor/package-a-packaging
 
 ### Results (Phase A)
 
-(Write here: `BASE_SHA`; the determinism-run masks with reasons; A2's ruff ignores with counts and mypy errors per module; the version-source outcome; suite counts and times; block GF output.)
+Session: Opus 5.5, 2026-11-11.
+
+**Start.** `main` had moved past `9936b78` to **`2b6a480`** (`Merge chore/release-1.10.3`: the portfolio "Last built" pill, `scripts/portfolio.py` and one test, and the bump to 1.10.3). So:
+
+- **`BASE_SHA=2b6a480`** (worktree `$SCR/base`).
+- Refreshed default-suite baseline at `BASE_SHA`: **2995 passed, 305 skipped** (78 s; one test more than section 3, added by 1.10.3). Every later count in this plan is relative to this one. The slow suite was not rerun (the 1.10.3 change adds no slow test).
+- **`VERSION` is now `1.10.3`**, so A2's `hatch version` and A4's `version` done-check expect `1.10.3`, and **the release in Phase H is 1.10.3 to 1.10.4** (still a patch, for D13 and section 12's reasons). Phase H: read "1.10.4" wherever this plan says "1.10.3" for the bump and the release branch (`chore/release-1.10.4`).
+- The author's two uncommitted moves were committed first on `refactor/package-a-packaging` (A1 step 1, `5e0bafb`).
+
+**A1.**
+
+- `tools/golden.py` (`repos`, `capture`, `compare`), with the mask list in its docstring. Tests: `tests/unit/tools/test_golden.py`, 22 tests.
+- Fixture repositories in `$SCR/repos`, built from the base's `tests/conftest.py` with fixed git dates (`2026-01-01T12:00:00+00:00`). Commit hashes: pyrepo `9a19743`, jsrepo `78a3ae1`, csrepo `074dd59`, pylib `804cad4`, pyfastapi `0d08f0a`, cscake `15ca730`, mixedsub `f9d61f0`.
+- Block S done: `$SCR/src/{to,bp,rw}` at their pins, all clean.
+- Cases and exit codes (base, both runs): fast set: `pyrepo`, `jsrepo`, `csrepo`, `pylib`, `pyfastapi`, `cscake`, `mixedsub` (prepare 0, render 0 each); `m3_page`, `m4_page`, `m5_page`, `m6_page` (`make`), `m6_page_small` (`m6_page.make_small`) (make 0 each). Full set: `to`, `bp`, `rw` (prepare 0, render 0 each). The page builders have only `make` (m3 to m5) or `make` and `make_small` (m6), so the fast set has five page cases.
+- A capture keeps each case's whole `DOSSIER_HOME`, so it compares more than D14 lists: every JSON beside `facts.json` (`activity`, `chunks`, `dependencies`, `knowledge`, `refdata`, `state`, `build.prev.json`) and the portfolio `index.html` as well. Step logs go to `OUT/logs/<case>/`.
+- Timing: a fast capture is about 5.5 min, a full capture about 3.5 min, a compare about 15 s.
+- Determinism run: `compare a1 a2` (fast) and `compare x1 x2` (full) both print **`SAME`**, and the gatherer review files are empty. The masks found 948, 1260 and 256 embedded lines (deps, gather, history) and 8 `data-a` attributes on the pyrepo page, so the review is not trivially empty. The run needed **two masks beyond D14**, both build times:
+  1. `build_id` in `build.json` / `build.prev.json` is `<UTC start time>-<short sha>`. Only the time prefix is masked; the sha is kept.
+  2. `data-built="<ISO time>"` on the portfolio's cards (`index.html`): the build time.
+- Final mask list: D14's table plus these two (`golden.EXTRA_MASKS`).
 
 ---
 
