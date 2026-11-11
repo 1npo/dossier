@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.11"
 # dependencies = ["playwright", "pillow"]
 # ///
 """Compare how report 02 looks with a stored screenshot of how the pre-0.5 skill drew it (plan 008, D12).

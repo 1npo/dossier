@@ -19,7 +19,7 @@
 
 dossier is a Claude Code skill. A Python CLI (`scripts/dossier.py`) measures a git repository at one pinned commit, runs language tools over it and renders a single HTML page; Claude reads the code and writes the cards that need judgement. The standard library plus Pygments is all the CLI imports at run time; every other tool is started through `uv` or `npm` with pinned versions.
 
-Stack: Python 3.10+ run by `uv`, tree-sitter, Semgrep, grimp, vulture and import-linter for Python, scip-python, dependency-cruiser, knip and scip-typescript for JS and TS, scip-dotnet for C#, Mermaid in the page. Linux and macOS. The page works in current Chromium, Firefox and Safari; the page check needs Playwright's Chromium.
+Stack: Python 3.11+ run by `uv` (the Python, TypeScript and Semgrep workers keep `>=3.10` because they run under the repository's own Python and import nothing newer), tree-sitter, Semgrep, grimp, vulture and import-linter for Python, scip-python, dependency-cruiser, knip and scip-typescript for JS and TS, scip-dotnet for C#, Mermaid in the page. Linux and macOS. The page works in current Chromium, Firefox and Safari; the page check needs Playwright's Chromium.
 
 What to build is decided in [plans/004-v1-spec.md](plans/004-v1-spec.md). How milestones are planned and reviewed is in [process.md](process.md). What waits until after 1.0.0 is in [post-v1.md](post-v1.md). The user-visible behaviour is in the [user guide](user-guide.md).
 
@@ -181,7 +181,7 @@ To test the skill by hand, build a small repository: set the three `DOSSIER_*` v
 
 ## Code conventions
 
-- Python 3.10+, `from __future__ import annotations`, standard library only in anything `dossier.py` imports (plus Pygments).
+- Python 3.11+ (3.10+ in the three worker scripts), `from __future__ import annotations`, standard library only in anything `dossier.py` imports (plus Pygments).
 - Modules stay under about 300 lines; split by purpose, not by size alone.
 - Every child process goes through `sandbox.run` or `ctx.run`. No shell strings.
 - Nothing is dropped silently: no `[:N]` on data that feeds a card. A diagram view may hide links only through the stated filter, and says so on the page.

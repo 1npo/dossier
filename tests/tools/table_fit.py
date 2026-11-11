@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.11"
 # dependencies = ["playwright"]
 # ///
 """Print, as JSON, whether the injected tables (ids starting `inj-`) of a page scroll sideways, at each width.

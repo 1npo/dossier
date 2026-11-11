@@ -22,10 +22,7 @@ from pathlib import PurePosixPath
 import deps as depscan
 import markers as markerscan
 
-try:
-    import tomllib
-except ImportError:  # Python < 3.11
-    tomllib = None
+import tomllib
 
 BYTES_PER_TOKEN = 3.5      # rough, deliberately conservative for code
 MAX_READ = 25_000_000      # bytes; larger blobs are listed but not read here

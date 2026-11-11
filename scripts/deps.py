@@ -16,10 +16,7 @@ import warnings
 from collections import defaultdict, deque
 from pathlib import PurePosixPath
 
-try:
-    import tomllib
-except ImportError:  # Python < 3.11
-    tomllib = None
+import tomllib
 
 MAX_SOURCE = 1_000_000        # bytes; larger source files are not scanned
 TEXT_CACHE = 150_000_000      # bytes of source text kept in memory between the two passes
