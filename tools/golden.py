@@ -88,7 +88,7 @@ BUILD_ID_RE = re.compile(r"^\d{8}T\d{6}Z(?=-)")
 DATA_BUILT_RE = re.compile(r'\bdata-built="[^"]*"')
 
 STAMP_RE = re.compile(r"\b\d{4}-\d{2}-\d{2} \d{2}:\d{2} [AP]M\b|\b\d{2}:\d{2} [AP]M\b")
-SKILL_LINE_RE = re.compile(r"(Skill(?:</dt><dd>|: ))[0-9a-f]{7}(?:, uncommitted changes)?(?:, UNMERGED)?")
+SKILL_LINE_RE = re.compile(r"(Skill(?:</dt><dd>|</th><td>|: ))[0-9a-f]{7}(?:, uncommitted changes)?(?:, UNMERGED)?")
 GATHERER_TAG_RE = re.compile(r'<[^<>]*\bdata-view="' + re.escape(GATHERER_PREFIX) + r'[^"]*"[^<>]*>')
 LINE_ATTR_RE = re.compile(r'\bdata-([ab])="\d+"')
 CODE_DATA_RE = re.compile(r'(<script type="application/json" id="code-data">)(.*?)(</script>)', re.S)

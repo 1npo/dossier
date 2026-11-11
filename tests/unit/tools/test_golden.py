@@ -108,6 +108,11 @@ class TestMaskHtml:
 
         assert out == f"Done. Skill: {MASK}. <dt>Skill</dt><dd>{MASK}</dd>"
 
+    def test_skill_line_is_masked_in_the_process_table(self):
+        out, _ = golden.mask_html('<th scope="row">Skill</th><td>b682b2b, uncommitted changes</td>')
+
+        assert out == f'<th scope="row">Skill</th><td>{MASK}</td>'
+
     def test_gatherer_line_attributes_are_masked_and_others_kept(self):
         text = ('<li data-view="dossier-gatherer/gather.py" data-a="391" data-b="451">x</li>'
                 '<li data-view="src/app.py" data-a="3" data-b="4">y</li>')
