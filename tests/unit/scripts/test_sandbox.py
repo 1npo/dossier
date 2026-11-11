@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -175,3 +176,45 @@ class TestDotnetSettings:
 
             expected = NAMES_BEFORE_M5 if profile == "tool" else NAMES_BEFORE_M5 - {"UV_PYTHON_INSTALL_DIR"}
             assert set(env) - set(DOTNET_FIXED) == expected
+
+
+class TestWindows:
+    """The Windows branches, run on any system through the module's WINDOWS flag."""
+
+    PARENT = {"PATH": "/usr/bin", "SYSTEMROOT": r"D:\Win", "COMSPEC": r"D:\Win\System32\cmd.exe", "PATHEXT": ".EXE;.CMD", "OS": "Windows_NT",
+              **FORBIDDEN}
+
+    @pytest.fixture(autouse=True)
+    def windows(self, monkeypatch):
+        monkeypatch.setattr(sandbox, "WINDOWS", True)
+
+    def test_system_variables_pass_through_and_user_folders_are_scratch(self, area):
+        env = sandbox.build_env(area, parent=self.PARENT)
+
+        assert env["SYSTEMROOT"] == r"D:\Win" and env["COMSPEC"].endswith("cmd.exe") and env["PATHEXT"] == ".EXE;.CMD"
+        home = area / "home"
+        assert env["USERPROFILE"] == str(home) and env["TEMP"] == env["TMP"] == str(home / "tmp")
+        assert env["APPDATA"] == str(home / "AppData" / "Roaming") and (home / "AppData" / "Local").is_dir()
+        assert set(env) <= sandbox.ALLOWED_NAMES and not FORBIDDEN.keys() & env.keys()
+
+    def test_names_are_matched_without_regard_to_case(self, area):
+        env = sandbox.build_env(area, parent={"Path": "x", "SystemRoot": r"D:\Win"})
+
+        assert env["SYSTEMROOT"] == r"D:\Win"
+
+    def test_system_folders_come_from_systemroot(self):
+        assert sandbox._safe_path({"SYSTEMROOT": r"D:\Win"}) == (os.path.join(r"D:\Win", "System32"), r"D:\Win")
+        assert sandbox._safe_path({})[1] == r"C:\Windows"
+
+    def test_kill_uses_taskkill_for_the_process_tree(self, monkeypatch):
+        calls = []
+        monkeypatch.setattr(sandbox.subprocess, "run", lambda cmd, **kw: calls.append(cmd))
+
+        sandbox._kill_group(4242)
+
+        assert calls == [["taskkill", "/PID", "4242", "/T", "/F"]]
+
+    def test_a_posix_system_keeps_its_own_folders(self, monkeypatch):
+        monkeypatch.setattr(sandbox, "WINDOWS", False)
+
+        assert sandbox._safe_path({}) == sandbox.SAFE_PATH
