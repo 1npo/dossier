@@ -5,6 +5,7 @@ Everything here is drawn from build.json. It never imports render at module leve
 from __future__ import annotations
 
 import html
+from datetime import datetime, timezone
 
 import buildlog
 import schema
@@ -35,7 +36,11 @@ def _plural(n, word):
 
 
 def _clock(stamp):
-    return (stamp or "")[11:16]
+    """The time of a UTC stamp in the machine's local time zone, as `12:04 PM`."""
+    try:
+        return datetime.strptime((stamp or "")[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc).astimezone().strftime("%I:%M %p")
+    except ValueError:
+        return (stamp or "")[11:16]
 
 
 def _extractors(build) -> str:
@@ -129,7 +134,7 @@ def _ok_rows(step, build) -> list:
         if summary:
             out.append(("Summary", _plural((summary.get("counts") or {}).get("v8", 0), "problem")))
         out.append(("Verifier", verifier_line(build)))
-        out.append(("Browser check", f"{_plural((b.get('counts') or {}).get('problems', 0), 'problem')} ({_clock(b.get('started'))} UTC)" if b else "not run yet"))
+        out.append(("Browser check", f"{_plural((b.get('counts') or {}).get('problems', 0), 'problem')} ({_clock(b.get('started'))})" if b else "not run yet"))
         return out
     if step == "gaps":
         return [("Open items", sum(c.values())), ("Unknown", c.get("unknown", 0)), ("Inferred", c.get("inference", 0)),

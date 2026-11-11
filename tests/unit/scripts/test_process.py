@@ -170,7 +170,7 @@ class TestRunLine:
     def test_check_with_browser_record(self):
         b = rec("check", part="browser", by="check_page", counts={"problems": 0}, started="2026-11-01T12:04:05Z")
 
-        assert "Browser check: 0 problems (12:04 UTC)." in process.run_line("check", build_with(*FULL, b))
+        assert f"Browser check: 0 problems ({process._clock('2026-11-01T12:04:05Z')})." in process.run_line("check", build_with(*FULL, b))
 
     def test_gaps_counts(self):
         assert process.run_line("gaps", build_with(*FULL)) == "Open items: 6. Unknown: 1. Inferred: 2. Assumed: 0. Coverage: 3."
