@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-import cs_semgrep
+from dossier.adapters.csharp import semgrep as cs_semgrep
 from dossier.render.measured import tables as measured_tables
 from dossier.tooling import sandbox
 from dossier.tooling import shared_tools

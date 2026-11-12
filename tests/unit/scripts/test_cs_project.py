@@ -1,4 +1,4 @@
-import cs_project
+from dossier.adapters.csharp import project as cs_project
 
 
 def csproj(sdk="Microsoft.NET.Sdk", props="", items=""):

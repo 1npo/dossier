@@ -1,4 +1,4 @@
-import cs_tests
+from dossier.adapters.csharp import testsuite as cs_tests
 
 
 def attr(name, args=""):

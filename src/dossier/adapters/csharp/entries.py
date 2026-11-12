@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 
-import cs_queries
+from dossier.adapters.csharp import queries as cs_queries
 
 VERBS = {"HttpGet": "GET", "HttpPost": "POST", "HttpPut": "PUT", "HttpPatch": "PATCH", "HttpDelete": "DELETE", "HttpHead": "HEAD", "HttpOptions": "OPTIONS"}
 FUNCTION_TRIGGERS = {"HttpTrigger": "a web request to `{name}`", "TimerTrigger": "a schedule",

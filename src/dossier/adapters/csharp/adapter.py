@@ -9,16 +9,16 @@ from pathlib import Path
 
 from dossier.findings import candidates
 from dossier.core import config
-import cs_api
-import cs_entries
-import cs_graph
-import cs_models
-import cs_project
-import cs_queries
-import cs_scip
+from dossier.adapters.csharp import api as cs_api
+from dossier.adapters.csharp import entries as cs_entries
+from dossier.adapters.csharp import graph as cs_graph
+from dossier.adapters.csharp import models as cs_models
+from dossier.adapters.csharp import project as cs_project
+from dossier.adapters.csharp import queries as cs_queries
+from dossier.adapters.csharp import scip as cs_scip
 from dossier.tooling import dotnet_sdk as cs_sdk
-import cs_semgrep
-import cs_tests
+from dossier.adapters.csharp import semgrep as cs_semgrep
+from dossier.adapters.csharp import testsuite as cs_tests
 from dossier.core import scip_read
 from dossier.tooling import toolcheck
 from dossier.adapters.base import OUTPUTS, Adapter

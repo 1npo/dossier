@@ -1,4 +1,4 @@
-import cs_api
+from dossier.adapters.csharp import api as cs_api
 
 
 def member(name, kind="method", mods=("public",), line=5, params=(), attrs=()):

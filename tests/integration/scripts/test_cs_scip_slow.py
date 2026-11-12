@@ -4,7 +4,7 @@ import subprocess
 
 import pytest
 
-import cs_scip
+from dossier.adapters.csharp import scip as cs_scip
 from dossier.tooling import sandbox
 from dossier.tooling import toolcheck
 

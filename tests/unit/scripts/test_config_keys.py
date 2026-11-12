@@ -1,5 +1,5 @@
 from dossier.findings import candidates
-import cs_adapter
+from dossier.adapters.csharp import adapter as cs_adapter
 from dossier.render.measured import tables as measured_tables
 
 

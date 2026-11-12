@@ -10,7 +10,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-import cs_api
+from dossier.adapters.csharp import api as cs_api
 from dossier.core import scip_read
 from dossier.tooling.shared_tools import ToolError
 

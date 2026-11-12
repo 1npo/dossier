@@ -6,7 +6,7 @@ import zipfile
 
 import pytest
 
-import cs_scip
+from dossier.adapters.csharp import scip as cs_scip
 from dossier.core import scip_read
 from dossier.tooling import shared_tools
 from dossier.tooling import toolcheck
