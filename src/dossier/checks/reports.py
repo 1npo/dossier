@@ -19,6 +19,8 @@ from dossier.render import page as render
 from dossier.core import schema
 from dossier.checks import verify
 
+__all__ = ["gap_extras", "validate"]
+
 FIXED_ROW_CARDS = ("io.inputs", "io.outputs")
 
 

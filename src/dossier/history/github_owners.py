@@ -10,6 +10,8 @@ import time
 
 from dossier.facts import gather
 
+__all__ = ["logins", "lookup", "slug"]
+
 BATCH = 50
 SHA = re.compile(r"[0-9a-f]{40}")
 PR_FIELDS = ("associatedPullRequests(first:5){nodes{number merged mergedBy{login __typename} "

@@ -24,6 +24,11 @@ from dossier.pipeline import extract
 from dossier.pipeline import workarea
 from dossier import resources
 
+__all__ = [
+    "Options", "PrepareError", "Stop", "resolve_ref", "stage_copy", "stage_extract", "stage_pin", "stage_tools",
+    "tree_at",
+]
+
 
 @dataclass
 class Options:

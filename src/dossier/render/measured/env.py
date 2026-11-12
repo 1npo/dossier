@@ -8,6 +8,8 @@ from __future__ import annotations
 from dossier.render.measured import change as measured_change
 from dossier.render import markup
 
+__all__ = ["DRAWN", "ENV_COLUMNS", "SECRET_COLUMNS"]
+
 ENV_COLUMNS = ["Variable", "Read at", "Default", "Also declared in", "Source"]
 SECRET_COLUMNS = ["Path", "Line", "Pattern", "Note", "Source"]
 SENSITIVE_PATTERN = "sensitive file name"

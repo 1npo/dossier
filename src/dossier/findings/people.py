@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from dossier.findings import components
 
+__all__ = ["bus_factor", "component_stats", "history_items", "names_of"]
+
 
 def history_items(ctx, kind):
     return [i for i in (ctx.get("extract") or {}).get("history", []) if i.get("kind") == kind]

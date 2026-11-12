@@ -22,6 +22,8 @@ from dossier.render.measured import upgrade as measured_upgrade
 from dossier.core import schema
 from dossier.render import page as render
 
+__all__ = ["audit"]
+
 VOID = frozenset("area base br col embed hr img input link meta param source track wbr".split())
 SKIP_TEXT = frozenset(("script", "style"))
 DRAWN_TABLES = {"data.relationships": "t-data-relationships-fields", "interactions.graph": "t-interactions-graph-edges"}

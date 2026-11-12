@@ -12,6 +12,8 @@ import tomllib
 
 from dossier.facts import gather
 
+__all__ = ["is_library", "items"]
+
 MAX_HOPS = 10
 SCRIPT_GROUPS = ("scripts", "gui-scripts", "console_scripts", "gui_scripts")
 

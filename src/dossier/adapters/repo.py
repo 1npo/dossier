@@ -13,6 +13,8 @@ from dossier.facts import gather
 from dossier.adapters.base import Adapter, failure_reason
 from dossier import resources
 
+__all__ = ["RepoAdapter"]
+
 RULES_ALL = resources.data("rules", "all")
 MAX_BYTES = 1_000_000
 TEST_COMMAND = re.compile(r"\b(pytest|tox|nox|jest|vitest|mocha)\b|make test\b|\bplaywright test\b|\bcypress run\b|\b(npm|yarn|pnpm)( run)? test\b|\bnx test\b|\bdotnet test\b")

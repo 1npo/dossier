@@ -9,6 +9,8 @@ import re
 
 from dossier.adapters.csharp import queries as cs_queries
 
+__all__ = ["cake_tasks", "class_entries", "controller_routes", "function_entries", "page_routes", "program_entries"]
+
 VERBS = {"HttpGet": "GET", "HttpPost": "POST", "HttpPut": "PUT", "HttpPatch": "PATCH", "HttpDelete": "DELETE", "HttpHead": "HEAD", "HttpOptions": "OPTIONS"}
 FUNCTION_TRIGGERS = {"HttpTrigger": "a web request to `{name}`", "TimerTrigger": "a schedule",
                      "QueueTrigger": "a message or a change for `{name}`", "ServiceBusTrigger": "a message or a change for `{name}`",

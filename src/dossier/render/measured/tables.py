@@ -2,6 +2,11 @@
 from __future__ import annotations
 from dossier.render import markup
 
+__all__ = [
+    "API_COLUMNS", "REACT_COLUMNS", "component_edges", "config_keys", "friend_lines", "heading", "module_imports",
+    "public_api", "public_api_rows", "react_components",
+]
+
 
 def heading(text: str) -> str:
     return f'<h4 class="graph-heading">{markup.E(text)}</h4>'

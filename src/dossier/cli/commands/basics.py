@@ -15,6 +15,8 @@ from dossier.render import portfolio
 from dossier.tooling import toolcheck
 from dossier.cli import common
 
+__all__ = ["cmd_clean", "cmd_doctor", "cmd_home", "cmd_portfolio", "cmd_version"]
+
 
 def cmd_version(_):
     print(f"dossier {common.VERSION}")

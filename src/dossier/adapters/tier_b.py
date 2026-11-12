@@ -9,6 +9,8 @@ from __future__ import annotations
 from dossier.facts import gather
 from dossier.adapters.base import Adapter, failure_reason
 
+__all__ = ["TierBAdapter"]
+
 PACK = "tree-sitter-language-pack"
 # dossier language name -> (grammar name, file extensions to read, query whose captures are the kind of each definition)
 LANGUAGES = {

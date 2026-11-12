@@ -11,6 +11,8 @@ from datetime import date
 
 from dossier.facts import gather
 
+__all__ = ["branches", "default_branch", "git", "merge_sizes", "rows", "tags"]
+
 CONVENTIONAL = re.compile(r"^(feat|fix|docs|chore|refactor|test|build|ci|perf|style)(\(.+\))?!?: ")
 MERGE_BRANCH = [re.compile(r"^Merge (?:remote-tracking )?branch '([^']+)'"), re.compile(r"^Merge pull request #\d+ from [^/\s]+/(\S+)"),
                 re.compile(r"^merged\s+(\S+)", re.I)]

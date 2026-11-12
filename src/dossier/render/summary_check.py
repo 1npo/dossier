@@ -8,6 +8,8 @@ import json
 from pathlib import Path
 from dossier import resources
 
+__all__ = ["load_schema", "validate"]
+
 SCHEMA_PATH = resources.data("schemas", "summary.schema.json")
 CONSTRAINTS = {"type", "required", "properties", "additionalProperties", "items", "enum", "minimum"}
 ANNOTATIONS = {"$schema", "title", "description"}

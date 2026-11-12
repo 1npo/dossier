@@ -23,6 +23,8 @@ from dossier.adapters.base import OUTPUTS, Adapter, failure_reason
 from dossier.facts.gather import TEST_RE
 from dossier import resources
 
+__all__ = ["JsAdapter"]
+
 RULES = resources.data("rules", "js")
 NODE_TOOLS = ("dependency-cruiser", "knip", "scip-typescript", "typescript")
 CRUISE_CONFIGS = tuple(f".dependency-cruiser.{e}" for e in ("js", "cjs", "mjs", "ts", "cts", "mts", "json"))

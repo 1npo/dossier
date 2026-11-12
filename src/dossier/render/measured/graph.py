@@ -13,6 +13,8 @@ from dossier.core import graphs
 from dossier.render.measured import tables as measured_tables
 from dossier.render import markup
 
+__all__ = ["DRAWN", "UNASSIGNED", "_diagram", "_label", "component_area", "mermaid_id", "package_roots"]
+
 UNASSIGNED = "unassigned"
 
 

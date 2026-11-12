@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from dossier.adapters.js import reduce as js_reduce
 
+__all__ = ["items", "scannable"]
+
 TRIGGERS = {"cli-command": "the `{name}` command", "http-route": "a web request to `{name}`", "queue-consumer": "a message for the task `{name}`",
             "scheduled-job": "a schedule", "server-listen": "when the server starts",
             "mock-route": "a request that the msw mock `{name}` answers in tests or in the browser"}

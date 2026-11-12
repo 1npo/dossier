@@ -15,6 +15,8 @@ from dossier.render.measured import graph as measured_graph
 from dossier.render.measured import tables as measured_tables
 from dossier.render import markup
 
+__all__ = ["draw", "entities"]
+
 MAX_ENTITIES = 12
 SQL = "sql-table"
 EF_KINDS = ("ef-entity", "ef-owned", "cs-enum")

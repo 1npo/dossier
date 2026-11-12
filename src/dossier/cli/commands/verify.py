@@ -12,6 +12,8 @@ from dossier.core import config
 from dossier.render import page as render
 from dossier.cli import common
 
+__all__ = ["cmd_verify_record", "cmd_verify_sample"]
+
 
 def _verify_inputs(a):
     top = common.toplevel(a.repo)

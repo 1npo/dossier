@@ -13,6 +13,8 @@ from dossier.cli.commands import prepare
 from dossier.cli.commands import render
 from dossier.cli.commands import verify
 
+__all__ = ["build_parser"]
+
 
 def build_parser():
     ap = argparse.ArgumentParser(prog="dossier")

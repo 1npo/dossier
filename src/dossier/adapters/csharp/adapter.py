@@ -25,6 +25,8 @@ from dossier.adapters.base import OUTPUTS, Adapter, failure_reason
 from dossier.facts.gather import TEST_RE
 from dossier import resources
 
+__all__ = ["CSharpAdapter"]
+
 RULES = resources.data("rules", "csharp")
 NOT_TRUSTED = "The ref is not trusted, so scip-dotnet did not run. Use --allow-ref to run it."
 NO_RUNTIME = "scip-dotnet needs the .NET 8, 9 or 10 runtime, and none is installed."

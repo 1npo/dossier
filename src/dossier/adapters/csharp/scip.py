@@ -14,6 +14,11 @@ from dossier.adapters.csharp import api as cs_api
 from dossier.core import scip_read
 from dossier.tooling.shared_tools import ToolError
 
+__all__ = [
+    "ScipDotnet", "dead_items", "disambiguate", "drop_unrelated", "ensure_installed", "failure", "fallback_defs",
+    "finish_symbols", "join", "soft_failure", "tool_dll", "unloaded_projects",
+]
+
 SUPPORTED_MAJORS = (10, 9, 8)
 
 

@@ -16,6 +16,8 @@ from dossier.render.measured import change as measured_change
 from dossier import resources
 from dossier.render import markup
 
+__all__ = ["DRAWN", "fetch_refdata", "rows"]
+
 SNAPSHOT = resources.data("eol.json")
 DOTNET_INDEX = "https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/releases-index.json"
 PACKAGE_PRODUCTS = {"django": "django", "react": "react", "next": "nextjs"}

@@ -11,6 +11,8 @@ from pathlib import Path
 
 from dossier.facts import gather
 
+__all__ = ["apply", "list_runtime_majors", "list_sdks", "problem", "problem_for", "requirements"]
+
 DEFAULT_RULE = "patch"
 
 

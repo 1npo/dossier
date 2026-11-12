@@ -16,6 +16,8 @@ from dossier import resources
 from dossier.tooling import shared_tools
 from dossier.tooling.shared_tools import ToolError
 
+__all__ = ["DepCruiser", "Knip", "NOT_TRUSTED", "ScipTs", "ToolError", "TsFacts", "ensure_installed", "node_problem"]
+
 NODE_DIR = resources.data("node", "js-tools")
 FILES = ("package.json", "package-lock.json", "ts_facts.mjs")
 PROBE = Path("node_modules") / "knip" / "bin" / "knip.js"

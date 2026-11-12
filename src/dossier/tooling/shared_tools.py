@@ -11,6 +11,8 @@ from pathlib import Path
 from dossier.tooling import toolcheck
 from dossier import resources
 
+__all__ = ["Semgrep", "ToolError", "TreeSitter", "_call", "check_result"]
+
 
 
 class ToolError(RuntimeError):

@@ -11,6 +11,11 @@ from dossier.facts import gather
 from dossier.render import markup
 from dossier.findings.people import history_items  # noqa: F401  (the measured cards reach it as measured_change.history_items)
 
+__all__ = [
+    "COCHANGE_MIN", "DRAWN", "HOTSPOT_COMPONENTS", "HOTSPOT_FILES", "dead_rows", "foot_notes", "has_history",
+    "history_items", "intro", "none_found", "pair_rows",
+]
+
 HOTSPOT_FILES = ["File", "Component", "Commits", "Lines added", "Lines removed", "Complexity", "Last changed", "Source"]
 HOTSPOT_COMPONENTS = ["Component", "Files", "File changes", "Lines added", "Lines removed", "Complexity"]
 PERIODS = (("12m", "Past 12 months"), ("all", "All time"))

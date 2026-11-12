@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import re
 
+__all__ = ["model_items"]
+
 DBSET_RE = re.compile(r"^(?:[\w.]+\.)?DbSet<\s*([\w.]+)\s*>$")
 ENTITY_CALL_RE = re.compile(r"\.Entity<\s*([\w.]+)\s*>\s*\(")
 OWNS_RE = re.compile(r"\.Owns(?:One|Many)<\s*([\w.]+)\s*>")

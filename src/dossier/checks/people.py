@@ -6,6 +6,8 @@ import re
 from dossier.findings import candidates
 from dossier.core import schema
 
+__all__ = ["people", "risk_source"]
+
 STATUSES = ("single owner", "departed", "shared")
 RISK_SOURCES = ("extractor", "read")
 

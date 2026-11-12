@@ -10,6 +10,8 @@ import difflib
 import hashlib
 import re
 
+__all__ = ["apply", "find", "migrate", "sync"]
+
 SCHEMA = 2
 ACTIONS = ("confirm", "answer", "wrong")
 MATCH = 0.8   # how similar two wordings must be to count as the same item

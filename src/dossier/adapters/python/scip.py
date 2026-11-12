@@ -15,6 +15,8 @@ from dossier import resources
 from dossier.tooling import shared_tools
 from dossier.tooling.shared_tools import ToolError
 
+__all__ = ["ensure_installed", "run_index"]
+
 NODE_DIR = resources.data("node", "scip-python")
 INDEX_JS = Path("node_modules") / "@sourcegraph" / "scip-python" / "index.js"
 

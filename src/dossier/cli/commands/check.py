@@ -14,6 +14,8 @@ from dossier.render import page as render
 from dossier.render import summary
 from dossier.cli import common
 
+__all__ = ["browser_check_line", "cmd_check"]
+
 
 def browser_check_line(build) -> str:
     """What the render summary says about the browser check: "not run", or how many problems it found and when."""

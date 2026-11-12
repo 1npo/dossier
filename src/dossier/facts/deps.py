@@ -17,6 +17,7 @@ from collections import defaultdict, deque
 from pathlib import PurePosixPath
 
 import tomllib
+__all__ = ["CATEGORIES", "analyze"]
 
 MAX_SOURCE = 1_000_000        # bytes; larger source files are not scanned
 TEXT_CACHE = 150_000_000      # bytes of source text kept in memory between the two passes

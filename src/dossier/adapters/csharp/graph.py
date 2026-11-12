@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from dossier.core import graphs
 
+__all__ = ["module_items", "namespace_cycles", "type_uses"]
+
 
 def module_name(path: str) -> str:
     return path[:-3] if path.endswith(".cs") else path

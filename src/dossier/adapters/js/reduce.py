@@ -8,6 +8,11 @@ from dossier.facts import gather
 from dossier.core import graphs
 from dossier.core import scip_read
 
+__all__ = [
+    "contract_items", "dead_items", "finish_symbols", "graph_items", "join_indexes", "model_items", "prefix_facts",
+    "render_edges", "route_entries", "route_parts", "ui_items",
+]
+
 JS_EXT = (".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs")
 
 

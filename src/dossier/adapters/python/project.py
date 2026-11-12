@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from dossier.facts import gather
 
+__all__ = ["projects"]
+
 MANIFESTS = ("pyproject.toml", "setup.py", "setup.cfg", "requirements.txt")
 
 

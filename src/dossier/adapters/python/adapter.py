@@ -29,6 +29,8 @@ from dossier.adapters.base import OUTPUTS, Adapter, failure_reason
 from dossier.adapters.python.tools import Grimp, Vulture
 from dossier import resources
 
+__all__ = ["PythonAdapter"]
+
 RULES = resources.data("rules", "python")
 NO_PACKAGE = "No Python package was found, so imports were read from the files directly."
 NOT_TRUSTED = "The ref is not trusted, so Node tools did not run. Use --allow-ref to run them."

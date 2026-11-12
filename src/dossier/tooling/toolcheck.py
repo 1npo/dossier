@@ -14,6 +14,8 @@ from dossier.tooling import dotnet_sdk as cs_sdk
 from dossier.facts import gather
 from dossier import resources
 
+__all__ = ["format_text", "load_tools", "parse_version", "preflight", "preflight_at"]
+
 TOOLS_FILE = resources.data("tools.json")
 HOST_FOR_VIA = {"uv": ["uv"], "npx": ["node", "npm"], "dotnet-tool": ["dotnet"], "sdk": ["dotnet"], "repo-config": []}
 

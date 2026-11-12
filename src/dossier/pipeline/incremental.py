@@ -12,6 +12,8 @@ import re
 
 from dossier.render.markup import INLINE_CITE, parse_cite
 
+__all__ = ["MAX_CHANGED", "apply_shifts", "cites_in", "expected_reports", "parse_hunks", "plan"]
+
 HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", re.M)
 REPO_WIDE = ("overview", "contributors")   # restate things that move with every commit
 DIGEST_REASON = "the tool findings it is built from changed"

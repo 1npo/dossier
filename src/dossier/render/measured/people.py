@@ -8,6 +8,8 @@ from dossier.render.measured import change as measured_change
 from dossier.render import markup
 from dossier.findings.people import bus_factor, component_stats, names_of  # noqa: F401  (reached as measured_people.<name>)
 
+__all__ = ["DRAWN", "fill"]
+
 
 def workflow(cid, ctx, refs):
     """The six fixed rows, in the spec's order."""

@@ -12,6 +12,8 @@ import sys
 from bisect import bisect_right
 from itertools import accumulate
 
+__all__ = ["MINIFIED_LINE", "TOKEN_CLASSES", "clip", "covers", "embed", "pick_window", "plan", "split_lines"]
+
 try:
     from pygments import lex
     from pygments.lexers import get_lexer_for_filename

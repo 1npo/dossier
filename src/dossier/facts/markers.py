@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import re
 
+__all__ = ["decision_docs", "long_commits", "scan"]
+
 COMMENT_START = ("#", "//", "--", "/*", "*")
 RULES = (("marker.hack", re.compile(r"\bHACK\b")),
          ("marker.xxx", re.compile(r"\bXXX\b")),

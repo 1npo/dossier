@@ -8,6 +8,8 @@ import json
 import os
 from pathlib import Path
 
+__all__ = ["cache_root", "home", "path", "registry_auth", "timeouts", "update", "verify_per_report"]
+
 DEFAULT_TIMEOUTS = {"restore": 900, "extract": 1800, "tool": 600, "history": 600, "github": 300}
 
 
@@ -56,7 +58,7 @@ def verify_per_report() -> int:
 
 
 def timeouts() -> dict:
-    out = dict(DEFAULT_TIMEOUTS)
+    out: dict[str, float] = dict(DEFAULT_TIMEOUTS)
     given = load().get("timeouts", {})
     if not isinstance(given, dict):
         raise SystemExit(f"timeouts in {path()} must be an object such as {{\"restore\": 900}}.")

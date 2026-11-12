@@ -6,6 +6,8 @@ import re
 from dossier.render import markup
 from dossier.render import page as render
 
+__all__ = ["check_results", "eligible", "keyed", "plain_text", "result_record", "sample", "sample_record"]
+
 VERDICTS = ("supported", "not supported", "cannot tell")
 SKIPPED_REPORTS = ("gaps",)
 

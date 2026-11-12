@@ -19,6 +19,8 @@ from dossier.findings import candidates
 from dossier.pipeline import workarea
 from dossier.tooling import sandbox
 
+__all__ = ["run_extract"]
+
 
 # ------------------------------------------------------------------ path filter
 
@@ -33,7 +35,7 @@ def _is_expected(path: str, globs) -> bool:
 def filter_paths(outputs: dict, tree, checkout, expected_globs=()) -> tuple:
     """Keep only items whose paths are tracked at the commit. Returns (kept outputs, stats)."""
     root = Path(checkout).resolve()
-    stats = {"paths_seen": 0, "paths_dropped": 0, "dropped_expected": 0, "dropped_outside": 0,
+    stats: dict = {"paths_seen": 0, "paths_dropped": 0, "dropped_expected": 0, "dropped_outside": 0,
              "dropped_unexpected": 0, "unexpected": []}
 
     def check(p):

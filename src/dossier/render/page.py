@@ -75,6 +75,12 @@ from dossier.render.markup import (  # noqa: F401  (other modules and the tests 
     user_note,
 )
 
+__all__ = [
+    "ASSETS", "CUT_CARDS", "Cites", "FAVICON", "GAP_KINDS", "OPTIONAL_REPORTS", "REPORTS", "TITLES", "VENDOR",
+    "auto_columns", "card_counts", "claims_of", "collect_gaps", "is_open", "load_asset", "local_stamp", "masthead",
+    "measured_ctx", "parse_cite", "render_html", "risk_counts", "validate",
+]
+
 ROOT = resources.skill_root()
 ASSETS, VENDOR = resources.data("assets"), resources.data("vendor")
 CONFLICT_MARKER = re.compile(r"^(<{7}|={7}|>{7})( |$)")

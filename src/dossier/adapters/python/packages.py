@@ -12,6 +12,11 @@ from pathlib import Path
 
 from dossier.facts import gather
 
+__all__ = [
+    "console_scripts", "importlinter_contracts", "loose_modules", "package_roots", "read_blob", "test_configs",
+    "vulture_config",
+]
+
 CONTRACT_KEYS = ("layers", "containers", "source_modules", "forbidden_modules", "modules", "ignore_imports")
 
 

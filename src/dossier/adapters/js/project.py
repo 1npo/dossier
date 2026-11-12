@@ -10,6 +10,8 @@ import json
 
 from dossier.facts import gather
 
+__all__ = ["manifest_frameworks", "projects", "read_json", "source_roots"]
+
 LOCKFILES = (("package-lock.json", "npm"), ("yarn.lock", "yarn"), ("pnpm-lock.yaml", "pnpm"), ("bun.lock", "bun"), ("bun.lockb", "bun"))
 JS_LANGUAGES = {"JavaScript", "TypeScript"}
 UNSUPPORTED = {"koa": "Koa", "hapi": "Hapi", "@hapi/hapi": "Hapi", "hono": "Hono", "nuxt": "Nuxt", "@sveltejs/kit": "SvelteKit",

@@ -15,6 +15,10 @@ from dossier import resources
 from dossier.core import config
 from dossier.findings import resolve
 
+__all__ = [
+    "ROOT", "VERSION", "die", "get_home", "load", "load_state", "now", "out_dir", "save", "save_state", "toplevel",
+]
+
 
 ROOT = resources.skill_root()
 

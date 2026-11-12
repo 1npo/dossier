@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from dossier.history import github_owners
 
+__all__ = ["apply", "pull_requests", "sole_human_of"]
+
 MESSAGES = {"no-slug": "the repository is not on GitHub", "no-login": "gh is not installed or not logged in"}
 
 

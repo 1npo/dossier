@@ -11,6 +11,8 @@ from dossier.adapters.python.adapter import PythonAdapter
 from dossier.adapters.repo import RepoAdapter
 from dossier.adapters.tier_b import TierBAdapter
 
+__all__ = ["detect"]
+
 REGISTERED: tuple[type[Adapter], ...] = (CSharpAdapter, JsAdapter, PythonAdapter, RepoAdapter, TierBAdapter)
 
 

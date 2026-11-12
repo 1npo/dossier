@@ -19,6 +19,8 @@ from dossier.findings import people
 from dossier.render import summary_check
 from dossier.render import page as render
 
+__all__ = ["build", "check_file", "remove", "validate", "write"]
+
 FILE = "summary.json"
 SEVERITIES = ("critical", "high", "medium", "low", "info")
 OWNER_MIN = 20

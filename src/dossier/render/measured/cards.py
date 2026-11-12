@@ -22,6 +22,8 @@ from dossier.render.measured import people as measured_people
 from dossier.render.measured import upgrade as measured_upgrade
 from dossier.render import markup
 
+__all__ = ["body", "fill_catalog", "fill_people"]
+
 
 def _table(cid, columns, rows, refs):
     return markup.render_table(columns, rows, refs, "t-" + cid.replace(".", "-"), plain=True)

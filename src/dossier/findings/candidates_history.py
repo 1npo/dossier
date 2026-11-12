@@ -10,6 +10,8 @@ from dossier.findings import components
 from dossier.findings import people
 from dossier.core import scip_read
 
+__all__ = ["data", "lines"]
+
 TOP_QUARTER = 4
 SOLE_OWNER = 80
 OLD_WORDS = {"legacy", "deprecated", "old", "v1", "v2"}

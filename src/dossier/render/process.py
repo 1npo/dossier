@@ -12,6 +12,11 @@ from dossier.core import schema
 from dossier.tooling import toolcheck
 from dossier.render import markup
 
+__all__ = [
+    "coverage_items", "nograph_cards", "partial_cards", "process_body", "render_records", "tier_stats",
+    "validate_build", "verifier_items",
+]
+
 E = lambda s: html.escape(str(s if s is not None else ""), quote=True)
 
 STEP_TEXT = {

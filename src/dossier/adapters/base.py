@@ -12,6 +12,8 @@ from typing import Callable, ClassVar
 
 from dossier.tooling import shared_tools
 
+__all__ = ["ALWAYS_EXPECTED_SEG", "Adapter", "Context", "NO_EXTRACTORS", "OUTPUTS", "failure_reason"]
+
 OUTPUTS = ("entry_points", "graph", "symbols", "io_candidates", "models", "tests", "dead", "blindspots")
 ALWAYS_EXPECTED_SEG = {".venv", "venv", ".git", ".grimp_cache"}
 NO_EXTRACTORS = "No extractors exist for these languages in this version of dossier."

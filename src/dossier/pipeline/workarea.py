@@ -13,6 +13,8 @@ from pathlib import Path
 
 from dossier.core import config
 
+__all__ = ["CheckoutError", "area_for", "clean", "ensure_checkout", "freshness", "trusted", "verify"]
+
 DROP_ENV = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY")
 
 

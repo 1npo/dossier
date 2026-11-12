@@ -13,6 +13,8 @@ from dossier.core import graphs
 from dossier.render.measured import change as measured_change
 from dossier.render import markup
 
+__all__ = ["DRAWN", "data"]
+
 
 def _bits(indexes, n):
     raw = bytearray((n + 7) // 8)

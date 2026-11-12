@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import re
 
+__all__ = ["complexity", "declarations", "strings_in"]
+
 TYPE_NODES = ("class_declaration", "record_declaration", "struct_declaration", "interface_declaration", "enum_declaration")
 MEMBER_NODES = {"method_declaration": "method", "constructor_declaration": "constructor", "property_declaration": "property",
                 "field_declaration": "field", "event_field_declaration": "event", "enum_member_declaration": "enum-member",
