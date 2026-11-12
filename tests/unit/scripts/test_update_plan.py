@@ -2,7 +2,8 @@ import json
 import sys
 from pathlib import Path
 
-from dossier.cli import app as dossier  # noqa: E402
+from dossier.cli import common  # noqa: E402
+from dossier.cli.commands import prepare  # noqa: E402
 
 
 class TestUpdatePlan:
@@ -16,8 +17,8 @@ class TestUpdatePlan:
     def test_state_saved_by_the_previous_minor_version_plans_a_full_rebuild(self, tmp_path):
         facts, state = self.make(tmp_path)
 
-        plan = dossier.update_plan(tmp_path, tmp_path, state, facts, "0.10.0", False)
+        plan = prepare.update_plan(tmp_path, tmp_path, state, facts, "0.10.0", False)
 
         assert plan["mode"] == "full"
-        assert plan["why"] == f"the skill changed from 0.10.0 to {dossier.VERSION}"
-        assert dossier.VERSION.split(".")[:2] != ["0", "10"]
+        assert plan["why"] == f"the skill changed from 0.10.0 to {common.VERSION}"
+        assert common.VERSION.split(".")[:2] != ["0", "10"]

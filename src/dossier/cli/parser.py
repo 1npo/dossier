@@ -1,0 +1,93 @@
+"""The argument parser: every subcommand, its options and the `cmd_*` function it runs. Reads nothing
+and runs nothing; the command modules do the work.
+"""
+from __future__ import annotations
+
+import argparse
+
+from dossier.cli.commands import basics
+from dossier.cli.commands import candidates
+from dossier.cli.commands import check
+from dossier.cli.commands import decisions
+from dossier.cli.commands import prepare
+from dossier.cli.commands import render
+from dossier.cli.commands import verify
+
+
+def build_parser():
+    ap = argparse.ArgumentParser(prog="dossier")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("version").set_defaults(fn=basics.cmd_version)
+    p = sub.add_parser("home")
+    p.add_argument("dir", nargs="?")
+    p.set_defaults(fn=basics.cmd_home)
+    sub.add_parser("portfolio").set_defaults(fn=basics.cmd_portfolio)
+    p = sub.add_parser("doctor")
+    p.add_argument("repo", nargs="?")
+    p.add_argument("--all", action="store_true", help="check the tools for every supported language")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(fn=basics.cmd_doctor)
+    p = sub.add_parser("clean")
+    p.add_argument("repo", nargs="?")
+    p.set_defaults(fn=basics.cmd_clean)
+    p = sub.add_parser("prepare")
+    p.add_argument("repo", nargs="?")
+    p.add_argument("--ref", default="HEAD")
+    p.add_argument("--chunk-tokens", type=int, default=400_000)
+    p.add_argument("--full", action="store_true", help="rebuild every report instead of only the stale ones")
+    p.add_argument("--allow-missing", action="store_true", help="carry on when tools are missing, in reduced mode")
+    p.add_argument("--no-restore", action="store_true", help="do not install the repository's locked dependencies")
+    p.add_argument("--allow-ref", action="store_true", help="install dependencies and run repository code even when the ref is not a tag or the default branch")
+    p.add_argument("--submodules", action="store_true", help="also check out and analyse submodules")
+    p.add_argument("--restore", choices=["yes", "no"], help="answer the question about installing dependencies (stored per repository)")
+    p.add_argument("--verify", action="store_true", help="have an independent checker test a sample of cited claims after the reports are written")
+    p.set_defaults(fn=prepare.cmd_prepare)
+    p = sub.add_parser("render")
+    p.add_argument("repo", nargs="?")
+    p.add_argument("--readers", type=int, help="how many parallel readers Claude used (shown on the process card)")
+    p.add_argument("--partial", action="store_true", help="allow missing reports")
+    p.add_argument("--allow-errors", action="store_true", help="write the HTML even if validation fails")
+    p.add_argument("--apply-corrections", action="store_true", help="mark pending corrections as applied")
+    p.add_argument("--refresh-refdata", action="store_true", help="fetch the .NET release data again instead of using the date pinned by the last build")
+    p.set_defaults(fn=render.cmd_render)
+    p = sub.add_parser("check")
+    p.add_argument("repo", nargs="?")
+    p.set_defaults(fn=check.cmd_check)
+    p = sub.add_parser("candidates")
+    p.add_argument("repo", nargs="?")
+    p.add_argument("--report", required=True, metavar="ID", help="the report to list findings for, such as io or components")
+    p.add_argument("--open", action="store_true", help="only findings no report has decided; prints nothing when there are none")
+    p.add_argument("--catalog", metavar="FILE", help="a drafted reports/components.json: show its sizes, edges and files in no component")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(fn=candidates.cmd_candidates)
+    p = sub.add_parser("verify-sample")
+    p.add_argument("repo", nargs="?")
+    p.add_argument("--seed", help="repeat an earlier sample")
+    p.add_argument("--per-report", type=int, help="claims per report (default: verify_per_report in the config, else 5)")
+    p.set_defaults(fn=verify.cmd_verify_sample)
+    p = sub.add_parser("verify-record")
+    p.add_argument("repo", nargs="?")
+    p.add_argument("--results", required=True, metavar="FILE", help="the checker's answers: a JSON array of id, verdict and reason")
+    p.set_defaults(fn=verify.cmd_verify_record)
+    p = sub.add_parser("confirm")
+    p.add_argument("repo", nargs="?", help="repository path; omit to use the current directory")
+    p.add_argument("--ids", nargs="+", metavar="ID", help="item IDs to decide, such as G003 G007")
+    p.add_argument("--note", help="why it is right (optional)")
+    p.add_argument("--answer", help="the answer, for an unknown")
+    p.add_argument("--wrong", help="what is actually true, if the item is wrong")
+    p.add_argument("--undo", nargs="+", metavar="ID", help="remove a decision")
+    p.add_argument("--all", action="store_true", help="when listing, include items already decided")
+    p.add_argument("--report")
+    p.add_argument("--kind", choices=["inference", "unknown", "assumption", "coverage"])
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(fn=decisions.cmd_confirm)
+    p = sub.add_parser("correct")
+    p.add_argument("repo", nargs="?")
+    p.add_argument("--report")
+    p.add_argument("--said")
+    p.add_argument("--text")
+    p.add_argument("--apply", nargs="+")
+    p.add_argument("--contributor")
+    p.add_argument("--type")
+    p.set_defaults(fn=decisions.cmd_correct)
+    return ap

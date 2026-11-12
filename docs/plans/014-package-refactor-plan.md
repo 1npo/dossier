@@ -1262,10 +1262,10 @@ Read section 2, D8 and this phase; Phase C Results.
 
 ### Tasks (Phase D)
 
-- [ ] **D1. Split `cli/app.py`.** Create `cli/common.py`, `cli/parser.py` and `cli/commands/{__init__,basics,prepare,render,check,candidates,verify,decisions}.py` exactly as D8's table; move each function by cut and paste (the first commit step is `git mv src/dossier/cli/app.py src/dossier/cli/commands/prepare.py`, the largest group, so history follows; the other modules are new). In command modules, prefix every helper from `common` with `common.`; `cmd_render` calls `check.browser_check_line`. Each module imports only what its functions use. `cli/__init__.py`'s `main()` builds the parser from `cli.parser`. Tests: `test_docs.py` uses `dossier.cli.parser.build_parser`; `test_dossier_check.py` patches `common.toplevel`, `common.out_dir` and `check.run_browser_check` and calls `check.cmd_check`/`check.browser_check_line`; `test_update_plan.py` uses `prepare.update_plan`; `test_measured_upgrade.py`'s CLI use follows the function it calls.
+- [x] **D1. Split `cli/app.py`.** Create `cli/common.py`, `cli/parser.py` and `cli/commands/{__init__,basics,prepare,render,check,candidates,verify,decisions}.py` exactly as D8's table; move each function by cut and paste (the first commit step is `git mv src/dossier/cli/app.py src/dossier/cli/commands/prepare.py`, the largest group, so history follows; the other modules are new). In command modules, prefix every helper from `common` with `common.`; `cmd_render` calls `check.browser_check_line`. Each module imports only what its functions use. `cli/__init__.py`'s `main()` builds the parser from `cli.parser`. Tests: `test_docs.py` uses `dossier.cli.parser.build_parser`; `test_dossier_check.py` patches `common.toplevel`, `common.out_dir` and `check.run_browser_check` and calls `check.cmd_check`/`check.browser_check_line`; `test_update_plan.py` uses `prepare.update_plan`; `test_measured_upgrade.py`'s CLI use follows the function it calls.
   - Done-check: `git grep -n "cli.app\|cli import app" -- src tests tools scripts` prints nothing; `uv run scripts/dossier.py --help` and each subcommand's `--help` print the same text as on `main` (diff `for c in version home portfolio doctor clean prepare render check candidates verify-sample verify-record confirm correct; do uv run scripts/dossier.py $c --help; done` between a worktree of `main` and the branch: no difference); default suite at the baseline; block GF `SAME`.
   - Commit: `refactor(dossier): split the CLI into a parser, shared helpers and command modules`
-- [ ] **D2. `python -m dossier` and the CLI's docstrings.** `src/dossier/__main__.py` calls `dossier.cli.main`; `cli/__init__.py`, `common.py`, `parser.py` and each command module get a docstring (the usage block that opened `dossier.py` goes to `cli/__init__.py`, unchanged). Unit test: `python -m dossier version` from `src/` (subprocess with `PYTHONPATH=src`) prints `dossier <VERSION>`.
+- [x] **D2. `python -m dossier` and the CLI's docstrings.** `src/dossier/__main__.py` calls `dossier.cli.main`; `cli/__init__.py`, `common.py`, `parser.py` and each command module get a docstring (the usage block that opened `dossier.py` goes to `cli/__init__.py`, unchanged). Unit test: `python -m dossier version` from `src/` (subprocess with `PYTHONPATH=src`) prints `dossier <VERSION>`.
   - Done-check: the test passes; default suite; block L.
   - Commit: `refactor(dossier): add python -m dossier and document the CLI modules`
 
@@ -1292,6 +1292,13 @@ Next session: **Sonnet**, `Start Phase E in docs/plans/014-package-refactor-plan
 `git revert -m 1 <merge sha>`.
 
 ### Results (Phase D)
+
+Session 1: Sonnet 5.5, 2026-11-11. Branch `refactor/package-d-cli`, cut from `refactor/package-c-moves` (Phase C was still unmerged), one commit per task, not merged.
+
+- **Done.** D1 and D2. `cli/app.py` is split per D8 (cut by an `ast` script outside the repository; bodies unchanged except for `common.` and `check.` prefixes; `git mv` to `commands/prepare.py`, which git may show as a new file since most of the text left). `python -m dossier` already existed from A4; D2 added the docstrings and `tests/unit/scripts/test_main_module.py`.
+- **Checks.** Default suite **3061 passed, 305 skipped** (3060 plus the one new test); `ruff check .` exit 0; `--help` of the top level and of all 13 subcommands is identical to the text captured before the split (compared with the pre-split branch tip, which Phase C proved equal to `main`'s output); `git grep "cli.app|cli import app"` finds only the `move_modules` tests, which are about the codemod's own map; block GF `SAME`, gatherer review empty.
+- **Deviation.** `test_docs.py`, `test_measured_upgrade.py` import `dossier.cli.parser`; `test_dossier_check.py` and `test_update_plan.py` import `common`, `check` and `prepare` (as the task says).
+- **Not done here.** The merge to `main`: Phase C is itself still unmerged (block FC pending), so merging D would merge C too. Decide that first.
 
 ---
 
