@@ -1528,7 +1528,7 @@ Read section 2, D3, D4, D12, D13, section 6 and this phase; every earlier Result
 - [x] **H3. The other docs and the stale-path guard.** `SKILL.md` step 7's "never edit" list names `src`; `docs/user-guide.md` (check line 278 and anything naming `prompts/schema`); `prompts/method.md`, `reports.md`, the moved READMEs (`src/dossier/data/rules/README.md`, `data/schemas/cards/README.md`): every path they name exists. Add `tests/content/test_paths.py` (block P as a test): no tracked file outside `docs/plans/`, `tests/fixtures/` and `src/dossier/data/vendor/` mentions `scripts/<name>.py` other than the two launchers, `prompts/schema`, `prompts/summary.schema.json`, a root `rules/`, `assets/` or `vendor/` path, `tests/tools`, `tests/unit/scripts`, `tests/integration/scripts`, `scripts/eol.json`, `scripts/tools.json`, `docs/process.md`, `docs/post-v1.md`, `docs/prompts/`; allowlist: `src/dossier/data/assets/dossier.css` line 1 (inlined in pages).
   - Done-check: the test passes; block P prints nothing.
   - Commit: `docs(dossier): update the remaining paths and guard against stale ones`
-- [ ] **H4. CI, final verification, release 1.10.3.**
+- [x] **H4. CI, final verification, release 1.10.3.**
   1. `.github/workflows/release.yaml`: replace the Tests step with three steps: `uv run --locked ruff check`, `uv run --locked mypy`, `uv run --locked pytest -q`. Keep `fetch-depth: 0`, Node 22, .NET 10, the manifest validation and the release job unchanged.
   2. Merge `docs/package-h-architecture` (no-ff), push.
   3. Run every block of section 8 on `main`: GF, GX, I (default and slow), L, FC, P, M. Record outputs in Results.
@@ -1559,6 +1559,39 @@ Next session: none. Say the plan is finished, with the released version.
 Docs: `git revert -m 1 <merge sha>`. A bad release: a follow-up patch (`1.10.4`) that reverts the offending merge; never delete a published tag.
 
 ### Results (Phase H)
+
+Session: Opus 5.5, 2026-11-12. Branches `docs/package-h-architecture` (merge `2d2890e`), `chore/release-1.10.5` (merge `adae882`). `BASE_SHA=7f51be9`.
+
+- **Version.** `VERSION` was already 1.10.4 and `v1.10.4` was tagged, so the release is **1.10.5** (`chore/release-1.10.5`), still a patch for section 12's reasons.
+- **H1.** README map added after Install; the licence line names `src/dossier/data/vendor/`.
+- **H2.** Developer guide rewritten as the task lists. The encamp clone path, `graph_probe.py`, the 1.4.0 counts and the report 02 guard are gone (S4). The guide now says the report 02 golden was retired in plan 013 and that V11 and V12 cover report 02. Recipes added for a new module and for refactors that must not change output (`tools/golden.py`). Every command in it was run from a fresh clone of the branch: `uv sync`, `uv run pytest -q`, `ruff check`, `mypy`, `scripts/dossier.py version` and `doctor` (`skill: 87bff68 (clean)`), `python -m dossier version`, `tests/support/m6_page.py`, `layout_probe.py` (prints `[]`).
+- **H3.** `SKILL.md` step 7 says "scripts, src, prompts". Fixed: `data/schemas/cards/README.md` (`scripts/schema.py` became `src/dossier/core/schema.py`), the rules README's test command, the `layout_probe.py` docstring. `prompts/*.md` and the user guide had no stale path; line 278 holds. New `tests/content/test_paths.py`, 17 tests.
+  - **Deviation:** block P's grep, taken literally, still prints 21 lines, all legitimate:
+    - the data README naming its sibling folders relatively;
+    - `vendor/...` paths of analysed repositories in tests and in a worker docstring;
+    - the codemod's own tests;
+    - one made-up repository path.
+  - The test therefore checks the old root folders (`rules/`, `assets/`, `vendor/`) in Markdown only, skips Markdown under `src/dossier/data/`, and allowlists two test files, each with its reason. The retired skill paths are checked in every tracked text file. The CSS line-1 allowlist is as planned.
+- **F6's cut, done.**
+  - Every name in each module's `__all__` is annotated: 286 functions in 80 modules, not the three embedded ones. A draft came from the types the default suite passed at run time, recorded by a tracer kept outside the repository. Every hint was then reviewed by hand and applied with an `ast` script.
+  - Five modules gained `from __future__ import annotations`.
+  - Annotated bodies are now type-checked. They got local and class-level annotations (the `Cites` attributes), two `# type:` comments for tuple assignments and two targeted ignores (`incremental.cites_in`'s `append(...) or raw`; one `catalog_rows(reports.get(...))` call that can pass `None`, a latent bug left as it is). No statement changed.
+  - `uv run mypy` exits 0. **No override could be dropped**: each of the 30 modules still fails without one, tried one at a time. Four counts went up because their annotated bodies are now checked: `adapters.js.adapter` 2, `checks.reports` 36, `render.measured.cards` 2, `render.process` 5.
+- **H4.** `release.yaml` runs `uv run --locked ruff check`, `uv run --locked mypy` and `uv run --locked pytest -q`; the rest is unchanged.
+- **Section 8 on `main`** (`2d2890e`):
+  - **GF `SAME`** (12 cases). The stored `$SCR/golden/fa` had gone stale: it was captured on 2026-11-11, and the build-history table's date column (not masked) differed by the day. As the block says, the base was recaptured in the same sitting (`fa-h`). The gatherer review shows only import, `__all__` and `(start, total)` lines.
+  - **GX `SAME`** (`to`, `bp`, `rw`, both sides in one sitting).
+  - **I:** default **3108 passed, 305 skipped**. That is Phase G's 3091 plus the 17 path tests. Slow **2 failed, 3410 passed, 1 skipped** (25 min); the two failures are exactly section 3's.
+  - **L:** ruff exit 0, mypy exit 0.
+  - **FC:** all eight steps pass: `dossier 1.10.4`; `skill: 2d2890e (clean)`; no `.venv`; prepare and render exit 0; `check-same` (9 lines); the zip prints its version and `(not a git work tree)`.
+  - **P:** `test_paths.py` passes.
+  - **M:** `.claude-plugin` is unchanged from `BASE_SHA` before the bump; `validate` exit 0.
+- **Release.**
+  - `tools/bump_version.py patch` printed `1.10.5`; `uv.lock` did not change; `test_release_metadata.py` passed.
+  - CI run `43167331896` succeeded, Lint, Types and Tests included, and tagged **`v1.10.5`**.
+  - The release zip, downloaded and unzipped into `$SCR/zip`, prints `dossier 1.10.5` and gives `check-same` (block FC step 6).
+  - Section 12's line ("Internal: the code is now a package under `src/dossier/`; saved extracts re-run once on the first build.") was appended to the generated release notes with `gh release edit`.
+- **The plan is finished.**
 
 ---
 
