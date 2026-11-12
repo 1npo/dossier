@@ -1,3 +1,6 @@
+"""The argument parser: every subcommand, its options and the `cmd_*` function it runs. Reads nothing
+and runs nothing; the command modules do the work.
+"""
 from __future__ import annotations
 
 import argparse

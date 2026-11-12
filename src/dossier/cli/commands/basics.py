@@ -1,3 +1,6 @@
+"""The small commands: `version`, `home`, `portfolio`, `doctor` and `clean`. They read the config and
+the tool table and, for `clean`, remove one repository's working area.
+"""
 from __future__ import annotations
 
 from pathlib import Path

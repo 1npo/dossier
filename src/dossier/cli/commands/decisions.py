@@ -1,3 +1,6 @@
+"""`correct` and `confirm`: record the user's corrections and their decisions on open items in the
+decisions file. Never edits a report.
+"""
 from __future__ import annotations
 
 import json

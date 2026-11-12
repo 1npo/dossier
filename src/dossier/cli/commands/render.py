@@ -1,3 +1,6 @@
+"""`render`: validate the reports and write the HTML page, the summary and the build log. Runs the
+browser check line from `check` for the build record.
+"""
 from __future__ import annotations
 
 import json

@@ -1,3 +1,7 @@
+"""Helpers every command uses: the skill root, version and config path, JSON load and save, the state
+file, the dossier home, and where one repository's output folder is. Reads and writes only the files it
+is given. Commands call these as `common.name`, so a test can patch one in a single place.
+"""
 from __future__ import annotations
 
 from datetime import datetime, timezone

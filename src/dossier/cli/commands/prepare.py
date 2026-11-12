@@ -1,3 +1,6 @@
+"""`prepare`: check the tools, make a clean copy, measure the repository, and write facts, the reading
+plan and the update plan. Never writes the reports or the HTML.
+"""
 from __future__ import annotations
 
 from datetime import datetime, timezone

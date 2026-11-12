@@ -1,3 +1,6 @@
+"""`check`: audit a written page, and the browser check it may run. Reads the HTML and the build log;
+never rewrites the page.
+"""
 from __future__ import annotations
 
 from pathlib import Path

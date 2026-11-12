@@ -1,3 +1,5 @@
+"""`candidates`: list the tool findings a report must keep, merge or dismiss. Read only.
+"""
 from __future__ import annotations
 
 import json

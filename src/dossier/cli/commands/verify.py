@@ -1,3 +1,6 @@
+"""`verify-sample` and `verify-record`: pick cited claims for the independent check and record its
+verdicts in the build log.
+"""
 from __future__ import annotations
 
 import json
