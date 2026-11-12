@@ -15,4 +15,4 @@ Blind-spot ids (code that static analysis may miss): `dynamic-import`, `entry-po
 
 The Python rules `string-route` (a route path that is not a literal), `route-mount` (FastAPI, Flask, Starlette and Django prefixes and includes) and `barrel-reexport` (`from x import *`) are in `python/blindspot.yml`. `barrel-reexport` is a regular expression that matches in any file, because Semgrep's test files cannot be named `__init__.py`; the Python adapter keeps only the hits in `__init__.py`.
 
-Each rule file has a test file under `tests/fixtures/semgrep/` with the same name; run them all with `DOSSIER_SLOW=1 uv run --with pytest --with pygments python -m pytest tests/integration/scripts/test_shared_layer.py -q` from the skill folder (it runs `semgrep --test` through the worker).
+Each rule file has a test file under `tests/fixtures/semgrep/` with the same name; run them all with `DOSSIER_SLOW=1 uv run --with pytest --with pygments python -m pytest tests/integration/dossier/tooling/test_shared_tools_rules.py -q` from the skill folder (it runs `semgrep --test` through the worker).

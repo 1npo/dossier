@@ -135,7 +135,7 @@ Every recipe starts with a failing test. Run it, see it fail, then make it pass.
 
 1. Add the rule to `rules/<scope>/<family>.yml` with an id `dossier.<scope>.<family>.<name>` and `metadata.category` (see [rules/README.md](../rules/README.md) for the categories and blind-spot ids).
 2. Add `ruleid:` and `ok:` lines to the test file of the same name under `tests/fixtures/semgrep/<scope>/`.
-3. Run `DOSSIER_SLOW=1 uv run --with pytest --with pygments python -m pytest tests/integration/scripts/test_shared_layer.py -q`.
+3. Run `DOSSIER_SLOW=1 uv run --with pytest --with pygments python -m pytest tests/integration/dossier/tooling/test_shared_tools_rules.py -q`.
 4. A new blind-spot id needs fixed wording in `checks_v7.BLIND_SPOTS`: the wording is part of Gaps item ids, so never reword it.
 5. Bump the adapter's `version`.
 
