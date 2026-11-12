@@ -1389,7 +1389,7 @@ Read section 2, D4, D6, D9 and this phase; every earlier Results. Each task move
   - `render/measured/*.py` and `render/process.py`: delete the `_render()` helpers and the function-level `import render`; import `from dossier.render import markup` at the top and use `markup.<name>`. `page_audit` and `summary`: top-level imports (no cycle). `incremental`, `verify`, `checks.reports`: import `INLINE_CITE`, `parse_cite`, `claims_of`, `inline_cites`, `BARE_FILE` from where they now live (`claims_of` stays in `page`). `render.CUT_CARDS` stays in `page.py` (a test patches it there and `page_audit` reads it at call time).
   - Done-check: `git grep -nE "^\s+(import render|from render)|_render\(\)" -- src` prints nothing; a throwaway SCC check over `src/dossier` (any import, any depth) finds no cycle; default suite; block GF `SAME`.
   - Commit: `refactor(dossier): lift the page's HTML primitives into render.markup and drop the lazy imports`
-- [ ] **F3. Two pure moves for the layer order.** (Sonnet-level)
+- [x] **F3. Two pure moves for the layer order.** (Sonnet-level)
   - `names_of`, `component_stats`, `bus_factor` from `render/measured/people.py` to the new `findings/people.py`; `people.py` (measured) imports them back; `findings/candidates_history.py` and `render/summary.py` import them from `findings.people`. `scip._check` (in `adapters/python/scip.py`) to `tooling/shared_tools.py` as `check_result`; `adapters/python/scip.py` and `adapters/js/tools.py` call `shared_tools.check_result`. Tests that called them follow.
   - Done-check: default suite; block GF `SAME`.
   - Commit: `refactor(dossier): move people figures to findings and the tool result check to tooling`

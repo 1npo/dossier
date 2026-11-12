@@ -7,7 +7,7 @@ from __future__ import annotations
 import re
 
 from dossier.findings import components
-from dossier.render.measured import people as measured_people
+from dossier.findings import people
 from dossier.core import scip_read
 
 TOP_QUARTER = 4
@@ -72,8 +72,8 @@ def _people(extract):
 
 def _per_component(extract, catalog):
     ctx = {"extract": extract, "catalog": catalog}
-    names, out = measured_people.names_of(ctx), []
-    for comp, s in measured_people.component_stats(ctx).items():
+    names, out = people.names_of(ctx), []
+    for comp, s in people.component_stats(ctx).items():
         who = sorted(set(s["owned"]) | set(s["lines"]) | set(s["commits"]),
                      key=lambda i: (-s["owned"].get(i, 0), -s["lines"].get(i, 0), -s["commits"].get(i, 0), i))
         out.append(f"{comp}  ({s['files']} files{', some without line data' if s['approx'] else ''})")
@@ -90,7 +90,7 @@ def _sole_owner_hotspots(extract, tree):
     files = {f["path"]: f for f in _items(extract, "file")}
     ranked = sorted((files[p] for p in components.source_files(tree, extract) if p in files and files[p]["commits_12m"] > 0),
                     key=lambda f: (-f["commits_12m"], f["path"]))
-    names = measured_people.names_of({"extract": extract})
+    names = people.names_of({"extract": extract})
     out = []
     for f in ranked[:max(1, len(ranked) // TOP_QUARTER)]:
         total = sum((f.get("owners") or {}).values())

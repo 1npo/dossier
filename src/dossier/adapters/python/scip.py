@@ -12,6 +12,7 @@ import shutil
 from pathlib import Path
 
 from dossier import resources
+from dossier.tooling import shared_tools
 from dossier.tooling.shared_tools import ToolError
 
 NODE_DIR = resources.data("node", "scip-python")
@@ -26,14 +27,6 @@ def _lock_sha() -> str:
     return hashlib.sha1((NODE_DIR / "package-lock.json").read_bytes()).hexdigest()
 
 
-def _check(result, what: str) -> None:
-    if result.timed_out:
-        raise ToolError(f"{what} took too long and was stopped.")
-    if result.returncode != 0:
-        tail = "\n".join(result.stderr.read_text(errors="replace").splitlines()[-20:])
-        raise ToolError(f"{what} failed (exit {result.returncode}):\n{tail}")
-
-
 def ensure_installed(run, cache_root, version: str, timeout: float) -> Path:
     """Run `npm ci` once per lockfile (a marker file holds the lock's sha1). Returns the path of index.js."""
     folder = install_dir(cache_root, version)
@@ -43,7 +36,7 @@ def ensure_installed(run, cache_root, version: str, timeout: float) -> Path:
     folder.mkdir(parents=True, exist_ok=True)
     for name in ("package.json", "package-lock.json"):
         shutil.copyfile(NODE_DIR / name, folder / name)
-    _check(run(["npm", "ci", "--ignore-scripts", "--no-audit", "--no-fund"], cwd=folder, stage="scip-install", profile="tool",
+    shared_tools.check_result(run(["npm", "ci", "--ignore-scripts", "--no-audit", "--no-fund"], cwd=folder, stage="scip-install", profile="tool",
                timeout=timeout), "Installing scip-python")
     if not index.exists():
         raise ToolError("Installing scip-python finished, but its program file is missing.")
@@ -79,7 +72,7 @@ def run_index(run, index_js, checkout, area, repo_name: str, sha: str, timeout: 
     cmd = ["node", str(index_js), "index", ".", "--project-name", project_name or repo_name, "--project-version", sha, "--output", str(index),
            "--quiet", "--environment", str(env_file)]
     extra = {"cwd": cwd} if cwd else {}
-    _check(run(cmd, stage="scip-python", profile="restricted", timeout=timeout, **extra), "scip-python")
+    shared_tools.check_result(run(cmd, stage="scip-python", profile="restricted", timeout=timeout, **extra), "scip-python")
     if not index.is_file() or index.stat().st_size == 0:
         raise ToolError("scip-python finished without writing an index.")
     return index

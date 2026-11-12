@@ -17,6 +17,15 @@ class ToolError(RuntimeError):
     pass
 
 
+def check_result(result, what: str) -> None:
+    """Raise ToolError when a tool run timed out or exited non-zero; the message ends with the last 20 lines of stderr."""
+    if result.timed_out:
+        raise ToolError(f"{what} took too long and was stopped.")
+    if result.returncode != 0:
+        tail = "\n".join(result.stderr.read_text(errors="replace").splitlines()[-20:])
+        raise ToolError(f"{what} failed (exit {result.returncode}):\n{tail}")
+
+
 def _call(run, tool: str, worker: str, request: dict, timeout: float | None = None) -> dict:
     py = toolcheck.load_tools()["python"]
     cmd = ["uv", "run", "--locked", "--python", py, "--script", str(resources.data("workers", worker))]

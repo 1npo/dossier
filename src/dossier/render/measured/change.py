@@ -9,14 +9,11 @@ from collections import Counter
 from dossier.findings import components
 from dossier.facts import gather
 from dossier.render import markup
+from dossier.findings.people import history_items  # noqa: F401  (the measured cards reach it as measured_change.history_items)
 
 HOTSPOT_FILES = ["File", "Component", "Commits", "Lines added", "Lines removed", "Complexity", "Last changed", "Source"]
 HOTSPOT_COMPONENTS = ["Component", "Files", "File changes", "Lines added", "Lines removed", "Complexity"]
 PERIODS = (("12m", "Past 12 months"), ("all", "All time"))
-
-
-def history_items(ctx, kind):
-    return [i for i in (ctx.get("extract") or {}).get("history", []) if i.get("kind") == kind]
 
 
 def has_history(ctx):
