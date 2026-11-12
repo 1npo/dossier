@@ -53,6 +53,19 @@ Do not install it both ways: the marketplace copy wins and the cloned one shows 
 
 The skill runs only when you type `/dossier ...`. Claude does not start it on its own. Run `/dossier doctor` to see what is missing.
 
+## Map of the repository
+
+| Path | What it is | Who reads it |
+|---|---|---|
+| `SKILL.md` | the steps of `/dossier build` and the other commands | Claude |
+| `prompts/` | how to read a repository and write each report | Claude, while building |
+| `scripts/` | the two commands Claude runs (`dossier.py`, `check_page.py`) | Claude, through `uv run` |
+| `src/dossier/` | the Python package that measures, renders and checks | the scripts |
+| `src/dossier/data/` | card schemas, Semgrep rules, page assets, pinned tool lockfiles | the package |
+| `tests/` | unit, integration and content tests, fixtures | maintainers |
+| `tools/` | release and maintenance scripts | maintainers |
+| `docs/` | the user guide, the developer guide, and `plans/`, the project's history | people |
+
 ## Goals and status
 
 Gives a lead engineer a working mental model of a repository at one commit, with evidence for each claim. It does not edit the repository, run it as a service or replace reading the code. Status: active. Maintained by one person.
@@ -74,4 +87,4 @@ For contributors, in the [developer guide](docs/developer-guide.md):
 
 ## License
 
-MIT. See [LICENSE](LICENSE). Bundled third-party libraries in `vendor/` keep their own licenses (`LICENSE.md`, `LICENSE-mermaid`).
+MIT. See [LICENSE](LICENSE). Bundled third-party libraries in `src/dossier/data/vendor/` keep their own licenses (`LICENSE.md`, `LICENSE-mermaid`).
