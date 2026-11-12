@@ -4,8 +4,8 @@ import time
 
 import pytest
 
-import sandbox
-import workarea
+from dossier.tooling import sandbox
+from dossier.pipeline import workarea
 
 
 @pytest.fixture(autouse=True)

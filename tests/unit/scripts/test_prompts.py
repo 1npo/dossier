@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-import schema  # noqa: E402
+from dossier.core import schema  # noqa: E402
 from dossier import resources
 
 PROMPTS = Path(__file__).resolve().parents[3] / "prompts"

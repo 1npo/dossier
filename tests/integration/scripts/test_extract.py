@@ -3,8 +3,8 @@ import subprocess
 
 import pytest
 
-import adapters
-import workarea
+from dossier.adapters import base as adapters
+from dossier.pipeline import workarea
 
 
 class FixtureAdapter(adapters.Adapter):

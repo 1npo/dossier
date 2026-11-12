@@ -54,8 +54,8 @@ class FakeScipDotnet:
 
 def install(monkeypatch, plan):
     """Make `cs_adapter` use the fake in place of the real download and run."""
-    import cs_scip
-    import cs_sdk
+    from dossier.adapters.csharp import scip as cs_scip
+    from dossier.tooling import dotnet_sdk as cs_sdk
     FakeScipDotnet.plan, FakeScipDotnet.seen = plan, []
     monkeypatch.setattr(cs_scip, "ensure_installed", lambda cache, tool, timeout, fetch=None: Path(cache))
     monkeypatch.setattr(cs_scip, "tool_dll", lambda folder, majors: Path(folder) / "scip-dotnet.dll")

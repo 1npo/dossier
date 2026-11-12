@@ -2,10 +2,10 @@ import json
 
 import pytest
 
-import adapters
-import js_adapter
-import py_adapter
-import repo_adapter
+from dossier.adapters import base as adapters
+from dossier.adapters.js import adapter as js_adapter
+from dossier.adapters.python import adapter as py_adapter
+from dossier.adapters import repo as repo_adapter
 
 
 class A1(adapters.Adapter):

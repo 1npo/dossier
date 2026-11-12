@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-import sandbox
-import shared_tools
+from dossier.tooling import sandbox
+from dossier.tooling import shared_tools
 from dossier import resources
 
 SKILL = Path(__file__).resolve().parents[2].parent

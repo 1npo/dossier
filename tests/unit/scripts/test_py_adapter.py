@@ -4,11 +4,11 @@ from types import SimpleNamespace
 
 import pytest
 
-import adapters
-import py_adapter
-import scip_read
-import scip_tool
-from shared_tools import ToolError
+from dossier.adapters import base as adapters
+from dossier.adapters.python import adapter as py_adapter
+from dossier.core import scip_read
+from dossier.adapters.python import scip as scip_tool
+from dossier.tooling.shared_tools import ToolError
 
 
 class FakeTS:

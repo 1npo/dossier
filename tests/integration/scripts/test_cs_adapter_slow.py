@@ -13,10 +13,10 @@ from pathlib import Path
 
 import pytest
 
-import buildlog
-import stages
-import workarea
-from adapters import OUTPUTS
+from dossier.core import buildlog
+from dossier.pipeline import stages
+from dossier.pipeline import workarea
+from dossier.adapters.base import OUTPUTS
 from conftest import build_cs_repo
 from test_cs_semgrep_slow import BLIND, IO
 

@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
-import history
-import ownership
+from dossier.history import scan as history
+from dossier.history import ownership
 
 
 def commit(sha, who, parents=("p",)):

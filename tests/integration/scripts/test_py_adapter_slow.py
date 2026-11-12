@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-import buildlog
-import stages
-import workarea
+from dossier.core import buildlog
+from dossier.pipeline import stages
+from dossier.pipeline import workarea
 from conftest import build_py_repo
 
 pytestmark = pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs the network: set DOSSIER_SLOW=1")

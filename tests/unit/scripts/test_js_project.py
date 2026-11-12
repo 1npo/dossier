@@ -1,6 +1,6 @@
 import json
 
-import js_project
+from dossier.adapters.js import project as js_project
 
 
 def tree_of(files: dict):

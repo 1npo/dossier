@@ -1,13 +1,13 @@
 import subprocess
 from types import SimpleNamespace
 
-import adapters
-import candidates
-import cs_adapter
-import cs_scip
-import cs_sdk
+from dossier.adapters import base as adapters
+from dossier.findings import candidates
+from dossier.adapters.csharp import adapter as cs_adapter
+from dossier.adapters.csharp import scip as cs_scip
+from dossier.tooling import dotnet_sdk as cs_sdk
 import scip_fake
-from adapters import OUTPUTS
+from dossier.adapters.base import OUTPUTS
 
 
 class FakeTS:
@@ -330,7 +330,7 @@ def _ty(name, ns):
 
 
 def with_decls(monkeypatch, table):
-    import cs_queries
+    from dossier.adapters.csharp import queries as cs_queries
     monkeypatch.setattr(cs_queries, "declarations", lambda ts, files: {f: table.get(f, _d([], [])) for f in files})
     monkeypatch.setattr(cs_queries, "complexity", lambda ts, files: {f: 3 for f in files})
 
@@ -363,7 +363,7 @@ class TestGraph:
         assert [(i["path"], i["paths"], i["via"]) for i in imports] == [(SERVICE, [ORDER], "type-use")]
 
     def test_a_tree_sitter_failure_marks_the_tool_failed_and_still_gives_projects(self, cs_repo, tmp_path, monkeypatch):
-        import cs_queries
+        from dossier.adapters.csharp import queries as cs_queries
 
         def boom(ts, files):
             raise RuntimeError("grammar missing\nmore")

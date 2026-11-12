@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-import py_packages
+from dossier.adapters.python import packages as py_packages
 from conftest import PYFIX, line_of
 
 

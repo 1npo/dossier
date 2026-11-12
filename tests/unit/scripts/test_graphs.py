@@ -1,6 +1,6 @@
 import random
 
-import graphs
+from dossier.core import graphs
 
 
 class TestCycles:

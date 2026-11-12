@@ -1,5 +1,5 @@
-import history
-import markers
+from dossier.history import scan as history
+from dossier.facts import markers
 
 
 def commit(sha, message, parents=("p",), entries=()):

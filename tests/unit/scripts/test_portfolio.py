@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timezone
 
-import portfolio
+from dossier.render import portfolio
 
 NOW = datetime(2026, 1, 10, tzinfo=timezone.utc)
 

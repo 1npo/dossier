@@ -36,27 +36,27 @@ from pathlib import Path
 
 from dossier import resources
 
-import buildlog  # noqa: E402
-import candidates  # noqa: E402
-import checks  # noqa: E402
-import components  # noqa: E402
-import config  # noqa: E402
-import gather  # noqa: E402
-import history as historyscan  # noqa: E402
-import incremental  # noqa: E402
-import measured_upgrade  # noqa: E402
-import page_audit  # noqa: E402
-import portfolio  # noqa: E402
-import process  # noqa: E402
-import render  # noqa: E402
-import resolve  # noqa: E402
-import sandbox  # noqa: E402
-import schema  # noqa: E402
-import stages  # noqa: E402
-import summary  # noqa: E402
-import toolcheck  # noqa: E402
-import verify  # noqa: E402
-import workarea  # noqa: E402
+from dossier.core import buildlog  # noqa: E402
+from dossier.findings import candidates  # noqa: E402
+from dossier.checks import reports as checks  # noqa: E402
+from dossier.findings import components  # noqa: E402
+from dossier.core import config  # noqa: E402
+from dossier.facts import gather  # noqa: E402
+from dossier.history import scan as historyscan  # noqa: E402
+from dossier.pipeline import incremental  # noqa: E402
+from dossier.render.measured import upgrade as measured_upgrade  # noqa: E402
+from dossier.checks import page_audit  # noqa: E402
+from dossier.render import portfolio  # noqa: E402
+from dossier.render import process  # noqa: E402
+from dossier.render import page as render  # noqa: E402
+from dossier.findings import resolve  # noqa: E402
+from dossier.tooling import sandbox  # noqa: E402
+from dossier.core import schema  # noqa: E402
+from dossier.pipeline import stages  # noqa: E402
+from dossier.render import summary  # noqa: E402
+from dossier.tooling import toolcheck  # noqa: E402
+from dossier.checks import verify  # noqa: E402
+from dossier.pipeline import workarea  # noqa: E402
 
 ROOT = resources.skill_root()
 VERSION = resources.version()

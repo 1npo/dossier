@@ -1,4 +1,4 @@
-import cs_queries
+from dossier.adapters.csharp import queries as cs_queries
 
 
 def cap(capture, text, start, end=None):

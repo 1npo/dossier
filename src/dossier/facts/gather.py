@@ -1,0 +1,1259 @@
+#!/usr/bin/env python3
+"""Collect deterministic facts about a git repository at one pinned commit.
+
+Python counts and classifies; Claude interprets. Everything here reads git
+objects at a resolved SHA (never the working tree), so results are repeatable.
+"""
+from __future__ import annotations
+
+import bisect
+import hashlib
+import json
+import math
+import re
+import os
+import subprocess
+import time
+from concurrent.futures import ThreadPoolExecutor
+from collections import Counter, defaultdict
+from datetime import date, datetime, timedelta, timezone
+from pathlib import PurePosixPath
+
+from dossier.facts import deps as depscan
+from dossier.facts import env_scan as envscan
+from dossier.facts import markers as markerscan
+
+import tomllib
+
+BYTES_PER_TOKEN = 3.5      # rough, deliberately conservative for code
+MAX_READ = 25_000_000      # bytes; larger blobs are listed but not read here
+BULK_FILES = 400           # commits touching more files are treated as bulk (imports, reformatting)
+TYPES = ("human", "agent", "bot")
+
+# --------------------------------------------------------------------------- git access
+
+
+class Repo:
+    """Thin git wrapper with one persistent `cat-file --batch` process."""
+
+    def __init__(self, path):
+        self.path = str(path)
+        self._p = None
+
+    def git(self, *args, check=True):
+        p = subprocess.run(["git", "-C", self.path, *args], capture_output=True)
+        if check and p.returncode:
+            raise RuntimeError(f"git {' '.join(args)}: {p.stderr.decode('utf-8', 'replace').strip()}")
+        return p.stdout.decode("utf-8", "replace")
+
+    def read(self, spec):
+        """Return (type, bytes) for an object name such as 'sha:path', or None."""
+        if self._p is None:
+            self._p = subprocess.Popen(["git", "-C", self.path, "cat-file", "--batch"],
+                                       stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                       stderr=subprocess.DEVNULL)
+        self._p.stdin.write(spec.encode() + b"\n")
+        self._p.stdin.flush()
+        line = self._p.stdout.readline().rstrip(b"\n")
+        if line.endswith(b" missing") or line.endswith(b" ambiguous") or not line:
+            return None
+        _, typ, size = line.rsplit(b" ", 2)
+        data = self._p.stdout.read(int(size))
+        self._p.stdout.read(1)
+        return typ.decode(), data
+
+    def close(self):
+        if self._p:
+            self._p.stdin.close()
+            self._p.wait()
+            self._p = None
+
+
+# --------------------------------------------------------------------------- classification tables
+
+_LANGS = {
+    "Python": ("code", "py pyi pyw"), "JavaScript": ("code", "js mjs cjs jsx"),
+    "TypeScript": ("code", "ts tsx mts cts"), "Go": ("code", "go"), "Rust": ("code", "rs"),
+    "Java": ("code", "java"), "Kotlin": ("code", "kt kts"), "Scala": ("code", "scala sc"),
+    "C#": ("code", "cs"), "F#": ("code", "fs"), "C": ("code", "c h"),
+    "C++": ("code", "cc cpp cxx hpp hh hxx"), "Objective-C": ("code", "m mm"),
+    "Swift": ("code", "swift"), "Ruby": ("code", "rb rake gemspec"), "PHP": ("code", "php"),
+    "Perl": ("code", "pl pm"), "Lua": ("code", "lua"), "R": ("code", "r"), "Dart": ("code", "dart"),
+    "Elixir": ("code", "ex exs"), "Erlang": ("code", "erl hrl"), "Haskell": ("code", "hs"),
+    "Clojure": ("code", "clj cljs cljc"), "OCaml": ("code", "ml mli"), "Julia": ("code", "jl"),
+    "Zig": ("code", "zig"), "Shell": ("code", "sh bash zsh fish"), "PowerShell": ("code", "ps1 psm1"),
+    "Batch": ("code", "bat cmd"), "SQL": ("code", "sql"), "Terraform": ("code", "tf tfvars"),
+    "Solidity": ("code", "sol"), "Vue": ("code", "vue"), "Svelte": ("code", "svelte"),
+    "Groovy": ("code", "groovy gradle"), "Nix": ("code", "nix"), "CMake": ("code", "cmake"),
+    "HTML": ("markup", "html htm jinja jinja2 j2 njk hbs ejs erb"),
+    "CSS": ("markup", "css scss sass less"), "XML": ("markup", "xml xsd xsl"),
+    "JSON": ("data", "json jsonc json5"), "YAML": ("data", "yml yaml"), "TOML": ("data", "toml"),
+    "INI/Config": ("data", "ini cfg conf properties env"), "CSV": ("data", "csv tsv"),
+    "Protocol Buffers": ("data", "proto"), "GraphQL": ("data", "graphql gql graphqls"),
+    "Prisma": ("data", "prisma"),
+    "Markdown": ("docs", "md mdx markdown"), "reStructuredText": ("docs", "rst"),
+    "Text": ("docs", "txt"), "AsciiDoc": ("docs", "adoc asciidoc"),
+}
+EXT = {e: (n, k) for n, (k, exts) in _LANGS.items() for e in exts.split()}
+NAMED = {"Dockerfile": ("Dockerfile", "code"), "Containerfile": ("Dockerfile", "code"),
+         "Makefile": ("Makefile", "code"), "Jenkinsfile": ("Groovy", "code"),
+         "Gemfile": ("Ruby", "code"), "Rakefile": ("Ruby", "code"), "Vagrantfile": ("Ruby", "code"),
+         "CMakeLists.txt": ("CMake", "code"), "justfile": ("Makefile", "code")}
+ASSET_EXT = set("""png jpg jpeg gif ico webp bmp tiff pdf zip gz tgz bz2 xz 7z rar jar war ear woff woff2 ttf otf
+eot mp3 mp4 mov avi webm wav ogg wasm so dll dylib exe bin class pyc o a lib svg psd ai sketch dmg iso
+parquet sqlite db pickle pkl npy onnx pt h5 keras""".split())
+LOCKFILES = {"package-lock.json", "yarn.lock", "pnpm-lock.yaml", "poetry.lock", "Cargo.lock", "Gemfile.lock",
+             "composer.lock", "go.sum", "uv.lock", "Pipfile.lock", "bun.lockb", "gradle.lockfile",
+             "packages.lock.json", "pubspec.lock", "mix.lock", "flake.lock", "Podfile.lock"}
+VENDOR_SEG = {"node_modules", "vendor", "third_party", "third-party", "thirdparty", "bower_components",
+              "Pods", "site-packages", ".yarn"}
+GENERATED_SEG = {"dist", "target", ".next", ".nuxt", "__pycache__", "coverage", "htmlcov", ".pytest_cache",
+                 ".mypy_cache", ".gradle"}
+GENERATED_NAME = re.compile(r"(\.min\.(js|css)|\.map|\.pb\.go|\.pb\.gw\.go|_pb2(_grpc)?\.py|\.generated\.|\.g\.dart|\.designer\.cs)$")
+E2E_SUPPORT = r"(?!(?:[^/]*/)*(?:(?:helpers?|support|fixtures|utils?|pages?|page-objects?)/|[^/]*\.config\.[cm]?[jt]s$|[^/]*\.json$))"
+TEST_RE = re.compile(r"(^|/)(tests?|__tests__|specs?)/|(^|/)(e2e|cypress|playwright)/" + E2E_SUPPORT + r"|(^|/)test_[^/]*\.py$|_test\.(go|py|rb|exs?|c|cc|cpp|zig|rs)$|(^|/)test_[^/]*\.(c|cc|cpp|zig|rs)$|\.(test|spec|cy)\.[jt]sx?$|Tests?\.(java|kt|cs)$")
+
+SENSITIVE_FILE = re.compile(r"(^|/)(\.env(\.(?!example|sample|template|dist)[^/]+)?|id_rsa|id_dsa|id_ecdsa|id_ed25519|[^/]+\.(pem|key|p12|pfx|jks|keystore|kdbx)|credentials(\.json)?|\.netrc|\.npmrc|\.pypirc|[^/]+\.tfstate(\.backup)?|secrets?\.(ya?ml|json|toml|env))$")
+
+SECRET_PATTERNS = envscan.SECRET_PATTERNS   # kept under this name for its readers; the patterns live in env_scan.py
+
+BOT_IDENT = re.compile(r"\[bot\]|\bbot\b|-bot\b|dependabot|renovate|github-actions|greenkeeper|snyk|semantic-release|pre-commit-ci|allcontributors|imgbot|mergify|web-flow|^github <|noreply@github\.com>", re.I)
+AGENT_IDENT = re.compile(r"noreply@anthropic\.com|^claude( code)?\b|copilot-swe-agent|github-copilot|cursoragent|cursor agent|devin-ai-integration|\(aider\)|openhands|all-hands\.dev|chatgpt-codex|google-labs-jules|jules\[bot\]|gemini-code-assist|sweep-ai|codegen-sh|amazon-q", re.I)
+AGENT_MSG = re.compile(r"Co-authored-by:\s*[^\n]*?(claude|copilot|cursor|devin|aider|codex|gemini|openhands)[^\n]*|Generated with \[?Claude Code|🤖 Generated with|Generated by (?:GitHub )?Copilot|noreply@anthropic\.com|^aider:|^Agent-Logs-Url:[^\n]*", re.I | re.M)
+AGENT_LABELS = [("Claude", r"claude|anthropic"), ("Copilot", r"copilot|agent-logs-url"), ("Cursor", r"cursor"), ("Aider", r"aider"),
+                ("Devin", r"devin"), ("Codex", r"codex|openai"), ("Gemini", r"gemini|jules"), ("OpenHands", r"openhands|all-hands")]
+
+
+def tokens_for(nbytes):
+    return math.ceil(nbytes / BYTES_PER_TOKEN)
+
+
+def lang_of(path):
+    base = path.rsplit("/", 1)[-1]
+    if base in NAMED:
+        return NAMED[base]
+    if base.startswith("Dockerfile"):
+        return NAMED["Dockerfile"]
+    ext = base.rsplit(".", 1)[-1].lower() if "." in base else ""
+    return EXT.get(ext)
+
+
+SHEBANG = re.compile(rb"^#!\s*(?:/usr/bin/env\s+(?:-\S+\s+)*|\S*/)([A-Za-z][\w.\-]*)")
+SHEBANG_EXT = {"sh": "sh", "bash": "sh", "zsh": "sh", "dash": "sh", "ksh": "sh", "fish": "sh", "python": "py", "python3": "py",
+               "node": "js", "nodejs": "js", "deno": "ts", "ruby": "rb", "perl": "pl", "php": "php", "lua": "lua", "bats": "sh"}
+TEST_CONTENT = re.compile(rb"^\s*(?:def test_\w+|async def test_\w+|class Test\w+|@test\b|@pytest\.|func Test\w+\(|fn test_\w+|#\[test\]|#\[tokio::test\]"
+                          rb"|@Test\b|\[(?:Test|TestMethod|Fact|Theory)\]|test\s+[\"]|(?:describe|it|test)(?:\.\w+)?\(\s*['\"`])", re.M)
+
+
+def lang_of_content(path, data):
+    """Language of a file with no recognised name or extension, from its #! line."""
+    if data[:2] != b"#!":
+        return None
+    m = SHEBANG.match(data[:200])
+    ext = SHEBANG_EXT.get(m.group(1).decode().rstrip("0123456789.")) if m else None
+    return EXT.get(ext) if ext else None
+
+
+SECRET_NAME = re.compile(r"(key|secret|token|passw(or)?d|pwd|credential|auth|api[_-]?key|private)", re.I)
+PLACEHOLDER_VALUE = re.compile(r"^(|<.*>|\$\{.*\}|\$\(.*\)|\$[A-Za-z_]\w*|your[_-].*|change[_-]?me.*|x{3,}|\*{3,}|todo|none|null|false|true|example.*|placeholder.*|\.\.\.)$", re.I)
+ASSIGN = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][\w.\-]*)\s*[:=]\s*(.*?)\s*$")
+
+
+def sensitive_verdict(path, data):
+    """What a secret-prone file actually contains, judged from its contents. Never returns a value."""
+    if data is None:
+        return "Binary or oversized: contents not inspected."
+    if b"\0" in data[:8000]:
+        return "Binary file: contents not inspected."
+    text = data[:2_000_000].decode("utf-8", "replace")
+    if re.search(r"-----BEGIN [A-Z ]*PRIVATE KEY-----", text):
+        return "Contains private key material."
+    is_env = bool(re.search(r"(^|/)\.env", path))
+    total = real = 0
+    for line in text.splitlines():
+        if line.lstrip().startswith(("#", "//", ";")):
+            continue
+        m = ASSIGN.match(line)
+        if not m or not (is_env or SECRET_NAME.search(m.group(1))):
+            continue
+        total += 1
+        v = m.group(2).strip().strip("'\"")
+        real += not PLACEHOLDER_VALUE.match(v)
+    if real:
+        return f"{real} of {total} secret-looking assignment{'s' if total != 1 else ''} hold real-looking values."
+    if total:
+        return f"{total} assignment{'s' if total != 1 else ''}, all empty or placeholders."
+    return "No secret-looking assignments found."
+
+
+def noise_reason(path):
+    segs = path.split("/")
+    base = segs[-1]
+    if VENDOR_SEG.intersection(segs[:-1]):
+        return "vendored"
+    if base in LOCKFILES:
+        return "lockfile"
+    if GENERATED_SEG.intersection(segs[:-1]) or GENERATED_NAME.search(base):
+        return "generated"
+    ext = base.rsplit(".", 1)[-1].lower() if "." in base else ""
+    if ext in ASSET_EXT:
+        return "asset"
+    return None
+
+
+def ident_id(name, email):
+    e = email.lower().strip()
+    m = re.match(r"^(?:\d+\+)?(.+)@users\.noreply\.github\.com$", e)
+    if m:
+        e = m.group(1) + "@users.noreply.github.com"
+    return e or name.lower()
+
+
+def ident_type(name, email, override=None):
+    if override in TYPES:
+        return override
+    s = f"{name} <{email}>"
+    if AGENT_IDENT.search(s):
+        return "agent"
+    if BOT_IDENT.search(s):
+        return "bot"
+    return "human"
+
+
+def iso_day(dt):
+    return dt.strftime("%Y-%m-%d")
+
+
+# --------------------------------------------------------------------------- manifests
+
+
+def _dep(name, spec="", dev=False):
+    return {"name": name, "spec": (spec or "").strip(), "dev": dev}
+
+
+def _pep508(s):
+    m = re.match(r"^\s*([A-Za-z0-9_.\-]+)(?:\[[^\]]*\])?\s*(.*)$", s)
+    return _dep(m.group(1), m.group(2).split(";")[0]) if m else None
+
+
+def _author(v):
+    """A manifest's author as one string: a name, a {name} table, or the first of a list of either."""
+    if isinstance(v, (list, tuple)):
+        v = v[0] if v else None
+    if isinstance(v, dict):
+        v = v.get("name")
+    return v.strip() or None if isinstance(v, str) else None
+
+
+def parse_manifest(path, text):
+    base = path.rsplit("/", 1)[-1]
+    out = {"path": path, "ecosystem": None, "name": None, "version": None, "description": None, "author": None,
+           "dependencies": [], "scripts": {}, "extra": {}}
+    try:
+        if base == "package.json":
+            j = json.loads(text)
+            out.update(ecosystem="npm", name=j.get("name"), version=j.get("version"), description=j.get("description"), author=_author(j.get("author") or j.get("contributors")))
+            for key, dev in (("dependencies", False), ("devDependencies", True), ("peerDependencies", False), ("optionalDependencies", False)):
+                out["dependencies"] += [_dep(k, v, dev) for k, v in (j.get(key) or {}).items()]
+            out["scripts"] = j.get("scripts") or {}
+            out["extra"] = {k: j[k] for k in ("main", "module", "bin", "workspaces", "engines", "private", "type") if k in j}
+        elif base == "pyproject.toml" and tomllib:
+            j = tomllib.loads(text)
+            p, poetry = j.get("project", {}), j.get("tool", {}).get("poetry", {})
+            out.update(ecosystem="python", name=p.get("name") or poetry.get("name"), version=p.get("version") or poetry.get("version"),
+                       description=p.get("description") or poetry.get("description"), author=_author(p.get("authors") or poetry.get("authors")))
+            out["dependencies"] += [d for d in map(_pep508, p.get("dependencies", [])) if d]
+            for grp, items in (p.get("optional-dependencies") or {}).items():
+                out["dependencies"] += [dict(d, dev=True) for d in map(_pep508, items) if d]
+            for grp, items in (j.get("dependency-groups") or {}).items():
+                out["dependencies"] += [dict(d, dev=True) for d in map(_pep508, [i for i in items if isinstance(i, str)]) if d]
+            for k, v in (poetry.get("dependencies") or {}).items():
+                if k.lower() != "python":
+                    out["dependencies"].append(_dep(k, v if isinstance(v, str) else json.dumps(v)))
+            for k, v in (poetry.get("dev-dependencies") or {}).items():
+                out["dependencies"].append(_dep(k, v if isinstance(v, str) else json.dumps(v), True))
+            out["scripts"] = p.get("scripts") or poetry.get("scripts") or {}
+            out["extra"] = {k: v for k, v in (("requires-python", p.get("requires-python")), ("build-backend", j.get("build-system", {}).get("build-backend"))) if v}
+        elif re.match(r"requirements.*\.txt$", base):
+            out["ecosystem"] = "python"
+            out["name"] = base
+            for line in text.splitlines():
+                line = line.split("#")[0].strip()
+                if line and not line.startswith(("-", "git+", "http")):
+                    d = _pep508(line)
+                    if d:
+                        out["dependencies"].append(dict(d, dev="dev" in base or "test" in base))
+        elif base == "go.mod":
+            out["ecosystem"] = "go"
+            m = re.search(r"^module\s+(\S+)", text, re.M)
+            out["name"] = m.group(1) if m else None
+            g = re.search(r"^go\s+(\S+)", text, re.M)
+            out["extra"] = {"go": g.group(1)} if g else {}
+            for m in re.finditer(r"^\s*(?:require\s+)?([\w.\-/~]+\.[\w.\-/~]+)\s+(v[\w.\-+]+)(\s*//\s*indirect)?", text, re.M):
+                out["dependencies"].append(_dep(m.group(1), m.group(2), bool(m.group(3))))
+        elif base == "Cargo.toml" and tomllib:
+            j = tomllib.loads(text)
+            p = j.get("package", {})
+            out.update(ecosystem="rust", name=p.get("name"), version=p.get("version") if isinstance(p.get("version"), str) else None,
+                       description=p.get("description") if isinstance(p.get("description"), str) else None, author=_author(p.get("authors")))
+            for key, dev in (("dependencies", False), ("build-dependencies", False), ("dev-dependencies", True)):
+                for k, v in (j.get(key) or {}).items():
+                    out["dependencies"].append(_dep(k, v if isinstance(v, str) else (v.get("version", "") if isinstance(v, dict) else ""), dev))
+            out["extra"] = {k: v for k, v in (("workspace", j.get("workspace", {}).get("members")), ("bins", [b.get("name") for b in j.get("bin", [])] or None)) if v}
+        elif base == "pom.xml":
+            import xml.etree.ElementTree as ET
+            root = ET.fromstring(re.sub(r'\sxmlns="[^"]+"', "", text, count=1))
+            g = lambda n, tag: (n.findtext(tag) or "").strip() or None
+            out.update(ecosystem="maven", name=":".join(x for x in (g(root, "groupId"), g(root, "artifactId")) if x),
+                       version=g(root, "version"), description=g(root, "description"), author=g(root, "developers/developer/name"))
+            for d in root.iter("dependency"):
+                out["dependencies"].append(_dep(f"{g(d, 'groupId')}:{g(d, 'artifactId')}", g(d, "version") or "", g(d, "scope") in ("test", "provided")))
+            out["extra"] = {"modules": [m.text for m in root.iter("module")]} if list(root.iter("module")) else {}
+        elif base == "composer.json":
+            j = json.loads(text)
+            out.update(ecosystem="php", name=j.get("name"), version=j.get("version"), description=j.get("description"), author=_author(j.get("authors")))
+            out["dependencies"] += [_dep(k, v) for k, v in (j.get("require") or {}).items()]
+            out["dependencies"] += [_dep(k, v, True) for k, v in (j.get("require-dev") or {}).items()]
+        elif base == "Gemfile":
+            out["ecosystem"] = "ruby"
+            for m in re.finditer(r"^\s*gem\s+['\"]([^'\"]+)['\"](?:\s*,\s*['\"]([^'\"]+)['\"])?", text, re.M):
+                out["dependencies"].append(_dep(m.group(1), m.group(2) or ""))
+        elif base.endswith(".csproj"):
+            out["ecosystem"] = "dotnet"
+            out["name"] = base[:-7]
+            for tag, key in (("Version", "version"), ("Authors", "author"), ("Description", "description")):
+                m = re.search(rf"<{tag}>([^<]+)<", text)
+                out[key] = m.group(1).split(";")[0].strip() if m else None
+            for m in re.finditer(r'<PackageReference\s+Include="([^"]+)"(?:\s+Version="([^"]+)")?', text):
+                out["dependencies"].append(_dep(m.group(1), m.group(2) or ""))
+            tf = re.search(r"<TargetFrameworks?>([^<]+)<", text)
+            out["extra"] = {"target": tf.group(1)} if tf else {}
+        elif base == "build.zig.zon":
+            out["ecosystem"] = "zig"
+            for key, pat in (("name", r"\.name\s*=\s*(?:\.(\w+)|\"([^\"]+)\")"), ("version", r"\.version\s*=\s*\"([^\"]+)\"")):
+                m = re.search(pat, text)
+                out[key] = next((x for x in m.groups() if x), None) if m else None
+            for m in re.finditer(r"^\s*\.(\w+)\s*=\s*\.\{[^}]*?\.(?:url|path)\s*=", text, re.M | re.S):
+                out["dependencies"].append(_dep(m.group(1), ""))
+        elif base.startswith("build.gradle"):
+            out["ecosystem"] = "gradle"
+            for m in re.finditer(r"\b(implementation|api|compileOnly|runtimeOnly|testImplementation|annotationProcessor|kapt)\s*[( ]\s*['\"]([^'\":]+:[^'\":]+)(?::([^'\"]+))?['\"]", text):
+                out["dependencies"].append(_dep(m.group(2), m.group(3) or "", m.group(1).startswith("test")))
+    except Exception as exc:  # a broken manifest must not stop the collection
+        out["extra"]["parse_error"] = str(exc)[:200]
+    out["dependency_count"] = len(out["dependencies"])
+    out["dependencies"] = out["dependencies"][:300]
+    return out if out["ecosystem"] else None
+
+
+MANIFEST_NAMES = re.compile(r"(^|/)(package\.json|pyproject\.toml|requirements[^/]*\.txt|go\.mod|Cargo\.toml|pom\.xml|composer\.json|Gemfile|[^/]+\.csproj|build\.zig\.zon|build\.gradle(\.kts)?)$")
+
+# --------------------------------------------------------------------------- areas
+
+
+def build_split(paths, max_depth=3, share=0.35, min_files=30):
+    total = len(paths) or 1
+    counts = Counter()
+    for p in paths:
+        segs = p.split("/")[:-1]
+        for i in range(1, len(segs) + 1):
+            counts["/".join(segs[:i]) + "/"] += 1
+    split = set()
+    for _ in range(max_depth):
+        changed = False
+        for d, c in list(counts.items()):
+            depth = d.count("/")
+            if d not in split and depth <= max_depth - 1 and c >= min_files and c / total > share:
+                parent_ok = depth == 1 or ("/".join(d.split("/")[:-2]) + "/") in split
+                if parent_ok:
+                    split.add(d)
+                    changed = True
+        if not changed:
+            break
+    return split
+
+
+def make_area_of(split):
+    def area_of(path):
+        segs = path.split("/")
+        if len(segs) == 1:
+            return "(root files)"
+        cur = segs[0] + "/"
+        while cur in split:
+            idx = cur.count("/")
+            if len(segs) - 1 <= idx:
+                return cur + "(files)"
+            cur = cur + segs[idx] + "/"
+        return cur
+    return area_of
+
+
+# --------------------------------------------------------------------------- chunk planning
+
+
+def plan_chunks(files, budget):
+    """Group files into directory-coherent chunks of at most `budget` tokens.
+
+    Files larger than the budget are split into line ranges. Nothing is dropped.
+    """
+    root = {"dirs": {}, "files": [], "tokens": 0}
+    for f in files:
+        node = root
+        node["tokens"] += f["tokens"]
+        for seg in f["path"].split("/")[:-1]:
+            node = node["dirs"].setdefault(seg, {"dirs": {}, "files": [], "tokens": 0})
+            node["tokens"] += f["tokens"]
+        node["files"].append(f)
+
+    def segments(f):
+        if f["tokens"] <= budget:
+            return [dict(f, start=None, end=None)]
+        per_line = max(f["tokens"] / max(f["lines"], 1), 0.01)
+        step = max(1, int(budget * 0.9 / per_line))
+        out, s = [], 1
+        while s <= f["lines"]:
+            e = min(f["lines"], s + step - 1)
+            out.append(dict(f, start=s, end=e, tokens=math.ceil((e - s + 1) * per_line)))
+            s = e + 1
+        return out
+
+    def units(node):
+        if node["tokens"] <= budget:
+            flat, stack = [], [node]
+            while stack:
+                n = stack.pop()
+                flat += [dict(f, start=None, end=None) for f in n["files"]]
+                stack += [n["dirs"][k] for k in sorted(n["dirs"], reverse=True)]
+            return [sorted(flat, key=lambda s: s["path"])]
+        items = [[s] for f in sorted(node["files"], key=lambda f: f["path"]) for s in segments(f)]
+        for name in sorted(node["dirs"]):
+            items += units(node["dirs"][name])
+        merged, cur, cur_t = [], [], 0
+        for it in items:
+            t = sum(s["tokens"] for s in it)
+            if cur and cur_t + t > budget:
+                merged.append(cur)
+                cur, cur_t = [], 0
+            cur += it
+            cur_t += t
+        if cur:
+            merged.append(cur)
+        return merged
+
+    chunks = []
+    for i, segs in enumerate(units(root), 1):
+        tops = sorted({"/".join(s["path"].split("/")[:2]) for s in segs})
+        label = ", ".join(tops[:3]) + (f" (+{len(tops) - 3} more)" if len(tops) > 3 else "")
+        fp = hashlib.sha1("\n".join(f"{s['path']}:{s['blob']}:{s['start']}-{s['end']}" for s in segs).encode()).hexdigest()[:12]
+        chunks.append({"id": f"c{i:03d}", "fingerprint": fp, "label": label,
+                       "tokens": sum(s["tokens"] for s in segs), "files": [
+                           {k: s[k] for k in ("path", "lines", "tokens", "role", "start", "end")} for s in segs]})
+    return chunks
+
+
+# --------------------------------------------------------------------------- main collection
+
+
+
+BLAME_HEADER = re.compile(r"^([0-9a-f]{40}) \d+ \d+")
+BLAME_BUDGET_S = 150
+
+
+def blame_file(repo_path, sha, path, deadline, by_commit=None):
+    """Non-blank lines per (name, email) that survive in one file at the pinned commit.
+    When `by_commit` is a dict, it is also filled with {commit sha: [(name, email), lines]}."""
+    if time.monotonic() > deadline:
+        return None
+    try:
+        out = subprocess.run(["git", "-C", repo_path, "blame", "--porcelain", "-w", sha, "--", path],
+                             capture_output=True, timeout=60).stdout.decode("utf-8", "replace")
+    except (subprocess.TimeoutExpired, OSError):
+        return None
+    info, counts, cur = {}, Counter(), None
+    for line in out.split("\n"):
+        if line.startswith("\t"):
+            if cur and line.strip():
+                counts[cur] += 1
+            continue
+        m = BLAME_HEADER.match(line)
+        if m:
+            cur = m.group(1)
+            info.setdefault(cur, ["", ""])
+        elif cur and line.startswith("author "):
+            info[cur][0] = line[7:]
+        elif cur and line.startswith("author-mail "):
+            info[cur][1] = line[12:].strip("<>")
+    per = Counter()
+    for c, n in counts.items():
+        per[tuple(info.get(c, ("", "")))] += n
+        if by_commit is not None:
+            by_commit[c] = [tuple(info.get(c, ("", ""))), n]
+    return per
+
+
+def ownership(repo_path, sha, files, area_of, canon, display, ctype, per_file=None, per_commit=None):
+    """Share of today's code lines written by each contributor, from git blame over every analysed text file.
+    When `per_file` is a dict, it is filled with {path: {contributor id: lines}} for every file that was blamed.
+    When `per_commit` is a dict, it is filled with {path: {commit sha: [contributor id, lines]}}."""
+    deadline = time.monotonic() + BLAME_BUDGET_S
+    paths = [f["path"] for f in files if f["lines"]]
+    by_person, by_area, done = Counter(), defaultdict(Counter), 0
+    with ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 4)) as pool:
+        infos = {p: ({} if per_commit is not None else None) for p in paths}
+        futs = {pool.submit(blame_file, repo_path, sha, p, deadline, infos[p]): p for p in paths}
+        for fut, p in futs.items():
+            per = fut.result()
+            if per is None:
+                continue
+            if per_commit is not None:
+                per_commit[p] = {c: [canon.get(ident_id(*who)) or ident_id(*who), n] for c, (who, n) in infos[p].items()}
+            done += 1
+            ar = area_of(p)
+            mine = Counter()
+            for (n, e), c in per.items():
+                cid = canon.get(ident_id(n, e)) or ident_id(n, e)
+                by_person[cid] += c
+                by_area[ar][cid] += c
+                mine[cid] += c
+            if per_file is not None:
+                per_file[p] = dict(mine)
+    total = sum(by_person.values())
+    if not total:
+        return None
+    name = lambda cid: display.get(cid, cid)
+    kind = lambda cid: ctype.get(cid, ident_type(name(cid), cid))
+    pct = lambda a, b: round(100 * a / b, 1) if b else 0.0
+    people = []
+    for cid, n in by_person.most_common(30):
+        mine = sorted(((a, c[cid]) for a, c in by_area.items() if c.get(cid)), key=lambda x: -x[1])[:4]
+        people.append({"id": cid, "name": name(cid), "type": kind(cid), "lines": n, "share_pct": pct(n, total),
+                       "top_areas": [{"area": a, "lines": c} for a, c in mine]})
+    areas = []
+    for a, c in sorted(by_area.items(), key=lambda kv: -sum(kv[1].values()))[:14]:
+        t = sum(c.values())
+        areas.append({"name": a, "lines": t, "owners": [{"id": cid, "name": name(cid), "type": kind(cid), "lines": n, "share_pct": pct(n, t)}
+                                                      for cid, n in c.most_common(6)]})
+    by_type = Counter()
+    for cid, n in by_person.items():
+        by_type[kind(cid)] += n
+    return {"total_lines": total, "files_blamed": done, "files_total": len(paths), "people": people, "areas": areas,
+            "by_type": {t: by_type.get(t, 0) for t in TYPES},
+            "note": "Lines are the non-blank lines that survive at the pinned commit, attributed to whoever last changed them (git blame, whitespace changes ignored). "
+                    "A reformat or a bulk import moves ownership to whoever ran it."}
+
+
+ACTIVITY_CAP = 2_000_000   # bytes of JSON the page may carry for "what each contributor changed"
+GRAINS = (("day", 1), ("week", 7), ("month", 31))
+
+
+def bucket_key(day, grain):
+    d = date.fromisoformat(day)
+    if grain == "week":
+        return (d - timedelta(days=d.weekday())).isoformat()
+    return d.strftime("%Y-%m-01") if grain == "month" else day
+
+
+def pack_activity(file_days, top_ids, exists, cap=ACTIVITY_CAP):
+    """Per person and period, the files their commits touched with [commits, added, deleted], for the browser to total over any date range.
+    Days are merged into weeks, then months, and the least-changed files are dropped last, until the JSON fits under `cap`."""
+    def build(grain, keep):
+        files, index, rows = [], {}, {}
+        for day, who in sorted(file_days.items()):
+            b = bucket_key(day, grain)
+            for cid, fs in who.items():
+                cell = rows.setdefault(b, {}).setdefault(cid if cid in top_ids else "", {})
+                for path, (c, a, d) in fs.items():
+                    if keep is not None and path not in keep:
+                        continue
+                    if path not in index:
+                        index[path] = len(files)
+                        files.append(path)
+                    t = cell.setdefault(index[path], [0, 0, 0])
+                    t[0] += c
+                    t[1] += a
+                    t[2] += d
+        rows = {b: {cid: [[i, *t] for i, t in sorted(cell.items())] for cid, cell in w.items() if cell} for b, w in rows.items()}
+        return {"grain": grain, "files": files, "gone": [i for i, f in enumerate(files) if f not in exists], "rows": {b: w for b, w in rows.items() if w}, "trimmed": 0}
+
+    size = lambda o: len(json.dumps(o, separators=(",", ":")))
+    for grain, _ in GRAINS:
+        out = build(grain, None)
+        if size(out) <= cap:
+            return out
+    churn = Counter()
+    for who in file_days.values():
+        for fs in who.values():
+            for path, (_, a, d) in fs.items():
+                churn[path] += a + d
+    ranked = [p for p, _ in churn.most_common()]
+    lo, hi = 0, len(ranked)
+    best = build("month", set())
+    while lo < hi:      # the most files that still fit
+        mid = (lo + hi + 1) // 2
+        trial = build("month", set(ranked[:mid]))
+        if size(trial) <= cap:
+            lo, best = mid, trial
+        else:
+            hi = mid - 1
+    best["trimmed"] = len(ranked) - lo
+    return best
+
+
+# ---- knowledge map
+KNOWLEDGE_PEOPLE = 6               # people who get their own colour and chip; everyone else is grouped as "Others"
+KNOWLEDGE_DEPARTED_MONTHS = 6      # no commit in this many months before HEAD's date: treated as departed (an inference)
+KNOWLEDGE_RECENT_DAYS = 365        # the "last 12 months" measure, counted back from HEAD's date and never from today
+KNOWLEDGE_SKIP = ("bot",)          # identity types left out of the map
+KNOWLEDGE_CAP = 1_500_000          # bytes of JSON the page may carry for the map
+KNOWLEDGE_BLEND = (0.5, 0.3, 0.2)  # weights of surviving lines, commits and recent commits in the blended measure
+
+
+def attribute_excluded(repo_path, sha, paths):
+    """Paths that .gitattributes at the pinned commit marks linguist-generated or linguist-vendored."""
+    if not paths:
+        return set()
+    p = subprocess.run(["git", "-C", repo_path, "check-attr", f"--source={sha}", "-z", "--stdin", "linguist-generated", "linguist-vendored"],
+                       input="\0".join(paths).encode("utf-8", "replace") + b"\0", capture_output=True)
+    if p.returncode:        # git older than 2.40 has no --source: the attributes are simply not applied
+        return set()
+    t = p.stdout.decode("utf-8", "replace").split("\0")
+    return {t[i] for i in range(0, len(t) - 2, 3) if t[i + 2] not in ("unspecified", "unset", "false")}
+
+
+def parse_commit(rec):
+    """One `git log -z --numstat` record: (sha, name, email, author date, [(added, deleted, old path or None, path)])."""
+    head, _, rest = rec.partition(b"\0")
+    meta = head.decode("utf-8", "replace").strip().split("\x1f")
+    if len(meta) < 4:
+        return None
+    return (*meta[:4], parse_numstat(rest))
+
+
+def parse_numstat(rest):
+    """The `-z --numstat` part of a log record: [(added, deleted, old path or None, path)]."""
+    toks, entries, i = rest.decode("utf-8", "replace").lstrip("\n").split("\0"), [], 0
+    while i < len(toks):
+        f = toks[i].split("\t", 2)
+        if len(f) < 3:
+            i += 1
+            continue
+        a, d = (int(x) if x.isdigit() else 0 for x in f[:2])
+        if f[2]:
+            entries.append((a, d, None, f[2]))
+            i += 1
+        elif i + 2 < len(toks):     # a rename: the two paths follow as separate fields
+            entries.append((a, d, toks[i + 1], toks[i + 2]))
+            i += 3
+        else:
+            break
+    return entries
+
+
+def history_commits(repo_path, sha):
+    """Non-merge commits, newest first, with renames followed."""
+    proc = subprocess.Popen(["git", "-C", repo_path, "log", sha, "--no-merges", "-M", "-z", "--numstat", "--format=%x1e%H%x1f%aN%x1f%aE%x1f%aI"],
+                            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    buf = b""
+    while True:
+        blk = proc.stdout.read(1 << 20)
+        if not blk:
+            break
+        buf += blk
+        *recs, buf = buf.split(b"\x1e")
+        for r in recs:
+            c = parse_commit(r) if r.strip() else None
+            if c:
+                yield c
+    c = parse_commit(buf) if buf.strip() else None
+    if c:
+        yield c
+    proc.wait()
+
+
+def credit_history(commits, wanted, cid_of, as_of):
+    """Per file and person: [commits, commits in the year before `as_of`, lines added minus deleted]. A renamed file is credited at its current path.
+    Commits come newest first, so a rename seen now tells us where the file's older history belongs. Bulk commits (imports, reformatting) credit no file."""
+    recent_from = as_of - timedelta(days=KNOWLEDGE_RECENT_DAYS)
+    alias, per_file, last, people = {}, {}, {}, {}
+    for _, an, ae, ad, entries in commits:
+        cid = cid_of(an, ae)
+        if cid is None:
+            continue
+        dt = datetime.fromisoformat(ad).astimezone(timezone.utc)
+        who = people.setdefault(cid, [0, dt])
+        who[0] += 1
+        who[1] = max(who[1], dt)
+        bulk = len(entries) > BULK_FILES
+        for a, d, old, new in entries:
+            cur = alias.get(new, new)
+            if old is not None:
+                alias[old] = cur
+            if bulk or cur not in wanted:
+                continue
+            t = per_file.setdefault(cur, {}).setdefault(cid, [0, 0, 0])
+            t[0] += 1
+            t[1] += dt >= recent_from
+            t[2] += a - d
+            if cur not in last or dt > last[cur]:
+                last[cur] = dt
+    return per_file, people, last
+
+
+def blend(L, C, R):
+    """Familiarity per person from lines, commits and recent commits. A component whose total is zero is dropped and the weights renormalised."""
+    parts = [(v, w) for v, w in zip((L, C, R), KNOWLEDGE_BLEND) if sum(v)]
+    tw = sum(w for _, w in parts)
+    return [sum(w * v[i] / sum(v) for v, w in parts) / tw if tw else 0 for i in range(len(L))]
+
+
+def short_names(names):
+    """First names, made longer only where two people would share one."""
+    first = [n.split()[0] if n.split() else n for n in names]
+    out = []
+    for n, f in zip(names, first):
+        if first.count(f) > 1 and len(n.split()) > 1:
+            f = f"{f} {n.split()[-1][0]}."
+        out.append(f)
+    return out
+
+
+def fit_rows(rows, cap):
+    """The files that fit under `cap` bytes of JSON, dropping the smallest and least changed first. Returns (rows, number dropped)."""
+    size = lambda rs: len(json.dumps(rs, separators=(",", ":")))
+    if size(rows) <= cap:
+        return rows, 0
+    rank = sorted(range(len(rows)), key=lambda i: -(rows[i][1] + 20 * sum(t[2] for t in rows[i][3])))
+    lo, hi = 0, len(rank)
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if size([rows[i] for i in sorted(rank[:mid])]) <= cap:
+            lo = mid
+        else:
+            hi = mid - 1
+    return [rows[i] for i in sorted(rank[:lo])], len(rows) - lo
+
+
+def knowledge_scan(repo_path, sha, as_of, files, canon, display, ctype):
+    """The git-history half of the knowledge map. It needs no blame, so collect() runs it while the blame is still going."""
+    paths = [f["path"] for f in files if f["lines"]]
+    bad = attribute_excluded(repo_path, sha, paths)
+    kept = [f for f in files if f["lines"] and f["path"] not in bad]
+    if not kept:
+        return None
+    def cid_of(n, e):
+        cid = canon.get(ident_id(n, e)) or ident_id(n, e)
+        return None if ctype.get(cid, ident_type(display.get(cid, n), cid)) in KNOWLEDGE_SKIP else cid
+    per_file, people, last = credit_history(history_commits(repo_path, sha), {f["path"] for f in kept}, cid_of, as_of)
+    return {"kept": kept, "bad": bad, "per_file": per_file, "people": people, "last": last}
+
+
+def knowledge_map(scan, blamed, sha, as_of, display, ctype):
+    """Who knows which files: surviving lines (the blame already run for ownership), commits, and commits in the year before HEAD's date.
+    Files whose blame did not finish get their line shares estimated from lines added minus deleted. People are capped at KNOWLEDGE_PEOPLE; the rest become "Others"."""
+    if not scan:
+        return None
+    kept, bad, per_file, people, last = scan["kept"], scan["bad"], scan["per_file"], scan["people"], scan["last"]
+    kind = lambda cid: ctype.get(cid, ident_type(display.get(cid, cid), cid))
+    lines, loc, approx = {}, {}, 0
+    for f in kept:
+        p = f["path"]
+        if p in blamed:
+            lines[p] = {c: n for c, n in blamed[p].items() if kind(c) not in KNOWLEDGE_SKIP}
+            loc[p] = sum(blamed[p].values())
+        else:
+            net = {c: max(0, t[2]) for c, t in per_file.get(p, {}).items()}
+            tot = sum(net.values())
+            lines[p] = {c: round(f["lines"] * n / tot) for c, n in net.items() if n} if tot else {}
+            loc[p] = f["lines"]
+            approx += 1
+    tot = defaultdict(lambda: [0, 0, 0])
+    for f in kept:
+        p = f["path"]
+        for c, n in lines[p].items():
+            tot[c][0] += n
+        for c, t in per_file.get(p, {}).items():
+            tot[c][1] += t[0]
+            tot[c][2] += t[1]
+    ids = sorted(set(tot) | set(people))
+    score = dict(zip(ids, blend([tot[c][0] for c in ids], [tot[c][1] for c in ids], [tot[c][2] for c in ids])))
+    ranked = sorted(ids, key=lambda c: (-score[c], -(people.get(c) or [0])[0], c))
+    top, rest = ranked[:KNOWLEDGE_PEOPLE], ranked[KNOWLEDGE_PEOPLE:]
+    index = {c: i for i, c in enumerate(top)}
+    index.update({c: len(top) for c in rest})
+    gone_before = as_of - timedelta(days=round(KNOWLEDGE_DEPARTED_MONTHS * 30.4375))
+    names = [display.get(c, c) for c in top]
+    contributors = []
+    for c, short in zip(top, short_names(names)):
+        n, latest = people.get(c) or (0, None)
+        contributors.append({"id": c, "name": display.get(c, c), "short": short, "commits": n, "last": latest.strftime("%Y-%m") if latest else "",
+                             "departed": bool(latest and latest < gone_before), "type": kind(c)})
+    rows = []
+    for f in sorted(kept, key=lambda f: f["path"]):
+        p = f["path"]
+        cell = defaultdict(lambda: [0, 0, 0])
+        for c, n in lines[p].items():
+            cell[index[c]][0] += n
+        for c, t in per_file.get(p, {}).items():
+            cell[index[c]][1] += t[0]
+            cell[index[c]][2] += t[1]
+        rows.append([p, loc[p], last[p].strftime("%Y-%m") if p in last else "", [[i, *v] for i, v in sorted(cell.items()) if any(v)]])
+    rows, trimmed = fit_rows(rows, KNOWLEDGE_CAP)
+    return {"sha": sha, "date": iso_day(as_of), "departed_months": KNOWLEDGE_DEPARTED_MONTHS, "recent_days": KNOWLEDGE_RECENT_DAYS,
+            "contributors": contributors,
+            "others": {"people": len(rest), "commits": sum(people[c][0] for c in rest if c in people)} if rest else None,
+            "files": rows, "trimmed": trimmed, "approx_files": approx, "attribute_excluded": len(bad)}
+
+
+def collect(repo_path, ref="HEAD", chunk_tokens=400_000, contributor_types=None):
+    repo = Repo(repo_path)
+    top = repo.git("rev-parse", "--show-toplevel").strip()
+    repo = Repo(top)
+    sha = repo.git("rev-parse", "--verify", f"{ref}^{{commit}}").strip()
+    as_of = datetime.fromisoformat(repo.git("show", "-s", "--format=%cI", sha).strip()).astimezone(timezone.utc)
+    subject = repo.git("show", "-s", "--format=%s", sha).strip()
+    branch = None
+    if ref == "HEAD":
+        branch = repo.git("symbolic-ref", "--short", "-q", "HEAD", check=False).strip() or "(detached HEAD)"
+    elif not re.fullmatch(r"[0-9a-f]{7,40}", ref):
+        branch = ref
+    warnings = []
+    if ref == "HEAD" and repo.git("status", "--porcelain", check=False).strip():
+        warnings.append("The working tree has uncommitted changes. This dossier covers the committed state only.")
+    if repo.git("rev-parse", "--is-shallow-repository", check=False).strip() == "true":
+        warnings.append("This is a shallow clone. History-based figures (commits, contributors, ownership) are incomplete.")
+
+    remote_url = (repo.git("remote", "get-url", "origin", check=False).strip()
+                  or (repo.git("remote", check=False).split() or [""])[0])
+    remote = remote_info(remote_url)
+
+    # ---- tree
+    entries = []
+    for rec in repo.git("ls-tree", "-r", "-l", "-z", sha).split("\0"):
+        if not rec:
+            continue
+        meta, path = rec.split("\t", 1)
+        mode, typ, oid, size = meta.split()
+        entries.append((path, typ, oid, 0 if size == "-" else int(size)))
+    tree_paths = {e[0] for e in entries if e[1] == "blob"}
+    submodules = [e[0] for e in entries if e[1] == "commit"]
+
+    # ---- per-file pass
+    excluded, excluded_dirs = Counter(), Counter()
+    lang_stats = defaultdict(lambda: {"kind": "", "files": 0, "lines": 0, "bytes": 0})
+    files = []                       # analyzable text files, for chunk planning
+    env_reads, env_decl, infra_names, secret_hits, manifests, sensitive = defaultdict(list), defaultdict(list), {}, [], [], []
+    marker_items, todo_items = [], []
+    test_files = 0
+    readme = None
+    for path, typ, oid, size in entries:
+        if typ != "blob":
+            continue
+        is_sensitive = bool(SENSITIVE_FILE.search(path)) and not path.endswith(".pub")
+        wanted_manifest = bool(MANIFEST_NAMES.search(path)) and not VENDOR_SEG.intersection(path.split("/"))
+        reason = noise_reason(path)
+        if reason is None and size > MAX_READ:
+            reason = "oversize"
+        if is_sensitive and (reason or size > MAX_READ):
+            sensitive.append({"path": path, "verdict": sensitive_verdict(path, None)})
+        if reason and not (wanted_manifest and reason == "generated"):
+            excluded[reason] += 1
+            excluded_dirs["/".join(path.split("/")[:2]) if "/" in path else "(root)"] += 1
+            continue
+        got = repo.read(oid)
+        if not got:
+            continue
+        data = got[1]
+        if is_sensitive and not reason:
+            sensitive.append({"path": path, "verdict": sensitive_verdict(path, data)})
+        if b"\0" in data[:8000]:
+            excluded["binary"] += 1
+            continue
+        head = data[:400]
+        if b"DO NOT EDIT" in head or b"Code generated" in head or b"@generated" in head:
+            excluded["generated"] += 1
+            excluded_dirs["/".join(path.split("/")[:2]) if "/" in path else "(root)"] += 1
+            continue
+        text = data.decode("utf-8", "replace")
+        lines = data.count(b"\n") + (1 if data and not data.endswith(b"\n") else 0)
+        nonblank = len(re.findall(rb"^[ \t]*\S", data, re.M))
+        lang = lang_of(path) or lang_of_content(path, data)
+        if wanted_manifest:
+            m = parse_manifest(path, text)
+            if m:
+                manifests.append(m)
+        if readme is None and re.fullmatch(r"README(\.[A-Za-z]+)?", path):
+            readme = {"path": path, "title": next((l.lstrip("# ").strip() for l in text.splitlines() if l.strip()), ""),
+                      "excerpt": next((p.strip().replace("\n", " ")[:600] for p in re.split(r"\n\s*\n", text)
+                                       if p.strip() and not p.strip().startswith(("#", "=", "[!", "!["))), "")}
+        if lang:
+            ls = lang_stats[lang[0]]
+            ls["kind"] = lang[1]
+            ls["files"] += 1
+            ls["lines"] += nonblank
+            ls["bytes"] += len(data)
+        has_tests = bool(TEST_CONTENT.search(data[:2_000_000])) and not (lang and lang[1] == "docs")
+        test_files += has_tests
+        role = "test" if (has_tests or TEST_RE.search(path)) else ("doc" if lang and lang[1] == "docs" else ("config" if lang and lang[1] == "data" else "code"))
+        files.append({"path": path, "blob": oid, "bytes": len(data), "lines": lines, "tokens": tokens_for(len(data)), "role": role})
+        if len(data) <= 2_000_000 and (not lang or lang[1] != "docs"):
+            nl = None
+            found, todo_n = markerscan.scan(path, text)
+            marker_items += found
+            if todo_n:
+                todo_items.append({"kind": "todo", "path": path, "count": todo_n})
+            lines_of = envscan.Lines(text)
+            secret_hits += [{"path": path, **h} for h in envscan.secrets(text, lines_of)]
+            for site in envscan.reads(text, lines_of):
+                env_reads[site.pop("name")].append({"path": path, **site})
+            if re.search(r"(^|/)\.env[^/]*$", path):
+                for site in envscan.dotenv(text, lines_of):
+                    env_decl[site["name"]].append({"path": path, "line": site["line"]})
+            if envscan.is_infra(path):
+                infra_names[path] = envscan.declared_in(path, text)
+
+    # ---- areas
+    area_paths = [p for p in tree_paths if not noise_reason(p)]
+    split = build_split(area_paths)
+    area_of = make_area_of(split)
+    area_files = Counter(area_of(p) for p in area_paths)
+
+    # ---- identities
+    pairs = Counter()
+    for line in repo.git("log", sha, "--format=%aN%x1f%aE").splitlines():
+        if "\x1f" in line:
+            n, e = line.split("\x1f", 1)
+            pairs[(n, e)] += 1
+    parent = {}
+
+    def find(x):
+        parent.setdefault(x, x)
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    id_commits, id_names, by_name = Counter(), defaultdict(Counter), defaultdict(list)
+    for (n, e), c in pairs.items():
+        i = ident_id(n, e)
+        find(i)
+        id_commits[i] += c
+        id_names[i][n] += c
+        if " " in n.strip() and not BOT_IDENT.search(n) and not AGENT_IDENT.search(n):
+            by_name[n.strip().casefold()].append(i)
+    for ids in by_name.values():
+        for other in ids[1:]:
+            parent[find(other)] = find(ids[0])
+    groups = defaultdict(list)
+    for i in list(parent):
+        groups[find(i)].append(i)
+    canon, display, emails = {}, {}, {}
+    for members in groups.values():
+        best = max(members, key=lambda i: id_commits[i])
+        names = Counter()
+        for i in members:
+            canon[i] = best
+            names.update(id_names[i])
+        display[best] = names.most_common(1)[0][0]
+        emails[best] = sorted(members)
+    overrides = contributor_types or {}
+    ctype = {cid: ident_type(display[cid], cid, overrides.get(cid)) for cid in display}
+
+    # ---- history pass
+    people = {}
+    area_stat = {}
+    file_commits, file_churn, file_last = Counter(), Counter(), {}
+    file_who = defaultdict(Counter)
+    monthly, yearly = Counter(), Counter()
+    daily = defaultdict(Counter)
+    daily_lines = defaultdict(lambda: defaultdict(lambda: [0, 0]))   # day -> person -> [lines added, lines deleted]
+    file_days = defaultdict(lambda: defaultdict(dict))               # day -> person -> path -> [commits, lines added, lines deleted]
+    merges = total = assisted_total = 0
+    assisted_by = Counter()
+    bulk = []
+    first_dt = last_dt = None
+    cutoff = as_of - timedelta(days=365)
+    fmt = "%x1e%H%x1f%P%x1f%aN%x1f%aE%x1f%aI%x1f%B%x1f"
+    proc = subprocess.Popen(["git", "-C", repo.path, "log", sha, "--no-renames", "--numstat", f"--format={fmt}"],
+                            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+
+    def records():
+        buf = b""
+        while True:
+            blk = proc.stdout.read(1 << 20)
+            if not blk:
+                break
+            buf += blk
+            *recs, buf = buf.split(b"\x1e")
+            for r in recs:
+                if r.strip():
+                    yield r.decode("utf-8", "replace")
+        if buf.strip():
+            yield buf.decode("utf-8", "replace")
+
+    for rec in records():
+        parts = rec.split("\x1f")
+        if len(parts) < 7:
+            continue
+        csha, parents, an, ae, ad, msg, stat = parts[:7]
+        total += 1
+        merges += len(parents.split()) > 1
+        dt = datetime.fromisoformat(ad.strip()).astimezone(timezone.utc)
+        first_dt = dt if first_dt is None or dt < first_dt else first_dt
+        last_dt = dt if last_dt is None or dt > last_dt else last_dt
+        cid = canon.get(ident_id(an, ae)) or ident_id(an, ae)
+        itype = ctype.get(cid, "human")
+        marker = AGENT_MSG.search(msg)
+        t = itype if itype != "human" else ("agent" if marker else "human")
+        if marker:
+            assisted_total += 1
+            for label, pat in AGENT_LABELS:
+                if re.search(pat, marker.group(0), re.I):
+                    assisted_by[label] += 1
+                    break
+        monthly[dt.strftime("%Y-%m")] += 1
+        yearly[dt.strftime("%Y")] += 1
+        daily[dt.strftime("%Y-%m-%d")][cid] += 1
+        nums = []
+        for line in stat.splitlines():
+            f = line.split("\t")
+            if len(f) == 3:
+                nums.append((int(f[0]) if f[0].isdigit() else 0, int(f[1]) if f[1].isdigit() else 0, f[2]))
+        p = people.setdefault(cid, {"id": cid, "name": display.get(cid, an), "type": itype, "commits": 0, "assisted": 0,
+                                    "by_type": Counter(), "added": 0, "deleted": 0, "first": dt, "last": dt,
+                                    "recent": 0, "months": set(), "areas": Counter()})
+        p["commits"] += 1
+        p["by_type"][t] += 1
+        p["assisted"] += bool(marker) and itype == "human"
+        p["first"], p["last"] = min(p["first"], dt), max(p["last"], dt)
+        p["recent"] += dt >= cutoff
+        p["months"].add(dt.strftime("%Y-%m"))
+        if len(nums) > BULK_FILES:
+            bulk.append({"sha": csha, "files": len(nums), "author": display.get(cid, an), "date": iso_day(dt), "subject": msg.strip().split("\n")[0][:100]})
+            continue
+        touched = defaultdict(int)
+        day_lines = daily_lines[dt.strftime("%Y-%m-%d")][cid]
+        day_files = file_days[dt.strftime("%Y-%m-%d")][cid]
+        for a, d, path in nums:
+            if noise_reason(path):
+                continue
+            fd = day_files.setdefault(path, [0, 0, 0])
+            fd[0] += 1
+            fd[1] += a
+            fd[2] += d
+            day_lines[0] += a
+            day_lines[1] += d
+            p["added"] += a
+            p["deleted"] += d
+            ar = area_of(path)
+            touched[ar] += a + d
+            if path in tree_paths:
+                file_commits[path] += 1
+                file_churn[path] += a + d
+                file_last.setdefault(path, dt)
+                file_who[path][cid] += 1
+        for ar, lines_ in touched.items():
+            s = area_stat.setdefault(ar, {"commits": 0, "lines": 0, "t": {k: [0, 0] for k in TYPES}, "who": {}, "first": dt, "last": dt, "recent": 0})
+            s["commits"] += 1
+            s["lines"] += lines_
+            s["t"][t][0] += 1
+            s["t"][t][1] += lines_
+            s["first"], s["last"] = min(s["first"], dt), max(s["last"], dt)
+            s["recent"] += dt >= cutoff
+            w = s["who"].setdefault(cid, [0, 0, dt, 0])
+            w[0] += 1
+            w[1] += lines_
+            w[2] = max(w[2], dt)
+            w[3] += dt >= cutoff
+            p["areas"][ar] += 1
+    proc.wait()
+
+    # ---- assemble contributor and area tables
+    def pct(a, b):
+        return round(100 * a / b, 1) if b else 0.0
+
+    ranked = sorted(people.values(), key=lambda p: -p["commits"])
+    by_type_counts = Counter(p["type"] for p in ranked)
+    commits_by_type = Counter()
+    for p in ranked:
+        commits_by_type.update(p["by_type"])
+    contributors = [{
+        "id": p["id"], "name": p["name"], "type": p["type"], "commits": p["commits"], "share_pct": pct(p["commits"], total),
+        "assisted_commits": p["assisted"], "commits_by_type": dict(p["by_type"]),
+        "added": p["added"], "deleted": p["deleted"], "first": iso_day(p["first"]), "last": iso_day(p["last"]),
+        "recent_commits_12m": p["recent"], "active_months": len(p["months"]),
+        "top_areas": [{"area": a, "commits": c} for a, c in p["areas"].most_common(6)],
+    } for p in ranked[:60]]
+
+    top_ids = {p["id"] for p in ranked[:30]}  # everyone else is grouped under "" so the calendar data stays small
+    daily_out = {}
+    for day, who in sorted(daily.items()):
+        row = Counter()
+        for cid, n in who.items():
+            row[cid if cid in top_ids else ""] += n
+        daily_out[day] = dict(row)
+    lines_out = {}
+    for day, who in sorted(daily_lines.items()):
+        row = defaultdict(lambda: [0, 0])
+        for cid, (a, d) in who.items():
+            r = row[cid if cid in top_ids else ""]
+            r[0] += a
+            r[1] += d
+        lines_out[day] = {k: v for k, v in row.items() if v[0] or v[1]}
+
+    file_activity = pack_activity(file_days, top_ids, set(tree_paths))
+
+    areas = []
+    for name, s in sorted(area_stat.items(), key=lambda kv: -kv[1]["commits"])[:60]:
+        top_who = sorted(s["who"].items(), key=lambda kv: -kv[1][0])
+        areas.append({
+            "name": name, "files": area_files.get(name, 0), "exists": area_files.get(name, 0) > 0, "commits": s["commits"], "lines_changed": s["lines"],
+            "by_type": {k: {"commits": v[0], "lines": v[1]} for k, v in s["t"].items()},
+            "top": [{"name": people[cid]["name"], "type": people[cid]["type"], "commits": w[0], "share_pct": pct(w[0], s["commits"]),
+                     "recent_12m": w[3], "last": iso_day(w[2])} for cid, w in top_who[:5]],
+            "first_active": iso_day(s["first"]), "last_active": iso_day(s["last"]), "recent_commits_12m": s["recent"],
+        })
+
+    hot = []
+    for path, c in file_commits.most_common(25):
+        who = file_who[path].most_common(1)[0]
+        hot.append({"path": path, "commits": c, "churn": file_churn[path], "last_changed": iso_day(file_last[path]),
+                    "top_contributor": people[who[0]]["name"], "top_share_pct": pct(who[1], c)})
+
+    tags = []
+    for line in repo.git("tag", "--merged", sha, "--sort=-creatordate", "--format=%(refname:short)\x1f%(creatordate:short)", check=False).splitlines()[:10]:
+        if "\x1f" in line:
+            tags.append(dict(zip(("name", "date"), line.split("\x1f"))))
+
+    # ---- languages
+    code_total = sum(v["lines"] for v in lang_stats.values() if v["kind"] == "code") or 1
+    all_total = sum(v["lines"] for v in lang_stats.values()) or 1
+    languages = [{"name": n, "kind": v["kind"], "files": v["files"], "lines": v["lines"], "bytes": v["bytes"],
+                  "share_pct": pct(v["lines"], code_total if v["kind"] == "code" else all_total)}
+                 for n, v in sorted(lang_stats.items(), key=lambda kv: -kv[1]["lines"])]
+
+    blamed, blamed_commits = {}, {}
+    with ThreadPoolExecutor(max_workers=1) as bg:     # the knowledge map's history pass runs alongside the blame
+        scan = bg.submit(knowledge_scan, repo.path, sha, as_of, files, canon, display, ctype)
+        own = ownership(repo.path, sha, files, area_of, canon, display, ctype, blamed, blamed_commits)
+        knowledge = knowledge_map(scan.result(), blamed, sha, as_of, display, ctype)
+
+    # ---- dependencies
+    try:
+        dependencies = depscan.analyze(repo, entries, files)
+    except Exception as exc:    # the dependency card is optional: a failure here must not stop the collection
+        dependencies = {"error": f"{type(exc).__name__}: {exc}"[:300]}
+
+    # ---- chunk plan
+    plan_files = [f for f in files if f["bytes"] > 0]
+    chunks = plan_chunks(plan_files, chunk_tokens)
+    total_tokens = sum(f["tokens"] for f in plan_files)
+    advice = []
+    if total_tokens <= chunk_tokens:
+        mode = "single"
+        advice.append("The whole repository fits in one pass. No chunking is needed.")
+    else:
+        mode = "chunked"
+        advice.append(f"The repository is about {total_tokens:,} tokens. Review it in {len(chunks)} chunks of at most {chunk_tokens:,} tokens each.")
+    if total_tokens > 400_000:
+        size = "very large" if total_tokens > 1_500_000 else "large"
+        advice.append(f"This is a {size} repository. Process the chunks with parallel subagents on the default model (Sonnet, 1M context window). "
+                      "No model switch is needed.")
+
+    facts = {
+        "schema": 1,
+        "repo": {"name": PurePosixPath(top).name, "path": top, "remote": remote, "ref": ref, "branch": branch, "sha": sha,
+                 "short": sha[:10], "commit_date": iso_day(as_of), "subject": subject, "warnings": warnings,
+                 "submodules": submodules},
+        "git": {"commits": total, "merges": merges, "first_commit": iso_day(first_dt) if first_dt else None,
+                "last_commit": iso_day(last_dt) if last_dt else None,
+                "age_days": (last_dt - first_dt).days if first_dt else 0,
+                "contributors": {"total": len(ranked), **{t: by_type_counts.get(t, 0) for t in TYPES}},
+                "commits_by_type": {t: commits_by_type.get(t, 0) for t in TYPES},
+                "agent_assisted_commits": assisted_total, "agent_assisted_by": dict(assisted_by),
+                "tags": tags, "bulk_commits": bulk[:20], "bulk_commit_count": len(bulk),
+                "monthly": dict(sorted(monthly.items())), "yearly": dict(sorted(yearly.items())),
+                "daily": daily_out, "daily_lines": lines_out},
+        "files": {"tracked": len(tree_paths), "analyzed": len(files), "excluded": dict(excluded),
+                  "excluded_top_dirs": excluded_dirs.most_common(8), "tests": test_files,
+                  "total_code_lines": sum(v["lines"] for v in lang_stats.values() if v["kind"] == "code"),
+                  "total_lines": sum(v["lines"] for v in lang_stats.values())},
+        "languages": languages,
+        "hot_files": hot,
+        "manifests": manifests,
+        "readme": readme,
+        "env_vars": env_var_rows(env_reads, env_decl, infra_names),
+        "secret_signals": {"note": "Pattern matches only; values are never stored. Each needs human review.",
+                           "hits": secret_hits, "sensitive_files": sensitive},
+        "contributors": {"people": contributors, "not_listed": max(0, len(ranked) - 60),
+                         "classification_note": "Heuristic: bots and agents are recognised by name, email and commit-message markers. "
+                                                "Anything else is treated as human and is unverified."},
+        "areas": areas,
+        "ownership": own,
+        "chunks": {"mode": mode, "budget": chunk_tokens, "total_tokens": total_tokens, "files": len(plan_files),
+                   "chunk_count": len(chunks), "advice": advice,
+                   "estimate": f"tokens are estimated as bytes / {BYTES_PER_TOKEN}"},
+        "delta": None,
+        "file_activity": file_activity,    # kept out of facts.json: dossier.py writes it to activity.json
+        "knowledge": knowledge,            # likewise written to knowledge.json
+        "dependencies": dependencies,      # likewise written to dependencies.json
+        "history_input": {"canon": canon, "display": display, "ctype": ctype, "blamed": blamed, "blamed_commits": blamed_commits,
+                          "remote": remote, "as_of": as_of.isoformat(),
+                          "lines": {f["path"]: f["lines"] for f in files}, "tree": sorted(tree_paths),
+                          "markers": marker_items, "todos": todo_items,
+                          "shallow": repo.git("rev-parse", "--is-shallow-repository", check=False).strip() == "true"},   # popped by dossier.py
+    }
+    repo.close()
+    return facts, {"budget": chunk_tokens, "total_tokens": total_tokens, "chunks": chunks}
+
+
+# --------------------------------------------------------------------------- helpers
+
+
+def env_var_rows(reads, declared, infra):
+    """One row per environment variable: where the code reads it, the literal default when a read has one, and the Dockerfiles,
+    compose files, CI workflows and `.env` files that mention it. Every variable is kept, none dropped for volume."""
+    rows = []
+    for name in set(reads) | set(declared):
+        sites = sorted(reads.get(name, []), key=lambda x: (x["path"], x["line"]))
+        decl = sorted({d["path"] for d in declared.get(name, [])} | {p for p, names in infra.items() if name in names})
+        first = (sites or sorted(declared[name], key=lambda x: (x["path"], x["line"])))[0]
+        rows.append({"name": name, "count": len(sites) + len(declared.get(name, [])), "first": {"path": first["path"], "line": first["line"]},
+                     "sites": sites, "declared_in": decl})
+    return sorted(rows, key=lambda e: (-e["count"], e["name"]))
+
+
+def remote_info(url):
+    """Normalise a remote URL (credentials removed) and work out its web base."""
+    if not url:
+        return {"url": None, "web_base": None, "kind": None}
+    url = re.sub(r"^(https?://)[^/@]+@", r"\1", url.strip())
+    m = re.match(r"^(?:https?://|ssh://git@|git@)([^/:]+)[/:](.+?)(?:\.git)?/?$", url)
+    if not m:
+        return {"url": url, "web_base": None, "kind": None}
+    host, path = m.groups()
+    kind = "github" if "github" in host else "gitlab" if "gitlab" in host else "bitbucket" if "bitbucket" in host else None
+    if kind and "." not in host:  # an ssh config alias such as github-work, not a real host name
+        host = {"github": "github.com", "gitlab": "gitlab.com", "bitbucket": "bitbucket.org"}[kind]
+    return {"url": url, "web_base": f"https://{host}/{path}" if kind else None, "kind": kind}
+
+
+def delta(repo_path, prev_sha, sha, prev_snapshot, facts):
+    """What changed since the last dossier build (used for incremental updates)."""
+    repo = Repo(repo_path)
+    ok = subprocess.run(["git", "-C", repo.path, "merge-base", "--is-ancestor", prev_sha, sha], capture_output=True).returncode == 0
+    if not ok:
+        return {"from": prev_sha, "note": "The previous build's commit is not an ancestor of this one (rebase, force-push or another branch). Treat everything as changed."}
+    n = int(repo.git("rev-list", "--count", f"{prev_sha}..{sha}").strip() or 0)
+    changed = [l.split("\t", 1) for l in repo.git("diff", "--name-status", "--no-renames", prev_sha, sha).splitlines() if "\t" in l]
+    now_deps = {d["name"] for m in facts["manifests"] for d in m["dependencies"]}
+    old_deps = set((prev_snapshot or {}).get("deps", []))
+    return {"from": prev_sha, "commits_added": n, "files_changed": len(changed),
+            "changed": [{"status": s, "path": p} for s, p in changed[:2000]],
+            "dependencies_added": sorted(now_deps - old_deps)[:50] if prev_snapshot else None,
+            "dependencies_removed": sorted(old_deps - now_deps)[:50] if prev_snapshot else None}
+
+
+def snapshot(facts):
+    return {"sha": facts["repo"]["sha"], "commits": facts["git"]["commits"], "code_lines": facts["files"]["total_code_lines"],
+            "files": facts["files"]["tracked"], "contributors": facts["git"]["contributors"]["total"],
+            "deps": sorted({d["name"] for m in facts["manifests"] for d in m["dependencies"]})}

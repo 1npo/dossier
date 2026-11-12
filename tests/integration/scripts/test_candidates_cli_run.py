@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-import candidates
+from dossier.findings import candidates
 
 SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "dossier.py"
 

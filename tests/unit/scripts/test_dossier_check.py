@@ -5,10 +5,10 @@ from pathlib import Path
 import pytest
 
 
-import buildlog  # noqa: E402
+from dossier.core import buildlog  # noqa: E402
 from dossier.cli import app as dossier  # noqa: E402
-import render  # noqa: E402
-import page_audit  # noqa: E402
+from dossier.render import page as render  # noqa: E402
+from dossier.checks import page_audit  # noqa: E402
 
 
 SHA = "c" * 40

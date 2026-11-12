@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-import components  # noqa: E402
+from dossier.findings import components  # noqa: E402
 
 
 class TestChunkLines:

@@ -1,7 +1,7 @@
 import re
 
-import measured
-import page_audit
+from dossier.render.measured import cards as measured
+from dossier.checks import page_audit
 
 
 class Refs:

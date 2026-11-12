@@ -1,4 +1,4 @@
-import render
+from dossier.render import page as render
 
 
 def table(cols, rows):

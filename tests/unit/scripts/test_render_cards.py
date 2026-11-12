@@ -1,7 +1,7 @@
 import re
 
-import render
-import schema
+from dossier.render import page as render
+from dossier.core import schema
 
 
 def card(cid, tier="A", writer="claude", shape="blocks", **kw):

@@ -2,7 +2,7 @@ import json
 import sys
 from pathlib import Path
 
-import schema  # noqa: E402
+from dossier.core import schema  # noqa: E402
 
 
 def card(i, **kw):

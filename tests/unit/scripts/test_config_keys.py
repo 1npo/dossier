@@ -1,6 +1,6 @@
-import candidates
-import cs_adapter
-import measured_tables
+from dossier.findings import candidates
+from dossier.adapters.csharp import adapter as cs_adapter
+from dossier.render.measured import tables as measured_tables
 
 
 def row(path, line, rule, detail, category="config-key"):

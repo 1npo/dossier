@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-import cs_queries
-import sandbox
-import shared_tools
+from dossier.adapters.csharp import queries as cs_queries
+from dossier.tooling import sandbox
+from dossier.tooling import shared_tools
 
 pytestmark = pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs the network: set DOSSIER_SLOW=1")
 
@@ -74,8 +74,8 @@ class TestComplexityOnTheFixture:
 class TestEntriesOnTheFixture:
     @pytest.fixture
     def found(self, decls, cs_repo):
-        import cs_entries
-        import cs_project
+        from dossier.adapters.csharp import entries as cs_entries
+        from dossier.adapters.csharp import project as cs_project
         files = sorted(str(p.relative_to(cs_repo.path)) for p in Path(cs_repo.path).rglob("*") if p.is_file() and ".git/" not in str(p))
         result = cs_project.projects(files, lambda f: (Path(cs_repo.path) / f).read_text(encoding="utf-8", errors="replace"))
         rows = (cs_entries.controller_routes(decls) + cs_entries.program_entries(result, decls) + cs_entries.class_entries(decls)
@@ -99,7 +99,7 @@ class TestEntriesOnTheFixture:
 
 class TestModelsOnTheFixture:
     def test_order_and_customer_are_entities_and_the_dto_is_not(self, decls, cs_repo):
-        import cs_models
+        from dossier.adapters.csharp import models as cs_models
         root = Path(cs_repo.path)
         rows = cs_models.model_items(decls, {"projects": []}, lambda f: (root / f).read_text(encoding="utf-8", errors="replace"))
         got = {(r["kind"], r["name"]): r for r in rows}
@@ -114,7 +114,7 @@ class TestModelsOnTheFixture:
 class TestTestsOnTheFixture:
     @pytest.fixture
     def rows(self, decls, cs_repo):
-        import cs_project
+        from dossier.adapters.csharp import project as cs_project
         root = Path(cs_repo.path)
         files = sorted(str(p.relative_to(root)) for p in root.rglob("*") if p.is_file() and ".git/" not in str(p))
 
@@ -122,7 +122,7 @@ class TestTestsOnTheFixture:
             return (root / f).read_text(encoding="utf-8", errors="replace")
         result = cs_project.projects(files, read)
         tests = {f for p in result["projects"] if "language" not in p and p["test"] for f in p["files"]}
-        import cs_tests
+        from dossier.adapters.csharp import testsuite as cs_tests
         return {t["path"]: t for t in cs_tests.tests(decls, result, read, tests)}, cs_tests.module_state(decls, tests)
 
     def test_orders_tests_counts_and_kind(self, rows):

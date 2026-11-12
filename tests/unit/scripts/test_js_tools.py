@@ -5,9 +5,9 @@ from types import SimpleNamespace
 
 import pytest
 
-import js_tools
-import shared_tools
-import toolcheck
+from dossier.adapters.js import tools as js_tools
+from dossier.tooling import shared_tools
+from dossier.tooling import toolcheck
 from dossier import resources
 
 LOCK_DIR = resources.data("node", "js-tools")

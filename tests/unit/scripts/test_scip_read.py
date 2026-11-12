@@ -1,4 +1,4 @@
-import scip_read
+from dossier.core import scip_read
 
 SYMBOL = "scip-python python pkg 1.0 pkg/a/f()."
 

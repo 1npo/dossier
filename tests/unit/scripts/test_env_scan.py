@@ -1,9 +1,9 @@
 import json
 
-import env_scan
+from dossier.facts import env_scan
 from test_gather_env import make_repo
 
-import gather
+from dossier.facts import gather
 
 FAKE_AWS = "AKIA" + "ABCDEFGHIJKLMNOP"          # shaped like a key, assembled so no scanner flags this file
 FAKE_GH = "ghp_" + "a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8"

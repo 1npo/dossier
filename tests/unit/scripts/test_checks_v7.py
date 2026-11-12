@@ -1,8 +1,8 @@
 import sys
 from pathlib import Path
 
-import checks  # noqa: E402
-import checks_v7  # noqa: E402
+from dossier.checks import reports as checks  # noqa: E402
+from dossier.checks import v7 as checks_v7  # noqa: E402
 
 MODULE = {"kind": "module", "path": "src/a.py", "module": "a", "package": "a", "is_package": False}
 

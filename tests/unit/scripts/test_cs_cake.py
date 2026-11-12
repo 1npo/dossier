@@ -1,4 +1,4 @@
-import cs_entries
+from dossier.adapters.csharp import entries as cs_entries
 from test_cs_adapter import extract
 
 

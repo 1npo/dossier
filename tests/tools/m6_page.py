@@ -80,7 +80,7 @@ def python_api(files: list) -> list:
 
 def pin_and_tools(out: Path, sha: str) -> None:
     """A build record with a pin that is 3 commits behind, and Shell and Rust among the languages (Tier B badges on eight cards)."""
-    import buildlog
+    from dossier.core import buildlog
 
     path = buildlog.start(out, repo=str(m3_page.TOP), sha=sha, ref="main", version="1.0.0", options={})
     fresh = {"source": "remote", "remote_sha": "f" * 40, "compared_with": "origin/main", "behind": 3, "ahead": 0, "checked_at": "2026-11-09 10:00", "ref_kind": "branch"}
@@ -95,9 +95,9 @@ def pin_and_tools(out: Path, sha: str) -> None:
 
 def verifier_records(out: Path, sha: str, count: int = 3) -> None:
     """A `verify-sample` and a `verify` record whose `count` verdicts are all `not supported`, on claims the reports already hold."""
-    import buildlog
-    import render
-    import verify
+    from dossier.core import buildlog
+    from dossier.render import page as render
+    from dossier.checks import verify
 
     picked = []
     for rid in ("entry", "components", "io", "data", "behavior", "change", "conventions", "ops"):

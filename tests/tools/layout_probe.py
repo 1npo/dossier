@@ -17,9 +17,8 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 sys.path[:0] = [str(Path(__file__).resolve().parents[2] / "src")]
-sys.path.append(str(Path(__file__).resolve().parents[2] / "scripts"))  # TRANSITION: removed in C11
 
-import check_layout  # noqa: E402
+from dossier.checks import layout as check_layout  # noqa: E402
 
 
 def main():

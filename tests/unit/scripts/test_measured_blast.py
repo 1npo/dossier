@@ -2,8 +2,8 @@ import base64
 import json
 import re
 
-import measured
-import measured_blast
+from dossier.render.measured import cards as measured
+from dossier.render.measured import blast as measured_blast
 
 
 class Refs:

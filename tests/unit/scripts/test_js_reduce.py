@@ -2,8 +2,8 @@ import json
 import re
 from pathlib import Path
 
-import js_reduce
-import scip_read
+from dossier.adapters.js import reduce as js_reduce
+from dossier.core import scip_read
 import pytest
 
 CRUISE = json.loads((Path(__file__).parents[2] / "fixtures" / "js_tools" / "depcruise.json").read_text())

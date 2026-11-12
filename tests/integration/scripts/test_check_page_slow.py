@@ -14,8 +14,8 @@ import broken_pages  # noqa: E402
 import m3_page  # noqa: E402
 
 
-import check_layout  # noqa: E402
-import measured_er  # noqa: E402
+from dossier.checks import layout as check_layout  # noqa: E402
+from dossier.render.measured import er as measured_er  # noqa: E402
 
 CHECK = SKILL / "scripts" / "check_page.py"
 DIAGRAM_TEXT = SKILL / "tests" / "tools" / "diagram_text.py"
@@ -235,9 +235,9 @@ class TestNewCardsOnTheM3Page:
         assert owner_page_has_buttons(m3[0])
 
     def test_the_page_audit_accepts_every_new_card(self, m3):
-        import candidates
-        import page_audit
-        import render
+        from dossier.findings import candidates
+        from dossier.checks import page_audit
+        from dossier.render import page as render
 
         page, _ = m3
         out = page.parent
@@ -252,9 +252,9 @@ class TestNewCardsOnTheM3Page:
         assert [e for e in errs if "change." in e or "contributors." in e or "t-people-owner" in e] == []
 
     def test_a_missing_hotspot_row_is_reported_by_the_page_audit(self, m3):
-        import candidates
-        import page_audit
-        import render
+        from dossier.findings import candidates
+        from dossier.checks import page_audit
+        from dossier.render import page as render
 
         page, _ = m3
         out = page.parent
@@ -309,9 +309,9 @@ class TestNewTablesOnTheM4Page:
         assert named == [] and done.returncode == 0, done.stdout[-1500:]
 
     def test_the_page_audit_accepts_every_new_table(self, m4):
-        import candidates
-        import page_audit
-        import render
+        from dossier.findings import candidates
+        from dossier.checks import page_audit
+        from dossier.render import page as render
 
         page, _ = m4
         out = page.parent
@@ -328,9 +328,9 @@ class TestNewTablesOnTheM4Page:
     def test_a_missing_react_row_is_reported_by_the_page_audit(self, m4):
         import re
 
-        import candidates
-        import page_audit
-        import render
+        from dossier.findings import candidates
+        from dossier.checks import page_audit
+        from dossier.render import page as render
 
         page, _ = m4
         out = page.parent
@@ -378,9 +378,9 @@ class TestNewTablesOnTheM5Page:
         assert named == [] and done.returncode == 0, done.stdout[-1500:]
 
     def test_the_page_audit_accepts_every_new_table(self, m5):
-        import candidates
-        import page_audit
-        import render
+        from dossier.findings import candidates
+        from dossier.checks import page_audit
+        from dossier.render import page as render
 
         page, _ = m5
         out = page.parent

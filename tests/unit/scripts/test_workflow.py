@@ -1,5 +1,5 @@
-import history
-import workflow
+from dossier.history import scan as history
+from dossier.history import workflow
 
 
 def commit(sha, subject, parents=("p",), body=""):

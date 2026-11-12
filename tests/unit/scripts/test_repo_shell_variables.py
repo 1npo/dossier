@@ -1,7 +1,7 @@
 import subprocess
 from types import SimpleNamespace
 
-import repo_adapter
+from dossier.adapters import repo as repo_adapter
 from test_repo_adapter import FakeSemgrep
 
 

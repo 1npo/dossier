@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import github_owners
+from dossier.history import github_owners
 
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "github"
 SHA = "a" * 40

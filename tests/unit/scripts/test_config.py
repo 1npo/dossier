@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-import config
+from dossier.core import config
 
 
 @pytest.fixture(autouse=True)

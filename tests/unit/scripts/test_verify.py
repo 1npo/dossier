@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-import buildlog
-import verify
+from dossier.core import buildlog
+from dossier.checks import verify
 
-SCRIPT = Path(verify.__file__).resolve().parent / "dossier.py"
+SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "dossier.py"
 
 BLOB = b"".join(f"line {i}\n".encode() for i in range(1, 21))
 

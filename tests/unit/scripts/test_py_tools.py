@@ -3,8 +3,8 @@ from types import SimpleNamespace
 
 import pytest
 
-import py_tools
-import shared_tools
+from dossier.adapters.python import tools as py_tools
+from dossier.tooling import shared_tools
 import workers
 from dossier import resources
 

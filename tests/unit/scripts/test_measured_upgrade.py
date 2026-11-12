@@ -5,8 +5,8 @@ from pathlib import Path
 
 import re
 
-import measured
-import measured_upgrade
+from dossier.render.measured import cards as measured
+from dossier.render.measured import upgrade as measured_upgrade
 
 SNAP = {"as_of": "2026-11-05", "source": "x", "products": {
     "python": [{"cycle": "3.14", "eol": "2030-10-31", "latest": "3.14.10"}, {"cycle": "3.10", "eol": "2026-10-31", "latest": "3.10.20"},

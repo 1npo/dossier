@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
-import adapters
-import tier_b
+from dossier.adapters import base as adapters
+from dossier.adapters import tier_b
 
 
 class FakeTS:

@@ -3,7 +3,7 @@ import re
 import pytest
 
 pytest.importorskip("playwright")
-import check_page  # noqa: E402
+from dossier.checks import browser as check_page  # noqa: E402
 
 
 class TestSecretPath:

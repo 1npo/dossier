@@ -1,4 +1,4 @@
-import gather
+from dossier.facts import gather
 
 
 class TestKnowledgeMap:

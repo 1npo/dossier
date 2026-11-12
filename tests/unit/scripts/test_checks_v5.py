@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-import checks  # noqa: E402
+from dossier.checks import reports as checks  # noqa: E402
 
 
 def item(i, group, path="src/a.py", line=3, category="env-var", rule="dossier.python.input.env-var"):
@@ -187,7 +187,7 @@ class TestV5EnvRetired:
 
 class TestMarkerDecisions:
     def markers(self):
-        import candidates
+        from dossier.findings import candidates
 
         items = candidates.assign_ids("history", [{"kind": "marker", "path": "src/a.py", "line": n, "end_line": n, "rule": "marker.hack", "snippet": "# HACK"}
                                                  for n in (3, 9)])

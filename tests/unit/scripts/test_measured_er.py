@@ -4,9 +4,9 @@ import sys
 from pathlib import Path
 
 
-import measured  # noqa: E402
-import measured_er  # noqa: E402
-import repo_adapter  # noqa: E402
+from dossier.render.measured import cards as measured  # noqa: E402
+from dossier.render.measured import er as measured_er  # noqa: E402
+from dossier.adapters import repo as repo_adapter  # noqa: E402
 
 
 class Refs:

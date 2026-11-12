@@ -1,4 +1,4 @@
-import cs_semgrep
+from dossier.adapters.csharp import semgrep as cs_semgrep
 
 
 def hit(rule, detail=None, snippet="x", path="a.cs", line=3, **meta):

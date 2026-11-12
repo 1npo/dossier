@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pytest
 
-import scip_read
-import scip_tool
-import sandbox
-import toolcheck
+from dossier.core import scip_read
+from dossier.adapters.python import scip as scip_tool
+from dossier.tooling import sandbox
+from dossier.tooling import toolcheck
 
 pytestmark = pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs the network: set DOSSIER_SLOW=1")
 

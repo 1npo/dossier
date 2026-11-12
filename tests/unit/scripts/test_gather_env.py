@@ -1,7 +1,7 @@
 import os
 import subprocess
 
-import gather
+from dossier.facts import gather
 
 
 def make_repo(tmp_path, source):

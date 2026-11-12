@@ -1,4 +1,4 @@
-import js_api
+from dossier.adapters.js import api as js_api
 
 LIB_FILES = {"packages/lib/package.json", "packages/lib/src/index.ts", "packages/lib/src/math.ts", "packages/lib/src/utils/fmt.ts",
              "packages/lib/src/utils/deep/x.ts", "packages/lib/src/internal/x.ts", "packages/lib/src/types.d.ts"}

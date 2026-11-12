@@ -3,7 +3,7 @@ import shlex
 import shutil
 import subprocess
 
-import toolcheck
+from dossier.tooling import toolcheck
 
 GLOBAL = '{"sdk": {"version": "10.0.403", "rollForward": "latestFeature"}}'
 

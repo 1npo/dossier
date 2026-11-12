@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-import checks  # noqa: E402
+from dossier.checks import reports as checks  # noqa: E402
 
 TREE = {"src/app/a.py", "src/app/api/b.py", "src/app/api/c.py", "scripts/run.sh", "docs/x.md", "uv.lock", "README.md", "src/other/z.py"}
 

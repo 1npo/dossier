@@ -3,9 +3,9 @@ import re
 import sys
 from pathlib import Path
 
-import measured  # noqa: E402
-import measured_cs  # noqa: E402
-import measured_graph  # noqa: E402
+from dossier.render.measured import cards as measured  # noqa: E402
+from dossier.render.measured import cs as measured_cs  # noqa: E402
+from dossier.render.measured import graph as measured_graph  # noqa: E402
 
 
 class Refs:
@@ -447,7 +447,7 @@ API_ID = "t-io-contracts-api"
 
 class TestPublicApi:
     def html(self, items=API_ITEMS, graph=(), refs=None):
-        import measured_tables
+        from dossier.render.measured import tables as measured_tables
 
         return measured_tables.public_api({"extract": {"symbols": list(items), "graph": list(graph)}}, refs or Refs())
 
@@ -500,7 +500,7 @@ PY_MODULE = {"kind": "module", "module": "app.main", "path": "app/main.py", "pac
 
 class TestPythonPublicApi:
     def html(self, items=PY_API, graph=(PY_MODULE,)):
-        import measured_tables
+        from dossier.render.measured import tables as measured_tables
 
         return measured_tables.public_api({"extract": {"symbols": list(items), "graph": list(graph)}}, Refs())
 
@@ -531,7 +531,7 @@ CS_GRAPH = [{"kind": "module", "module": "src/Lib/Guard", "path": "src/Lib/Guard
 
 class TestCSharpPublicApi:
     def html(self, items=CS_API, graph=CS_GRAPH):
-        import measured_tables
+        from dossier.render.measured import tables as measured_tables
 
         return measured_tables.public_api({"extract": {"symbols": list(items), "graph": list(graph)}}, Refs())
 

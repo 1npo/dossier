@@ -1,4 +1,4 @@
-import cs_models
+from dossier.adapters.csharp import models as cs_models
 
 
 def prop(name, type_, attrs=(), mods=("public",), line=5, get=True, static=False):

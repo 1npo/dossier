@@ -3,7 +3,7 @@ import subprocess
 
 import pytest
 
-import buildlog
+from dossier.core import buildlog
 
 SHA = "5923c09" + "0" * 33
 

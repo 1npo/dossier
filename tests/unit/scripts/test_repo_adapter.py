@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import repo_adapter
+from dossier.adapters import repo as repo_adapter
 
 
 class FakeSemgrep:

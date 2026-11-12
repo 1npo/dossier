@@ -7,14 +7,14 @@ from pathlib import Path
 
 import pytest
 
-import buildlog
-import cs_sdk
-import process
-import restore
-import sandbox
-import stages
-import toolcheck
-import workarea
+from dossier.core import buildlog
+from dossier.tooling import dotnet_sdk as cs_sdk
+from dossier.render import process
+from dossier.pipeline import restore
+from dossier.tooling import sandbox
+from dossier.pipeline import stages
+from dossier.tooling import toolcheck
+from dossier.pipeline import workarea
 
 FORBIDDEN = {"SSH_AUTH_SOCK": "forbidden-ssh", "GIT_AUTHOR_NAME": "forbidden-git", "AWS_SECRET_ACCESS_KEY": "forbidden-aws",
              "GITHUB_TOKEN": "forbidden-gh", "DATABASE_URL": "forbidden-db", "MY_SECRET": "forbidden-secret"}
@@ -86,7 +86,7 @@ class TestRestoreHygiene:
         assert not any(v in text for v in [*FORBIDDEN.values(), PROXY])
 
     def test_registry_credentials_are_opt_in(self, stage, monkeypatch):
-        import config
+        from dossier.core import config
         area, co = stage
         parent = {**os.environ, "MY_INDEX_TOKEN": "tok"}
         cmd = ["sh", "-c", "env | cut -d= -f1 > \"$HOME/names\""]
@@ -167,7 +167,7 @@ class TestNpmInstallScripts:
                        capture_output=True)
 
     def test_the_restore_command_does_not_run_install_scripts(self, tmp_path):
-        import toolcheck
+        from dossier.tooling import toolcheck
         project = tmp_path / "app"
         self.project(project)
         entry = next(r for r in toolcheck.load_tools()["restore"] if r["ecosystem"] == "npm")

@@ -1,4 +1,4 @@
-import js_prisma
+from dossier.adapters.js import prisma as js_prisma
 
 SCHEMA = '''datasource db {
   provider = "postgresql"

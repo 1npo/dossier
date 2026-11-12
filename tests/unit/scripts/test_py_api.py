@@ -1,6 +1,6 @@
-import py_api
-import py_packages
-import py_project
+from dossier.adapters.python import api as py_api
+from dossier.adapters.python import packages as py_packages
+from dossier.adapters.python import project as py_project
 from conftest import PYLIB, line_of
 
 TREE = frozenset(p.relative_to(PYLIB).as_posix() for p in PYLIB.rglob("*") if p.is_file() and "__pycache__" not in p.parts)

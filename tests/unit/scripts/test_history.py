@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-import history
+from dossier.history import scan as history
 
 AS_OF = datetime(2026, 6, 30, tzinfo=timezone.utc)
 

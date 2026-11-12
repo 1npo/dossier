@@ -1,7 +1,7 @@
 import pytest
 
-import candidates
-from components import component_of, parse_paths
+from dossier.findings import candidates
+from dossier.findings.components import component_of, parse_paths
 
 
 def io(path, line, category, rule, snippet):

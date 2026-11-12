@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-import py_packages
-import py_tools
-import sandbox
+from dossier.adapters.python import packages as py_packages
+from dossier.adapters.python import tools as py_tools
+from dossier.tooling import sandbox
 
 pytestmark = pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs the network: set DOSSIER_SLOW=1")
 

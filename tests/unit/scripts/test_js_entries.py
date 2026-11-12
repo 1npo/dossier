@@ -2,8 +2,8 @@ import json
 import subprocess
 from pathlib import Path
 
-import js_entries
-import js_project
+from dossier.adapters.js import entries as js_entries
+from dossier.adapters.js import project as js_project
 
 
 def tracked(root):

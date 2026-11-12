@@ -1,10 +1,10 @@
 import pytest
 
-import cs_sdk
-import js_tools
-import restore
-import sandbox
-import toolcheck
+from dossier.tooling import dotnet_sdk as cs_sdk
+from dossier.adapters.js import tools as js_tools
+from dossier.pipeline import restore
+from dossier.tooling import sandbox
+from dossier.tooling import toolcheck
 
 TOOLS = {"restore": [
     {"ecosystem": "python", "lockfile": "uv.lock", "command": ["uv", "sync", "--frozen"], "enabled": True},

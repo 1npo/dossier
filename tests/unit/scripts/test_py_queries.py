@@ -1,4 +1,4 @@
-import py_queries
+from dossier.adapters.python import queries as py_queries
 
 
 def cap(capture, text, line, col=0, end_line=None, path="m.py"):

@@ -1,4 +1,4 @@
-import cs_graph
+from dossier.adapters.csharp import graph as cs_graph
 
 
 def t(name, ns, partial=False):

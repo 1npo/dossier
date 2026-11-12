@@ -1,4 +1,4 @@
-import js_semgrep
+from dossier.adapters.js import semgrep as js_semgrep
 
 
 def result(rule, detail=None, snippet="x", **meta):

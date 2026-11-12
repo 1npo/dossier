@@ -1,6 +1,6 @@
 import json
 
-import candidates
+from dossier.findings import candidates
 
 
 def item(path="a.py", line=1, rule="r", snippet="x = 1", **extra):

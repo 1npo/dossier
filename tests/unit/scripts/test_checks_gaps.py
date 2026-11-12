@@ -1,4 +1,4 @@
-import checks
+from dossier.checks import reports as checks
 
 FLAGS = "Stale feature flags and unused routes are not detected for Python."
 

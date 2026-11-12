@@ -3,10 +3,10 @@ import re
 
 import pytest
 
-import checks_people
-import gather
-import render
-import viewer
+from dossier.checks import people as checks_people
+from dossier.facts import gather
+from dossier.render import page as render
+from dossier.render import viewer
 
 
 def cite(raw):

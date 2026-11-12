@@ -9,9 +9,8 @@ from pathlib import Path
 import pytest
 
 sys.path[:0] = [str(Path(__file__).resolve().parent.parent / "src")]
-sys.path.append(str(Path(__file__).resolve().parent.parent / "scripts"))  # TRANSITION: removed in C11
 
-import render  # noqa: E402
+from dossier.render import page as render  # noqa: E402
 
 os.environ["DOSSIER_OFFLINE"] = "1"  # no test reaches the network for reference data
 SHA = "a" * 40

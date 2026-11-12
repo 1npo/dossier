@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-import render
-import workarea
+from dossier.render import page as render
+from dossier.pipeline import workarea
 
 SHA = "a" * 40
 NEW = "b" * 40
@@ -211,17 +211,17 @@ class TestTile:
 
 class TestStagePin:
     def build(self, tmp_path):
-        import buildlog
+        from dossier.core import buildlog
 
         return buildlog.start(tmp_path / "out", repo="r", sha=SHA, ref="main", version="test", options={})
 
     def pin_details(self, build):
-        import buildlog
+        from dossier.core import buildlog
 
         return buildlog.latest(buildlog.load(build), "pin")["details"]
 
     def test_the_pin_record_holds_the_freshness(self, tmp_path, monkeypatch):
-        import stages
+        from dossier.pipeline import stages
 
         rec = {"ref_kind": "branch", "compared_with": "origin/main", "source": "remote", "remote_sha": NEW, "behind": 3, "ahead": 0,
                "checked_at": "2026-11-09 10:00", "reason": None}
@@ -234,7 +234,7 @@ class TestStagePin:
         assert self.pin_details(build)["freshness"] == rec
 
     def test_a_failure_in_freshness_never_stops_prepare(self, tmp_path, monkeypatch):
-        import stages
+        from dossier.pipeline import stages
 
         def boom(*a, **k):
             raise RuntimeError("git went away")

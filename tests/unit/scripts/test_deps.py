@@ -1,6 +1,6 @@
 import json
 
-import deps
+from dossier.facts import deps
 
 
 class FakeRepo:
@@ -122,12 +122,12 @@ class TestOutput:
 
 class TestCard:
     def test_card_has_tiles_findings_controls_and_escaped_data(self):
-        import render
+        from dossier.render import page as render
         out = run({"package.json": json.dumps({"dependencies": {"left-pad": "1", "msw": "1"}}), "a.test.js": "import 'msw'\nimport '</script>x'\n"})
         html = render.dependencies_card(out, type("R", (), {"mark": lambda s, c: ""})())
         assert "Declared, never imported" in html and "Runtime, used only in tests" in html and 'id="dp-view"' in html
         assert "</script>x" not in html and 'role="combobox"' in html
 
     def test_missing_data_says_to_run_prepare_again(self):
-        import render
+        from dossier.render import page as render
         assert "Run prepare again" in render.panel_dependencies({}, None)

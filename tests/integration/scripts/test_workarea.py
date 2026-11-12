@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-import workarea
+from dossier.pipeline import workarea
 
 
 def head(path):
@@ -150,7 +150,7 @@ class TestFreshness:
     def runner(tmp_path, cwd):
         import functools
 
-        import sandbox
+        from dossier.tooling import sandbox
 
         return functools.partial(sandbox.run, area=tmp_path / "area", cwd=Path(cwd), profile="restricted")
 
