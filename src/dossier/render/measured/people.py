@@ -5,12 +5,7 @@ import re
 
 from dossier.findings import components
 from dossier.render.measured import change as measured_change
-
-
-def _render():
-    from dossier.render import page as render  # imported late: render imports measured, which imports this module
-
-    return render
+from dossier.render import markup
 
 
 def workflow(cid, ctx, refs):
@@ -18,10 +13,9 @@ def workflow(cid, ctx, refs):
     rows = measured_change.history_items(ctx, "workflow")
     if not rows:
         return None
-    r = _render()
-    cells = [[r.E(w["convention"]), r.E(w["observed"]), r.E(w["evidence"]),
+    cells = [[markup.E(w["convention"]), markup.E(w["observed"]), markup.E(w["evidence"]),
               refs.mark(["commit:" + sha for sha in w.get("commits") or []])] for w in rows]
-    return r.render_table(["Convention", "Observed", "Evidence", "Source"], cells, refs, "t-contributors-workflow", plain=True)
+    return markup.render_table(["Convention", "Observed", "Evidence", "Source"], cells, refs, "t-contributors-workflow", plain=True)
 
 
 def names_of(ctx):

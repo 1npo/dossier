@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from dossier.core import buildlog
 from dossier.core import schema
 from dossier.tooling import toolcheck
+from dossier.render import markup
 
 E = lambda s: html.escape(str(s if s is not None else ""), quote=True)
 
@@ -220,12 +221,10 @@ def run_cell(step, build) -> str:
 
 def tier_stats():
     """Four BANs for the Cards card: how many cards the layout has, and how many are measured by tools, adjudicated (tool candidates sorted by Claude) or read by Claude."""
-    from dossier.render import page as render  # imported late: render imports this module
-
     cards = [c for s in schema.load_all().values() for c in s["cards"]]
     m = sum(c["tier"] == "M" for c in cards)
     r = sum(c["tier"] == "R" for c in cards)
-    return render.stats_html([("Cards", str(len(cards)), "in this dossier's layout"), ("Measured", str(m), "by tools"),
+    return markup.stats_html([("Cards", str(len(cards)), "in this dossier's layout"), ("Measured", str(m), "by tools"),
                               ("Adjudicated", str(len(cards) - m - r), "tool candidates sorted by Claude"), ("Read", str(r), "by Claude")])
 
 
@@ -247,12 +246,10 @@ def _status_badges(step, build, badge) -> str:
 
 
 def process_body(build) -> str:
-    from dossier.render import page as render  # imported late: render imports this module
-
     rows = []
     for n, step in enumerate(buildlog.STEPS, 1):
-        rows.append([(str(n), n), E(STEP_TEXT[step]), run_cell(step, build), _status_badges(step, build, render.badge)])
-    table = render.render_table(["No.", "Step", "What happened", "Status"], rows, None, "t-dossier-process", filterable=False, plain=True, sort=False)
+        rows.append([(str(n), n), E(STEP_TEXT[step]), run_cell(step, build), _status_badges(step, build, markup.badge)])
+    table = markup.render_table(["No.", "Step", "What happened", "Status"], rows, None, "t-dossier-process", filterable=False, plain=True, sort=False)
     return table
 
 

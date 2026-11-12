@@ -13,16 +13,11 @@ from collections import Counter
 from dossier.findings import components
 from dossier.render.measured import graph as measured_graph
 from dossier.render.measured import tables as measured_tables
+from dossier.render import markup
 
 MAX_ENTITIES = 12
 SQL = "sql-table"
 EF_KINDS = ("ef-entity", "ef-owned", "cs-enum")
-
-
-def _render():
-    from dossier.render import page as render  # imported late: render imports measured, which imports this module
-
-    return render
 
 
 def entities(extract: dict) -> list:
@@ -121,13 +116,12 @@ def diagrams(extract: dict, catalog: list) -> list:
 
 
 def field_table(cid: str, extract: dict, refs) -> str:
-    r = _render()
     rows = []
     for e in entities(extract):
         for f in e.get("fields") or []:
-            rows.append([r.E(e["name"]), r.E(f["name"]), r.E(f.get("type") or "-"), r.E(_keys(f) or "-"), r.E(f.get("ref") or "-"),
-                         r.path_code(e["path"]), r.source_cell(refs, (e["path"], f.get("line")))])
-    return r.render_table(["Entity", "Field", "Type", "Key", "References", "Defined in", "Source"], rows, refs, "t-" + cid.replace(".", "-") + "-fields", plain=True)
+            rows.append([markup.E(e["name"]), markup.E(f["name"]), markup.E(f.get("type") or "-"), markup.E(_keys(f) or "-"), markup.E(f.get("ref") or "-"),
+                         markup.path_code(e["path"]), markup.source_cell(refs, (e["path"], f.get("line")))])
+    return markup.render_table(["Entity", "Field", "Type", "Key", "References", "Defined in", "Source"], rows, refs, "t-" + cid.replace(".", "-") + "-fields", plain=True)
 
 
 def draw(cid, ctx, refs):

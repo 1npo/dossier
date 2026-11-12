@@ -1,20 +1,14 @@
 """The tables of the two measured graph cards (D4): the component edge table and the module table."""
 from __future__ import annotations
-
-
-def _render():
-    from dossier.render import page as render  # imported late: render imports measured, which imports this module
-
-    return render
+from dossier.render import markup
 
 
 def heading(text: str) -> str:
-    return f'<h4 class="graph-heading">{_render().E(text)}</h4>'
+    return f'<h4 class="graph-heading">{markup.E(text)}</h4>'
 
 
 def component_edges(cid: str, imports: list, group: dict, refs, kind: str) -> str:
     """Every edge between components (or areas): imports and the number of importing files, most imports first."""
-    r = _render()
     pairs: dict = {}
     for a, b in imports:
         ga, gb = group.get(a), group.get(b)
@@ -22,20 +16,19 @@ def component_edges(cid: str, imports: list, group: dict, refs, kind: str) -> st
             continue
         pairs.setdefault((ga, gb), []).append(a)
     ordered = sorted(pairs.items(), key=lambda kv: (-len(kv[1]), kv[0]))
-    rows = [[r.E(ga), r.E(gb), (str(len(files)), len(files)), (str(len(set(files))), len(set(files)))] for (ga, gb), files in ordered]
-    return r.render_table([f"From {kind}", f"To {kind}", "Imports", "Modules"], rows, refs, "t-" + cid.replace(".", "-") + "-components", plain=True)
+    rows = [[markup.E(ga), markup.E(gb), (str(len(files)), len(files)), (str(len(set(files))), len(set(files)))] for (ga, gb), files in ordered]
+    return markup.render_table([f"From {kind}", f"To {kind}", "Imports", "Modules"], rows, refs, "t-" + cid.replace(".", "-") + "-components", plain=True)
 
 
 def module_imports(cid: str, items: list, group: dict, refs, kind: str) -> str:
     """Every module import, by the component it comes from."""
-    r = _render()
     rows = []
     for g in sorted(items, key=lambda g: (group.get(g["path"], ""), g["path"], g["to"])):
         lines = g.get("lines") or []
-        places = r.source_cell(refs, *[(g["path"], n) for n in lines]) if lines else r.source_cell(refs, (g["path"], None))
-        rows.append([r.E(group.get(g["path"], "-")), r.E(group.get(g["paths"][0], "-")), r.E(g["from"]), r.E(g["to"]),
+        places = markup.source_cell(refs, *[(g["path"], n) for n in lines]) if lines else markup.source_cell(refs, (g["path"], None))
+        rows.append([markup.E(group.get(g["path"], "-")), markup.E(group.get(g["paths"][0], "-")), markup.E(g["from"]), markup.E(g["to"]),
                      (str(max(len(lines), 1)), max(len(lines), 1)), places])
-    return r.render_table([f"From {kind}", f"To {kind}", "From", "To", "Imports", "Source"], rows, refs, "t-" + cid.replace(".", "-") + "-edges", plain=True)
+    return markup.render_table([f"From {kind}", f"To {kind}", "From", "To", "Imports", "Source"], rows, refs, "t-" + cid.replace(".", "-") + "-edges", plain=True)
 
 
 REACT_COLUMNS = ["Component", "File", "Renders", "Rendered by", "Hooks", "Context", "Source"]
@@ -47,7 +40,6 @@ def _names(values) -> str:
 
 def react_components(cid: str, extract: dict, refs) -> str:
     """Every React component with what it renders, what renders it, its hooks and its context, from the `ui-component` and `renders` items."""
-    r = _render()
     graph = extract.get("graph", [])
     comps = sorted((g for g in graph if g.get("kind") == "ui-component"), key=lambda g: (g["path"], g["name"], g.get("line") or 0))
     in_file: dict = {}
@@ -68,9 +60,9 @@ def react_components(cid: str, extract: dict, refs) -> str:
     for c in comps:
         key = (c["path"], c["name"])
         context = [f"provides {x}" for x in sorted(set(c.get("provides") or []))] + [f"uses {x}" for x in sorted(set(c.get("consumes") or []))]
-        rows.append([r.E(c["name"]), r.path_code(c["path"]), r.E(_names(n for _, n in drawn.get(key, []))), r.E(_names(rendered_by.get(key, []))),
-                     r.E(_names(c.get("hooks") or [])), r.E("; ".join(context) or "-"), r.source_cell(refs, (c["path"], c.get("line")))])
-    return r.render_table(REACT_COLUMNS, rows, refs, "t-" + cid.replace(".", "-") + "-react", plain=True)
+        rows.append([markup.E(c["name"]), markup.path_code(c["path"]), markup.E(_names(n for _, n in drawn.get(key, []))), markup.E(_names(rendered_by.get(key, []))),
+                     markup.E(_names(c.get("hooks") or [])), markup.E("; ".join(context) or "-"), markup.source_cell(refs, (c["path"], c.get("line")))])
+    return markup.render_table(REACT_COLUMNS, rows, refs, "t-" + cid.replace(".", "-") + "-react", plain=True)
 
 
 API_COLUMNS = ["Package", "Import path", "Name", "Kind", "Defined in", "Audience", "Source"]
@@ -98,8 +90,7 @@ def public_api(ctx: dict, refs) -> str:
     Empty for a repository with no JavaScript or C#; one line when it declares nothing."""
     extract = ctx.get("extract") or {}
     found = public_api_rows(extract)
-    r = _render()
-    lines = "".join(f'<p class="muted">{r.E(x)}</p>' for x in friend_lines(extract))
+    lines = "".join(f'<p class="muted">{markup.E(x)}</p>' for x in friend_lines(extract))
     if not found:
         has_code = any(g.get("kind") == "module" for g in extract.get("graph", []))  # Python, JavaScript or C#
         return (f'<p class="muted">{NO_API}</p>' if has_code else "") + lines
@@ -110,10 +101,10 @@ def public_api(ctx: dict, refs) -> str:
             importable = s["package"] + sub
         else:  # C#: the subpath is the namespace
             importable = s["subpath"] or s["package"]
-        where = r.path_code(s["path"]) if s.get("path") and not s.get("external") else r.E(f"from {s['external']}") if s.get("external") else "-"
-        rows.append([r.E(s["package"]), r.E(importable), r.E(s["name"]), r.E(s["symbol_kind"]), where, r.E(s["audience"]),
-                     r.source_cell(refs, (s["path"], s.get("line"))) if s.get("path") and not s.get("external") else ""])
-    return heading("Public API of each package") + r.render_table(API_COLUMNS, rows, refs, "t-io-contracts-api", plain=True) + lines
+        where = markup.path_code(s["path"]) if s.get("path") and not s.get("external") else markup.E(f"from {s['external']}") if s.get("external") else "-"
+        rows.append([markup.E(s["package"]), markup.E(importable), markup.E(s["name"]), markup.E(s["symbol_kind"]), where, markup.E(s["audience"]),
+                     markup.source_cell(refs, (s["path"], s.get("line"))) if s.get("path") and not s.get("external") else ""])
+    return heading("Public API of each package") + markup.render_table(API_COLUMNS, rows, refs, "t-io-contracts-api", plain=True) + lines
 
 
 CONFIG_COLUMNS = ["Name", "Kind", "Read at", "Source"]
@@ -137,8 +128,7 @@ def config_keys(ctx: dict, refs) -> str:
     rows = config_key_rows(ctx.get("extract") or {})
     if not rows:
         return ""
-    r = _render()
-    body = [[(f"<code>{r.E(n)}</code>", n), r.E(k), "<br>".join(f"{r.path_code(p)}:{ln}" for p, ln in places), r.source_cell(refs, *places)] for n, k, places in rows]
+    body = [[(f"<code>{markup.E(n)}</code>", n), markup.E(k), "<br>".join(f"{markup.path_code(p)}:{ln}" for p, ln in places), markup.source_cell(refs, *places)] for n, k, places in rows]
     note = ('<p class="muted">Configuration read by name, as a key or through an options class. These are not environment variables. '
             'Values are never shown: a key set in <code>appsettings.json</code> or an environment variable is not read here.</p>')
-    return heading("Configuration keys") + note + r.render_table(CONFIG_COLUMNS, body, refs, "t-io-inputs-config", plain=True)
+    return heading("Configuration keys") + note + markup.render_table(CONFIG_COLUMNS, body, refs, "t-io-inputs-config", plain=True)

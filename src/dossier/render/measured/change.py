@@ -8,16 +8,11 @@ from collections import Counter
 
 from dossier.findings import components
 from dossier.facts import gather
+from dossier.render import markup
 
 HOTSPOT_FILES = ["File", "Component", "Commits", "Lines added", "Lines removed", "Complexity", "Last changed", "Source"]
 HOTSPOT_COMPONENTS = ["Component", "Files", "File changes", "Lines added", "Lines removed", "Complexity"]
 PERIODS = (("12m", "Past 12 months"), ("all", "All time"))
-
-
-def _render():
-    from dossier.render import page as render  # imported late: render imports measured, which imports this module
-
-    return render
 
 
 def history_items(ctx, kind):
@@ -30,20 +25,19 @@ def has_history(ctx):
 
 def intro(text):
     """The sentence under a card's title: the same muted style on every measured card."""
-    return f'<p class="muted">{_render().E(text)}</p>'
+    return f'<p class="muted">{markup.E(text)}</p>'
 
 
 def foot_notes(*lines):
     """The notes at the bottom of a card, muted. One note is a plain line; several are a bulleted list, one bullet per note."""
-    E = _render().E
     notes = [t for t in lines if t]
     if len(notes) == 1:
-        return f'<p class="muted card-notes">{E(notes[0])}</p>'
-    return '<ul class="muted card-notes">' + "".join(f"<li>{E(t)}</li>" for t in notes) + "</ul>"
+        return f'<p class="muted card-notes">{markup.E(notes[0])}</p>'
+    return '<ul class="muted card-notes">' + "".join(f"<li>{markup.E(t)}</li>" for t in notes) + "</ul>"
 
 
 def none_found(text):
-    return f'<p class="muted none-found">{_render().E(text)}</p>'
+    return f'<p class="muted none-found">{markup.E(text)}</p>'
 
 
 def complexity_of(ctx):
@@ -51,7 +45,7 @@ def complexity_of(ctx):
 
 
 def _table(cid, suffix, columns, rows, refs):
-    return _render().render_table(columns, rows, refs, "t-" + cid.replace(".", "-") + suffix, plain=True)
+    return markup.render_table(columns, rows, refs, "t-" + cid.replace(".", "-") + suffix, plain=True)
 
 
 def _num(n):
@@ -111,7 +105,7 @@ def mode_buttons(group, label, choices):
     """A labelled button group, the first choice pressed. The page script shows the block marked `data-<group>` equal to the pressed button's value."""
     btns = "".join(f'<button type="button" class="btn" data-variant="outline" data-size="sm" data-{group}-set="{v}" aria-pressed="{"true" if i == 0 else "false"}">{t}</button>'
                    for i, (v, t) in enumerate(choices))
-    return (f'<div class="km-ctl mode-ctl"><span class="muted" id="{group}-l">{_render().E(label)}</span>'
+    return (f'<div class="km-ctl mode-ctl"><span class="muted" id="{group}-l">{markup.E(label)}</span>'
             f'<div class="button-group" id="{group}-mode" role="group" aria-labelledby="{group}-l">{btns}</div></div>')
 
 
@@ -119,12 +113,11 @@ TOP_SHOWN = 15
 
 
 def _file_table(cid, rows, refs, period):
-    r = _render()
     key = "commits_12m" if period == "12m" else "commits"
     sfx = "_12m" if period == "12m" else ""
     ordered = rows if period == "12m" else sorted(rows, key=lambda x: (-x["commits"], x["path"]))
-    cells = [[r.path_code(x["path"]), r.E(x["component"] or "-"), _num(x[key]), _signed(x["added" + sfx], "+"), _signed(x["deleted" + sfx], "\u2212"),
-              _num(x["complexity"]) if x["complexity"] is not None else "-", r.E(x["last"] or "-"), r.source_cell(refs, (x["path"], None))] for x in ordered]
+    cells = [[markup.path_code(x["path"]), markup.E(x["component"] or "-"), _num(x[key]), _signed(x["added" + sfx], "+"), _signed(x["deleted" + sfx], "\u2212"),
+              _num(x["complexity"]) if x["complexity"] is not None else "-", markup.E(x["last"] or "-"), markup.source_cell(refs, (x["path"], None))] for x in ordered]
     html = _table(cid, "-files" if period == "12m" else "-files-all", HOTSPOT_FILES, cells, refs)
     html = html.replace('<table class="table"', '<table class="table hot-files"', 1)
     return _mark_top(html, [x[key] for x in ordered])
@@ -139,9 +132,8 @@ def _mark_top(html, counts):
 
 
 def _component_table(cid, rows, catalog, refs, period):
-    r = _render()
     acc = component_rows(rows, catalog, period)
-    comp = [[r.E(name), _num(a["files"]), _num(a["changes"]), _churn(a["added"]), _churn(a["deleted"]), _num(a["complexity"])] for name, a in sorted(acc.items())]
+    comp = [[markup.E(name), _num(a["files"]), _num(a["changes"]), _churn(a["added"]), _churn(a["deleted"]), _num(a["complexity"])] for name, a in sorted(acc.items())]
     return _table(cid, "-components" if period == "12m" else "-components-all", HOTSPOT_COMPONENTS, comp, refs)
 
 
@@ -199,7 +191,6 @@ def pair_rows(ctx):
 def cochange(cid, ctx, refs):
     if not has_history(ctx):
         return None
-    r = _render()
     meta = history_items(ctx, "meta")[0]
     shown = pair_rows(ctx)
     foot = foot_notes(f"Pairs of files that changed together in at least {COCHANGE_MIN} commits ({len(shown)} of {meta.get('pairs_total', len(shown))} pairs). "
@@ -208,8 +199,8 @@ def cochange(cid, ctx, refs):
                       "the less-changed file changed, the other file changed in the same commit.")
     if not shown:
         return none_found(f"No pair of files changed together in {COCHANGE_MIN} or more commits.") + foot
-    rows = [[r.path_code(p["a"]), r.path_code(p["b"]), _num(p["co_commits"]), (f'{p["share"]}%', p["share"]), r.E(link),
-             r.source_cell(refs, (p["a"], None), (p["b"], None))] for p, link in shown]
+    rows = [[markup.path_code(p["a"]), markup.path_code(p["b"]), _num(p["co_commits"]), (f'{p["share"]}%', p["share"]), markup.E(link),
+             markup.source_cell(refs, (p["a"], None), (p["b"], None))] for p, link in shown]
     return _table(cid, "", ["A", "B", "Co-commits", "Share", "Linked in code?", "Source"], rows, refs) + foot
 
 
@@ -240,13 +231,12 @@ def dead_code(cid, ctx, refs):
     extract = ctx.get("extract") or {}
     if "dead" not in extract and "graph" not in extract:
         return None
-    r = _render()
     deps = (ctx.get("facts") or {}).get("dependencies")
     found = dead_rows(extract, deps)
     foot = foot_notes("Tool output, not checked by a person: some of these may be used in ways the tools cannot see.")
     if not found:
         return none_found("The tools found nothing unused.") + foot
-    rows = [[r.E(item), r.E(kind), r.E(ev), r.source_cell(refs, (path, line)) if path else ""] for item, kind, ev, path, line in found]
+    rows = [[markup.E(item), markup.E(kind), markup.E(ev), markup.source_cell(refs, (path, line)) if path else ""] for item, kind, ev, path, line in found]
     return _table(cid, "", ["Item", "Kind", "Evidence", "Source"], rows, refs) + foot
 
 
@@ -256,7 +246,6 @@ def dead_code(cid, ctx, refs):
 def in_flight(cid, ctx, refs):
     if not has_history(ctx):
         return None
-    r = _render()
     branches = history_items(ctx, "branch")
     notes = ["Compared with the pinned commit. Issue and pull request content is not in the repository and is unknown."]
     if branches and not any(b["remote"] for b in branches):
@@ -264,7 +253,7 @@ def in_flight(cid, ctx, refs):
     foot = foot_notes(*notes)
     if not branches:
         return none_found("There are no branches other than the default branch.") + foot
-    rows = [[r.E(b["ref"]), r.E(f'{b["date"]} {b["sha"][:7]}'), r.E(f'{b["ahead"]} ahead, {b["behind"]} behind'), r.E(b["author"]),
+    rows = [[markup.E(b["ref"]), markup.E(f'{b["date"]} {b["sha"][:7]}'), markup.E(f'{b["ahead"]} ahead, {b["behind"]} behind'), markup.E(b["author"]),
              refs.mark(["commit:" + b["sha"]])] for b in branches]
     return _table(cid, "", ["Branch", "Last commit", "Ahead/behind", "Author", "Source"], rows, refs) + foot
 

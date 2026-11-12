@@ -14,16 +14,11 @@ from pathlib import Path
 
 from dossier.render.measured import change as measured_change
 from dossier import resources
+from dossier.render import markup
 
 SNAPSHOT = resources.data("eol.json")
 DOTNET_INDEX = "https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/releases-index.json"
 PACKAGE_PRODUCTS = {"django": "django", "react": "react", "next": "nextjs"}
-
-
-def _render():
-    from dossier.render import page as render  # imported late: render imports measured, which imports this module
-
-    return render
 
 
 def load_snapshot() -> dict:
@@ -183,7 +178,6 @@ def rows(ctx, snapshot=None):
 def card(cid, ctx, refs):
     if not measured_change.has_history(ctx) and not (ctx.get("facts") or {}).get("manifests"):
         return None
-    r = _render()
     snap, dotnet_note = resolve_snapshot((ctx.get("facts") or {}).get("refdata"))
     found = rows(ctx, snap)
     text = f"Data as of {snap['as_of']}, from endoflife.date."
@@ -192,8 +186,8 @@ def card(cid, ctx, refs):
     caption = measured_change.foot_notes(text)
     if not found:
         return measured_change.none_found("No runtime or package with end-of-life data was found.") + caption
-    cells = [[r.E(n), r.E(p), r.E(l), r.E(g), r.source_cell(refs, (s, None)) if s else ""] for n, p, l, g, s in found]
-    return r.render_table(["Runtime or package", "Pinned", "Latest or supported", "Gap", "Source"], cells, refs, "t-change-upgrade-burden", plain=True) + caption
+    cells = [[markup.E(n), markup.E(p), markup.E(l), markup.E(g), markup.source_cell(refs, (s, None)) if s else ""] for n, p, l, g, s in found]
+    return markup.render_table(["Runtime or package", "Pinned", "Latest or supported", "Gap", "Source"], cells, refs, "t-change-upgrade-burden", plain=True) + caption
 
 
 DRAWN = {"change.upgrade-burden": card}

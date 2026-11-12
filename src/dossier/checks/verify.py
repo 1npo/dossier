@@ -3,6 +3,7 @@ import hashlib
 import random
 import re
 
+from dossier.render import markup
 from dossier.render import page as render
 
 VERDICTS = ("supported", "not supported", "cannot tell")
@@ -39,7 +40,7 @@ def claim_key(c):
 
 def plain_text(text):
     """The claim as plain words: citation markers removed."""
-    out = re.sub(r"\s*" + render.INLINE_CITE.pattern, "", str(text or ""))
+    out = re.sub(r"\s*" + markup.INLINE_CITE.pattern, "", str(text or ""))
     return " ".join(out.split())
 
 
@@ -47,7 +48,7 @@ def line_cites(cites, c):
     """The claim's citations that resolve to a line range of a file at the pinned commit, as parsed citations."""
     found = []
     for raw in c.get("cites") or []:
-        p = render.parse_cite(raw)
+        p = markup.parse_cite(raw)
         if p["kind"] != "file" or not p["a"]:
             continue
         st = cites.check(p)
@@ -75,7 +76,7 @@ def eligible(reports, cites):
 
 def excerpt(cites, cite):
     """The cited lines as `number: text`, taken from the pinned commit."""
-    p = cite if isinstance(cite, dict) else render.parse_cite(cite)
+    p = cite if isinstance(cite, dict) else markup.parse_cite(cite)
     lines, _ = cites.source(p["path"])
     lo, hi = p["a"], p["b"] or p["a"]
     return "\n".join(f"{n}: {lines[n - 1]}" for n in range(lo, min(hi, len(lines)) + 1))
