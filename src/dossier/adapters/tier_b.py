@@ -7,7 +7,9 @@ Each language is one query. Add a language by adding a row to `LANGUAGES` and a 
 from __future__ import annotations
 
 from dossier.facts import gather
-from dossier.adapters.base import Adapter
+from dossier.adapters.base import Adapter, failure_reason
+
+__all__ = ["TierBAdapter"]
 
 PACK = "tree-sitter-language-pack"
 # dossier language name -> (grammar name, file extensions to read, query whose captures are the kind of each definition)
@@ -55,9 +57,9 @@ class TierBAdapter(Adapter):
             try:
                 out["symbols"] += symbols(ctx.treesitter, language, paths)
             except Exception as e:  # a grammar that fails must not stop the other languages
-                found.append((language, (str(e).splitlines() or [type(e).__name__])[0]))
+                found.append((language, failure_reason(e)))
         if found:
-            ctx.tool_status[PACK] = {"status": "failed", "reason": "; ".join(f"{n}: {why}" for n, why in found)}
+            ctx.tool_failed(PACK, "; ".join(f"{n}: {why}" for n, why in found))
         else:
-            ctx.tool_status[PACK] = {"status": "ok", "reason": None}
+            ctx.tool_ok(PACK)
         return out

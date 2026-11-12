@@ -16,6 +16,8 @@ from dossier.facts import gather
 from dossier.adapters.js import tools as js_tools
 from dossier.tooling import sandbox
 
+__all__ = ["decide", "plans", "restored", "run"]
+
 PROJECT_EXTS = (".csproj", ".fsproj", ".vbproj")
 WORKLOAD_FAILURE = re.compile(r"NETSDK1147")
 AUTH_FAILURE = re.compile(r"\b(401|403)\b|E401|E403|Unauthori[sz]ed|authentication (failed|required)|could not authenticate|NU1301", re.I)

@@ -23,6 +23,8 @@ from dossier.render.measured import upgrade as measured_upgrade
 from dossier.tooling import sandbox
 from dossier.cli import common
 
+__all__ = ["cmd_prepare"]
+
 
 def update_plan(top, out, state, facts, prev_version, full, digests=None):
     """Which reports an update must rewrite. Shifts the line numbers of citations the last commits did not touch."""

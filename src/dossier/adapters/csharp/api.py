@@ -5,6 +5,8 @@ smaller set another assembly (a NuGet consumer) can use: the public names of pac
 """
 from __future__ import annotations
 
+__all__ = ["chain", "is_public", "items", "key", "line_flags", "partial_parts"]
+
 MEMBER_KINDS = {"enum-member": "enum member"}
 
 

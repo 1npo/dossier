@@ -9,6 +9,8 @@ import re
 from dossier.findings import components
 from dossier.core import schema
 
+__all__ = ["v3"]
+
 FLOW_CARDS = ("entry.startup", "interactions.flows")
 SKIP_LINE = re.compile(r"^\s*(%%|flowchart\b|graph\b|subgraph\b|end\s*$|style\b|classDef\b|class\b|click\b|direction\b|linkStyle\b)")
 SEQ_ARROW = re.compile(r"^\s*([\w.]+)\s*(-->>|->>|-->|->|--x|-x|--\)|-\))\s*[+\-]?\s*([\w.]+)")

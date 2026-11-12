@@ -4,6 +4,8 @@ Split out of `checks.py` to keep that module short. The wording is fixed so Gaps
 """
 from __future__ import annotations
 
+__all__ = ["cs_coverage", "js_coverage", "v7"]
+
 # pattern id -> (what static analysis may miss there, the report that owns the closest card)
 BLIND_SPOTS = {
     "dynamic-import": ("imports made at run time", "interactions"),

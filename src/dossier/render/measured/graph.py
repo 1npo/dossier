@@ -11,14 +11,11 @@ import re
 from dossier.findings import components
 from dossier.core import graphs
 from dossier.render.measured import tables as measured_tables
+from dossier.render import markup
+
+__all__ = ["DRAWN", "UNASSIGNED", "_diagram", "_label", "component_area", "mermaid_id", "package_roots"]
 
 UNASSIGNED = "unassigned"
-
-
-def _render():
-    from dossier.render import page as render  # imported late: render imports measured, which imports this module
-
-    return render
 
 
 def mermaid_id(name: str, taken: dict | None = None) -> str:
@@ -96,12 +93,11 @@ def _group_of(extract: dict, rows: list, roots: list) -> dict:
 
 
 def _diagram(title: str, source: str, budget: str = "") -> str:
-    r = _render()
     mark = f' data-budget="{budget}"' if budget else ""
-    return (f'<div class="diagram flow"><div class="flow-bar"><h4>{r.E(title)}</h4><div class="card-action"><button class="btn" data-variant="ghost" data-size="sm" '
-            f'type="button" data-expand title="Expand" aria-label="Expand diagram">{r.EXPAND_ICONS}</button></div></div>'
-            f'<div class="mermaid-host"{mark} data-src="{r.E(source)}"><pre class="muted">Diagram loads when this report is opened.</pre></div>'
-            f'<details><summary class="muted">Diagram source</summary><pre>{r.E(source)}</pre></details></div>')
+    return (f'<div class="diagram flow"><div class="flow-bar"><h4>{markup.E(title)}</h4><div class="card-action"><button class="btn" data-variant="ghost" data-size="sm" '
+            f'type="button" data-expand title="Expand" aria-label="Expand diagram">{markup.EXPAND_ICONS}</button></div></div>'
+            f'<div class="mermaid-host"{mark} data-src="{markup.E(source)}"><pre class="muted">Diagram loads when this report is opened.</pre></div>'
+            f'<details><summary class="muted">Diagram source</summary><pre>{markup.E(source)}</pre></details></div>')
 
 
 def _area_map(rows: list, roots: list) -> dict:
@@ -134,7 +130,6 @@ def _map(cid, ctx, refs):
     rows, extract = ctx.get("catalog") or [], ctx.get("extract") or {}
     if not rows or "graph" not in extract:
         return None
-    r = _render()
     roots = package_roots(extract)
     area = _area_map(rows, roots)
     group = _group_of(extract, rows, roots)
@@ -150,9 +145,9 @@ def _map(cid, ctx, refs):
     for row in rows:
         name = row["name"]
         mine = [p for p in files if owner[p] == name]
-        table.append([r.E(name), r.E(area[name]), (str(len(mine)), len(mine)), (str(sum(lines.get(p, 0) for p in mine)), sum(lines.get(p, 0) for p in mine)),
-                      r.E(", ".join(sorted(uses.get(name, [])))) or "-", r.E(", ".join(sorted(used.get(name, [])))) or "-"])
-    return r.render_table(["Component", "Area", "Files", "Lines", "Depends on", "Used by"], table, refs, "t-" + cid.replace(".", "-"), plain=True)
+        table.append([markup.E(name), markup.E(area[name]), (str(len(mine)), len(mine)), (str(sum(lines.get(p, 0) for p in mine)), sum(lines.get(p, 0) for p in mine)),
+                      markup.E(", ".join(sorted(uses.get(name, [])))) or "-", markup.E(", ".join(sorted(used.get(name, [])))) or "-"])
+    return markup.render_table(["Component", "Area", "Files", "Lines", "Depends on", "Used by"], table, refs, "t-" + cid.replace(".", "-"), plain=True)
 
 
 DRAWN = {"interactions.graph": _graph, "components.map": _map}

@@ -14,9 +14,12 @@ from dossier.checks import v3 as checks_v3
 from dossier.checks import v7 as checks_v7
 from dossier.findings import components
 from dossier.render import process
+from dossier.render import markup
 from dossier.render import page as render
 from dossier.core import schema
 from dossier.checks import verify
+
+__all__ = ["gap_extras", "validate"]
 
 FIXED_ROW_CARDS = ("io.inputs", "io.outputs")
 
@@ -254,7 +257,7 @@ def _cited_text(cites, refs: list):
     Directories and bad citations are skipped."""
     out = []
     for raw in refs:
-        c = render.parse_cite(raw)
+        c = markup.parse_cite(raw)
         if c["kind"] != "file":
             continue
         got = cites.repo.read(f"{cites.sha}:{c['path']}")
@@ -300,7 +303,7 @@ def _checked_span(span: str, files: set, modules=frozenset(), skip=SKIP_WORDS) -
     s = span.strip()
     if not NAME.match(s) or s in files or s.casefold() in skip or s.rstrip("()") in skip:
         return False
-    found = render.BARE_FILE.search(s)
+    found = markup.BARE_FILE.search(s)
     if (found and found.group(1) == s) or s in modules:
         return False
     return not (s.islower() and s.isalpha() and len(s) <= 3)
@@ -326,7 +329,7 @@ def v2(reports: dict, cites, files: set, modules=(), js: bool = False, csharp: b
     for rid, rep in sorted(reports.items()):
         title = (schema.load(rid) or {}).get("title", rid)
         for c in render.claims_of(rid, rep or {}):
-            refs = [x for x in c["cites"] if render.parse_cite(x)["kind"] == "file"]
+            refs = [x for x in c["cites"] if markup.parse_cite(x)["kind"] == "file"]
             if not refs:
                 continue
             text = _cited_text(cites, refs)
@@ -354,8 +357,8 @@ def v2_recipes(reports: dict) -> tuple[list, list, int]:
         if not isinstance(e, dict) or e.get("conf") not in ("confirmed", "inferred"):
             continue
         example = str((e.get("fields") or {}).get("worked_example") or "")
-        cites = [c for c in e.get("cite") or [] if isinstance(c, str)] + render.inline_cites(example)
-        if any(render.parse_cite(c)["kind"] == "commit" for c in cites):
+        cites = [c for c in e.get("cite") or [] if isinstance(c, str)] + markup.inline_cites(example)
+        if any(markup.parse_cite(c)["kind"] == "commit" for c in cites):
             continue
         name = str(e.get("recipe") or "")
         warnings.append(f"V2: {title}, {name}: the worked example cites no commit.")

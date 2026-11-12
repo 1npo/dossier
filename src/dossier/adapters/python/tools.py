@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from dossier.tooling.shared_tools import ToolError, _call  # noqa: F401  (ToolError is re-exported for callers)
 
+__all__ = ["Grimp", "Vulture"]
+
 
 class Grimp:
     def __init__(self, run, timeout: float):

@@ -14,6 +14,8 @@ from dossier.findings import resolve
 from dossier.render import page as render
 from dossier.cli import common
 
+__all__ = ["cmd_confirm", "cmd_correct"]
+
 
 def cmd_correct(a):
     top = common.toplevel(a.repo)

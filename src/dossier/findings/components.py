@@ -10,6 +10,11 @@ import re
 from dossier.facts import gather
 from dossier.core import graphs
 
+__all__ = [
+    "catalog_edges", "catalog_rows", "chunk_lines", "component_candidates", "component_of", "file_lines",
+    "match_score", "parse_paths", "source_files",
+]
+
 
 # A `]` may sit inside the path (a Next.js `[id]` folder); `]]` ends the citation.
 CITED_PATH = re.compile(r"\[\[((?:(?!\]\]).)+?)(?::[\d\-]+)?(?:\|[^\]]*)?\]\]")

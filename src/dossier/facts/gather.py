@@ -24,6 +24,7 @@ from dossier.facts import env_scan as envscan
 from dossier.facts import markers as markerscan
 
 import tomllib
+__all__ = ["AGENT_LABELS", "AGENT_MSG", "BULK_FILES", "GENERATED_SEG", "KNOWLEDGE_RECENT_DAYS", "Repo", "SENSITIVE_FILE", "TEST_RE", "TYPES", "VENDOR_SEG", "collect", "delta", "ident_id", "ident_type", "lang_of", "noise_reason", "parse_commit", "parse_numstat", "remote_info", "snapshot"]
 
 BYTES_PER_TOKEN = 3.5      # rough, deliberately conservative for code
 MAX_READ = 25_000_000      # bytes; larger blobs are listed but not read here

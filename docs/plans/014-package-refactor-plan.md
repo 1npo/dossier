@@ -1379,30 +1379,30 @@ Read section 2, D4, D6, D9 and this phase; every earlier Results. Each task move
 
 ### Tasks (Phase F)
 
-- [ ] **F1. Split `adapters/base.py`; break C-adapters.** (Opus)
+- [x] **F1. Split `adapters/base.py`; break C-adapters.** (Opus)
   - `adapters/base.py` keeps `OUTPUTS`, `ALWAYS_EXPECTED_SEG`, `NO_EXTRACTORS`, `Context`, `Adapter`, `ADAPTERS` (the empty tuple kept for callers that pass their own). New `adapters/registry.py`: top-level imports of the five adapter classes, `REGISTERED` in today's order, `registered()` (today's `_registered()`, returning `REGISTERED`), `detect()`. New `pipeline/extract.py` (start with `git mv src/dossier/adapters/base.py src/dossier/pipeline/extract.py`, then recreate `base.py`, so the long extract code keeps its history): `_is_expected`, `filter_paths`, `_read`, `_write`, `rules_hash`, `PACKAGE`, `code_hash`, `_key`, `_reusable`, `run_extract`. `pipeline/stages.py` uses `registry.detect` and `extract.run_extract`. Give `Adapter`'s attributes `ClassVar` annotations and `extract` the signature `(self, ctx: Context) -> dict[str, list[dict]]`.
   - Tests: split `tests/unit/dossier/adapters/test_base.py`: the `detect`/`_registered` classes to `adapters/test_registry.py`, the `filter_paths`/`run_extract`/`_key`/`_reusable`/`code_hash` classes to `pipeline/test_extract.py`; update `adapters.X` references in the other test files to the module that now holds `X` (16 uses of `detect`, 8 of `_key`, and the rest in section 5.3's importers).
   - Done-check: no function-level `import` in `adapters/` or `pipeline/extract.py`; default suite at the baseline; block GF `SAME` (build-log adapter rows in the same order).
   - Commit: `refactor(dossier): split the adapter interface, the registry and the extract stage`
-- [ ] **F2. `render/markup.py`; break C-render.** (Opus)
+- [x] **F2. `render/markup.py`; break C-render.** (Opus)
   - Move from `render/page.py` to the new `render/markup.py`, unchanged: `E`, `INLINE_CITE`, `parse_cite`, `SEE_TAIL` and the sentence regexes it uses (`SENTENCE_START`, `AFTER_PREP`, `CLAUSE_WORD`), `BARE_FILE`, `code_files`, `stands_for_name`, `inline`, `_UL_ITEM`, `_OL_ITEM`, `md`, `inline_cites`, `new_cites`, `badge`, `added_tag`, `basis`, `basis_for`, `gid_tag`, `user_note`, `sev_badge`, `status_badge`, `_NW`, `keep_whole`, `cell_html`, `FREE_TEXT_WORDS`, `lift_cites`, `TALL_ROWS`, `auto_columns`, `render_table`, `EXPAND_ICONS`, `path_code`, `source_cell`, `Raw`, `stat_sub`, `stats_html`. Before moving, list every global each of these reads and confirm it is in the list or the standard library; if one is not (for example a `Cites` or `Refs` method used by name rather than through the `refs` argument), stop and record it. `page.py` imports every moved name back (`from dossier.render.markup import ...`), so `render.<name>` keeps working in other modules and tests.
   - `render/measured/*.py` and `render/process.py`: delete the `_render()` helpers and the function-level `import render`; import `from dossier.render import markup` at the top and use `markup.<name>`. `page_audit` and `summary`: top-level imports (no cycle). `incremental`, `verify`, `checks.reports`: import `INLINE_CITE`, `parse_cite`, `claims_of`, `inline_cites`, `BARE_FILE` from where they now live (`claims_of` stays in `page`). `render.CUT_CARDS` stays in `page.py` (a test patches it there and `page_audit` reads it at call time).
   - Done-check: `git grep -nE "^\s+(import render|from render)|_render\(\)" -- src` prints nothing; a throwaway SCC check over `src/dossier` (any import, any depth) finds no cycle; default suite; block GF `SAME`.
   - Commit: `refactor(dossier): lift the page's HTML primitives into render.markup and drop the lazy imports`
-- [ ] **F3. Two pure moves for the layer order.** (Sonnet-level)
+- [x] **F3. Two pure moves for the layer order.** (Sonnet-level)
   - `names_of`, `component_stats`, `bus_factor` from `render/measured/people.py` to the new `findings/people.py`; `people.py` (measured) imports them back; `findings/candidates_history.py` and `render/summary.py` import them from `findings.people`. `scip._check` (in `adapters/python/scip.py`) to `tooling/shared_tools.py` as `check_result`; `adapters/python/scip.py` and `adapters/js/tools.py` call `shared_tools.check_result`. Tests that called them follow.
   - Done-check: default suite; block GF `SAME`.
   - Commit: `refactor(dossier): move people figures to findings and the tool result check to tooling`
-- [ ] **F4. `Context` helpers.** (Opus)
+- [x] **F4. `Context` helpers.** (Opus)
   - Add to `adapters/base.py`: `failure_reason(e: BaseException) -> str` returning `(str(e).splitlines() or [type(e).__name__])[0]`; `Context.read(self, path: str) -> str | None`; `Context.tool_ok(tool)`, `Context.tool_skipped(tool, reason)`, `Context.tool_failed(tool, reason)` that assign `{"status": ..., "reason": ...}` (that key order). Replace the hand-written status dicts and `_reader` closures in `python/adapter.py`, `js/adapter.py`, `csharp/adapter.py`, `repo.py`, `tier_b.py`. Leave `pipeline/extract.run_extract`'s own reason formula alone (D6). Unit tests for each helper, one class each, including the exact dict and the empty-first-line case.
   - Done-check: `git grep -n '"status": "ok", "reason": None' -- src/dossier/adapters` prints only `base.py`; default suite; block GF `SAME` (the `tool_status` sections in `extract/*.json` compare equal).
   - Commit: `refactor(dossier): give Context a file reader and tool-status helpers`
-- [ ] **F5. Subpackage docstrings and the layer test.** (Sonnet-level)
+- [x] **F5. Subpackage docstrings and the layer test.** (Sonnet-level)
   - Each `__init__.py`: a docstring with D4's row (what it holds, what it may import) and one line per module; `__all__` lists the public module names (strings). No imports.
   - `tests/content/test_layers.py` (one class per rule): D4's import table over every module in `src/dossier`, any depth; the four in-package rules of D4; every `__init__.py` has a docstring and `__all__` and no import; no level-0 import of any pre-refactor flat module name anywhere in `src/`, `scripts/`, `tests/`, `tools/` (the list is the union of the Phase C maps, written into the test); `scripts/` holds exactly the two launchers. Fold `test_no_file_paths.py` into it.
   - Done-check: the test passes and fails when you add a forbidden import to a scratch copy (show the failure line in the commit body); default suite.
   - Commit: `test(dossier): enforce the package's dependency order`
-- [ ] **F6. Public API and types.** (Opus)
+- [x] **F6. Public API and types.** (Opus) *Cut after the `__all__` step, with the mypy gate kept; the annotations move to Phase H (see Results).*
   - Compute, with a throwaway `ast` script in `$SCR`, the names each module exports to other `dossier` modules; write each module's `__all__` right after its imports (in the three embedded modules too; nothing else there). Annotate every function and class in an `__all__` (parameters and return), except in `facts/gather.py`, `facts/deps.py`, `history/scan.py`. Run `uv run mypy`; for each module that still fails, add a `[[tool.mypy.overrides]]` `ignore_errors = true` entry and record the module and its error count in Results; D2 lists the modules that may not have one.
   - Done-check: `uv run mypy` exits 0; `uv run ruff check` exits 0; default suite; block GF `SAME`; block GX `SAME`; the slow suite.
   - Commit: `refactor(dossier): declare each module's public names and type them`
@@ -1430,6 +1430,28 @@ Next session: **Sonnet**, `Start Phase G in docs/plans/014-package-refactor-plan
 Each task is independent of the next except F5 (it encodes F1 to F3). Before the merge, `git revert <task sha>` for a single task (revert F5 first if reverting F1 to F3). After: `git revert -m 1 <merge sha>`.
 
 ### Results (Phase F)
+
+Session: Opus 5.5, 2026-11-11. Branch `refactor/package-f-abstractions`, one commit per task (F1 to F6). Block GF was compared against the stored base capture `$SCR/golden/fa` (base `7f51be9`), as in Phases B to E; block GX captured both sides in one sitting (`xa`, `xb`).
+
+- **F1.** `adapters/base.py` holds the interface (`OUTPUTS`, `ALWAYS_EXPECTED_SEG`, `NO_EXTRACTORS`, `Context`, `Adapter` with `ClassVar` attributes and `extract(self, ctx: Context) -> dict[str, list[dict]]`, `ADAPTERS`). `adapters/registry.py` holds `REGISTERED`, `registered()` and `detect()`. The extract stage is `pipeline/extract.py` (`git mv` of the old `base.py`). Unit tests: `adapters/test_base.py` became `pipeline/test_extract.py` (filter, key, reuse, code digest) plus a new `adapters/test_registry.py` (detect). The tests that called `adapters._registered()` call `registry.registered()`. The C-adapters cycle is gone. GF `SAME`.
+- **F2.** `render/markup.py` takes the 38 names of the task unchanged, plus **`SEV_TONE` and `STATUS_STYLE` (deviation)**: `sev_badge` and `status_badge` read them. They are plain dict constants, not the `Cites`/`Refs` methods the stop rule was written for, so they moved with their readers. No other global was read. `page.py` imports all 40 back. The measured cards and `process` import `markup` at the top. `page_audit` and `summary` import `render.page` at the top. `incremental`, `verify` and `checks.reports` take the citation helpers from `markup`. The SCC check (`$SCR/f/scc.py`) finds **no cycle** in `src/dossier`. GF `SAME`.
+- **F3.** `findings/people.py` holds `names_of`, `component_stats` and `bus_factor`, plus **`history_items` (deviation)**. The three call `measured_change.history_items`, a one-line filter over `ctx["extract"]["history"]`. Leaving it in `render` would have kept `findings` importing `render`. `render.measured.change` and `render.measured.people` import the names back. `scip._check` became `shared_tools.check_result`. The people tests moved to `tests/unit/dossier/findings/test_people.py`, and their shared helpers to `tests/support/people_items.py`. GF `SAME`.
+- **F4.** `Context.read`, `tool_ok`, `tool_skipped`, `tool_failed` and `base.failure_reason`. The five adapters dropped their hand-written status dicts, the two `_reader` closures and the delegating `_skip`, `_skipped` and `_failed` helpers. The Python `_step`, the JS `_each` and the C# `_fallback` stay, built on the helpers. **Deviation:** the adapter unit tests built `SimpleNamespace` stand-ins for `Context`, which lack the new methods. They now build a real `Context` through `tests/support/contexts.make_context`. Only the constructor name changed; no assertion changed. New tests: `tests/unit/dossier/adapters/test_base.py`, 10 tests. The done-check grep finds only `base.py`. GF `SAME`.
+- **F5.** Every subpackage `__init__.py` has D4's row, one line per module and an `__all__` of its modules. `tests/content/test_layers.py`, 14 tests, folds in `test_no_file_paths.py`. **Deviation:** the `__init__` rule is "no import *at module level*". `cli/__init__.py`'s `main()` imports the parser inside the function, as D8 requires, and that does not run on package import (R17). The test fails as expected on a forbidden import (`'dossier.core.config:6 imports dossier.render.page'`, quoted in the commit).
+- **F6, cut after the `__all__` step, plus the mypy gate.**
+  - `__all__` is written after the import block of every module, from an `ast` scan of `src/dossier` and `scripts/`: 458 names (`$SCR/f/exports.py`, `exports.json`). The three embedded modules got one line each, directly after their imports.
+  - **Not done (moves to Phase H): the parameter and return annotations of the names in each `__all__`.** About 300 functions need them, too many to type by hand alongside this phase's checks. Phase H must do it before H4, or record the cut again.
+  - **The mypy gate is in now**: `uv run mypy` exits 0.
+    - Four errors in modules that may not have an override were fixed with local-variable annotations only, no runtime change: `core/config.py` 1, `core/graphs.py` 1, `core/scip_read.py` 2, `pipeline/extract.py` 1.
+    - The other 30 modules have an `ignore_errors` override in `pyproject.toml`, 99 errors in all: `adapters.csharp.adapter` 1, `adapters.csharp.api` 1, `adapters.csharp.entries` 1, `adapters.csharp.queries` 4, `adapters.csharp.semgrep` 1, `adapters.js.adapter` 1, `adapters.js.entries` 2, `adapters.js.prisma` 3, `adapters.js.project` 3, `adapters.js.queries` 1, `adapters.js.semgrep` 1, `adapters.python.adapter` 3, `adapters.python.depends` 1, `adapters.python.packages` 3, `adapters.python.project` 2, `adapters.repo` 1, `adapters.tier_b` 1, `checks.page_audit` 5, `checks.reports` 34, `checks.v3` 4, `facts.deps` 4, `findings.candidates` 1, `history.scan` 9, `pipeline.stages` 1, `render.measured.blast` 1, `render.measured.cards` 1, `render.process` 2, `render.summary_check` 1, `tooling.dotnet_sdk` 4, `tooling.sandbox` 2.
+    - None of D2's no-override modules is listed.
+- **Checks after F6.**
+  - Default suite: **3087 passed, 305 skipped**. That is 3065, plus 10 (F4), plus 12 (F5: 14 new, minus the 2 folded-in file-path tests).
+  - Block L: `ruff check` exit 0, `mypy` exit 0.
+  - Block GF `SAME` (12 cases). Block GX `SAME` (`to`, `bp`, `rw`).
+  - Gatherer review: besides the import lines and the one `__all__` line per embedded file, it shows only the review file's own `(start 1, total N)` header, one higher because each file is one line longer.
+  - Slow suite: **2 failed, 3389 passed, 1 skipped** (25 min), the two failures being exactly the known ones of section 3.
+- **For Phase H.** Annotate every name in a module's `__all__` (F6's cut). Then remove each mypy override that passes, keeping D2's rule. The developer guide still names `adapters._registered()` (lines 102 and 152); H2 rewrites them to `adapters/registry.py`.
 
 ---
 
@@ -1485,7 +1507,7 @@ Model: **Opus** (H2 needs judgement; H1, H3 and H4 run in the same session). Bra
 
 ### Before you start (Phase H)
 
-Read section 2, D3, D4, D12, D13, section 6 and this phase; every earlier Results (pick up anything cut). Load `docs-project`, `docs-readme`, `docs-user-guide`, `docs-dev-guide` and `git-release` too.
+Read section 2, D3, D4, D12, D13, section 6 and this phase; every earlier Results (pick up anything cut). **Phase F cut F6's annotations**: before H4, annotate every name in each module's `__all__` (D9; not the three embedded modules), rerun `uv run mypy`, and drop each override that passes (Phase F Results). Load `docs-project`, `docs-readme`, `docs-user-guide`, `docs-dev-guide` and `git-release` too.
 
 ### Tasks (Phase H)
 

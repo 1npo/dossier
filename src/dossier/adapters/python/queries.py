@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import re
 
+__all__ = ["complexity", "imports", "models", "module_state", "tests"]
+
 # Three-level patterns (module > statement > assignment) match nothing in this grammar version, so every query is one
 # or two levels deep and the code tells module level and class level apart by column: a module-level name starts at
 # column 0, and a class field starts at the column of the class body block.

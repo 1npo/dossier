@@ -14,6 +14,11 @@ from pathlib import Path
 from dossier.findings.components import catalog_edges, catalog_rows, component_candidates, component_of, file_lines, parse_paths, source_files  # noqa: F401
 from dossier import resources
 
+__all__ = [
+    "DECIDED_OUTPUTS", "ID_OUTPUTS", "assign_ids", "by_id", "card_titles", "digests", "for_report", "group_members",
+    "home_card", "load", "report_data", "sort_items", "text", "tool_list", "tool_status",
+]
+
 ID_OUTPUTS = {"entry_points": "ep", "io_candidates": "io", "models": "md", "dead": "dd", "blindspots": "bs", "history": "mk"}
 
 

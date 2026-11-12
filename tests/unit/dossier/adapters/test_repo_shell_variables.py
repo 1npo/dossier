@@ -1,8 +1,8 @@
 import subprocess
-from types import SimpleNamespace
 
 from dossier.adapters import repo as repo_adapter
 from fakes import FakeSemgrep
+from contexts import make_context
 
 
 class TestShellVariables:
@@ -66,7 +66,7 @@ class TestShellVariablesInTheAdapter:
         git("init", "-b", "main")
         git("add", "-A")
         git("-c", "user.name=t", "-c", "user.email=t@x.io", "commit", "-m", "x")
-        ctx = SimpleNamespace(checkout=repo, sha=git("rev-parse", "HEAD").strip(), tree=frozenset(git("ls-files").split()), files=[],
+        ctx = make_context(checkout=repo, sha=git("rev-parse", "HEAD").strip(), tree=frozenset(git("ls-files").split()), files=[],
                               semgrep=FakeSemgrep(), tool_status={})
 
         out = repo_adapter.RepoAdapter().extract(ctx)

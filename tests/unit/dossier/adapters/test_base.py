@@ -1,156 +1,68 @@
-import json
-
-import pytest
-
-from dossier.adapters import base as adapters
-from dossier.adapters.js import adapter as js_adapter
-from dossier.adapters.python import adapter as py_adapter
-from dossier.adapters import repo as repo_adapter
+from dossier.adapters import base
+from contexts import make_context
 
 
-class A1(adapters.Adapter):
-    name = "a1"
-    languages = ("Python",)
+class TestFailureReason:
+    def test_a_multi_line_message_gives_its_first_line(self):
+        assert base.failure_reason(RuntimeError("semgrep failed (exit 2):\nstack")) == "semgrep failed (exit 2):"
+
+    def test_an_empty_message_gives_the_type_name(self):
+        assert base.failure_reason(ValueError()) == "ValueError"
+
+    def test_an_empty_first_line_gives_an_empty_reason(self):
+        assert base.failure_reason(RuntimeError("\nsecond line")) == ""
 
 
-TREE = frozenset({"app.py", "src/a.py"})
+class TestRead:
+    def test_a_utf8_file_gives_its_text(self, tmp_path):
+        (tmp_path / "a.txt").write_text("héllo\n", encoding="utf-8")
+
+        got = make_context(checkout=tmp_path).read("a.txt")
+
+        assert got == "héllo\n"
+
+    def test_a_missing_file_gives_none(self, tmp_path):
+        assert make_context(checkout=tmp_path).read("missing.txt") is None
+
+    def test_a_file_that_is_not_utf8_gives_none(self, tmp_path):
+        (tmp_path / "b.bin").write_bytes(b"\xff\xfe\x00")
+
+        assert make_context(checkout=tmp_path).read("b.bin") is None
 
 
-def filt(outputs, globs=()):
-    return adapters.filter_paths(outputs, TREE, "/checkout", globs)
+class TestToolOk:
+    def test_it_records_ok_with_no_reason(self, tmp_path):
+        ctx = make_context(checkout=tmp_path)
+
+        ctx.tool_ok("semgrep")
+
+        assert ctx.tool_status == {"semgrep": {"status": "ok", "reason": None}}
+        assert list(ctx.tool_status["semgrep"]) == ["status", "reason"]
 
 
-class TestFilterPaths:
-    def test_tracked_path_is_kept(self):
-        kept, stats = filt({"graph": [{"path": "app.py"}]})
+class TestToolSkipped:
+    def test_it_records_skipped_with_the_reason(self, tmp_path):
+        ctx = make_context(checkout=tmp_path)
 
-        assert kept["graph"] == [{"path": "app.py"}] and stats["paths_dropped"] == 0
+        ctx.tool_skipped("vulture", "There are no Python files to check.")
 
-    def test_venv_path_is_dropped_as_expected(self):
-        kept, stats = filt({"graph": [{"path": ".venv/lib/x.py"}]})
-
-        assert kept["graph"] == [] and stats["dropped_expected"] == 1
-
-    def test_absolute_path_outside_checkout_is_dropped_as_outside(self):
-        kept, stats = filt({"graph": [{"path": "/usr/lib/x.py"}]})
-
-        assert kept["graph"] == [] and stats["dropped_outside"] == 1
-
-    def test_absolute_path_inside_checkout_becomes_relative(self):
-        kept, _ = filt({"graph": [{"path": "/checkout/app.py"}]})
-
-        assert kept["graph"] == [{"path": "app.py"}]
-
-    def test_adapter_glob_makes_a_drop_expected(self):
-        _, stats = filt({"graph": [{"path": "build/gen.py"}]}, globs=("build/**",))
-
-        assert (stats["dropped_expected"], stats["dropped_unexpected"]) == (1, 0)
-
-    def test_unknown_path_is_unexpected_and_listed(self):
-        _, stats = filt({"graph": [{"path": "weird/new.py"}]})
-
-        assert stats["dropped_unexpected"] == 1 and stats["unexpected"] == ["weird/new.py"]
-
-    def test_paths_list_loses_only_dropped_entries(self):
-        kept, _ = filt({"graph": [{"path": "app.py", "paths": ["src/a.py", "ghost.py"]}]})
-
-        assert kept["graph"][0]["paths"] == ["src/a.py"]
-
-    def test_item_without_path_raises(self):
-        with pytest.raises(ValueError):
-            filt({"graph": [{"kind": "x"}]})
+        assert ctx.tool_status == {"vulture": {"status": "skipped", "reason": "There are no Python files to check."}}
+        assert list(ctx.tool_status["vulture"]) == ["status", "reason"]
 
 
-class TestDetect:
-    def test_matching_language_gives_an_instance(self):
-        got = adapters.detect(["Python"], (A1,))
+class TestToolFailed:
+    def test_it_records_failed_with_the_reason(self, tmp_path):
+        ctx = make_context(checkout=tmp_path)
 
-        assert [type(g) for g in got] == [A1]
+        ctx.tool_failed("grimp", "boom")
 
-    def test_other_language_gives_nothing(self):
-        assert adapters.detect(["Shell"], (A1,)) == []
+        assert ctx.tool_status == {"grimp": {"status": "failed", "reason": "boom"}}
+        assert list(ctx.tool_status["grimp"]) == ["status", "reason"]
 
+    def test_a_later_call_replaces_the_earlier_status(self, tmp_path):
+        ctx = make_context(checkout=tmp_path)
+        ctx.tool_ok("grimp")
 
-class Wild(adapters.Adapter):
-    name = "wild"
-    languages = ("*",)
+        ctx.tool_failed("grimp", "boom")
 
-
-class TestDetectWildcard:
-    def test_wildcard_adapter_matches_any_language(self):
-        got = adapters.detect(["Shell"], (Wild,))
-
-        assert [type(g) for g in got] == [Wild]
-
-    def test_wildcard_adapter_matches_no_languages(self):
-        got = adapters.detect([], (Wild,))
-
-        assert [type(g) for g in got] == [Wild]
-
-
-class WithRules(adapters.Adapter):
-    name = "with-rules"
-    tools = ("semgrep",)
-
-
-class TestKey:
-    def test_a_change_to_a_rule_file_changes_the_key(self, tmp_path):
-        (tmp_path / "a.yml").write_text("rules: []\n")
-        adapter = WithRules()
-        adapter.rules = (tmp_path,)
-        before = adapters._key(adapter, "sha", {})
-
-        (tmp_path / "a.yml").write_text("rules: [x]\n")
-        after = adapters._key(adapter, "sha", {})
-
-        assert before != after
-
-    def test_the_same_rule_files_give_the_same_key(self, tmp_path):
-        (tmp_path / "a.yml").write_text("rules: []\n")
-        adapter = WithRules()
-        adapter.rules = (tmp_path,)
-
-        assert adapters._key(adapter, "sha", {}) == adapters._key(adapter, "sha", {})
-
-    def test_a_build_stored_without_a_rules_hash_is_not_reusable(self, tmp_path):
-        (tmp_path / "a.yml").write_text("rules: []\n")
-        adapter = WithRules()
-        adapter.rules = (tmp_path,)
-        key = adapters._key(adapter, "sha", {})
-        old = {k: v for k, v in key.items() if k != "rules"}
-        (tmp_path / "extract").mkdir()
-        (tmp_path / "extract" / "entry_points.json").write_text('{"adapters": {"with-rules": %s}}' % json.dumps(old))
-
-        assert not adapters._reusable(tmp_path, adapter, key)
-
-    def test_a_change_to_the_skills_code_changes_the_key(self, tmp_path, monkeypatch):
-        (tmp_path / "a.yml").write_text("rules: []\n")
-        code = tmp_path / "src" / "dossier"
-        code.mkdir(parents=True)
-        (code / "x.py").write_text("A = 1\n")
-        adapter = WithRules()
-        adapter.rules = (tmp_path,)
-        monkeypatch.setattr(adapters, "PACKAGE", code)
-        before = adapters._key(adapter, "sha", {})
-
-        (code / "x.py").write_text("A = 2\n")
-
-        assert adapters._key(adapter, "sha", {}) != before
-
-    def test_the_same_code_gives_the_same_key(self, tmp_path):
-        assert adapters.code_hash() == adapters.code_hash()
-
-    def test_a_build_stored_without_a_code_hash_is_not_reusable(self, tmp_path):
-        (tmp_path / "a.yml").write_text("rules: []\n")
-        adapter = WithRules()
-        adapter.rules = (tmp_path,)
-        key = adapters._key(adapter, "sha", {})
-        old = {k: v for k, v in key.items() if k != "code"}
-        (tmp_path / "extract").mkdir()
-        (tmp_path / "extract" / "entry_points.json").write_text('{"adapters": {"with-rules": %s}}' % json.dumps(old))
-
-        assert not adapters._reusable(tmp_path, adapter, key)
-
-    def test_shipped_adapters_name_their_rule_folders(self):
-        assert [a.rules for a in (js_adapter.JsAdapter, py_adapter.PythonAdapter, repo_adapter.RepoAdapter)] == [
-            (js_adapter.RULES,), (py_adapter.RULES,), (repo_adapter.RULES_ALL,)]
+        assert ctx.tool_status["grimp"] == {"status": "failed", "reason": "boom"}

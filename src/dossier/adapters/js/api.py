@@ -10,6 +10,8 @@ import json
 import posixpath
 import re
 
+__all__ = ["entries", "items", "read_tsconfig"]
+
 CODE = (".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs")
 SOURCE_EXT = (".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs")
 DECL = re.compile(r"\.d\.(m|c)?ts$")

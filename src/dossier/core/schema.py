@@ -4,6 +4,10 @@ import re
 from pathlib import Path
 from dossier import resources
 
+__all__ = [
+    "REPORT_ORDER", "_norm", "_numbered_notes", "load", "load_all", "load_categories", "load_questions", "validate",
+]
+
 SCHEMA_DIR = resources.data("schemas", "cards")
 ALLOW_PENDING = False  # every card of a report Claude writes must be filled; only migration (allow_pending=True) may leave one pending
 REPORT_ORDER = ("dossier", "overview", "reading", "entry", "components", "interactions", "io", "data",

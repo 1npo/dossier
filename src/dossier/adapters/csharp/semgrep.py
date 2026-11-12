@@ -4,6 +4,8 @@ from __future__ import annotations
 import json
 import re
 
+__all__ = ["config_inputs", "items"]
+
 TRIGGERS = {"http-route": "a web request to `{name}`", "signalr-hub": "a SignalR connection to `{name}`", "grpc-service": "a gRPC call to `{name}`",
             "hosted-service": "when the host starts", "scheduled-job": "a schedule", "cli-command": "the `{name}` command",
             "build-target": "running `dotnet run --project {project} -- {name}`"}

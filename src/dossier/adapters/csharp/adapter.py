@@ -21,9 +21,11 @@ from dossier.adapters.csharp import semgrep as cs_semgrep
 from dossier.adapters.csharp import testsuite as cs_tests
 from dossier.core import scip_read
 from dossier.tooling import toolcheck
-from dossier.adapters.base import OUTPUTS, Adapter
+from dossier.adapters.base import OUTPUTS, Adapter, failure_reason
 from dossier.facts.gather import TEST_RE
 from dossier import resources
+
+__all__ = ["CSharpAdapter"]
 
 RULES = resources.data("rules", "csharp")
 NOT_TRUSTED = "The ref is not trusted, so scip-dotnet did not run. Use --allow-ref to run it."
@@ -41,14 +43,6 @@ class CSharpAdapter(Adapter):
     expected_untracked = ("**/bin/**", "**/obj/**", "artifacts/**")
     loads_repo_code = False
 
-    @staticmethod
-    def _reader(ctx):
-        def read(path):
-            try:
-                return (ctx.checkout / path).read_text(encoding="utf-8")
-            except (OSError, UnicodeDecodeError):
-                return None
-        return read
 
     @staticmethod
     def _project_items(result, tree) -> list:
@@ -86,9 +80,6 @@ class CSharpAdapter(Adapter):
             return NOT_TRUSTED
         return cs_sdk.problem(cs_sdk.list_sdks(), cs_sdk.requirements(sorted(ctx.tree), read))
 
-    @staticmethod
-    def _failed(ctx, tool: str, e: Exception) -> None:
-        ctx.tool_status[tool] = {"status": "failed", "reason": (str(e).splitlines() or [type(e).__name__])[0]}
 
     @staticmethod
     def _test_files(result, files) -> set:
@@ -106,8 +97,8 @@ class CSharpAdapter(Adapter):
             decls = cs_queries.declarations(ctx.treesitter, files)
             counts = cs_queries.complexity(ctx.treesitter, [f for f in files if f not in generated and f not in tests])
         except Exception as e:  # one tool failing must not stop the others
-            return self._failed(ctx, "tree-sitter-language-pack", e)
-        ctx.tool_status["tree-sitter-language-pack"] = {"status": "ok", "reason": None}
+            return ctx.tool_failed("tree-sitter-language-pack", failure_reason(e))
+        ctx.tool_ok("tree-sitter-language-pack")
         imports, test_edges, ambiguous = cs_graph.type_uses(decls, result, tests, generated)
         out["graph"] += (cs_graph.module_items(result, decls, counts, generated, tests) + imports
                          + cs_graph.namespace_cycles(imports, decls, result))
@@ -133,14 +124,14 @@ class CSharpAdapter(Adapter):
         """Entry points, I/O sites and blind spots with the C# rules, in source files that are not generated."""
         scan = [f for f in st["files"] if f not in st["generated"]]
         if not scan:
-            return self._skipped(ctx, "semgrep", "There are no C# files to scan.")
+            return ctx.tool_skipped("semgrep", "There are no C# files to scan.")
         owner = {f: p["path"] for p in result["projects"] if "language" not in p for f in p["files"]}
         builders = {p["path"] for p in result["projects"] if "language" not in p and {"bullseye", "cake.frosting"} & {x.lower() for x in p["packages"]}}
         try:
-            found = cs_semgrep.items(ctx.semgrep.scan(RULES, scan), owner.get, builders, self._reader(ctx))
+            found = cs_semgrep.items(ctx.semgrep.scan(RULES, scan), owner.get, builders, ctx.read)
         except Exception as e:  # one tool failing must not stop the others
-            return self._failed(ctx, "semgrep", e)
-        ctx.tool_status["semgrep"] = {"status": "ok", "reason": None}
+            return ctx.tool_failed("semgrep", failure_reason(e))
+        ctx.tool_ok("semgrep")
         found["entry_points"] = [e for e in found["entry_points"] if e["path"] not in st["tests"]]
         found["blindspots"] += self._codegen_hits(ctx, st)
         for key, rows in found.items():
@@ -160,14 +151,14 @@ class CSharpAdapter(Adapter):
                          "snippet": (lines[line - 1].strip() if lines else "")[:200], "pattern": "codegen"})
         return hits
 
-    @staticmethod
-    def _skipped(ctx, tool: str, reason: str) -> None:
-        ctx.tool_status[tool] = {"status": "skipped", "reason": reason}
 
     @staticmethod
     def _fallback(out, st, why: str, ctx, status: str = "skipped") -> None:
         """scip-dotnet did not give symbols: record why, and list the declarations from tree-sitter instead (D11)."""
-        ctx.tool_status["scip-dotnet"] = {"status": status, "reason": why}
+        if status == "failed":
+            ctx.tool_failed("scip-dotnet", why)
+        else:
+            ctx.tool_skipped("scip-dotnet", why)
         out["symbols"] += cs_scip.fallback_defs(st.get("decls", {}), st.get("generated", set()))
 
     def _install(self, ctx, timeout):
@@ -176,7 +167,7 @@ class CSharpAdapter(Adapter):
         try:
             folder = cs_scip.ensure_installed(ctx.area.parent, tool, timeout)
         except Exception as e:  # a failed download must not stop the other tools
-            return None, ("failed", (str(e).splitlines() or [type(e).__name__])[0])
+            return None, ("failed", failure_reason(e))
         dll = cs_scip.tool_dll(folder, cs_sdk.list_runtime_majors())
         return (cs_scip.ScipDotnet(ctx.run, dll, timeout), None) if dll else (None, ("skipped", NO_RUNTIME))
 
@@ -193,7 +184,7 @@ class CSharpAdapter(Adapter):
                     continue
                 indexes.append(scip_read.decode(path.read_bytes()))
             except Exception as e:  # a bad index must not stop the other targets
-                problems.append((str(e).splitlines() or [type(e).__name__])[0])
+                problems.append(failure_reason(e))
                 continue
             here = cs_scip.unloaded_projects(log, ctx.checkout)
             unloaded |= here
@@ -234,9 +225,9 @@ class CSharpAdapter(Adapter):
             if count:
                 out["graph"].append({"kind": "cs-note", "path": path, "note": note, "name": str(count)})
         if problems:
-            ctx.tool_status["scip-dotnet"] = {"status": "failed", "reason": problems[0]}
+            ctx.tool_failed("scip-dotnet", problems[0])
             return
-        ctx.tool_status["scip-dotnet"] = {"status": "ok", "reason": None}
+        ctx.tool_ok("scip-dotnet")
         dead = cs_scip.dead_items(out["symbols"], decls, out["entry_points"], out["models"], out["blindspots"], st.get("generated", set()), st.get("tests", set()), unloaded)
         out["dead"] += dead
         if dead:
@@ -244,7 +235,7 @@ class CSharpAdapter(Adapter):
 
     def extract(self, ctx) -> dict:
         out = {o: [] for o in OUTPUTS}
-        read = self._reader(ctx)
+        read = ctx.read
         result = cs_project.projects(sorted(ctx.tree), read)
         out["graph"] += self._project_items(result, ctx.tree) + self._notes(result, ctx.tree)
         st: dict = {}

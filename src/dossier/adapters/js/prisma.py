@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import re
 
+__all__ = ["parse"]
+
 BLOCK = re.compile(r"^\s*(model|enum|datasource|generator|type|view)\s+(\w+)\s*\{")
 FIELD = re.compile(r"^\s*(\w+)\s+(\w+(?:\[\])?\??)(.*)$")
 ENUM_MEMBER = re.compile(r"^\s*(\w+)\b")

@@ -20,16 +20,13 @@ from dossier.render.measured import graph as measured_graph
 from dossier.render.measured import js as measured_js
 from dossier.render.measured import people as measured_people
 from dossier.render.measured import upgrade as measured_upgrade
+from dossier.render import markup
 
-
-def _render():
-    from dossier.render import page as render  # imported late: render imports this module
-
-    return render
+__all__ = ["body", "fill_catalog", "fill_people"]
 
 
 def _table(cid, columns, rows, refs):
-    return _render().render_table(columns, rows, refs, "t-" + cid.replace(".", "-"), plain=True)
+    return markup.render_table(columns, rows, refs, "t-" + cid.replace(".", "-"), plain=True)
 
 
 NONE_FOUND = '<span class="muted">none found</span>'
@@ -37,10 +34,9 @@ NONE_FOUND = '<span class="muted">none found</span>'
 
 def _located(rows, refs):
     """One row for each (concern, location): the location in code, and its citation in the Source column."""
-    r = _render()
     out = []
     for name, found in rows:
-        out += [[name, r.path_code(p), r.source_cell(refs, (p, None))] for p in found] or [[name, NONE_FOUND, ""]]
+        out += [[name, markup.path_code(p), markup.source_cell(refs, (p, None))] for p in found] or [[name, NONE_FOUND, ""]]
     return out
 
 
@@ -140,7 +136,6 @@ def _tooling(cid, ctx, refs):
     ci = sorted(p for p in tree if p.startswith(".github/workflows/") and p.endswith((".yml", ".yaml")) or p == ".gitlab-ci.yml")
     hooks = read(".pre-commit-config.yaml") or "" if ".pre-commit-config.yaml" in tree else ""
     husky = "\n".join(read(p) or "" for p in sorted(tree) if measured_js.HOOK_FILE.search(p))
-    r = _render()
     rows = []
     found = {tool: ([(f, None) for f in files if f in tree], sections) for tool, (files, sections) in TOOLS.items()}
     js_where = {**measured_js.tool_locations(tree, read, _line_of), **measured_cs.tool_locations(tree, read, _line_of)}
@@ -159,9 +154,9 @@ def _tooling(cid, ctx, refs):
         name = measured_js.ci_pattern(tool) if tool in measured_js.NODE_TOOLS else re.compile(r"(?<![\w-])(" + measured_cs.CI_NAMES.get(tool, re.escape(tool)) + r")(?![\w-])", re.I)
         ci_hits = [p for p in ci if name.search(read(p) or "")]
         enforced = (["pre-commit"] if tool != "pre-commit" and name.search(hooks) else []) + (["husky"] if tool != "husky" and name.search(husky) else []) \
-            + [r.path_code(p) for p in ci_hits]
-        rows.append([tool, ", ".join(r.path_code(p) for p, _ in where), ", ".join(enforced) if enforced else NOT_ENFORCED,
-                     r.source_cell(refs, *where, *[(p, None) for p in ci_hits])])
+            + [markup.path_code(p) for p in ci_hits]
+        rows.append([tool, ", ".join(markup.path_code(p) for p, _ in where), ", ".join(enforced) if enforced else NOT_ENFORCED,
+                     markup.source_cell(refs, *where, *[(p, None) for p in ci_hits])])
     if not rows:
         return '<p class="muted">No formatter or linter configuration was found.</p>'
     return _table(cid, ["Tool", "Config file", "Enforced where", "Source"], rows, refs)
@@ -172,12 +167,11 @@ def _tooling(cid, ctx, refs):
 
 def _evidence(path, line):
     """The file (and line) a finding rests on, in code; the citation to it goes in the Source column."""
-    r = _render()
-    return r.path_code(f"{path}:{line}" if line else path) if path else "-"
+    return markup.path_code(f"{path}:{line}" if line else path) if path else "-"
 
 
 def _source(path, line, refs):
-    return _render().source_cell(refs, (path, line)) if path else ""
+    return markup.source_cell(refs, (path, line)) if path else ""
 
 
 def _violations(cid, ctx, refs):
@@ -185,23 +179,22 @@ def _violations(cid, ctx, refs):
     graph = extract.get("graph")
     if graph is None:
         return None
-    E = _render().E
     imports = [g for g in graph if g.get("kind") == "import"]
     rows = []
     for cyc in (g for g in graph if g.get("kind") == "cycle"):
         mods = cyc["modules"]
         inside = [g for g in imports if g["from"] in mods and g["to"] in mods and g.get("lines")]
         first = min(inside, key=lambda g: (g["path"], g["lines"][0])) if inside else None
-        rows.append(["import cycle", E(mods[0]), E(" → ".join(mods[1:] + mods[:1])),
+        rows.append(["import cycle", markup.E(mods[0]), markup.E(" → ".join(mods[1:] + mods[:1])),
                      _evidence(first["path"], first["lines"][0]) if first else _evidence(cyc["path"], None),
                      _source(first["path"], first["lines"][0], refs) if first else _source(cyc["path"], None, refs)])
     contracts = [g for g in graph if g.get("kind") == "contract"]
     for c in contracts:
         if c["status"] == "broken":
             for v in c.get("violations") or []:
-                rows.append([E(f"breaks contract '{c['contract']}'"), E(v["from"]), E(v["to"]), _evidence(v.get("path"), v.get("line")), _source(v.get("path"), v.get("line"), refs)])
+                rows.append([markup.E(f"breaks contract '{c['contract']}'"), markup.E(v["from"]), markup.E(v["to"]), _evidence(v.get("path"), v.get("line")), _source(v.get("path"), v.get("line"), refs)])
         elif c["status"] == "not-checked":
-            rows.append(["contract not checked", E(c["contract"]), "-", E(c.get("reason") or ""), ""])
+            rows.append(["contract not checked", markup.E(c["contract"]), "-", markup.E(c.get("reason") or ""), ""])
     if rows:
         return _table(cid, ["Kind", "From", "To", "Evidence", "Source"], rows, refs)
     tail = ", and every declared contract is kept" if contracts else ", and the repository declares no layer rules"

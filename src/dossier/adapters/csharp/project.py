@@ -9,6 +9,8 @@ import xml.etree.ElementTree as ET
 
 from dossier.facts import gather
 
+__all__ = ["is_generated", "project_frameworks", "projects", "source_roots"]
+
 TEST_PACKAGES = {"microsoft.net.test.sdk", "xunit", "xunit.v3", "nunit", "mstest.testframework", "mstest", "tunit"}
 UNSUPPORTED_FRAMEWORKS = ("FastEndpoints", "Carter", "ServiceStack", "Nancy", "Wolverine", "Microsoft.Orleans.Server",
                           "Dapr.AspNetCore", "Akka", "Aspire.Hosting.AppHost")

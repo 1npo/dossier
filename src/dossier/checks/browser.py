@@ -38,6 +38,8 @@ from dossier.render.viewer import TOKEN_CLASSES
 
 from playwright.sync_api import sync_playwright
 
+__all__ = ["main"]
+
 MIN_CONTRAST = 4.5
 
 CONTRAST_JS = r"""

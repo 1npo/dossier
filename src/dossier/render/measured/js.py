@@ -7,6 +7,8 @@ from __future__ import annotations
 import json
 import re
 
+__all__ = ["HOOK_FILE", "NODE_TOOLS", "ci_pattern", "is_build", "is_config", "tool_locations"]
+
 CONFIG_FILE = re.compile(r"(^|/)(package\.json|jsconfig\.json|tsconfig(\.[\w-]+)?\.json|\.env\.example|[\w.-]+\.config\.(js|cjs|mjs|ts))$")
 BUILD_FILE = re.compile(r"(^|/)((vite|next|webpack|rollup|tsup)\.config\.(js|cjs|mjs|ts)|nx\.json|project\.json|turbo\.json)$")
 

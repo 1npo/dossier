@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import re
 
+__all__ = ["CI_NAMES", "is_build", "is_config", "tool_locations"]
+
 CONFIG_FILE = re.compile(r"(^|/)(appsettings(\.[^/]+)?\.json|launchSettings\.json|global\.json|nuget\.config|Directory\.(Build\.props|Build\.targets|Packages\.props)"
                          r"|[^/]+\.runsettings|\.config/dotnet-tools\.json)$", re.I)
 BUILD_FILE = re.compile(r"(^|/)([^/]+\.(sln|slnx|csproj)|build\.cake)$", re.I)

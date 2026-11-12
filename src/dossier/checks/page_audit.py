@@ -20,6 +20,9 @@ from dossier.render.measured import er as measured_er
 from dossier.render.measured import tables as measured_tables
 from dossier.render.measured import upgrade as measured_upgrade
 from dossier.core import schema
+from dossier.render import page as render
+
+__all__ = ["audit"]
 
 VOID = frozenset("area base br col embed hr img input link meta param source track wbr".split())
 SKIP_TEXT = frozenset(("script", "style"))
@@ -97,8 +100,6 @@ def _plain_tables(card: Node) -> list:
 
 
 def _check_table(cid: str, n: int, table: Node, columns: list, rows: int, authored: bool) -> list:
-    from dossier.render import page as render  # late: render calls this module
-    from dossier.render import page as render  # late: render calls this module
     errs, want = [], list(columns) + (list(render.auto_columns(columns)) if authored else [])
     have = _head(table)
     for col in want:
@@ -322,8 +323,6 @@ def _check_env_cards(cards: dict, m) -> list:
 
 
 def _check_unfinished(cards: dict) -> list:
-    from dossier.render import page as render  # late: render calls this module
-
     return [f"V11: {cid}: the card still says 'Not yet generated'." for cid, v in sorted(cards.items())
             if cid.startswith(("change.", "contributors.")) and cid not in render.CUT_CARDS and "Not yet generated" in v[0].text()]
 

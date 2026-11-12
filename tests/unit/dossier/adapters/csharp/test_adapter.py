@@ -1,7 +1,7 @@
 import subprocess
 from types import SimpleNamespace
 
-from dossier.adapters import base as adapters
+from dossier.adapters import registry
 from dossier.findings import candidates
 from dossier.adapters.csharp import adapter as cs_adapter
 from dossier.adapters.csharp import scip as cs_scip
@@ -17,12 +17,12 @@ def notes(out, kind):
 
 class TestDetect:
     def test_csharp_is_detected_for_csharp_only(self):
-        assert [a.name for a in adapters.detect(["C#"])] == ["csharp", "repo"]
-        assert "csharp" not in [a.name for a in adapters.detect(["Python"])]
-        assert "csharp" not in [a.name for a in adapters.detect(["JavaScript", "TypeScript"])]
+        assert [a.name for a in registry.detect(["C#"])] == ["csharp", "repo"]
+        assert "csharp" not in [a.name for a in registry.detect(["Python"])]
+        assert "csharp" not in [a.name for a in registry.detect(["JavaScript", "TypeScript"])]
 
     def test_registered_order_puts_csharp_first(self):
-        assert [a.name for a in adapters._registered()] == ["csharp", "js", "python", "repo", "tier-b"]
+        assert [a.name for a in registry.registered()] == ["csharp", "js", "python", "repo", "tier-b"]
 
     def test_declared_properties(self):
         ad = cs_adapter.CSharpAdapter

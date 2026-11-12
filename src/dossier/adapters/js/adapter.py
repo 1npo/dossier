@@ -19,9 +19,11 @@ from dossier.adapters.js import reduce as js_reduce
 from dossier.adapters.js import semgrep as js_semgrep
 from dossier.adapters.js import tools as js_tools
 from dossier.core import scip_read
-from dossier.adapters.base import OUTPUTS, Adapter
+from dossier.adapters.base import OUTPUTS, Adapter, failure_reason
 from dossier.facts.gather import TEST_RE
 from dossier import resources
+
+__all__ = ["JsAdapter"]
 
 RULES = resources.data("rules", "js")
 NODE_TOOLS = ("dependency-cruiser", "knip", "scip-typescript", "typescript")
@@ -37,9 +39,6 @@ class JsAdapter(Adapter):
     expected_untracked = ("**/node_modules/**",)
     loads_repo_code = False
 
-    @staticmethod
-    def _skip(ctx, tool: str, reason: str) -> None:
-        ctx.tool_status[tool] = {"status": "skipped", "reason": reason}
 
     def _node_gate(self, ctx) -> str | None:
         """The reason the Node tools cannot run, or None."""
@@ -48,16 +47,8 @@ class JsAdapter(Adapter):
         try:
             return js_tools.node_problem(ctx.run)
         except Exception as e:  # a failed check must not stop the steps that need no Node
-            return (str(e).splitlines() or [type(e).__name__])[0]
+            return failure_reason(e)
 
-    @staticmethod
-    def _reader(ctx):
-        def read(path):
-            try:
-                return (ctx.checkout / path).read_text(encoding="utf-8")
-            except (OSError, UnicodeDecodeError):
-                return None
-        return read
 
     def _entries(self, ctx, out, projects, read) -> None:
         tracked = sorted(ctx.tree)
@@ -78,8 +69,8 @@ class JsAdapter(Adapter):
             try:
                 results[p["dir"]] = fn(p)
             except Exception as e:  # one project failing must not stop the others
-                failed = failed or f"{p['dir'] or 'the repository root'}: {(str(e).splitlines() or [type(e).__name__])[0]}"
-        ctx.tool_status[tool] = {"status": "failed", "reason": failed} if failed else {"status": "ok", "reason": None}
+                failed = failed or f"{p['dir'] or 'the repository root'}: {failure_reason(e)}"
+        ctx.tool_failed(tool, failed) if failed else ctx.tool_ok(tool)
         return results
 
     @staticmethod
@@ -139,9 +130,9 @@ class JsAdapter(Adapter):
         try:
             found = go()
         except Exception as e:  # one tool failing must not stop the others
-            ctx.tool_status["tree-sitter-language-pack"] = {"status": "failed", "reason": (str(e).splitlines() or [type(e).__name__])[0]}
+            ctx.tool_failed("tree-sitter-language-pack", failure_reason(e))
             return
-        ctx.tool_status["tree-sitter-language-pack"] = {"status": "ok", "reason": None}
+        ctx.tool_ok("tree-sitter-language-pack")
         tests, counts, state = found
         names = {g["path"]: g["module"] for g in out["graph"] if g["kind"] == "module"}
         edges: dict = {}
@@ -191,13 +182,13 @@ class JsAdapter(Adapter):
     def _semgrep(self, ctx, out, st, projects) -> None:
         files, st["unscanned"] = js_semgrep.scannable(sorted({f for p in projects for f in p["files"]}))
         if not files:
-            return self._skip(ctx, "semgrep", "There are no JavaScript or TypeScript files to scan.")
+            return ctx.tool_skipped("semgrep", "There are no JavaScript or TypeScript files to scan.")
         try:
             found = js_semgrep.items(ctx.semgrep.scan(RULES, files))
         except Exception as e:  # one tool failing must not stop the others
-            ctx.tool_status["semgrep"] = {"status": "failed", "reason": (str(e).splitlines() or [type(e).__name__])[0]}
+            ctx.tool_failed("semgrep", failure_reason(e))
             return
-        ctx.tool_status["semgrep"] = {"status": "ok", "reason": None}
+        ctx.tool_ok("semgrep")
         for key, rows in found.items():
             out[key] += rows
 
@@ -243,7 +234,7 @@ class JsAdapter(Adapter):
 
     def extract(self, ctx) -> dict:
         out = {o: [] for o in OUTPUTS}
-        read = self._reader(ctx)
+        read = ctx.read
         projects = js_project.projects(sorted(ctx.tree), read)
         self._entries(ctx, out, projects, read)
         self._prisma(ctx, out, read)
@@ -251,18 +242,18 @@ class JsAdapter(Adapter):
         self._semgrep(ctx, out, st, projects)
         gate = self._node_gate(ctx)
         if gate:
-            self._skip(ctx, "typescript", gate)
-            self._skip(ctx, "dependency-cruiser", gate)
-            self._skip(ctx, "knip", gate)
-            self._skip(ctx, "scip-typescript", gate)
+            ctx.tool_skipped("typescript", gate)
+            ctx.tool_skipped("dependency-cruiser", gate)
+            ctx.tool_skipped("knip", gate)
+            ctx.tool_skipped("scip-typescript", gate)
         else:
             timeout = config.timeouts()["tool"]
             try:
                 install = js_tools.ensure_installed(ctx.run, ctx.area.parent, timeout)
             except Exception as e:
-                reason = (str(e).splitlines() or [type(e).__name__])[0]
+                reason = failure_reason(e)
                 for tool in NODE_TOOLS:
-                    ctx.tool_status[tool] = {"status": "failed", "reason": reason}
+                    ctx.tool_failed(tool, reason)
             else:
                 facts = self._facts(ctx, install, projects, timeout, st)
                 st["test_edges"] = self._graph(ctx, out, install, projects, facts, timeout)

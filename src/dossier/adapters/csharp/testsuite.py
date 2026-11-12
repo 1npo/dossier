@@ -7,6 +7,8 @@ from __future__ import annotations
 import posixpath
 import re
 
+__all__ = ["module_state", "test_configs", "tests"]
+
 FRAMEWORKS = (("xunit", ("xunit", "xunit.v3")), ("nunit", ("nunit",)), ("mstest", ("mstest.testframework", "mstest", "mstest.sdk")), ("tunit", ("tunit",)))
 TEST_ATTRS = {"Fact", "Theory", "Test", "TestCase", "TestCaseSource", "TestMethod", "DataTestMethod"}
 CLASS_ATTRS = {"TestFixture", "TestClass"}

@@ -11,12 +11,9 @@ import re
 from dossier.findings import components
 from dossier.core import graphs
 from dossier.render.measured import change as measured_change
+from dossier.render import markup
 
-
-def _render():
-    from dossier.render import page as render  # imported late: render imports measured, which imports this module
-
-    return render
+__all__ = ["DRAWN", "data"]
 
 
 def _bits(indexes, n):
@@ -75,7 +72,6 @@ def blast(cid, ctx, refs):
     d = data(ctx)
     if d is None:
         return None
-    r = _render()
     extract = ctx.get("extract") or {}
     blind = len([b for b in extract.get("blindspots", [])])
     rows = []
@@ -88,13 +84,13 @@ def blast(cid, ctx, refs):
             tset = set(d["ft"][i])
             direct = alld = ("not in the graph", -1)
         comp = d["components"][d["component"][i]] if d["component"][i] >= 0 else "-"
-        rows.append([r.path_code(p), r.E(comp), direct, alld, (str(len(tset)), len(tset)), (str(len(d["co"].get(p, []))), len(d["co"].get(p, [])))])
-    table = r.render_table(["File", "Component", "Direct dependents", "All dependents", "Importing tests", "Co-changing files"], rows, refs,
+        rows.append([markup.path_code(p), markup.E(comp), direct, alld, (str(len(tset)), len(tset)), (str(len(d["co"].get(p, []))), len(d["co"].get(p, [])))])
+    table = markup.render_table(["File", "Component", "Direct dependents", "All dependents", "Importing tests", "Co-changing files"], rows, refs,
                            "t-change-blast-radius", plain=True)
     it = iter(range(len(rows)))
     table = re.sub(r"<tr>(?=<td)", lambda m: f'<tr data-file="{next(it)}">', table)
-    opts_c = "".join(f'<option value="c{i}">{r.E(n)}</option>' for i, n in enumerate(d["components"]))
-    opts_f = "".join(f'<option value="{i}">{r.E(p)}</option>' for i, p in enumerate(d["files"]))
+    opts_c = "".join(f'<option value="c{i}">{markup.E(n)}</option>' for i, n in enumerate(d["components"]))
+    opts_f = "".join(f'<option value="{i}">{markup.E(p)}</option>' for i, p in enumerate(d["files"]))
     picker = ('<div class="blast-picker"><label for="blast-pick">Pick a component or a file</label> '
               f'<select id="blast-pick" class="input"><option value="">Choose...</option>'
               + (f'<optgroup label="Components">{opts_c}</optgroup>' if opts_c else "") + f'<optgroup label="Files">{opts_f}</optgroup></select></div>')
@@ -107,7 +103,7 @@ def blast(cid, ctx, refs):
     else:
         note = "No import graph was extracted, so only co-changing files are shown."
     blob = json.dumps(d, separators=(",", ":")).replace("</", "<\\/")
-    return picker + out + f'<div class="blast-table">{table}</div>' + f'<p class="muted blast-note">{r.E(note)}</p><script type="application/json" id="blast-data">{blob}</script>'
+    return picker + out + f'<div class="blast-table">{table}</div>' + f'<p class="muted blast-note">{markup.E(note)}</p><script type="application/json" id="blast-data">{blob}</script>'
 
 
 DRAWN = {"change.blast-radius": blast}

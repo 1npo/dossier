@@ -1,14 +1,15 @@
 import subprocess
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
-from dossier.adapters import base as adapters
+from dossier.adapters import base
+from dossier.adapters import registry
 from dossier.adapters.python import adapter as py_adapter
 from dossier.core import scip_read
 from dossier.adapters.python import scip as scip_tool
 from dossier.tooling.shared_tools import ToolError
+from contexts import make_context
 
 
 class FakeTS:
@@ -72,7 +73,7 @@ def context(py_repo, tmp_path, semgrep=None, trusted=True):
     root = Path(py_repo.path)
     tree = frozenset(subprocess.run(["git", "-C", str(root), "ls-files"], capture_output=True, text=True).stdout.split())
     files = sorted(p for p in tree if p.endswith(".py"))
-    return SimpleNamespace(checkout=root, sha=py_repo.sha, tree=tree, files=files, area=tmp_path / "area", restored={}, run=None,
+    return make_context(checkout=root, sha=py_repo.sha, tree=tree, files=files, area=tmp_path / "area", restored={}, run=None,
                            treesitter=FakeTS(), semgrep=semgrep or FakeSemgrep(), tool_versions={"scip-python": "0.6.6"},
                            trusted=trusted, repo_name="pyrepo", tool_status={})
 
@@ -121,7 +122,7 @@ class TestGraph:
         repo.mkdir()
         (repo / "tool.py").write_text("print('x')\n")
         subprocess.run(["git", "-C", str(repo), "init", "-q", "-b", "main"], check=True)
-        ctx = SimpleNamespace(checkout=repo, sha="a" * 40, tree=frozenset({"tool.py"}), files=["tool.py"], area=tmp_path / "area", restored={},
+        ctx = make_context(checkout=repo, sha="a" * 40, tree=frozenset({"tool.py"}), files=["tool.py"], area=tmp_path / "area", restored={},
                               run=None, treesitter=FakeTS(), semgrep=FakeSemgrep(), tool_versions={}, trusted=False, repo_name="loose",
                               tool_status={})
 
@@ -152,7 +153,7 @@ class TestToolIsolation:
     def test_every_output_key_is_present(self, py_repo, tmp_path):
         out = py_adapter.PythonAdapter().extract(context(py_repo, tmp_path))
 
-        assert set(out) == set(adapters.OUTPUTS)
+        assert set(out) == set(base.OUTPUTS)
 
 
 class TestScip:
@@ -272,12 +273,12 @@ class TestDead:
 
 class TestRegistration:
     def test_both_adapters_are_registered_and_the_repo_one_matches_any_language(self):
-        names = [type(a).__name__ for a in adapters.detect(["Shell"])]
+        names = [type(a).__name__ for a in registry.detect(["Shell"])]
 
         assert names == ["RepoAdapter", "TierBAdapter"]
 
     def test_python_matches_python(self):
-        assert [type(a).__name__ for a in adapters.detect(["Python"])] == ["PythonAdapter", "RepoAdapter"]
+        assert [type(a).__name__ for a in registry.detect(["Python"])] == ["PythonAdapter", "RepoAdapter"]
 
 
 class TestHandlerArgument:
@@ -310,7 +311,7 @@ def library_context(tmp_path):
         (repo / rel).parent.mkdir(parents=True, exist_ok=True)
         (repo / rel).write_text(text)
     tree = frozenset(LIBRARY)
-    return SimpleNamespace(checkout=repo, sha="a" * 40, tree=tree, files=sorted(p for p in tree if p.endswith(".py")), area=tmp_path / "area",
+    return make_context(checkout=repo, sha="a" * 40, tree=tree, files=sorted(p for p in tree if p.endswith(".py")), area=tmp_path / "area",
                            restored={}, run=None, treesitter=FakeTS(), semgrep=FakeSemgrep(), tool_versions={}, trusted=False, repo_name="libs",
                            tool_status={})
 
@@ -348,7 +349,7 @@ def nested_context(tmp_path, venv_in=None):
         (repo / venv_in / ".venv").mkdir(parents=True)
     tree = frozenset(p.relative_to(repo).as_posix() for p in repo.rglob("*") if p.is_file() and ".venv" not in p.parts)
     files = sorted(p for p in tree if p.endswith(".py"))
-    return SimpleNamespace(checkout=repo, sha="a" * 40, tree=tree, files=files, area=tmp_path / "area", restored={}, run=None,
+    return make_context(checkout=repo, sha="a" * 40, tree=tree, files=files, area=tmp_path / "area", restored={}, run=None,
                            treesitter=FakeTS(), semgrep=FakeSemgrep(), tool_versions={"scip-python": "0.6.6"}, trusted=True,
                            repo_name="mixed", tool_status={})
 

@@ -8,6 +8,8 @@ from __future__ import annotations
 import bisect
 import re
 
+__all__ = ["Lines", "SECRET_PATTERNS", "declared_in", "dotenv", "is_infra", "reads", "secrets"]
+
 NAME = r"[A-Za-z_][A-Za-z0-9_]*"
 
 # (language, regex). Group "name" is the variable; `call` forms leave the text after the closing quote for `_default`.

@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import re
 
+__all__ = ["DEFINITION", "decode", "descriptors", "reduce"]
+
 DEFINITION = 1
 DESCRIPTOR = re.compile(r"(`(?:[^`]|``)*`|[\w$+\-<>_]+)(\([^)]*\)\.|\[[^\]]*\]|[/#.:!])")
 
@@ -96,7 +98,7 @@ def decode(data: bytes) -> dict:
     for num, wire, value in _fields(data):
         if num != 2:
             continue
-        doc = {"path": "", "occurrences": [], "symbols": []}
+        doc: dict = {"path": "", "occurrences": [], "symbols": []}
         for n, w, v in _fields(value):
             if n == 1:
                 doc["path"] = v.decode("utf-8", "replace")

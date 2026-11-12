@@ -4,6 +4,8 @@ Everything here is deterministic: nodes are visited in sorted order and ties go 
 """
 from __future__ import annotations
 
+__all__ = ["aggregate", "communities", "cycles", "pagerank", "reverse_closure"]
+
 
 def _adjacency(edges) -> dict:
     adj: dict = {}
@@ -84,7 +86,7 @@ def pagerank(nodes, edges, damping: float = 0.85, rounds: int = 50) -> dict:
     names = sorted(set(nodes) | {n for e in edges for n in e})
     if not names:
         return {}
-    out = {n: set() for n in names}
+    out: dict[str, set] = {n: set() for n in names}
     for a, b in edges:
         if a != b:
             out[a].add(b)

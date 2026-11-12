@@ -3,11 +3,12 @@ import subprocess
 
 import pytest
 
-from dossier.adapters import base as adapters
+from dossier.adapters import base
+from dossier.pipeline import extract
 from dossier.pipeline import workarea
 
 
-class FixtureAdapter(adapters.Adapter):
+class FixtureAdapter(base.Adapter):
     name = "fixture"
     languages = ("Python",)
     expected_untracked = (".venv/**",)
@@ -55,7 +56,7 @@ def env(tmp_path, hygiene_repo):
         sha = sha or hygiene_repo.main_sha
         if sha != hygiene_repo.main_sha:
             workarea.ensure_checkout(area, hygiene_repo.path, sha)
-        return adapters.run_extract(
+        return extract.run_extract(
             adapters=adapter_list, checkout=co, sha=sha, tree=tree, area=area, out=out,
             trusted=trusted or workarea.trusted(hygiene_repo.path, sha), allow_ref=allow_ref, restored={},
             treesitter=None, semgrep=None, tool_versions=tool_versions or {}, timeout=30)
@@ -123,7 +124,7 @@ class TestRunExtract:
     def test_no_adapters_is_skipped_with_a_reason(self, env):
         rec = env([])
 
-        assert rec["status"] == "skipped" and rec["reason"] == adapters.NO_EXTRACTORS
+        assert rec["status"] == "skipped" and rec["reason"] == base.NO_EXTRACTORS
 
 
 class Failing(FixtureAdapter):

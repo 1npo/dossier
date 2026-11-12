@@ -17,6 +17,8 @@ from pathlib import Path
 
 from dossier.render import page as render
 
+__all__ = ["write"]
+
 FILE = "index.html"
 E = html.escape
 SEVERITIES = ("critical", "high", "medium", "low")

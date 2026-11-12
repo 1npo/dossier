@@ -1,25 +1,18 @@
-"""The adapter interface, the extract stage and the path filter.
+"""The adapter interface: the outputs an adapter may return, the context it runs in, and its base class.
 
 An adapter turns one language's code into the standard outputs (entry points, import graph, symbols, ...).
-The C#, JavaScript, Python, Tier B symbols and repository-wide adapters are registered in `_registered()`.
+This module imports no language adapter: the shipped ones are listed in `dossier.adapters.registry`, and the
+extract stage that runs them is `dossier.pipeline.extract`.
 """
 from __future__ import annotations
 
-import fnmatch
-import functools
-import hashlib
-import json
-import os
 from dataclasses import dataclass, field
-from pathlib import Path, PurePosixPath
-from typing import Callable
+from pathlib import Path
+from typing import Callable, ClassVar
 
-from dossier.findings import candidates
-from dossier import resources
-from dossier.facts import gather
-from dossier.tooling import sandbox
 from dossier.tooling import shared_tools
-from dossier.pipeline import workarea
+
+__all__ = ["ALWAYS_EXPECTED_SEG", "Adapter", "Context", "NO_EXTRACTORS", "OUTPUTS", "failure_reason"]
 
 OUTPUTS = ("entry_points", "graph", "symbols", "io_candidates", "models", "tests", "dead", "blindspots")
 ALWAYS_EXPECTED_SEG = {".venv", "venv", ".git", ".grimp_cache"}
@@ -43,242 +36,41 @@ class Context:
     tool_status: dict = field(default_factory=dict)
     details: dict = field(default_factory=dict)  # counts an adapter wants in the build log, nowhere else
 
+    def read(self, path: str) -> str | None:
+        """The text of a file in the checkout, or None when it cannot be read as UTF-8."""
+        try:
+            return (self.checkout / path).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            return None
+
+    def tool_ok(self, tool: str) -> None:
+        self.tool_status[tool] = {"status": "ok", "reason": None}
+
+    def tool_skipped(self, tool: str, reason: str) -> None:
+        self.tool_status[tool] = {"status": "skipped", "reason": reason}
+
+    def tool_failed(self, tool: str, reason: str) -> None:
+        self.tool_status[tool] = {"status": "failed", "reason": reason}
+
+
+def failure_reason(e: BaseException) -> str:
+    """The first line of an exception's message, or its type's name when the message is empty."""
+    return (str(e).splitlines() or [type(e).__name__])[0]
+
 
 class Adapter:
-    name = ""
-    version = "1"
-    languages: tuple = ()
-    tools: tuple = ()
-    rules: tuple = ()  # folders of semgrep rules; a change to any file in them makes an earlier build stale
-    loads_repo_code = False
-    expected_untracked: tuple = ()
-    blind_spots: tuple = ()
+    name: ClassVar[str] = ""
+    version: ClassVar[str] = "1"
+    languages: ClassVar[tuple] = ()
+    tools: ClassVar[tuple] = ()
+    rules: ClassVar[tuple] = ()  # folders of semgrep rules; a change to any file in them makes an earlier build stale
+    loads_repo_code: ClassVar[bool] = False
+    expected_untracked: ClassVar[tuple] = ()
+    blind_spots: ClassVar[tuple] = ()
 
-    def extract(self, ctx: Context) -> dict:
+    def extract(self, ctx: Context) -> dict[str, list[dict]]:
         """Return {output name: [items]} for any subset of OUTPUTS. Every item has 'path'."""
         raise NotImplementedError
 
 
-ADAPTERS: tuple = ()  # kept for callers that pass their own tuple; the shipped adapters come from _registered()
-
-
-def _registered() -> tuple:
-    """The adapters dossier ships. Imported on first use: both modules import this one, so a top-level import would cycle."""
-    from dossier.adapters.csharp.adapter import CSharpAdapter
-    from dossier.adapters.js.adapter import JsAdapter
-    from dossier.adapters.python.adapter import PythonAdapter
-    from dossier.adapters.repo import RepoAdapter
-    from dossier.adapters.tier_b import TierBAdapter
-    return (CSharpAdapter, JsAdapter, PythonAdapter, RepoAdapter, TierBAdapter)
-
-
-def detect(languages: list, adapters=None) -> list:
-    adapters = _registered() if adapters is None else adapters
-    return [a() if isinstance(a, type) else a for a in adapters if "*" in a.languages or set(a.languages) & set(languages)]
-
-
-# ------------------------------------------------------------------ path filter
-
-
-def _is_expected(path: str, globs) -> bool:
-    segs = set(path.split("/")[:-1]) | {path.split("/")[0]}
-    if segs & (gather.VENDOR_SEG | gather.GENERATED_SEG | ALWAYS_EXPECTED_SEG):
-        return True
-    return any(fnmatch.fnmatch(path, g) for g in globs)
-
-
-def filter_paths(outputs: dict, tree, checkout, expected_globs=()) -> tuple:
-    """Keep only items whose paths are tracked at the commit. Returns (kept outputs, stats)."""
-    root = Path(checkout).resolve()
-    stats = {"paths_seen": 0, "paths_dropped": 0, "dropped_expected": 0, "dropped_outside": 0,
-             "dropped_unexpected": 0, "unexpected": []}
-
-    def check(p):
-        """Return the repository-relative path, or None when dropped (and count why)."""
-        stats["paths_seen"] += 1
-        if os.path.isabs(p):
-            try:
-                p = PurePosixPath(Path(p).resolve().relative_to(root)).as_posix()
-            except ValueError:
-                stats["paths_dropped"] += 1
-                stats["dropped_outside"] += 1
-                return None
-        p = p[2:] if p.startswith("./") else p
-        if p in tree:
-            return p
-        stats["paths_dropped"] += 1
-        if _is_expected(p, expected_globs):
-            stats["dropped_expected"] += 1
-        else:
-            stats["dropped_unexpected"] += 1
-            stats["unexpected"].append(p)
-        return None
-
-    kept = {}
-    for name, items in outputs.items():
-        out = []
-        for it in items:
-            if not isinstance(it.get("path"), str):
-                raise ValueError(f"an item in '{name}' has no path")
-            p = check(it["path"])
-            if p is None:
-                continue
-            it = {**it, "path": p}
-            if "paths" in it:
-                it["paths"] = [q for q in (check(x) for x in it["paths"]) if q is not None]
-            out.append(it)
-        kept[name] = out
-    stats["unexpected"] = sorted(set(stats["unexpected"]))
-    return kept, stats
-
-
-# ------------------------------------------------------------------ extract stage
-
-
-def _read(out: Path, name: str) -> dict:
-    f = out / "extract" / f"{name}.json"
-    if f.exists():
-        try:
-            return json.loads(f.read_text(encoding="utf-8"))
-        except ValueError:
-            pass
-    return {"schema": 1, "sha": None, "adapters": {}}
-
-
-def _write(out: Path, name: str, data: dict) -> None:
-    d = out / "extract"
-    d.mkdir(parents=True, exist_ok=True)
-    tmp = d / f"{name}.json.tmp"
-    tmp.write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8")
-    os.replace(tmp, d / f"{name}.json")
-
-
-def rules_hash(folders) -> str:
-    """A digest of every rule file (name and bytes) in `folders`, so a rule change can invalidate a build."""
-    h = hashlib.sha256()
-    for folder in folders:
-        for f in sorted(Path(folder).glob("*.yml")):
-            h.update(f"{f.parent.name}/{f.name}\0".encode() + f.read_bytes() + b"\0")
-    return h.hexdigest()[:16]
-
-
-PACKAGE = resources.skill_root() / "src" / "dossier"
-
-
-def code_hash(folder=None) -> str:
-    """A digest of the skill's own code (every module under `src/dossier/`, the workers included, every launcher in
-    `scripts/`, `data/tools.json` and `VERSION`), so a change to an adapter or to anything it calls invalidates a saved
-    extract. Without it a fix to extraction code kept showing the old rows for the same commit. `folder` is the package
-    folder; the skill root is two levels above it."""
-    folder = Path(folder) if folder else PACKAGE
-    root = folder.parents[1]
-    h = hashlib.sha256()
-    files = sorted(list(folder.rglob("*.py")) + list((root / "scripts").glob("*.py")), key=lambda f: f.relative_to(root).as_posix())
-    files += [f for f in (folder / "data" / "tools.json", root / "VERSION") if f.exists()]
-    for f in files:
-        h.update(f.relative_to(root).as_posix().encode() + b"\0" + f.read_bytes() + b"\0")
-    return h.hexdigest()[:16]
-
-
-def _key(adapter, sha, tool_versions):
-    return {"sha": sha, "version": adapter.version, "tools": {t: tool_versions.get(t) for t in adapter.tools},
-            "rules": rules_hash(adapter.rules), "code": code_hash()}
-
-
-def _reusable(out: Path, adapter, key) -> bool:
-    found = False
-    for o in OUTPUTS:
-        sec = _read(out, o)["adapters"].get(adapter.name)
-        if sec is None:
-            continue
-        found = True
-        if {"sha": sec.get("sha"), "version": sec.get("version"), "tools": sec.get("tools"), "rules": sec.get("rules"),
-                "code": sec.get("code")} != key:
-            return False
-        if any(t.get("status") != "ok" for t in (sec.get("tool_status") or {}).values()):
-            return False
-    return found
-
-
-def run_extract(*, adapters, checkout, sha, tree, area, out, trusted, allow_ref, restored, treesitter, semgrep,
-                tool_versions, timeout) -> dict:
-    checkout, out = Path(checkout), Path(out)
-
-    def fail(reason):
-        return {"status": "failed", "reason": reason, "counts": {}, "details": {"adapters": []}}
-
-    ok, why = workarea.verify(checkout, sha)
-    if not ok:
-        return fail(f"The clean copy was not ready for extraction. {why}")
-    if not adapters:
-        return {"status": "skipped", "reason": NO_EXTRACTORS, "counts": {}, "details": {"adapters": []}}
-
-    results, produced = [], {}
-    totals = {"paths_seen": 0, "paths_dropped": 0, "dropped_expected": 0, "dropped_outside": 0, "dropped_unexpected": 0}
-    unexpected: list = []
-    for ad in adapters:
-        key = _key(ad, sha, tool_versions)
-        res = {"name": ad.name, "version": ad.version, "status": "ok", "reason": None}
-        results.append(res)
-        if ad.loads_repo_code and not trusted["trusted"] and not allow_ref:
-            res.update(status="skipped", reason=f"{trusted['why'][0].upper()}{trusted['why'][1:]}. Use --allow-ref to run it.")
-            continue
-        if _reusable(out, ad, key):
-            res["status"] = "reused"
-            continue
-        files = sorted(p for p in tree if not gather.noise_reason(p) and (gather.lang_of(p) or ("",))[0] in ad.languages)
-        run = functools.partial(sandbox.run, area=area, cwd=checkout, timeout=timeout,
-                                profile="restricted" if ad.loads_repo_code else "tool")
-        ctx = Context(checkout=checkout, sha=sha, tree=tree, files=files, area=Path(area), restored=restored, run=run,
-                      treesitter=treesitter, semgrep=semgrep, tool_versions=tool_versions,
-                      trusted=bool(trusted["trusted"] or allow_ref), repo_name=out.name)
-        try:
-            raw = ad.extract(ctx)
-            unknown = set(raw) - set(OUTPUTS)
-            if unknown:
-                raise ValueError(f"unknown output {sorted(unknown)[0]}")
-            kept, stats = filter_paths(raw, tree, checkout, ad.expected_untracked)
-            kept = {o: (candidates.assign_ids(o, its) if o in candidates.ID_OUTPUTS else its) for o, its in kept.items()}
-        except Exception as e:  # one adapter failing must not stop the others
-            res.update(status="failed", reason=((str(e).splitlines() or [""])[0] or type(e).__name__))
-            continue
-        res["tools"] = ctx.tool_status
-        if ctx.details:
-            res["details"] = ctx.details
-        produced[ad.name] = (key, kept, ctx.tool_status)
-        for k in totals:
-            totals[k] += stats[k]
-        unexpected += stats["unexpected"]
-
-    ok, why = workarea.verify(checkout, sha)
-    if not ok:
-        return fail("The clean copy changed during extraction (HEAD or tracked files).")
-
-    for o in OUTPUTS:
-        data = _read(out, o)
-        changed = False
-        for name, (key, kept, tool_status) in produced.items():
-            if o in kept:
-                data["adapters"][name] = {**key, "tool_status": tool_status, "items": kept[o]}
-                changed = True
-            elif name in data["adapters"]:
-                del data["adapters"][name]
-                changed = True
-        if changed:
-            data["sha"] = sha
-            _write(out, o, data)
-
-    statuses = {r["status"] for r in results}
-    if statuses == {"reused"}:
-        status, reason = "reused", None
-    elif statuses <= {"skipped"}:
-        status, reason = "skipped", "; ".join(f"{r['name']}: {r['reason']}" for r in results)
-    elif statuses <= {"failed"}:
-        status, reason = "failed", "; ".join(f"{r['name']}: {r['reason']}" for r in results)
-    else:
-        status, reason = "ok", None
-    counts = {"adapters": len(results), "ran": sum(r["status"] == "ok" for r in results),
-              "reused": sum(r["status"] == "reused" for r in results), **totals}
-    return {"status": status, "reason": reason, "counts": counts,
-            "details": {"adapters": results, "unexpected": sorted(set(unexpected))},
-            "tools": [{"name": k, "version": v} for k, v in sorted(tool_versions.items())]}
+ADAPTERS: tuple = ()  # kept for callers that pass their own tuple; the shipped adapters are registry.REGISTERED

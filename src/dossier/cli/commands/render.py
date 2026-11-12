@@ -21,6 +21,8 @@ from dossier.render.measured import upgrade as measured_upgrade
 from dossier.cli import common
 from dossier.cli.commands import check
 
+__all__ = ["cmd_render"]
+
 
 def change_summary(facts, state):
     snap, sha = state.get("snapshot"), facts["repo"]["sha"]

@@ -9,6 +9,8 @@ import posixpath
 from dossier.facts import gather
 from dossier.adapters.js import project as js_project
 
+__all__ = ["next_routes", "nx_targets", "package_entries"]
+
 CODE_EXT = (".js", ".jsx", ".ts", ".tsx")
 NEXT_SPECIAL = {"_app", "_document", "_error"}
 

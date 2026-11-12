@@ -15,8 +15,11 @@ from dossier.core import buildlog
 from dossier.findings import candidates
 from dossier.findings import components
 from dossier.render.measured import change as measured_change
-from dossier.render.measured import people as measured_people
+from dossier.findings import people
 from dossier.render import summary_check
+from dossier.render import page as render
+
+__all__ = ["build", "check_file", "remove", "validate", "write"]
 
 FILE = "summary.json"
 SEVERITIES = ("critical", "high", "medium", "low", "info")
@@ -84,7 +87,7 @@ def _components(reports, extract, facts, tree, owners_of):
     ids = {r["name"]: _slug(r["name"]) for r in rows}
     edges = components.catalog_edges(rows, extract)
     lines, files = components.file_lines(facts), components.source_files(tree, extract)
-    stats = measured_people.component_stats({"extract": extract, "catalog": rows})
+    stats = people.component_stats({"extract": extract, "catalog": rows})
     out = []
     for r in rows:
         own = stats[r["name"]]["owned"] if r["name"] in stats else {}
@@ -143,13 +146,11 @@ def _ownership(reports, ctx):
     paths = {c["name"].lower(): c["paths"] for c in ctx["catalog"]}
     departed = {p for columns, row in _rows(reports, "contributors.concentration") if plain(_cell(columns, row, "Status")).lower() == "departed"
                 for p in paths.get(plain(_cell(columns, row, "Area")).lower(), [])}
-    return {**measured_people.bus_factor(ctx), "at_risk_paths": sorted(departed)}
+    return {**people.bus_factor(ctx), "at_risk_paths": sorted(departed)}
 
 
 def build(facts, reports, extract, build_, gap_counts, version, dependencies, tree, tools=None, now=None) -> dict:
     """The summary document. `tools` is `candidates.tool_list(out)`; `build_` is the loaded build.json or None."""
-    from dossier.render import page as render  # late: render imports this module's neighbours
-
     repo = facts.get("repo") or {}
     tiers = {l["name"]: l.get("tier") for l in ((buildlog.latest(build_, "tools") or {}).get("details") or {}).get("languages") or []} if build_ else {}
     ctx = {"extract": extract, "catalog": components.catalog_rows((reports or {}).get("components") or {}), "tree": tree, "facts": facts}

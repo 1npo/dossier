@@ -11,6 +11,8 @@ from dossier.pipeline import stages
 from dossier.render import page as render
 from dossier.cli import common
 
+__all__ = ["cmd_candidates"]
+
 
 def cmd_candidates(a):
     top = common.toplevel(a.repo)

@@ -12,9 +12,11 @@ import re
 from pathlib import Path
 
 from dossier.tooling import toolcheck
-from dossier.adapters.python.scip import _check
 from dossier import resources
+from dossier.tooling import shared_tools
 from dossier.tooling.shared_tools import ToolError
+
+__all__ = ["DepCruiser", "Knip", "NOT_TRUSTED", "ScipTs", "ToolError", "TsFacts", "ensure_installed", "node_problem"]
 
 NODE_DIR = resources.data("node", "js-tools")
 FILES = ("package.json", "package-lock.json", "ts_facts.mjs")
@@ -46,7 +48,7 @@ def ensure_installed(run, cache_root, timeout: float) -> Path:
     folder.mkdir(parents=True, exist_ok=True)
     for name in FILES:
         (folder / name).write_bytes((NODE_DIR / name).read_bytes())
-    _check(run(["npm", "ci", "--ignore-scripts", "--no-audit", "--no-fund"], cwd=folder, stage="js-install", profile="tool",
+    shared_tools.check_result(run(["npm", "ci", "--ignore-scripts", "--no-audit", "--no-fund"], cwd=folder, stage="js-install", profile="tool",
                timeout=timeout), "Installing the JavaScript tools")
     if not (folder / PROBE).exists():
         raise ToolError("Installing the JavaScript tools finished, but their program files are missing.")
@@ -78,7 +80,7 @@ class TsFacts:
         request = json.dumps({"root": ".", "files": list(files), "entries": list(entries or [])}).encode()
         result = self.run(["node", "--max-old-space-size=4096", str(self.install / "ts_facts.mjs")], cwd=Path(project_dir), stage="js-ts-facts",
                           profile="restricted", timeout=self.timeout, input=request)
-        _check(result, "Reading the TypeScript facts")
+        shared_tools.check_result(result, "Reading the TypeScript facts")
         try:
             data = json.loads(result.stdout.read_text(errors="replace"))
         except ValueError as e:
@@ -101,11 +103,11 @@ class DepCruiser:
     def _json(self, cmd, project_dir, what, stage, tolerate_exit=False) -> dict:
         result = self.run(["node", self.bin, *cmd], cwd=Path(project_dir), stage=stage, profile="restricted", timeout=self.timeout)
         if result.timed_out or (result.returncode != 0 and not tolerate_exit):
-            _check(result, what)
+            shared_tools.check_result(result, what)
         try:
             return json.loads(result.stdout.read_text(errors="replace"))
         except ValueError as e:
-            _check(result, what)  # a failed run explains itself better than a JSON error
+            shared_tools.check_result(result, what)  # a failed run explains itself better than a JSON error
             raise ToolError(f"{what} gave output that is not JSON: {e}") from e
 
     def cruise(self, project_dir, tsconfig: str | None = None) -> dict:
@@ -161,7 +163,7 @@ class ScipTs:
         cmd = ["node", "--max-old-space-size=4096", self.main, "index", "--no-progress-bar", "--output", str(target)]
         if not has_tsconfig:
             cmd.append("--infer-tsconfig")
-        _check(self.run(cmd, cwd=Path(project_dir), stage="js-scip", profile="restricted", timeout=self.timeout), "scip-typescript")
+        shared_tools.check_result(self.run(cmd, cwd=Path(project_dir), stage="js-scip", profile="restricted", timeout=self.timeout), "scip-typescript")
         if not target.is_file() or target.stat().st_size == 0:
             raise ToolError("scip-typescript finished without writing an index.")
         return target
