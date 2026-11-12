@@ -1,4 +1,4 @@
-import incremental
+from dossier.pipeline import incremental
 from dossier.render import page as render
 
 

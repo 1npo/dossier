@@ -16,7 +16,7 @@ from dossier.adapters import base as adapters
 from dossier.core import buildlog
 from dossier.findings import candidates
 from dossier.core import config
-import restore
+from dossier.pipeline import restore
 from dossier.tooling import sandbox
 from dossier.tooling import shared_tools
 from dossier.tooling import toolcheck

@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from dossier.core import buildlog
-import stages
+from dossier.pipeline import stages
 from dossier.pipeline import workarea
 from conftest import build_js_repo, key_line, line_of
 

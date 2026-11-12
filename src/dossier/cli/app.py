@@ -43,7 +43,7 @@ from dossier.findings import components  # noqa: E402
 from dossier.core import config  # noqa: E402
 from dossier.facts import gather  # noqa: E402
 from dossier.history import scan as historyscan  # noqa: E402
-import incremental  # noqa: E402
+from dossier.pipeline import incremental  # noqa: E402
 from dossier.render.measured import upgrade as measured_upgrade  # noqa: E402
 import page_audit  # noqa: E402
 from dossier.render import portfolio  # noqa: E402
@@ -52,7 +52,7 @@ from dossier.render import page as render  # noqa: E402
 from dossier.findings import resolve  # noqa: E402
 from dossier.tooling import sandbox  # noqa: E402
 from dossier.core import schema  # noqa: E402
-import stages  # noqa: E402
+from dossier.pipeline import stages  # noqa: E402
 from dossier.render import summary  # noqa: E402
 from dossier.tooling import toolcheck  # noqa: E402
 import verify  # noqa: E402

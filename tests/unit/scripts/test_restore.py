@@ -2,7 +2,7 @@ import pytest
 
 from dossier.tooling import dotnet_sdk as cs_sdk
 from dossier.adapters.js import tools as js_tools
-import restore
+from dossier.pipeline import restore
 from dossier.tooling import sandbox
 from dossier.tooling import toolcheck
 

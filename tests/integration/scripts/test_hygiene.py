@@ -10,9 +10,9 @@ import pytest
 from dossier.core import buildlog
 from dossier.tooling import dotnet_sdk as cs_sdk
 from dossier.render import process
-import restore
+from dossier.pipeline import restore
 from dossier.tooling import sandbox
-import stages
+from dossier.pipeline import stages
 from dossier.tooling import toolcheck
 from dossier.pipeline import workarea
 
