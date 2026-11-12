@@ -1,4 +1,5 @@
 """Card schema: load src/dossier/data/schemas/cards/*.json, lint them, and check a report against its schema (V6)."""
+from __future__ import annotations
 import json
 import re
 from pathlib import Path
@@ -20,14 +21,14 @@ SLOT_TYPES = ("table", "text", "list", "diagram")
 ENTRY_KEYS = {"card", "title", "blocks", "entries", "na", "cite", "pending", "dismissed", "unassigned"}
 
 
-def load(rid, schema_dir=SCHEMA_DIR):
+def load(rid: str, schema_dir: Path = SCHEMA_DIR) -> dict | None:
     if rid == Path(QUESTIONS_FILE).stem:
         return None
     p = Path(schema_dir) / f"{rid}.json"
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
 
 
-def load_all(schema_dir=SCHEMA_DIR):
+def load_all(schema_dir: Path = SCHEMA_DIR) -> dict:
     out = {}
     for p in sorted(Path(schema_dir).glob("*.json")):
         if p.name == QUESTIONS_FILE:
@@ -41,12 +42,12 @@ def _questions_file(schema_dir):
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
 
 
-def load_questions(schema_dir=SCHEMA_DIR):
+def load_questions(schema_dir: Path = SCHEMA_DIR) -> list[dict]:
     """The questions in the order a person asks them; each names its category."""
     return _questions_file(schema_dir).get("questions", [])
 
 
-def load_categories(schema_dir=SCHEMA_DIR):
+def load_categories(schema_dir: Path = SCHEMA_DIR) -> list[dict]:
     """The question groups in order: id, title, and a line on why you ask them now."""
     return _questions_file(schema_dir).get("categories", [])
 
@@ -94,7 +95,7 @@ def lint(sch):
     return errs
 
 
-def _norm(s):
+def _norm(s: str) -> str:
     return str(s).replace("`", "").strip().lower()
 
 
@@ -141,7 +142,7 @@ def _fixed_warn(w, f, have, warns):
             warns.append(f"V6: {w}: has no row for '{v}'")
 
 
-def _numbered_notes(block) -> bool:
+def _numbered_notes(block: dict | None) -> bool:
     """Notes for a diagram: a list of at least two items, or text of at least two lines that all start with a number."""
     if not isinstance(block, dict):
         return False
@@ -199,7 +200,7 @@ def _check_entries(w, card, entries, errs, warns):
 NOW_DRAWN = {"data.relationships"}  # cards that Claude wrote before 0.7.1 and code draws now: an old entry is ignored, with a warning
 
 
-def validate(rid, rep, sch, allow_pending=None, strict_notes=True):
+def validate(rid: str, rep: dict, sch: dict, allow_pending: bool | None = None, strict_notes: bool = True) -> tuple:
     allow_pending = ALLOW_PENDING if allow_pending is None else allow_pending
     errs, warns = [], []
     if not isinstance(rep, dict):

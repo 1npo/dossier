@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import html
 import re
+from typing import Any
 
 __all__ = [
     "AFTER_PREP", "BARE_FILE", "CLAUSE_WORD", "E", "EXPAND_ICONS", "FREE_TEXT_WORDS", "INLINE_CITE", "Raw",
@@ -22,7 +23,7 @@ INLINE_CITE = re.compile(r"\[\[(.+?)\]\]")
 E = lambda s: html.escape(str(s if s is not None else ""), quote=True)
 
 
-def parse_cite(raw):
+def parse_cite(raw: str) -> dict:
     raw = raw.strip()
     if raw.startswith("commit:"):
         sha = raw[7:].strip().lower()
@@ -30,7 +31,7 @@ def parse_cite(raw):
     if raw.startswith("facts:"):
         k = raw[6:].strip()
         return {"kind": "facts", "name": k, "key": f"facts:{k}", "text": f"measured facts: {k}"}
-    m = re.match(r"^(.+?)(?::(\d+)(?:-(\d+))?)?$", re.sub(r"^(\./|/)+", "", raw))
+    m: Any = re.match(r"^(.+?)(?::(\d+)(?:-(\d+))?)?$", re.sub(r"^(\./|/)+", "", raw))
     path, a, b = m.group(1), m.group(2), m.group(3)
     a, b = (int(a) if a else None), (int(b) if b else (int(a) if a else None))
     key = path + (f":{a}-{b}" if a and b and b != a else f":{a}" if a else "")
@@ -40,7 +41,7 @@ def parse_cite(raw):
 BARE_FILE = re.compile(r"(?<![\w/.\-])((?:[\w.\-]+/)*(?:[\w\-]+\.(?:sh|bash|zsh|py|js|mjs|ts|tsx|jsx|json|ya?ml|toml|ini|cfg|conf|md|go|rs|rb|java|kt|c|h|cpp|hpp|cs|php|sql|tf|html|css|txt|lock|mk|service|timer|socket|env|xml|gradle)|Makefile|Dockerfile|Justfile|Gemfile))(?![\w\-]|\.\w)")
 
 
-def code_files(s):
+def code_files(s: str) -> str:
     """Wrap bare file names in prose (install.sh, src/app.py) in <code>, leaving markup and existing code alone."""
     parts = re.split(r"(<code>.*?</code>|<[^>]+>)", s)
     return "".join(p if i % 2 else BARE_FILE.sub(r"<code>\1</code>", p) for i, p in enumerate(parts))
@@ -54,12 +55,12 @@ AFTER_PREP = re.compile(r"\b(?:in|at|from|to|into|of|by|via|see|under|inside|wit
 CLAUSE_WORD = re.compile(r"\s+(?!(?:and|or|but|which|while|so|then|because|where|when|as|if)\b)[A-Za-z0-9(`*]")
 
 
-def stands_for_name(before, after):
+def stands_for_name(before: str, after: str) -> bool:
     """True when a marker is used as the subject of a sentence ("[1] sets no strict mode") instead of ending a statement."""
     return bool(SENTENCE_START.search(before) or AFTER_PREP.search(before) or CLAUSE_WORD.match(after))
 
 
-def inline(s, refs):
+def inline(s: Any, refs: Any) -> str:
     """Escape and format one run of prose. [[path:1-9]] becomes a numbered source marker; [[path:1-9|name]] shows `name` first.
     A single file citation that stands where a file name belongs gets its path as the label, so a bare [3] never replaces a name."""
     s = SEE_TAIL.sub(r"\1", html.escape(str(s or ""), quote=False))  # a trailing "See [1]." is just the marker
@@ -81,7 +82,7 @@ _UL_ITEM = re.compile(r"^\s*[-*] ")
 _OL_ITEM = re.compile(r"^\s*\d+[.)] ")
 
 
-def md(text, refs):
+def md(text: str, refs: Any) -> str:
     out = []
     for para in re.split(r"\n\s*\n", str(text or "").strip()):
         lines = [l for l in para.split("\n") if l.strip()]
@@ -94,7 +95,7 @@ def md(text, refs):
     return "".join(out)
 
 
-def inline_cites(*texts):
+def inline_cites(*texts: Any) -> list[str]:
     found = []
     for t in texts:
         for m in INLINE_CITE.finditer(str(t or "")):
@@ -102,26 +103,26 @@ def inline_cites(*texts):
     return found
 
 
-def new_cites(cite, *texts):
+def new_cites(cite: list[str] | None, *texts: Any) -> list[str]:
     """The sources in `cite` that the texts do not already mark inline, so a statement never shows one source twice."""
     seen = {parse_cite(x)["key"] for x in inline_cites(*texts)}
     return [x for x in dict.fromkeys(cite or []) if parse_cite(x)["key"] not in seen]
 
 
-def badge(label, cls="", variant="outline"):
+def badge(label: str | None, cls="", variant: str = "outline") -> str:
     return f'<span class="badge {cls}" data-variant="{variant}">{E(label)}</span>'
 
 
-def added_tag(node):
+def added_tag(node: dict) -> str:
     """The pill on a row or entry that Claude found and no tool listed."""
     return badge("added by Claude", "", "outline") if isinstance(node, dict) and node.get("added") else ""
 
 
-def basis(conf):
+def basis(conf: Any) -> str:
     return badge(conf, f"basis-{conf}", {"confirmed": "secondary", "inferred": "outline", "unknown": "destructive"}.get(conf, "outline"))
 
 
-def basis_for(node):
+def basis_for(node: dict) -> str:
     """The basis pill for a statement, taking the user's decision into account."""
     u = node.get("user")
     if u and u["action"] in ("confirm", "answer") and node.get("conf") == "confirmed":
@@ -131,13 +132,13 @@ def basis_for(node):
     return basis(node.get("conf"))
 
 
-def gid_tag(node):
+def gid_tag(node: dict) -> str:
     if node.get("gid") and (node.get("was") or node.get("user")):
         return f'<code class="gid" tabindex="0" data-tip="Use this ID with /dossier confirm" data-tip-kind="note">{E(node["gid"])}</code>'
     return ""
 
 
-def user_note(u):
+def user_note(u: dict | None) -> str:
     if not u:
         return ""
     when = E(str(u.get("date", ""))[:10])
@@ -152,14 +153,14 @@ def user_note(u):
 SEV_TONE = {"critical": "destructive", "high": "destructive", "medium": "primary", "low": "secondary", "info": "outline"}
 
 
-def sev_badge(v):
+def sev_badge(v: str) -> str:
     return badge(v, "", SEV_TONE.get(str(v).strip().lower(), "outline"))
 
 
 STATUS_STYLE = {"implemented": ("basis-confirmed", "secondary"), "partial": ("basis-inferred", "outline"), "dead code": ("basis-unknown", "destructive")}
 
 
-def status_badge(v):
+def status_badge(v: str) -> str:
     cls, variant = STATUS_STYLE.get(str(v).strip().lower(), ("", "outline"))
     return badge(v, cls, variant)
 
@@ -167,12 +168,12 @@ def status_badge(v):
 _NW = re.compile(r"\d{4}-\d{2}-\d{2}|[\w.]+(?:-[\w.]+)*\[bot\]|\b[A-Za-z]+-\d\w*")
 
 
-def keep_whole(h):
+def keep_whole(h: str) -> str:
     """Stop dates and bot names breaking at their hyphens (text outside tags only)."""
     return "".join(seg if seg.startswith("<") else _NW.sub(lambda m: f'<span class="nw">{m.group(0)}</span>', seg) for seg in re.split(r"(<[^>]*>)", h))
 
 
-def cell_html(cell, refs):
+def cell_html(cell: Any, refs: Any) -> str:
     if refs.cites.path_like(cell):
         return f'<code>{E(str(cell).strip()).replace("/", "/<wbr>")}</code>'
     return keep_whole(inline(cell, refs))
@@ -181,7 +182,7 @@ def cell_html(cell, refs):
 FREE_TEXT_WORDS = 12  # a cell of more words than this is free text: its citations stay where the author put them
 
 
-def lift_cites(cell, refs):
+def lift_cites(cell: Any, refs: Any) -> tuple:
     """(cell, citations) for a table cell. A short cell gives its inline citations to the Source column: a marker with a label
     or one that stands where a file name belongs is replaced by that name in code, any other marker is dropped. A cell of free text is left as it is."""
     text = str(cell or "")
@@ -207,13 +208,13 @@ def lift_cites(cell, refs):
 TALL_ROWS = 40  # a longer table scrolls inside its card; every row stays in the page
 
 
-def auto_columns(columns):
+def auto_columns(columns: list[str]) -> tuple:
     """The two headings render adds to an authored table: (basis, citations). A schema column of the same name gets the other word."""
     have = {c.strip().lower() for c in columns}
     return ("Confidence" if "basis" in have else "Basis", "Citations" if "source" in have else "Source")
 
 
-def render_table(columns, rows, refs, tid, filterable=True, plain=False, group=None, foot=None, sort=True, cls=""):
+def render_table(columns: list[str], rows: list, refs: Any, tid: str, filterable: bool = True, plain: bool = False, group: list[tuple] | None = None, foot: list | None = None, sort: bool = True, cls: str = "") -> str:
     """rows are dicts with cells/conf/cite/note (authored) or plain lists of ready HTML (measured)."""
     head = "".join(f"<th>{E(c)}</th>" for c in columns)
     if not plain:
@@ -249,12 +250,12 @@ EXPAND_ICONS = ('<svg class="ic-max" xmlns="http://www.w3.org/2000/svg" width="1
                 '<svg class="ic-min" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14 10 7-7"/><path d="M20 10h-6V4"/><path d="m3 21 7-7"/><path d="M4 14h6v6"/></svg>')
 
 
-def path_code(path):
+def path_code(path: str) -> str:
     """A file or folder name in code, with no citation after it: the citation goes in the table's Source column."""
     return f"<code>{E(path).replace('/', '/<wbr>')}</code>"
 
 
-def source_cell(refs, *places):
+def source_cell(refs: Any, *places: Any) -> str:
     """The Source column of a measured row: one numbered marker for each (path, line or None), without repeats."""
     return refs.mark([f"{p}:{n}" if n else p for p, n in places])
 
@@ -263,11 +264,11 @@ class Raw(str):
     """Markup that is already safe to place in the page."""
 
 
-def stat_sub(s):
+def stat_sub(s: str) -> str:
     return f'<div class="s">{E(s)}</div>' if s else ""
 
 
-def stats_html(items):
+def stats_html(items: list[tuple]) -> str:
     cols = 3 if len(items) in (6, 9) else 4 if len(items) == 8 else min(len(items), 5)
     return f'<div class="stats" style="grid-template-columns:repeat({cols},minmax(0,1fr))">' + "".join(
         f'<div class="stat {extra[0] if extra else ""}"><div class="k">{k if isinstance(k, Raw) else E(k)}</div><div class="v">{v if isinstance(v, Raw) else E(v)}</div>{stat_sub(s)}</div>' for k, v, s, *extra in items) + "</div>"

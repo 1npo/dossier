@@ -10,6 +10,7 @@ from dossier.adapters.js.adapter import JsAdapter
 from dossier.adapters.python.adapter import PythonAdapter
 from dossier.adapters.repo import RepoAdapter
 from dossier.adapters.tier_b import TierBAdapter
+from collections.abc import Sequence
 
 __all__ = ["detect"]
 
@@ -21,6 +22,6 @@ def registered() -> tuple[type[Adapter], ...]:
     return REGISTERED
 
 
-def detect(languages: list, adapters=None) -> list:
+def detect(languages: list, adapters: Sequence[type[Adapter]] | None = None) -> list:
     adapters = registered() if adapters is None else adapters
     return [a() if isinstance(a, type) else a for a in adapters if "*" in a.languages or set(a.languages) & set(languages)]

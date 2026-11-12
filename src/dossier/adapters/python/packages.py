@@ -11,6 +11,7 @@ import tomllib
 from pathlib import Path
 
 from dossier.facts import gather
+from collections.abc import Collection
 
 __all__ = [
     "console_scripts", "importlinter_contracts", "loose_modules", "package_roots", "read_blob", "test_configs",
@@ -20,7 +21,7 @@ __all__ = [
 CONTRACT_KEYS = ("layers", "containers", "source_modules", "forbidden_modules", "modules", "ignore_imports")
 
 
-def read_blob(checkout, rel: str):
+def read_blob(checkout: Path, rel: str) -> str | None:
     """Text of a file in the checkout, or None when it is absent or not text."""
     try:
         return (Path(checkout) / rel).read_text(encoding="utf-8")
@@ -86,7 +87,7 @@ def _configured_packages(checkout) -> list:
     return found
 
 
-def package_roots(tree, checkout) -> list:
+def package_roots(tree: Collection[str], checkout: Path) -> list:
     """[{"root": "src", "package": "shopcart"}]: top-level packages, tests and noise left out."""
     roots = {""} | {r for r, _ in _configured_packages(checkout)} | {"src"}
     found = set()
@@ -104,7 +105,7 @@ def package_roots(tree, checkout) -> list:
     return [{"root": r, "package": p} for r, p in sorted(found)]
 
 
-def loose_modules(tree, roots) -> list:
+def loose_modules(tree: Collection[str], roots: list[dict]) -> list:
     """Tracked .py files that are outside every package (tests and noise left out)."""
     prefixes = tuple((r + "/" if r else "") + p + "/" for r, p in ((x["root"], x["package"]) for x in roots))
     return sorted(p for p in tree if p.endswith(".py") and not p.startswith(prefixes)
@@ -114,7 +115,7 @@ def loose_modules(tree, roots) -> list:
 # ------------------------------------------------------------------ console scripts
 
 
-def console_scripts(checkout) -> list:
+def console_scripts(checkout: Path) -> list:
     text = read_blob(checkout, "pyproject.toml")
     data = _toml(checkout, "pyproject.toml")
     project = data.get("project", {})
@@ -166,7 +167,7 @@ def _ini_contracts(checkout, rel: str, header: str) -> dict | None:
     return {"path": rel, "root_packages": roots, "contracts": contracts}
 
 
-def importlinter_contracts(checkout) -> dict:
+def importlinter_contracts(checkout: Path) -> dict:
     """{"path", "root_packages", "contracts"} from .importlinter, setup.cfg or pyproject.toml; "error" if unparsable."""
     empty = {"path": None, "root_packages": [], "contracts": []}
     error = None
@@ -195,7 +196,7 @@ def importlinter_contracts(checkout) -> dict:
 # ------------------------------------------------------------------ vulture and test settings
 
 
-def vulture_config(checkout) -> dict:
+def vulture_config(checkout: Path) -> dict:
     cfg = _toml(checkout, "pyproject.toml").get("tool", {}).get("vulture", {})
     return {"ignore_names": _lines(cfg.get("ignore_names", [])), "ignore_decorators": _lines(cfg.get("ignore_decorators", [])),
             "exclude": _lines(cfg.get("exclude", [])), "min_confidence": int(cfg.get("min_confidence", 60))}
@@ -209,7 +210,7 @@ def _settings(source: dict) -> dict:
     return out
 
 
-def test_configs(checkout, tree) -> list:
+def test_configs(checkout: Path, tree: Collection[str]) -> list:
     """D2 "config" items for pytest, coverage, tox and nox."""
     items = []
     tool = _toml(checkout, "pyproject.toml").get("tool", {})

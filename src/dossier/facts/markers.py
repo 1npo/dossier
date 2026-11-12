@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
+from typing import Any
 
 __all__ = ["decision_docs", "long_commits", "scan"]
 
@@ -22,7 +24,7 @@ def is_comment(line: str) -> bool:
     return s.startswith(COMMENT_START) or " # " in s or " // " in s
 
 
-def scan(path: str, text: str):
+def scan(path: str, text: str) -> tuple:
     """(marker items, TODO and FIXME count) of one text file. TODO and FIXME are counted, not listed."""
     items, todos = [], 0
     for n, line in enumerate(text.splitlines(), 1):
@@ -35,7 +37,7 @@ def scan(path: str, text: str):
     return items, todos
 
 
-def decision_docs(tree) -> list:
+def decision_docs(tree: Iterable[str]) -> list:
     return sorted(p for p in tree if DECISION_DOC.search(p))
 
 
@@ -46,7 +48,7 @@ def _body_lines(message: str) -> int:
     return sum(1 for l in lines if l.strip())
 
 
-def long_commits(commits) -> list:
+def long_commits(commits: Iterable[Any]) -> list:
     """Non-merge commits whose message has at least 8 non-blank lines after the subject, trailers not counted."""
     out = []
     for c in commits:

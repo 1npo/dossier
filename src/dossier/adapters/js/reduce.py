@@ -7,6 +7,7 @@ import re
 from dossier.facts import gather
 from dossier.core import graphs
 from dossier.core import scip_read
+from collections.abc import Collection
 
 __all__ = [
     "contract_items", "dead_items", "finish_symbols", "graph_items", "join_indexes", "model_items", "prefix_facts",
@@ -49,7 +50,7 @@ def _line_index(imports) -> dict:
     return index
 
 
-def graph_items(cruise: dict, project: dict, tree, imports, test_re) -> tuple[list, list]:
+def graph_items(cruise: dict, project: dict, tree: Collection[str], imports: list[dict], test_re: re.Pattern[str]) -> tuple[list, list]:
     """Module, import and cycle items for one project, and the edges that start in test files as (from path, to path) pairs."""
     folder = project.get("dir") or ""
     files = [f for f in project["files"] if f in tree and _is_code(f, test_re)]
@@ -210,7 +211,7 @@ def _is_entity(t: dict, test_re) -> bool:
     return t["kind"] != "type" or bool(t.get("object"))
 
 
-def model_items(types: list, test_re=None) -> list:
+def model_items(types: list, test_re: re.Pattern[str] | None = None) -> list:
     """Entities from the TypeScript script's `types`: exported interfaces, object types, enums and `@Entity` classes (D7, S10)."""
     test_re = test_re or gather.TEST_RE
     kept = [t for t in types if _is_entity(t, test_re)]
@@ -228,7 +229,7 @@ def model_items(types: list, test_re=None) -> list:
     return sorted(items, key=lambda i: (i["path"], i["line"]))
 
 
-def ui_items(components: list, tree) -> list:
+def ui_items(components: list, tree: Collection[str]) -> list:
     """`ui-component` items, and a `renders` item for each component that renders one defined in the repository."""
     tracked = set(tree)
     items = []

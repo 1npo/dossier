@@ -7,6 +7,10 @@ and namespaces that hold them by line range. `assemble` is pure, so unit tests u
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from dossier.tooling.shared_tools import TreeSitter
 
 __all__ = ["complexity", "declarations", "strings_in"]
 
@@ -319,7 +323,7 @@ def _file(ms: list) -> dict:
     return out
 
 
-def declarations(ts, files: list) -> dict:
+def declarations(ts: TreeSitter, files: list) -> dict:
     """{path: declarations} for the `.cs` files in `files`. Every file asked for gets an entry, even an empty one."""
     names = [f for f in files if f.endswith(".cs")]
     by_file: dict = {p: [] for p in names}
@@ -328,7 +332,7 @@ def declarations(ts, files: list) -> dict:
     return assemble(by_file)
 
 
-def complexity(ts, files: list) -> dict:
+def complexity(ts: TreeSitter, files: list) -> dict:
     """{path: number of branch nodes}. Every `.cs` file asked for gets a number."""
     counts = {p: 0 for p in files if p.endswith(".cs")}
     for m in ts.query("csharp", list(counts), COMPLEXITY_Q) if counts else []:

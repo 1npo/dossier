@@ -112,7 +112,7 @@ def arrows_of(src: str) -> list:
     return []
 
 
-def v3(reports: dict, extract: dict, catalog_rows=None) -> tuple[list, list, list, dict, dict]:
+def v3(reports: dict, extract: dict, catalog_rows: list[dict] | None = None) -> tuple[list, list, list, dict, dict]:
     """(errors, warnings, gaps, counts, unbacked). `unbacked` maps "card id#n" (n counts the card's diagrams from 1) to ["A → B", ...]."""
     warnings, gaps, unbacked = [], [], {}
     counts = {"v3": 0, "v3_checked": 0}

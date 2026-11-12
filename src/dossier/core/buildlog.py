@@ -11,6 +11,8 @@ import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from collections.abc import Iterator
+from typing import Any
 
 __all__ = [
     "FILE", "STATUSES", "STEPS", "append", "latest", "load", "now", "record_browser", "skill_state", "start", "step",
@@ -55,7 +57,7 @@ def start(out: Path, *, repo: str, sha: str, ref: str, version: str, options: di
     return path
 
 
-def load(path_or_out) -> dict | None:
+def load(path_or_out: Path) -> dict | None:
     p = Path(path_or_out)
     if p.is_dir():
         p = p / FILE
@@ -67,7 +69,7 @@ def load(path_or_out) -> dict | None:
 UNMERGED_CODES = {"UU", "AA", "DD", "AU", "UA", "DU", "UD"}
 
 
-def skill_state(root) -> dict:
+def skill_state(root: Path | str) -> dict:
     """Which skill code is running: its folder, git commit, whether it has uncommitted edits, whether a merge is unresolved.
 
     The values are None when `root` is not inside a git work tree.
@@ -110,7 +112,7 @@ def append(path: Path, rec: dict) -> dict:
 
 
 @contextmanager
-def step(path: Path, step: str, part: str | None = None, by: str = "prepare"):
+def step(path: Path, step: str, part: str | None = None, by: str = "prepare") -> Iterator[dict]:
     rec: dict = {"step": step, "by": by, "status": "ok", "started": now()}
     if part:
         rec["part"] = part
@@ -130,7 +132,7 @@ def step(path: Path, step: str, part: str | None = None, by: str = "prepare"):
 _ANY = object()
 
 
-def latest(build: dict, step: str, part=_ANY) -> dict | None:
+def latest(build: dict, step: str, part: Any = _ANY) -> dict | None:
     for r in reversed(build["records"]):
         if r["step"] == step and (part is _ANY or r.get("part") == part):
             return r
@@ -141,7 +143,7 @@ def records(build: dict, step: str) -> list[dict]:
     return [r for r in build["records"] if r["step"] == step]
 
 
-def record_browser(path, problems: int, diagrams_checked: int) -> dict:
+def record_browser(path: Path, problems: int, diagrams_checked: int) -> dict:
     """Append the result of the real-browser check (written by check_page.py --record)."""
     return append(Path(path), {"step": "check", "part": "browser", "by": "check_page",
                                "status": "ok" if not problems else "failed",

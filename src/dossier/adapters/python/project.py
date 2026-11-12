@@ -7,6 +7,7 @@ non-test `.py` file that no deeper project claims.
 from __future__ import annotations
 
 from dossier.facts import gather
+from collections.abc import Callable, Collection
 
 __all__ = ["projects"]
 
@@ -29,7 +30,7 @@ def _owner(path: str, folders: set) -> str:
     return folder
 
 
-def projects(tree, read=None) -> list:
+def projects(tree: Collection[str], read: Callable | None = None) -> list:
     """Python projects as `[{"dir", "manifests", "files"}]`, root first, then by folder name.
 
     `read` is accepted for symmetry with the other readers and is not used: a manifest's presence is enough.

@@ -10,6 +10,8 @@ from pathlib import Path
 
 from dossier.tooling import toolcheck
 from dossier import resources
+from collections.abc import Callable
+from typing import Any
 
 __all__ = ["Semgrep", "ToolError", "TreeSitter", "_call", "check_result"]
 
@@ -19,7 +21,7 @@ class ToolError(RuntimeError):
     pass
 
 
-def check_result(result, what: str) -> None:
+def check_result(result: Any, what: str) -> None:
     """Raise ToolError when a tool run timed out or exited non-zero; the message ends with the last 20 lines of stderr."""
     if result.timed_out:
         raise ToolError(f"{what} took too long and was stopped.")
@@ -28,7 +30,7 @@ def check_result(result, what: str) -> None:
         raise ToolError(f"{what} failed (exit {result.returncode}):\n{tail}")
 
 
-def _call(run, tool: str, worker: str, request: dict, timeout: float | None = None) -> dict:
+def _call(run: Callable, tool: str, worker: str, request: dict, timeout: float | None = None) -> dict:
     py = toolcheck.load_tools()["python"]
     cmd = ["uv", "run", "--locked", "--python", py, "--script", str(resources.data("workers", worker))]
     extra = {} if timeout is None else {"timeout": timeout}
@@ -45,7 +47,7 @@ def _call(run, tool: str, worker: str, request: dict, timeout: float | None = No
 
 
 class TreeSitter:
-    def __init__(self, run):
+    def __init__(self, run: Callable) -> None:
         self.run = run
 
     def query(self, language: str, paths: list[str], query: str) -> list[dict]:
@@ -54,7 +56,7 @@ class TreeSitter:
 
 
 class Semgrep:
-    def __init__(self, run):
+    def __init__(self, run: Callable) -> None:
         self.run = run
 
     def scan(self, config: Path, paths: list[str] | None = None, timeout: int = 30) -> list[dict]:

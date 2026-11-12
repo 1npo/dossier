@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from dossier.core import config
+from collections.abc import Callable
 
 __all__ = ["CheckoutError", "area_for", "clean", "ensure_checkout", "freshness", "trusted", "verify"]
 
@@ -148,7 +149,7 @@ def _remote_target(top: str, sha: str, ref: str):
     return "commit", f"{remote}/{branch}", remote, f"refs/heads/{branch}", None
 
 
-def freshness(top: str, sha: str, ref: str, run, timeout: float = 15) -> dict:
+def freshness(top: str, sha: str, ref: str, run: Callable, timeout: float = 15) -> dict:
     """How far the pinned commit is from the current head of its ref (D6). Never fetches and never writes to the repository.
 
     `run(cmd, stage=..., timeout=...)` is `sandbox.run` with the work area and the repository bound. Asks the remote once with

@@ -18,6 +18,7 @@ from dossier.render.measured import change as measured_change
 from dossier.findings import people
 from dossier.render import summary_check
 from dossier.render import page as render
+from collections.abc import Collection
 
 __all__ = ["build", "check_file", "remove", "validate", "write"]
 
@@ -149,7 +150,7 @@ def _ownership(reports, ctx):
     return {**people.bus_factor(ctx), "at_risk_paths": sorted(departed)}
 
 
-def build(facts, reports, extract, build_, gap_counts, version, dependencies, tree, tools=None, now=None) -> dict:
+def build(facts: dict, reports: dict, extract: dict, build_: dict | None, gap_counts: dict[str, int], version: str, dependencies: dict, tree: Collection[str], tools: list | None = None, now: str | None = None) -> dict:
     """The summary document. `tools` is `candidates.tool_list(out)`; `build_` is the loaded build.json or None."""
     repo = facts.get("repo") or {}
     tiers = {l["name"]: l.get("tier") for l in ((buildlog.latest(build_, "tools") or {}).get("details") or {}).get("languages") or []} if build_ else {}
@@ -176,7 +177,7 @@ def build(facts, reports, extract, build_, gap_counts, version, dependencies, tr
     }
 
 
-def write(out, doc) -> Path:
+def write(out: Path, doc: dict) -> Path:
     """Write `<out>/summary.json` atomically."""
     path = Path(out) / FILE
     tmp = path.with_name(path.name + ".tmp")
@@ -185,7 +186,7 @@ def write(out, doc) -> Path:
     return path
 
 
-def check_file(out, facts, version) -> list:
+def check_file(out: Path, facts: dict, version: str) -> list:
     """The problems of the written `summary.json` (V8): missing, unreadable, off its schema, or made at another commit or skill version."""
     path = Path(out) / FILE
     if not path.exists():
@@ -204,5 +205,5 @@ def check_file(out, facts, version) -> list:
     return problems
 
 
-def remove(out) -> None:
+def remove(out: Path) -> None:
     (Path(out) / FILE).unlink(missing_ok=True)

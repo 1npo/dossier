@@ -3,6 +3,7 @@
 Everything here is deterministic: nodes are visited in sorted order and ties go to the smallest name.
 """
 from __future__ import annotations
+from collections.abc import Iterable
 
 __all__ = ["aggregate", "communities", "cycles", "pagerank", "reverse_closure"]
 
@@ -15,7 +16,7 @@ def _adjacency(edges) -> dict:
     return adj
 
 
-def reverse_closure(nodes, edges) -> dict:
+def reverse_closure(nodes: Iterable[str], edges: Iterable[tuple]) -> dict:
     """{node: set of nodes that depend on it, directly or through others}. `edges` are (importer, imported) pairs.
     A node is never its own dependent, even inside a cycle."""
     back: dict = {n: set() for n in nodes}
@@ -81,7 +82,7 @@ def cycles(edges: list) -> list:
     return sorted(found)
 
 
-def pagerank(nodes, edges, damping: float = 0.85, rounds: int = 50) -> dict:
+def pagerank(nodes: Iterable[str], edges: Iterable[tuple], damping: float = 0.85, rounds: int = 50) -> dict:
     """Importance of each node; an edge points from the importer to the imported. Dangling weight is spread evenly."""
     names = sorted(set(nodes) | {n for e in edges for n in e})
     if not names:
@@ -102,7 +103,7 @@ def pagerank(nodes, edges, damping: float = 0.85, rounds: int = 50) -> dict:
     return rank
 
 
-def communities(nodes, edges, rounds: int = 20) -> dict:
+def communities(nodes: Iterable[str], edges: Iterable[tuple], rounds: int = 20) -> dict:
     """Label propagation on the undirected graph. Returns node -> label (the smallest name that won)."""
     names = sorted(set(nodes) | {n for e in edges for n in e})
     neighbours: dict = {n: set() for n in names}
@@ -128,7 +129,7 @@ def communities(nodes, edges, rounds: int = 20) -> dict:
     return label
 
 
-def aggregate(edges, group_of: dict) -> dict:
+def aggregate(edges: Iterable[tuple], group_of: dict) -> dict:
     """Edge counts between groups. Edges inside one group and edges with an ungrouped end are dropped."""
     counts: dict = {}
     for a, b in edges:

@@ -13,6 +13,7 @@ from pathlib import Path
 
 from dossier.findings.components import catalog_edges, catalog_rows, component_candidates, component_of, file_lines, parse_paths, source_files  # noqa: F401
 from dossier import resources
+from collections.abc import Collection
 
 __all__ = [
     "DECIDED_OUTPUTS", "ID_OUTPUTS", "assign_ids", "by_id", "card_titles", "digests", "for_report", "group_members",
@@ -62,7 +63,7 @@ def assign_ids(output: str, items: list) -> list:
     return result
 
 
-def load(out) -> dict:
+def load(out: Path) -> dict:
     """{output: items of every adapter, in adapter-name order}. Outputs with no file are left out."""
     loaded = {}
     for f in sorted((Path(out) / "extract").glob("*.json")):
@@ -75,7 +76,7 @@ def load(out) -> dict:
     return loaded
 
 
-def tool_list(out) -> list:
+def tool_list(out: Path) -> list:
     """[{"name", "version", "status", "reason"}], one per tool named in any `extract/*.json` section. Status is ok, failed or skipped.
 
     A tool named by several sections keeps its worst status. The version is empty for a tool that did not run.
@@ -97,7 +98,7 @@ def tool_list(out) -> list:
     return sorted(found.values(), key=lambda t: t["name"])
 
 
-def tool_status(out) -> dict:
+def tool_status(out: Path) -> dict:
     """{tool: {"status", "reason", "version"}} read from every `extract/*.json` section, so a reused adapter is covered too."""
     return {t["name"]: {"status": t["status"], "reason": t["reason"], "version": t["version"]} for t in tool_list(out)}
 
@@ -153,7 +154,7 @@ def card_titles() -> dict:
     return titles
 
 
-def home_card(output: str, item: dict):
+def home_card(output: str, item: dict) -> str | None:
     if output == "entry_points":
         return "entry.catalog"
     if output == "io_candidates":
@@ -292,7 +293,7 @@ def _group(items: list) -> list:
             for g, v in sorted(groups.items(), key=lambda kv: (kv[1][0]["path"], kv[1][0].get("rule") or "", kv[0]))]
 
 
-def report_data(rid: str, extract: dict, reports: dict, facts: dict, *, only_open: bool = False, catalog=None, tree=None) -> dict:
+def report_data(rid: str, extract: dict, reports: dict, facts: dict, *, only_open: bool = False, catalog: dict | None = None, tree: Collection[str] | None = None) -> dict:
     """The data behind `dossier candidates --report RID`."""
     titles = card_titles()
     data: dict = {"report": rid, "cards": []}
@@ -328,7 +329,7 @@ def report_data(rid: str, extract: dict, reports: dict, facts: dict, *, only_ope
     return data
 
 
-def text(rid: str, extract: dict, reports: dict, facts: dict, *, only_open: bool = False, catalog=None, tree=None) -> str:
+def text(rid: str, extract: dict, reports: dict, facts: dict, *, only_open: bool = False, catalog: dict | None = None, tree: Collection[str] | None = None) -> str:
     d = report_data(rid, extract, reports, facts, only_open=only_open, catalog=catalog, tree=tree)
     out = []
     for card in d["cards"]:

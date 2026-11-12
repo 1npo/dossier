@@ -20,7 +20,7 @@ TOOLS_FILE = resources.data("tools.json")
 HOST_FOR_VIA = {"uv": ["uv"], "npx": ["node", "npm"], "dotnet-tool": ["dotnet"], "sdk": ["dotnet"], "repo-config": []}
 
 
-def load_tools(path=TOOLS_FILE) -> dict:
+def load_tools(path: Path = TOOLS_FILE) -> dict:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 

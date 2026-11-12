@@ -5,6 +5,7 @@ Pure functions of paths and file text, like `measured_js`. `measured.py` calls t
 from __future__ import annotations
 
 import re
+from collections.abc import Callable, Collection
 
 __all__ = ["CI_NAMES", "is_build", "is_config", "tool_locations"]
 
@@ -39,7 +40,7 @@ def _lines(tree, read, pattern) -> list:
     return found
 
 
-def tool_locations(tree, read, line_of) -> dict:
+def tool_locations(tree: Collection[str], read: Callable, line_of: Callable) -> dict:
     """tool -> [(path, line or None)] for the C# tools with a config file or a setting. `line_of` is `measured._line_of`."""
     if read is None:
         return {}

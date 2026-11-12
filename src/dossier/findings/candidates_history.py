@@ -9,6 +9,7 @@ import re
 from dossier.findings import components
 from dossier.findings import people
 from dossier.core import scip_read
+from collections.abc import Collection
 
 __all__ = ["data", "lines"]
 
@@ -104,7 +105,7 @@ def _sole_owner_hotspots(extract, tree):
     return out
 
 
-def data(rid, extract, reports, catalog, tree):
+def data(rid: str, extract: dict, reports: dict, catalog: dict | None, tree: Collection[str] | None) -> dict[str, list[str]]:
     """{section title: [lines]} for one report. Empty for reports with no extra sections."""
     if not _items(extract, "meta"):
         return {}
@@ -116,7 +117,7 @@ def data(rid, extract, reports, catalog, tree):
                 "Same name defined more than once": _duplicate_names(extract),
                 "Bulk commits": _bulk(extract)}
     if rid == "contributors":
-        rows = components.catalog_rows(catalog) if catalog else components.catalog_rows(reports.get("components"))
+        rows = components.catalog_rows(catalog) if catalog else components.catalog_rows(reports.get("components"))  # type: ignore[arg-type]
         return {"People": _people(extract),
                 "Possible duplicates": _duplicates(_items(extract, "person")),
                 "Components: who wrote and who changes": _per_component(extract, rows),
@@ -129,7 +130,7 @@ def data(rid, extract, reports, catalog, tree):
     return {}
 
 
-def lines(rid, extract, reports, catalog, tree, only_open):
+def lines(rid: str, extract: dict, reports: dict, catalog: dict | None, tree: Collection[str] | None, only_open: bool) -> list[str]:
     """The printed form. `--open` lists what still needs a decision, and these sections never do."""
     if only_open:
         return []

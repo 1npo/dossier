@@ -49,10 +49,12 @@ MAX_DEFAULT = 80
 class Lines:
     """Line number of a text offset, computed once per file and only when asked."""
 
-    def __init__(self, text):
+    _nl: list[int] | None
+
+    def __init__(self, text: str) -> None:
         self.text, self._nl = text, None
 
-    def at(self, pos):
+    def at(self, pos: int) -> int:
         if self._nl is None:
             self._nl = [i for i, c in enumerate(self.text) if c == "\n"]
         return bisect.bisect_left(self._nl, pos) + 1
@@ -72,7 +74,7 @@ def _default(text, end, name):
     return None
 
 
-def reads(text, lines=None):
+def reads(text: str, lines: Lines | None = None) -> list[dict]:
     """[{name, line, default?}] for every read of an environment variable in `text`, in file order."""
     lines = lines or Lines(text)
     out = []
@@ -87,13 +89,13 @@ def reads(text, lines=None):
     return sorted(out, key=lambda s: (s["line"], s["name"]))
 
 
-def dotenv(text, lines=None):
+def dotenv(text: str, lines: Lines | None = None) -> list[dict]:
     """[{name, line}] for every `NAME=` line of a `.env`-style file. Values are not read."""
     lines = lines or Lines(text)
     return [{"name": m.group("name"), "line": lines.at(m.start())} for m in DOTENV.finditer(text)]
 
 
-def secrets(text, lines=None):
+def secrets(text: str, lines: Lines | None = None) -> list[dict]:
     """[{line, kind}] for every line that matches a credential pattern. The matched text is dropped here."""
     lines = lines or Lines(text)
     out = []
@@ -107,10 +109,10 @@ INFRA = re.compile(r"(^|/)(Dockerfile[^/]*|[^/]*\.dockerfile|(docker-)?compose[^
 WORD = re.compile(NAME)
 
 
-def is_infra(path):
+def is_infra(path: str) -> bool:
     return bool(INFRA.search(path)) or path.startswith(".github/workflows/")
 
 
-def declared_in(path, text):
+def declared_in(path: str, text: str) -> set[str]:
     """The set of names a Dockerfile, compose file, CI workflow or `.env` file mentions, to match against the names the code reads."""
     return set(WORD.findall(text))

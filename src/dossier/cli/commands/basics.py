@@ -14,19 +14,20 @@ from dossier.pipeline import workarea
 from dossier.render import portfolio
 from dossier.tooling import toolcheck
 from dossier.cli import common
+import argparse
 
 __all__ = ["cmd_clean", "cmd_doctor", "cmd_home", "cmd_portfolio", "cmd_version"]
 
 
-def cmd_version(_):
+def cmd_version(_: argparse.Namespace) -> None:
     print(f"dossier {common.VERSION}")
 
 
-def cmd_portfolio(_):
+def cmd_portfolio(_: argparse.Namespace) -> None:
     print(f"Portfolio written to {portfolio.write(common.get_home(), common.VERSION)}")
 
 
-def cmd_home(a):
+def cmd_home(a: argparse.Namespace) -> None:
     if not a.dir:
         h = config.home()
         print(f"Dossier home: {h}" if h else "No dossier home is set. Run /dossier home <directory>.")
@@ -45,7 +46,7 @@ def skill_line(skill: dict) -> str:
     return f"skill: {skill['commit'][:7]} ({'dirty' if skill['dirty'] else 'clean'})"
 
 
-def cmd_doctor(a):
+def cmd_doctor(a: argparse.Namespace) -> None:
     if a.all:
         report = toolcheck.preflight([], all_scopes=True)
     else:
@@ -61,7 +62,7 @@ def cmd_doctor(a):
     sys.exit(1 if report["missing"] or skill["unmerged"] else 0)
 
 
-def cmd_clean(a):
+def cmd_clean(a: argparse.Namespace) -> None:
     top = common.toplevel(a.repo)
     out, name, _ = common.out_dir(top)
     root = config.cache_root()

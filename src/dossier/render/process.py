@@ -11,6 +11,7 @@ from dossier.core import buildlog
 from dossier.core import schema
 from dossier.tooling import toolcheck
 from dossier.render import markup
+from collections.abc import Iterable
 
 __all__ = [
     "coverage_items", "nograph_cards", "partial_cards", "process_body", "render_records", "tier_stats",
@@ -164,7 +165,7 @@ def verifier_line(build) -> str:
     return "not run (turn it on with --verify)"
 
 
-def verifier_items(build, claims) -> list[dict]:
+def verifier_items(build: dict, claims: dict) -> list[dict]:
     """One `inference` item for each sampled claim the checker could not confirm; `claims` maps (report, key) to the claim's text. The reason is in the how-to-confirm column so item ids stay stable."""
     res = buildlog.latest(build, "check", "verify") if build else None
     if not res:
@@ -224,7 +225,7 @@ def run_cell(step, build) -> str:
     return f'<table class="happened"><tbody>{body}</tbody></table>'
 
 
-def tier_stats():
+def tier_stats() -> str:
     """Four BANs for the Cards card: how many cards the layout has, and how many are measured by tools, adjudicated (tool candidates sorted by Claude) or read by Claude."""
     cards = [c for s in schema.load_all().values() for c in s["cards"]]
     m = sum(c["tier"] == "M" for c in cards)
@@ -250,7 +251,7 @@ def _status_badges(step, build, badge) -> str:
     return out
 
 
-def process_body(build) -> str:
+def process_body(build: dict) -> str:
     rows = []
     for n, step in enumerate(buildlog.STEPS, 1):
         rows.append([(str(n), n), E(STEP_TEXT[step]), run_cell(step, build), _status_badges(step, build, markup.badge)])
@@ -261,7 +262,7 @@ def process_body(build) -> str:
 # ------------------------------------------------------------------ records render adds
 
 
-def render_records(build, *, reports, readers, v_errors, cites_checked, cites_unresolved, gap_counts, check_counts=None, skill=None) -> list[dict]:
+def render_records(build: dict, *, reports: dict, readers: int | None, v_errors: int, cites_checked: int, cites_unresolved: int, gap_counts: dict[str, int], check_counts: dict | None = None, skill: dict | None = None) -> list[dict]:
     """The read, write, check and gaps records for this render. `check` comes first; it is part 'render'."""
     m = buildlog.latest(build, "measure") or {}
     d, c = m.get("details") or {}, m.get("counts") or {}
@@ -297,7 +298,7 @@ def _item(statement, how, report="dossier"):
     return {"kind": "coverage", "report": report, "statement": statement, "how_to_confirm": how}
 
 
-def coverage_items(build) -> list[dict]:
+def coverage_items(build: dict | None) -> list[dict]:
     """Things the dossier could not see, from what prepare recorded. Wording is fixed so item IDs stay stable."""
     if not build:
         return []
@@ -393,7 +394,7 @@ NOGRAPH_CARDS = ("reading.order", "components.map", "components.catalog", "inter
                  "change.blast-radius", "change.dead-code")
 
 
-def nograph_cards(build, facts) -> dict:
+def nograph_cards(build: dict | None, facts: dict) -> dict:
     """Card id -> tip for the cards a static graph feeds, when a Tier B language has no graph tool in this version (D5). Empty otherwise.
 
     Different from `partial`: that means a Tier A tool did not run in this build; this means no tool exists for the language."""
@@ -409,7 +410,7 @@ def nograph_cards(build, facts) -> dict:
     return {card: tip for card in NOGRAPH_CARDS}
 
 
-def partial_cards(build, tools=None) -> dict:
+def partial_cards(build: dict | None, tools: dict | None = None) -> dict:
     """Card id -> why it was made without one of its tools (D7). Empty without a build record."""
     if not build:
         return {}
@@ -454,7 +455,7 @@ def partial_cards(build, tools=None) -> dict:
 # ------------------------------------------------------------------ V9 and V10
 
 
-def validate_build(build, pending=()) -> tuple[list[str], list[str]]:
+def validate_build(build: dict | None, pending: Iterable[dict] = ()) -> tuple[list[str], list[str]]:
     """V10 (errors): every fixed step has a record, and a skipped or failed one says why. V9 (info): the path filter."""
     if build is None:
         return ["V10: there is no build.json. Run prepare first."], []

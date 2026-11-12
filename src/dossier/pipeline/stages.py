@@ -43,7 +43,7 @@ class Options:
 
 
 class Stop(Exception):
-    def __init__(self, code: int, payload: dict):
+    def __init__(self, code: int, payload: dict) -> None:
         super().__init__(payload.get("stopped", "stopped"))
         self.code, self.payload = code, payload
 
@@ -72,7 +72,7 @@ def tree_at(top: str, sha: str) -> frozenset:
     return frozenset(p for p in out.decode("utf-8", "replace").split("\0") if p)
 
 
-def stage_pin(build, top, ref, sha, area=None) -> dict:
+def stage_pin(build: Path, top: str, ref: str, sha: str, area: Path | None = None) -> dict:
     t0 = time.monotonic()
     trust = workarea.trusted(top, sha)
     run = functools.partial(sandbox.run, area=area, cwd=Path(top), profile="restricted") if area else None
@@ -85,7 +85,7 @@ def stage_pin(build, top, ref, sha, area=None) -> dict:
     return {"sha": sha, "short": sha[:7], "trust": trust}
 
 
-def stage_tools(build, top, sha, opts: Options) -> dict:
+def stage_tools(build: Path, top: str, sha: str, opts: Options) -> dict:
     t0 = time.monotonic()
     report = toolcheck.preflight_at(top, sha)
     found = [{"name": h["id"], "version": h["version"]} for h in report["host"] if h["version"]]
@@ -120,7 +120,7 @@ def restore_fields(results: list) -> dict:
     return fields
 
 
-def stage_copy(build, top, sha, area, state, opts: Options, tree, trust) -> dict:
+def stage_copy(build: Path, top: str, sha: str, area: Path, state: dict, opts: Options, tree: frozenset[str], trust: dict) -> dict:
     t0 = time.monotonic()
     try:
         info = workarea.ensure_checkout(area, top, sha, opts.submodules)
@@ -154,7 +154,7 @@ def stage_copy(build, top, sha, area, state, opts: Options, tree, trust) -> dict
     return {"checkout": info, "restore": results, "restore_decision": d, "restored": restored}
 
 
-def stage_extract(build, top, sha, area, out, langs, trust, opts: Options, restored, tree, checkout) -> dict:
+def stage_extract(build: Path, top: str, sha: str, area: Path, out: Path, langs: list, trust: dict, opts: Options, restored: dict, tree: frozenset[str], checkout: Path) -> dict:
     t0 = time.monotonic()
     tools = toolcheck.load_tools()
     versions = {t["id"]: t["version"] for t in tools["tools"] if t["version"]}

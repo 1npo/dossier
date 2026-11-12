@@ -23,7 +23,7 @@ def _bits(indexes, n):
     return base64.b64encode(bytes(raw)).decode()
 
 
-def data(ctx) -> dict | None:
+def data(ctx: dict) -> dict | None:
     extract = ctx.get("extract") or {}
     graph = [g for g in extract.get("graph", []) if g.get("kind") == "module"]
     source = components.source_files(ctx.get("tree"), extract)

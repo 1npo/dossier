@@ -1,6 +1,6 @@
 # Card schema
 
-One `<report>.json` file per report, listing its cards in page order. A report file written by Claude (`reports/<report>.json`) never repeats titles: each entry only names the card id (`{"card": "entry.catalog", "blocks": [...]}`), and the page takes the title, tier and shape from here. Checked by `scripts/schema.py` (check V6).
+One `<report>.json` file per report, listing its cards in page order. A report file written by Claude (`reports/<report>.json`) never repeats titles: each entry only names the card id (`{"card": "entry.catalog", "blocks": [...]}`), and the page takes the title, tier and shape from here. Checked by `src/dossier/core/schema.py` (check V6).
 
 `questions.json` in this folder is the question list for the `dossier.questions` card. It is not a report schema. It holds `categories` (id, title, and `why`: one line on why you ask these now) in the order a person asks them, and `questions` (id, `category`, question, answers) numbered `1..40` in file order, so a question's category is always at or after the previous one's.
 

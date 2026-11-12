@@ -7,7 +7,7 @@ Each language is one query. Add a language by adding a row to `LANGUAGES` and a 
 from __future__ import annotations
 
 from dossier.facts import gather
-from dossier.adapters.base import Adapter, failure_reason
+from dossier.adapters.base import Adapter, Context, failure_reason
 
 __all__ = ["TierBAdapter"]
 
@@ -47,7 +47,7 @@ class TierBAdapter(Adapter):
     languages = tuple(LANGUAGES)
     tools = (PACK,)
 
-    def extract(self, ctx) -> dict:
+    def extract(self, ctx: Context) -> dict:
         out = {"symbols": []}
         found = []
         for language in LANGUAGES:

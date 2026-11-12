@@ -14,6 +14,7 @@ from pathlib import Path
 from dossier import resources
 from dossier.tooling import shared_tools
 from dossier.tooling.shared_tools import ToolError
+from collections.abc import Callable
 
 __all__ = ["ensure_installed", "run_index"]
 
@@ -29,7 +30,7 @@ def _lock_sha() -> str:
     return hashlib.sha1((NODE_DIR / "package-lock.json").read_bytes()).hexdigest()
 
 
-def ensure_installed(run, cache_root, version: str, timeout: float) -> Path:
+def ensure_installed(run: Callable, cache_root: Path, version: str, timeout: float) -> Path:
     """Run `npm ci` once per lockfile (a marker file holds the lock's sha1). Returns the path of index.js."""
     folder = install_dir(cache_root, version)
     marker, index = folder / ".installed", folder / INDEX_JS
@@ -64,7 +65,7 @@ def environment(checkout, venv=None) -> list:
     return found
 
 
-def run_index(run, index_js, checkout, area, repo_name: str, sha: str, timeout: float, cwd=None, project_name=None, venv=None) -> Path:
+def run_index(run: Callable, index_js: str, checkout: Path, area: Path, repo_name: str, sha: str, timeout: float, cwd: Path | None = None, project_name: str | None = None, venv: Path | str | None = None) -> Path:
     """Index the checkout, or the project folder `cwd` inside it. The index and the environment file go into `<area>/scip/`."""
     out = Path(area) / "scip"
     out.mkdir(parents=True, exist_ok=True)

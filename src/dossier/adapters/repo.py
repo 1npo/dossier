@@ -10,7 +10,7 @@ import subprocess
 from pathlib import Path
 
 from dossier.facts import gather
-from dossier.adapters.base import Adapter, failure_reason
+from dossier.adapters.base import Adapter, Context, failure_reason
 from dossier import resources
 
 __all__ = ["RepoAdapter"]
@@ -323,7 +323,7 @@ class RepoAdapter(Adapter):
     languages = ("*",)
     tools = ("semgrep",)
 
-    def extract(self, ctx) -> dict:
+    def extract(self, ctx: Context) -> dict:
         out = {"entry_points": [], "models": [], "tests": [], "blindspots": [], "io_candidates": []}
         executable = set(_executable_files(ctx.checkout, ctx.sha))
         for path in sorted(ctx.tree):

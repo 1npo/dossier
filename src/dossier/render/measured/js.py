@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable, Collection
 
 __all__ = ["HOOK_FILE", "NODE_TOOLS", "ci_pattern", "is_build", "is_config", "tool_locations"]
 
@@ -31,7 +32,7 @@ def is_config(path: str) -> bool:
     return bool(CONFIG_FILE.search(path))
 
 
-def is_build(path: str, read) -> bool:
+def is_build(path: str, read: Callable | None) -> bool:
     """A build tool's config file, or a `package.json` with a `build` script (needs `read`)."""
     if BUILD_FILE.search(path):
         return True
@@ -48,7 +49,7 @@ def manifest(text) -> dict:
     return data if isinstance(data, dict) else {}
 
 
-def tool_locations(tree, read, line_of) -> dict:
+def tool_locations(tree: Collection[str], read: Callable, line_of: Callable) -> dict:
     """tool -> [(path, line or None)] for every JavaScript tool with a config file or a `package.json` key.
 
     `line_of(text, marker)` is `measured._line_of`. A `package.json` key counts, with `package.json` as the file."""
@@ -68,6 +69,6 @@ def tool_locations(tree, read, line_of) -> dict:
     return found
 
 
-def ci_pattern(tool: str):
+def ci_pattern(tool: str) -> re.Pattern[str]:
     names = CI_NAMES.get(tool) or re.escape(tool)
     return re.compile(r"(?<![\w-])(" + names + r")(?![\w-])", re.I)

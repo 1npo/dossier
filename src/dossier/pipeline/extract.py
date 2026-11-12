@@ -13,11 +13,16 @@ import os
 from pathlib import Path, PurePosixPath
 
 from dossier import resources
-from dossier.adapters.base import ALWAYS_EXPECTED_SEG, NO_EXTRACTORS, OUTPUTS, Context
+from dossier.adapters.base import ALWAYS_EXPECTED_SEG, NO_EXTRACTORS, OUTPUTS, Adapter, Context
 from dossier.facts import gather
 from dossier.findings import candidates
 from dossier.pipeline import workarea
 from dossier.tooling import sandbox
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from dossier.tooling.shared_tools import Semgrep, TreeSitter
 
 __all__ = ["run_extract"]
 
@@ -145,8 +150,8 @@ def _reusable(out: Path, adapter, key) -> bool:
     return found
 
 
-def run_extract(*, adapters, checkout, sha, tree, area, out, trusted, allow_ref, restored, treesitter, semgrep,
-                tool_versions, timeout) -> dict:
+def run_extract(*, adapters: Sequence[Adapter], checkout: str | Path, sha: str, tree: frozenset[str], area: Path, out: Path, trusted: dict, allow_ref: bool, restored: dict, treesitter: TreeSitter, semgrep: Semgrep,
+                tool_versions: dict[str, str], timeout: float) -> dict:
     checkout, out = Path(checkout), Path(out)
 
     def fail(reason):
@@ -163,7 +168,7 @@ def run_extract(*, adapters, checkout, sha, tree, area, out, trusted, allow_ref,
     unexpected: list = []
     for ad in adapters:
         key = _key(ad, sha, tool_versions)
-        res = {"name": ad.name, "version": ad.version, "status": "ok", "reason": None}
+        res: dict = {"name": ad.name, "version": ad.version, "status": "ok", "reason": None}
         results.append(res)
         if ad.loads_repo_code and not trusted["trusted"] and not allow_ref:
             res.update(status="skipped", reason=f"{trusted['why'][0].upper()}{trusted['why'][1:]}. Use --allow-ref to run it.")

@@ -8,6 +8,7 @@ from __future__ import annotations
 import re
 
 from dossier.adapters.csharp import queries as cs_queries
+from collections.abc import Callable, Collection
 
 __all__ = ["cake_tasks", "class_entries", "controller_routes", "function_entries", "page_routes", "program_entries"]
 
@@ -150,7 +151,7 @@ def _pages_route(path: str) -> str:
     return "/" + rest.strip("/")
 
 
-def page_routes(tree, read) -> list:
+def page_routes(tree: Collection[str], read: Callable) -> list:
     """`@page` routes: `ui-route` for Blazor `.razor` files, `http-route` for Razor Pages `.cshtml` files."""
     out = []
     for path in sorted(tree):
@@ -175,7 +176,7 @@ def page_routes(tree, read) -> list:
 CAKE_TASK = re.compile(r"""\bTask\(\s*(?:"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)')\s*\)""")
 
 
-def cake_tasks(tree, read) -> list:
+def cake_tasks(tree: Collection[str], read: Callable) -> list:
     """`build-task` rows for the tasks a Cake script declares with `Task("Name")`, one per declaration, in the order written.
 
     Comments are ignored. The name is the text of the literal as written, so a task named by a variable gives no row."""

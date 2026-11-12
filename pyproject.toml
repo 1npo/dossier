@@ -85,7 +85,7 @@ no_implicit_optional = true
 warn_unused_ignores = true
 check_untyped_defs = false
 
-# Modules that still fail mypy (plan 014, F6), with their error counts. Remove a line once the module passes.
+# Modules that still fail mypy (plan 014, F6; counts rechecked in Phase H after the annotations). Remove a line once the module passes.
 # resources, core, cli, adapters.base, adapters.registry, pipeline.extract, render.markup and findings.people may not be listed.
 [[tool.mypy.overrides]]
 ignore_errors = true
@@ -95,7 +95,7 @@ module = [
     "dossier.adapters.csharp.entries",             # 1
     "dossier.adapters.csharp.queries",             # 4
     "dossier.adapters.csharp.semgrep",             # 1
-    "dossier.adapters.js.adapter",                 # 1
+    "dossier.adapters.js.adapter",                 # 2
     "dossier.adapters.js.entries",                 # 2
     "dossier.adapters.js.prisma",                  # 3
     "dossier.adapters.js.project",                 # 3
@@ -108,15 +108,15 @@ module = [
     "dossier.adapters.repo",                       # 1
     "dossier.adapters.tier_b",                     # 1
     "dossier.checks.page_audit",                   # 5
-    "dossier.checks.reports",                      # 34
+    "dossier.checks.reports",                      # 36
     "dossier.checks.v3",                           # 4
     "dossier.facts.deps",                          # 4
     "dossier.findings.candidates",                 # 1
     "dossier.history.scan",                        # 9
     "dossier.pipeline.stages",                     # 1
     "dossier.render.measured.blast",               # 1
-    "dossier.render.measured.cards",               # 1
-    "dossier.render.process",                      # 2
+    "dossier.render.measured.cards",               # 2
+    "dossier.render.process",                      # 5
     "dossier.render.summary_check",                # 1
     "dossier.tooling.dotnet_sdk",                  # 4
     "dossier.tooling.sandbox",                     # 2

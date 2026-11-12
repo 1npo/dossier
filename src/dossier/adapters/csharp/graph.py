@@ -7,6 +7,7 @@ through extension methods, `var`, reflection or dependency injection are not lin
 from __future__ import annotations
 
 from dossier.core import graphs
+from collections.abc import Collection
 
 __all__ = ["module_items", "namespace_cycles", "type_uses"]
 
@@ -15,7 +16,7 @@ def module_name(path: str) -> str:
     return path[:-3] if path.endswith(".cs") else path
 
 
-def module_items(projects: dict, decls: dict, complexity: dict, generated: set, test_files=frozenset()) -> list:
+def module_items(projects: dict, decls: dict, complexity: dict, generated: set, test_files: Collection[str] = frozenset()) -> list:
     """One `module` item per source file (test files are not modules)."""
     owner = {f: p["path"] for p in projects["projects"] if "language" not in p for f in p["files"]}
     items = []
@@ -77,7 +78,7 @@ def _qualified_hits(d: dict, index: dict) -> set:
     return hits
 
 
-def type_uses(decls: dict, projects: dict, test_files=frozenset(), generated=frozenset()) -> tuple:
+def type_uses(decls: dict, projects: dict, test_files: Collection[str] = frozenset(), generated: Collection[str] = frozenset()) -> tuple:
     """(import items, test edges, ambiguous count).
 
     A name that two different types could satisfy gives no edge and adds one to the count (per file and name)."""

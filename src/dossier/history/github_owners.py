@@ -9,6 +9,7 @@ import re
 import time
 
 from dossier.facts import gather
+from collections.abc import Callable
 
 __all__ = ["logins", "lookup", "slug"]
 
@@ -24,7 +25,7 @@ class Found(dict):
     unread: list
 
 
-def slug(remote) -> str | None:
+def slug(remote: dict) -> str | None:
     """`owner/name` of a GitHub remote, or None for any other host. `remote` is the `facts.repo.remote` dict or a URL."""
     base = remote.get("web_base") if isinstance(remote, dict) else remote
     m = re.match(r"^https?://github\.com/([^/\s]+)/([^/\s]+?)(?:\.git)?/?$", base or "")
@@ -76,7 +77,7 @@ def read_commit(node):
     return {"number": pr["number"], "approver": approver, "merged_by": _person(pr.get("mergedBy"))}
 
 
-def lookup(slug_, shas, run, cache, timeout) -> Found:
+def lookup(slug_: str, shas: list[str], run: Callable, cache: dict, timeout: float) -> Found:
     """Pull request owners for `shas`. `cache` ({sha: result}) is read first and filled with new results. Finished batches are kept
     when a later one fails or the time runs out; the commits left unread are in `.unread`."""
     deadline = time.monotonic() + timeout
@@ -110,7 +111,7 @@ def lookup(slug_, shas, run, cache, timeout) -> Found:
     return found
 
 
-def logins(slug_, samples, run, timeout) -> dict:
+def logins(slug_: str, samples: list[str], run: Callable, timeout: float) -> dict:
     """{sha: GitHub login of the commit's author} for the given commits. Commits that fail to resolve are left out."""
     deadline = time.monotonic() + timeout
     out, shas = {}, [s for s in samples if SHA.fullmatch(s)]

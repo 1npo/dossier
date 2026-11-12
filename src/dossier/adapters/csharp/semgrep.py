@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable, Collection
 
 __all__ = ["config_inputs", "items"]
 
@@ -38,7 +39,7 @@ def _target_name(read, path: str, line: int):
     return found.group(1) if found else None
 
 
-def items(results: list, project_of=None, build_projects=None, read=None) -> dict:
+def items(results: list, project_of: Callable | None = None, build_projects: Collection[str] | None = None, read: Callable | None = None) -> dict:
     """{"entry_points": [...], "io_candidates": [...], "blindspots": [...]} from `Semgrep.scan` results.
 
     `project_of(path)` names the project file a source file belongs to. A `build-target` is kept only in a project in `build_projects`
@@ -71,7 +72,7 @@ def items(results: list, project_of=None, build_projects=None, read=None) -> dic
     return out
 
 
-def config_inputs(tree, read) -> list:
+def config_inputs(tree: Collection[str], read: Callable) -> list:
     """`io_candidates` from files, not code: each tracked `appsettings*.json` is a config file, and each environment variable named in a
     launch profile (`Properties/launchSettings.json`) is an environment variable (D14)."""
     rows = []

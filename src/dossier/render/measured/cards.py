@@ -21,6 +21,7 @@ from dossier.render.measured import js as measured_js
 from dossier.render.measured import people as measured_people
 from dossier.render.measured import upgrade as measured_upgrade
 from dossier.render import markup
+from typing import Any
 
 __all__ = ["body", "fill_catalog", "fill_people"]
 
@@ -245,6 +246,6 @@ def fill_catalog(entry: dict, ctx: dict) -> dict:
     return {**entry, "blocks": blocks}
 
 
-def body(cid: str, ctx: dict, refs):
+def body(cid: str, ctx: dict, refs: Any) -> str | None:
     draw = DRAWN.get(cid)
     return draw(cid, ctx or {}, refs) if draw else None

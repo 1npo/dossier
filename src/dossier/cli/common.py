@@ -14,6 +14,7 @@ import sys
 from dossier import resources
 from dossier.core import config
 from dossier.findings import resolve
+from typing import Any, NoReturn
 
 __all__ = [
     "ROOT", "VERSION", "die", "get_home", "load", "load_state", "now", "out_dir", "save", "save_state", "toplevel",
@@ -29,16 +30,16 @@ VERSION = resources.version()
 CONFIG = config.path()
 
 
-def die(msg, code=1):
+def die(msg: str, code: int = 1) -> NoReturn:
     print(msg, file=sys.stderr)
     sys.exit(code)
 
 
-def now():
+def now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def load(path, default=None):
+def load(path: Path | str, default: Any = None) -> Any:
     try:
         return json.loads(Path(path).read_text())
     except FileNotFoundError:
@@ -47,18 +48,18 @@ def load(path, default=None):
         die(f"{path} is not valid JSON: {exc}")
 
 
-def save(path, data):
+def save(path: Path | str, data: Any) -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     tmp = Path(str(path) + ".tmp")
     tmp.write_text(json.dumps(data, indent=1, ensure_ascii=False))
     tmp.replace(path)
 
 
-def load_state(out):
+def load_state(out: Path) -> dict:
     return resolve.migrate(load(out / "state.json", {}) or {})
 
 
-def save_state(out, state):
+def save_state(out: Path, state: dict) -> None:
     """Write state.json. When the skill version changes, keep a copy of the old file first."""
     old = out / "state.json"
     prev = state.get("skill_version")
@@ -70,14 +71,14 @@ def save_state(out, state):
     save(old, state)
 
 
-def get_home():
+def get_home() -> Path:
     h = config.home()
     if not h:
         die("No dossier home is set. Run /dossier home <directory> to choose where dossiers are saved.")
     return h
 
 
-def toplevel(repo_arg):
+def toplevel(repo_arg: str | None) -> str:
     p = Path(repo_arg or ".").expanduser().resolve()
     r = subprocess.run(["git", "-C", str(p), "rev-parse", "--show-toplevel"], capture_output=True, text=True)
     if r.returncode:
@@ -90,7 +91,7 @@ def root_commit(top):
     return sorted(out)[0] if out else ""
 
 
-def out_dir(top):
+def out_dir(top: str) -> tuple[Path, str, str]:
     name = re.sub(r"[^A-Za-z0-9._-]+", "-", Path(top).name) or "repo"
     root = root_commit(top)
     d = get_home() / name

@@ -6,6 +6,11 @@ request. With one human in the whole history, that human owns everything.
 from __future__ import annotations
 
 from dossier.history import github_owners
+from collections.abc import Callable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from dossier.history.scan import Folded
 
 __all__ = ["apply", "pull_requests", "sole_human_of"]
 
@@ -21,19 +26,19 @@ def owner_of(author, author_type, pr_owner, sole_human):
     return pr_owner or author
 
 
-def sole_human_of(types):
+def sole_human_of(types: dict[str, str]) -> str | None:
     """The only human id in `types` ({id: type}), or None when there are none or several."""
     humans = [i for i, t in types.items() if t == "human"]
     return humans[0] if len(humans) == 1 else None
 
 
-def apply(folded, types, prs):
+def apply(folded: Folded, types: dict[str, str], prs: dict[str, str]) -> dict[str, str]:
     """{commit sha: owner id} for every commit seen. `types` is {id: type}; `prs` is {sha: human id or None}."""
     sole = sole_human_of(types)
     return {sha: owner_of(author, types.get(author, "human"), prs.get(sha), sole) for sha, author in folded.author_of.items()}
 
 
-def pull_requests(folded, types, display, remote, run, cache, timeout):
+def pull_requests(folded: Folded, types: dict, display: dict[str, str], remote: dict, run: Callable, cache: dict, timeout: float) -> tuple:
     """Read approvals for the commits that need them. Returns (prs {sha: human id}, new people {id: login}, usernames {id: login},
     status, reason, found count). Nothing is read unless two or more humans share the history and a non-human authored a commit."""
     humans = {i for i, t in types.items() if t == "human"}
@@ -43,7 +48,7 @@ def pull_requests(folded, types, display, remote, run, cache, timeout):
     slug = github_owners.slug(remote)
     if not slug:
         return {}, {}, {}, "partial", MESSAGES["no-slug"], 0
-    samples = {}
+    samples: dict = {}
     for c in folded.commits:
         who = folded.author_of.get(c.sha)
         if who in humans and who not in samples.values() and len(c.parents) <= 1:

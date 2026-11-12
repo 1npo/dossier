@@ -488,7 +488,7 @@ def check_layouts(browser, path, scheme):
     return problems
 
 
-def main():
+def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("html")
     ap.add_argument("--shots", help="directory for one screenshot per diagram and theme")

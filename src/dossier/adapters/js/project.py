@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 
 from dossier.facts import gather
+from collections.abc import Callable, Collection
 
 __all__ = ["manifest_frameworks", "projects", "read_json", "source_roots"]
 
@@ -19,7 +20,7 @@ UNSUPPORTED = {"koa": "Koa", "hapi": "Hapi", "@hapi/hapi": "Hapi", "hono": "Hono
 UNSUPPORTED_PREFIX = {"@remix-run/": "Remix"}
 
 
-def read_json(read, path: str) -> dict | None:
+def read_json(read: Callable, path: str) -> dict | None:
     text = read(path)
     if text is None:
         return None
@@ -47,7 +48,7 @@ def _is_workspace(folder: str, manifest: dict | None, tracked: set) -> bool:
     return bool(ws) or _join(folder, "pnpm-workspace.yaml") in tracked
 
 
-def projects(tree, read) -> list[dict]:
+def projects(tree: Collection[str], read: Callable) -> list[dict]:
     tracked = set(tree)
     packages = sorted({p.rsplit("/", 1)[0] if "/" in p else "" for p in tracked
                        if p.rsplit("/", 1)[-1] == "package.json" and gather.noise_reason(p) is None})
@@ -88,7 +89,7 @@ def projects(tree, read) -> list[dict]:
     return [out[k] for k in sorted(out) if out[k]["files"]]
 
 
-def source_roots(projs: list[dict], tree) -> list[dict]:
+def source_roots(projs: list[dict], tree: Collection[str]) -> list[dict]:
     """One `source-root` item per project, naming the folder that becomes its area in the graph."""
     items, tracked = [], set(tree)
     for p in projs:
@@ -104,7 +105,7 @@ def source_roots(projs: list[dict], tree) -> list[dict]:
     return items
 
 
-def manifest_frameworks(projs: list[dict], read) -> list[str]:
+def manifest_frameworks(projs: list[dict], read: Callable) -> list[str]:
     """Display names of frameworks that a manifest names and the adapter does not support, sorted."""
     found = set()
     for p in projs:

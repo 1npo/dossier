@@ -22,6 +22,7 @@ from dossier.render import page as render
 from dossier.render.measured import upgrade as measured_upgrade
 from dossier.tooling import sandbox
 from dossier.cli import common
+import argparse
 
 __all__ = ["cmd_prepare"]
 
@@ -87,7 +88,7 @@ def _cited_path(raw):
     return c["path"].rstrip("/") if c["kind"] == "file" else ""
 
 
-def cmd_prepare(a):
+def cmd_prepare(a: argparse.Namespace) -> None:
     top = common.toplevel(a.repo)
     out, name, root = common.out_dir(top)
     state = common.load_state(out)

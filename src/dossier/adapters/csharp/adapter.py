@@ -21,7 +21,7 @@ from dossier.adapters.csharp import semgrep as cs_semgrep
 from dossier.adapters.csharp import testsuite as cs_tests
 from dossier.core import scip_read
 from dossier.tooling import toolcheck
-from dossier.adapters.base import OUTPUTS, Adapter, failure_reason
+from dossier.adapters.base import OUTPUTS, Adapter, Context, failure_reason
 from dossier.facts.gather import TEST_RE
 from dossier import resources
 
@@ -233,7 +233,7 @@ class CSharpAdapter(Adapter):
         if dead:
             out["graph"].append({"kind": "cs-note", "path": dead[0]["path"], "note": "dead", "name": str(len(dead))})
 
-    def extract(self, ctx) -> dict:
+    def extract(self, ctx: Context) -> dict:
         out = {o: [] for o in OUTPUTS}
         read = ctx.read
         result = cs_project.projects(sorted(ctx.tree), read)

@@ -4,6 +4,7 @@ Pure: no file access, no process. The flag says a name can be reached from outsi
 smaller set another assembly (a NuGet consumer) can use: the public names of packable library projects.
 """
 from __future__ import annotations
+from collections.abc import Collection
 
 __all__ = ["chain", "is_public", "items", "key", "line_flags", "partial_parts"]
 
@@ -146,7 +147,7 @@ def _project_rows(p: dict, decls: dict, generated: set, parts: dict) -> list:
     return out
 
 
-def items(projects: list, decls: dict, generated) -> tuple:
+def items(projects: list, decls: dict, generated: Collection[str]) -> tuple:
     """(`public-api` symbols, `cs-note` items, [{"project", "friend"}]) for the packable projects."""
     generated = set(generated)
     parts = partial_parts({f: d for f, d in decls.items() if f not in generated})

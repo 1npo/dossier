@@ -11,6 +11,7 @@ from dossier.core import buildlog
 from dossier.core import config
 from dossier.render import page as render
 from dossier.cli import common
+import argparse
 
 __all__ = ["cmd_verify_record", "cmd_verify_sample"]
 
@@ -25,7 +26,7 @@ def _verify_inputs(a):
     return out, facts, build
 
 
-def cmd_verify_sample(a):
+def cmd_verify_sample(a: argparse.Namespace) -> None:
     out, facts, build = _verify_inputs(a)
     reports = {rid: common.load(out / "reports" / f"{rid}.json") for rid, _, authored in render.REPORTS
                if authored and (out / "reports" / f"{rid}.json").exists()}
@@ -37,7 +38,7 @@ def cmd_verify_sample(a):
     print(json.dumps({"seed": seed, "sha": facts["repo"]["sha"], "prompt": str(common.ROOT / "prompts" / "verify.md"), "items": items}, indent=1))
 
 
-def cmd_verify_record(a):
+def cmd_verify_record(a: argparse.Namespace) -> None:
     out, _, build = _verify_inputs(a)
     sample = buildlog.latest(build, "check", "verify-sample")
     if not sample:

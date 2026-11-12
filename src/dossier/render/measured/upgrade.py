@@ -15,6 +15,7 @@ from pathlib import Path
 from dossier.render.measured import change as measured_change
 from dossier import resources
 from dossier.render import markup
+from collections.abc import Callable
 
 __all__ = ["DRAWN", "fetch_refdata", "rows"]
 
@@ -54,7 +55,7 @@ def fetch_dotnet_index(timeout=5):
         return None
 
 
-def fetch_refdata(fetch=None, today=None) -> dict:
+def fetch_refdata(fetch: Callable | None = None, today: str | None = None) -> dict:
     """What the build pins: {"dotnet": {"fetched": date, "cycles": [...]}} from the live index, or {} when it cannot be read."""
     cycles = dotnet_cycles_from_index((fetch or fetch_dotnet_index)())
     if not cycles:
@@ -134,7 +135,7 @@ def _gap(cycles, cycle, today):
     return (f"end of life since {entry['eol']}" if entry["eol"] <= today else f"supported until {entry['eol']}"), entry
 
 
-def rows(ctx, snapshot=None):
+def rows(ctx: dict, snapshot: dict | None = None) -> list[tuple]:
     """[(name, pinned, latest, gap, source path or None)]."""
     facts, read = ctx.get("facts") or {}, ctx.get("read")
     snap = snapshot or resolve_snapshot(facts.get("refdata"))[0]

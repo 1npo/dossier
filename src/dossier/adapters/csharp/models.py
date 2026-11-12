@@ -6,6 +6,7 @@ plus the enums those use. DTOs, records, view models, options classes and messag
 from __future__ import annotations
 
 import re
+from collections.abc import Callable, Collection
 
 __all__ = ["model_items"]
 
@@ -137,7 +138,7 @@ def _migrations(decls: dict) -> list:
     return out
 
 
-def model_items(decls: dict, projects: dict, read=None, generated=frozenset(), tests=frozenset()) -> list:
+def model_items(decls: dict, projects: dict, read: Callable | None = None, generated: Collection[str] = frozenset(), tests: Collection[str] = frozenset()) -> list:
     """Entity items (`ef-entity`, `ef-owned`, `dapper-row`, `table-class`, `cs-enum`) and `migration` items.
 
     `read(path)` gives a file's text, for the `Entity<T>()`, `OwnsOne<T>()` and Dapper `Query<T>()` calls that declarations do not hold."""
