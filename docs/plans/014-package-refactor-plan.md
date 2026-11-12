@@ -1502,6 +1502,10 @@ Next session: **Opus**, `Start Phase H in docs/plans/014-package-refactor-plan.m
 Session: Sonnet 5.5, 2026-11-11. Branch `refactor/package-g-layout`.
 
 - **G1.** Old to new (all 100% renames): `docs/plans/process.md` to `015-process.md`; `docs/prompts/post-v1.md` to `016-post-v1.md`; `docs/prompts/plan-m0.md` to `017-prompt-m0.md`, `plan-m1` to `018-prompt-m1`, `plan-m2` to `019-prompt-m2`, `plan-m3-remediation` to `020-prompt-m3-remediation`, `plan-m3` to `021-prompt-m3`, `plan-m4` to `022-prompt-m4`, `plan-m5` to `023-prompt-m5`, `plan-m6` to `024-prompt-m6`, `plan-package-refactor` to `025-prompt-package-refactor`; `docs/scratch/000-fixed-cards.md` to `026-fixed-cards.md`; `docs/reference/dependency-card.html` to `027-dependency-card-reference.html`. The developer guide's links (lines 24 and 60) follow. The empty `docs/prompts`, `docs/scratch` and `docs/reference` folders were removed.
+- **G2.** `prompts/README.md`, `src/dossier/data/README.md` and `tools/README.md` written and added to `CHECKED_FILES`; the link check passes.
+- **G3.** `tests/content/test_top_level.py` pins the tracked root entries to D3's list. Block M: `claude plugin validate . --strict` exits 0, and `.claude-plugin` is unchanged from `5a57908`.
+- **Checks.** Default suite: **3091 passed, 305 skipped** (3087 plus 3 new `CHECKED_FILES` cases and 1 layout test). No code changed, so blocks GF and GX were not re-run.
+- **For Phase H.** The links to plans in `README.md` and the developer guide beyond lines 24 and 60 are H2's job; plans 000 to 013 keep their stale links (S9).
 
 ---
 
