@@ -3,7 +3,7 @@
 # requires-python = ">=3.11"
 # dependencies = ["playwright"]
 # ///
-"""Print, as JSON, the V12 layout problems (scripts/check_layout.py) of a page at one width in one theme.
+"""Print, as JSON, the V12 layout problems (dossier/checks/layout.py) of a page at one width in one theme.
 
   uv run layout_probe.py PAGE.html [--width 1500] [--scheme light]
 

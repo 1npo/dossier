@@ -34,7 +34,7 @@ uv sync
 uv run pytest -q
 ```
 
-`uv sync` creates `.venv/` in the clone with the `dev` group. Expected: **3091 passed, 305 skipped**, no failures, in about 80 seconds. The skips are the slow tests; the count can differ by a skip that depends on the tools installed.
+`uv sync` creates `.venv/` in the clone with the `dev` group. Expected: **3108 passed, 305 skipped**, no failures, in about 80 seconds. The skips are the slow tests; the count can differ by a skip that depends on the tools installed.
 
 The slow tests run the real tools, need the network and a browser, and take about 25 minutes. Run them alone, with nothing else building beside them:
 
@@ -216,7 +216,7 @@ Every recipe starts with a failing test. Run it, see it fail, then make it pass.
 
 **Add a Semgrep rule.**
 
-1. Add the rule to `src/dossier/data/rules/<scope>/<family>.yml` with an id `dossier.<scope>.<family>.<name>` and `metadata.category` (see [rules/README.md](../src/dossier/data/rules/README.md) for the categories and blind-spot ids).
+1. Add the rule to `src/dossier/data/rules/<scope>/<family>.yml` with an id `dossier.<scope>.<family>.<name>` and `metadata.category` (see [the rules README](../src/dossier/data/rules/README.md) for the categories and blind-spot ids).
 2. Add `ruleid:` and `ok:` lines to the test file of the same name under `tests/fixtures/semgrep/<scope>/`.
 3. Run `DOSSIER_SLOW=1 uv run pytest -q tests/integration/dossier/tooling/test_shared_tools_rules.py`.
 4. A new blind-spot id needs fixed wording in `checks/v7.py`'s `BLIND_SPOTS`: the wording is part of Gaps item ids, so never reword it.
