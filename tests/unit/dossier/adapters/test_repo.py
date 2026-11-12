@@ -1,11 +1,11 @@
 import subprocess
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
 from dossier.adapters import repo as repo_adapter
 from fakes import FakeSemgrep
+from contexts import make_context
 
 
 class TestDockerfileEntries:
@@ -65,7 +65,7 @@ class TestCiTriggers:
         wf.mkdir(parents=True)
         (wf / "ci.yml").write_text("name: CI\non: [push, pull_request]\njobs: {}\n")
         (tmp_path / "app.py").write_text("x = 1\n")
-        ctx = SimpleNamespace(checkout=tmp_path, sha="HEAD", tree=frozenset({".github/workflows/ci.yml", "app.py"}), semgrep=FakeSemgrep(), tool_status={})
+        ctx = make_context(checkout=tmp_path, sha="HEAD", tree=frozenset({".github/workflows/ci.yml", "app.py"}), semgrep=FakeSemgrep(), tool_status={})
 
         out = repo_adapter.RepoAdapter().extract(ctx)
 
@@ -157,7 +157,7 @@ class TestVariablesInExtract:
         (tmp_path / "Dockerfile").write_text("ENV A=1\n")
         (tmp_path / "compose.yaml").write_text("services:\n  a:\n    environment:\n      - B=1\n")
         (tmp_path / "docs.yml").write_text("services:\n  a:\n    environment:\n      - C=1\n")
-        ctx = SimpleNamespace(checkout=tmp_path, sha="HEAD", tree=frozenset({"Dockerfile", "compose.yaml", "docs.yml"}),
+        ctx = make_context(checkout=tmp_path, sha="HEAD", tree=frozenset({"Dockerfile", "compose.yaml", "docs.yml"}),
                               semgrep=FakeSemgrep(), tool_status={})
 
         out = repo_adapter.RepoAdapter().extract(ctx)
@@ -306,7 +306,7 @@ class TestSqlColumns:
 
 def context(py_repo, semgrep):
     tree = frozenset(subprocess.run(["git", "-C", py_repo.path, "ls-files"], capture_output=True, text=True).stdout.split())
-    return SimpleNamespace(checkout=Path(py_repo.path), sha=py_repo.sha, tree=tree, semgrep=semgrep, tool_status={})
+    return make_context(checkout=Path(py_repo.path), sha=py_repo.sha, tree=tree, semgrep=semgrep, tool_status={})
 
 
 class TestExtract:

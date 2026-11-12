@@ -1393,7 +1393,7 @@ Read section 2, D4, D6, D9 and this phase; every earlier Results. Each task move
   - `names_of`, `component_stats`, `bus_factor` from `render/measured/people.py` to the new `findings/people.py`; `people.py` (measured) imports them back; `findings/candidates_history.py` and `render/summary.py` import them from `findings.people`. `scip._check` (in `adapters/python/scip.py`) to `tooling/shared_tools.py` as `check_result`; `adapters/python/scip.py` and `adapters/js/tools.py` call `shared_tools.check_result`. Tests that called them follow.
   - Done-check: default suite; block GF `SAME`.
   - Commit: `refactor(dossier): move people figures to findings and the tool result check to tooling`
-- [ ] **F4. `Context` helpers.** (Opus)
+- [x] **F4. `Context` helpers.** (Opus)
   - Add to `adapters/base.py`: `failure_reason(e: BaseException) -> str` returning `(str(e).splitlines() or [type(e).__name__])[0]`; `Context.read(self, path: str) -> str | None`; `Context.tool_ok(tool)`, `Context.tool_skipped(tool, reason)`, `Context.tool_failed(tool, reason)` that assign `{"status": ..., "reason": ...}` (that key order). Replace the hand-written status dicts and `_reader` closures in `python/adapter.py`, `js/adapter.py`, `csharp/adapter.py`, `repo.py`, `tier_b.py`. Leave `pipeline/extract.run_extract`'s own reason formula alone (D6). Unit tests for each helper, one class each, including the exact dict and the empty-first-line case.
   - Done-check: `git grep -n '"status": "ok", "reason": None' -- src/dossier/adapters` prints only `base.py`; default suite; block GF `SAME` (the `tool_status` sections in `extract/*.json` compare equal).
   - Commit: `refactor(dossier): give Context a file reader and tool-status helpers`

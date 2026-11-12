@@ -8,6 +8,7 @@ from dossier.adapters import registry
 from dossier.adapters.js import adapter as js_adapter
 from dossier.adapters.js import tools as js_tools
 from dossier.adapters.base import OUTPUTS
+from contexts import make_context
 
 NODE_TOOLS = ("dependency-cruiser", "knip", "scip-typescript", "typescript")
 
@@ -44,7 +45,7 @@ def context(js_repo, tmp_path, trusted=True, run=None):
     root = Path(js_repo.path)
     tree = frozenset(subprocess.run(["git", "-C", str(root), "ls-files"], capture_output=True, text=True).stdout.split())
     files = sorted(p for p in tree if p.endswith((".ts", ".tsx", ".js", ".jsx")))
-    return SimpleNamespace(checkout=root, sha=js_repo.sha, tree=tree, files=files, area=tmp_path / "area", restored={}, run=run or node_run(),
+    return make_context(checkout=root, sha=js_repo.sha, tree=tree, files=files, area=tmp_path / "area", restored={}, run=run or node_run(),
                            treesitter=FakeTS(), semgrep=FakeSemgrep(), tool_versions={}, trusted=trusted, repo_name="jsrepo", tool_status={})
 
 
@@ -115,7 +116,7 @@ class TestEntryPoints:
         repo = SimpleNamespace(path=str(tmp_path / "r"), sha="a" * 40)
         (tmp_path / "r").mkdir()
         (tmp_path / "r/a.js").write_text("")
-        ctx = SimpleNamespace(checkout=tmp_path / "r", tree=frozenset({"a.js"}), files=["a.js"], area=tmp_path, run=node_run(), trusted=True,
+        ctx = make_context(checkout=tmp_path / "r", tree=frozenset({"a.js"}), files=["a.js"], area=tmp_path, run=node_run(), trusted=True,
                               tool_status={}, tool_versions={}, treesitter=None, semgrep=None, sha=repo.sha, repo_name="r", restored={})
 
         assert js_adapter.JsAdapter().extract(ctx)["entry_points"] == []
@@ -343,7 +344,7 @@ class TestNotesStep:
         files = {"package.json": '{"name": "a", "dependencies": {"koa": "1"}}', "bun.lockb": "", "a.js": "", "b.mts": ""}
         for name, text in files.items():
             (tmp_path / name).write_text(text)
-        ctx = SimpleNamespace(checkout=tmp_path, tree=frozenset(files), files=["a.js", "b.mts"], area=tmp_path / "area", run=node_run(), trusted=True,
+        ctx = make_context(checkout=tmp_path, tree=frozenset(files), files=["a.js", "b.mts"], area=tmp_path / "area", run=node_run(), trusted=True,
                               tool_status={}, tool_versions={}, treesitter=FakeTS(), semgrep=FakeSemgrep(), sha="a" * 40, repo_name="r", restored={})
 
         out = js_adapter.JsAdapter().extract(ctx)

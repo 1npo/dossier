@@ -25,7 +25,7 @@ from dossier.tooling import sandbox
 from dossier.core import scip_read
 from dossier.adapters.python import scip as scip_tool
 from dossier.tooling import toolcheck
-from dossier.adapters.base import OUTPUTS, Adapter
+from dossier.adapters.base import OUTPUTS, Adapter, failure_reason
 from dossier.adapters.python.tools import Grimp, Vulture
 from dossier import resources
 
@@ -70,14 +70,11 @@ class PythonAdapter(Adapter):
         try:
             result = fn()
         except Exception as e:  # one tool failing must not stop the others
-            ctx.tool_status[tool] = {"status": "failed", "reason": (str(e).splitlines() or [type(e).__name__])[0]}
+            ctx.tool_failed(tool, failure_reason(e))
             return None
-        ctx.tool_status[tool] = {"status": "ok", "reason": None}
+        ctx.tool_ok(tool)
         return result
 
-    @staticmethod
-    def _skip(ctx, tool: str, reason: str) -> None:
-        ctx.tool_status[tool] = {"status": "skipped", "reason": reason}
 
     @staticmethod
     def _rel(ctx, path):
@@ -90,7 +87,7 @@ class PythonAdapter(Adapter):
 
     def _graph(self, ctx, out, st, timeout):
         if not st["roots"]:
-            return self._skip(ctx, "grimp", NO_PACKAGE)
+            return ctx.tool_skipped("grimp", NO_PACKAGE)
         roots = sorted({str(ctx.checkout / r["root"]) for r in st["roots"]})
         res = self._step(ctx, "grimp", lambda: Grimp(ctx.run, timeout).graph(roots, sorted({r["package"] for r in st["roots"]}),
                                                                         st["contracts"]["contracts"]))
@@ -152,7 +149,7 @@ class PythonAdapter(Adapter):
 
     def _semgrep(self, ctx, out, st):
         if not st["files"]:
-            return self._skip(ctx, "semgrep", "There are no Python files to scan.")
+            return ctx.tool_skipped("semgrep", "There are no Python files to scan.")
         for r in self._step(ctx, "semgrep", lambda: ctx.semgrep.scan(RULES, list(st["files"]))) or []:
             meta, family = r["metadata"], r["rule"].split(".")[2]
             base = {"path": r["path"], "line": r["start_line"], "end_line": r["end_line"], "rule": r["rule"], "snippet": r["snippet"]}
@@ -200,15 +197,15 @@ class PythonAdapter(Adapter):
         cfg = st["vulture"]
         paths = [p for p in st["src"] if not any(fnmatch.fnmatch(self._local(st, p), g) for g in cfg["exclude"])]
         if not paths:
-            return self._skip(ctx, "vulture", "There are no Python files to check.")
+            return ctx.tool_skipped("vulture", "There are no Python files to check.")
         for i in self._step(ctx, "vulture", lambda: Vulture(ctx.run, timeout).dead(paths, cfg)) or []:
             out["dead"].append({**i, "rule": "vulture." + i["type"], "snippet": i["name"]})
 
     def _symbols(self, ctx, out, st, timeout):
         if not ctx.trusted:
-            return self._skip(ctx, "scip-python", NOT_TRUSTED)
+            return ctx.tool_skipped("scip-python", NOT_TRUSTED)
         if not shutil.which("node", path=sandbox._host_path(os.environ)):
-            return self._skip(ctx, "scip-python", NO_NODE)
+            return ctx.tool_skipped("scip-python", NO_NODE)
 
         def go():
             version = ctx.tool_versions.get("scip-python") or next(t["version"] for t in toolcheck.load_tools()["tools"] if t["id"] == "scip-python")

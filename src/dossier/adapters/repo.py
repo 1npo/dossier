@@ -10,7 +10,7 @@ import subprocess
 from pathlib import Path
 
 from dossier.facts import gather
-from dossier.adapters.base import Adapter
+from dossier.adapters.base import Adapter, failure_reason
 from dossier import resources
 
 RULES_ALL = resources.data("rules", "all")
@@ -359,7 +359,7 @@ class RepoAdapter(Adapter):
             for r in (ctx.semgrep.scan(RULES_ALL, code) if code else []):
                 out["blindspots"].append({"path": r["path"], "line": r["start_line"], "end_line": r["end_line"],
                                           "pattern": r["metadata"].get("pattern"), "rule": r["rule"], "snippet": r["snippet"]})
-            ctx.tool_status["semgrep"] = {"status": "ok", "reason": None}
+            ctx.tool_ok("semgrep")
         except Exception as e:  # the other outputs are still good
-            ctx.tool_status["semgrep"] = {"status": "failed", "reason": (str(e).splitlines() or [type(e).__name__])[0]}
+            ctx.tool_failed("semgrep", failure_reason(e))
         return out

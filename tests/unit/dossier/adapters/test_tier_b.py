@@ -1,7 +1,8 @@
-from types import SimpleNamespace
+from pathlib import Path
 
 from dossier.adapters import registry
 from dossier.adapters import tier_b
+from contexts import make_context
 
 
 class FakeTS:
@@ -54,7 +55,7 @@ class TestSymbols:
 
 
 def ctx(tree, ts):
-    return SimpleNamespace(tree=frozenset(tree), treesitter=ts, tool_status={})
+    return make_context(checkout=Path("."), tree=frozenset(tree), treesitter=ts)
 
 
 class TestAdapter:

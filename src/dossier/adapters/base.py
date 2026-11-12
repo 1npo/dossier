@@ -34,6 +34,27 @@ class Context:
     tool_status: dict = field(default_factory=dict)
     details: dict = field(default_factory=dict)  # counts an adapter wants in the build log, nowhere else
 
+    def read(self, path: str) -> str | None:
+        """The text of a file in the checkout, or None when it cannot be read as UTF-8."""
+        try:
+            return (self.checkout / path).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            return None
+
+    def tool_ok(self, tool: str) -> None:
+        self.tool_status[tool] = {"status": "ok", "reason": None}
+
+    def tool_skipped(self, tool: str, reason: str) -> None:
+        self.tool_status[tool] = {"status": "skipped", "reason": reason}
+
+    def tool_failed(self, tool: str, reason: str) -> None:
+        self.tool_status[tool] = {"status": "failed", "reason": reason}
+
+
+def failure_reason(e: BaseException) -> str:
+    """The first line of an exception's message, or its type's name when the message is empty."""
+    return (str(e).splitlines() or [type(e).__name__])[0]
+
 
 class Adapter:
     name: ClassVar[str] = ""
