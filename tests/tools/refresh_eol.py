@@ -11,7 +11,6 @@ from datetime import date
 from pathlib import Path
 
 sys.path[:0] = [str(Path(__file__).resolve().parents[2] / "src")]
-sys.path.append(str(Path(__file__).resolve().parents[2] / "scripts"))  # TRANSITION: removed in C11
 
 from dossier import resources  # noqa: E402
 

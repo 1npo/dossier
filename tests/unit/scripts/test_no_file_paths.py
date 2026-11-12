@@ -2,8 +2,8 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-# scripts/bump_version.py is a maintainer tool; C11 moves it to tools/, outside this scan.
-ALLOWED = {"src/dossier/resources.py", "scripts/dossier.py", "scripts/check_page.py", "scripts/bump_version.py"}
+# tools/bump_version.py is a maintainer tool, outside this scan.
+ALLOWED = {"src/dossier/resources.py", "scripts/dossier.py", "scripts/check_page.py"}
 FILE_NAME = re.compile(r"(?<![\w.])__file__\b")
 MODULE_FILE = re.compile(r"\bmodule\.__file__\b")
 

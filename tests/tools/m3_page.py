@@ -18,7 +18,6 @@ from pathlib import Path
 
 SKILL = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(SKILL / "src")]
-sys.path.append(str(SKILL / "scripts"))  # TRANSITION: removed in C11
 
 from dossier.findings import components  # noqa: E402
 

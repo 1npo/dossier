@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Bump the skill's version in the two places that hold it: `VERSION` and `.claude-plugin/plugin.json`.
 
-Usage: python3 scripts/bump_version.py {major|minor|patch|X.Y.Z}
+Usage: python3 tools/bump_version.py {major|minor|patch|X.Y.Z}
 
 Prints the new version. Commit the result on a `chore/release-X.Y.Z` branch and merge it to `main`:
 the release workflow tags and publishes when a push to `main` changes `VERSION`.

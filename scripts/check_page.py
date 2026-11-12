@@ -13,7 +13,6 @@ import sys
 from pathlib import Path
 
 sys.path[0] = str(Path(__file__).resolve().parent.parent / "src")
-sys.path.append(str(Path(__file__).resolve().parent))  # TRANSITION: flat modules not moved yet; removed in C11
 
 from dossier.checks.browser import main  # noqa: E402
 
