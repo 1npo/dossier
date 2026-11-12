@@ -9,14 +9,14 @@ import keyword
 import re
 
 from dossier.findings import candidates
-import checks_people
-import checks_v3
-import checks_v7
+from dossier.checks import people as checks_people
+from dossier.checks import v3 as checks_v3
+from dossier.checks import v7 as checks_v7
 from dossier.findings import components
 from dossier.render import process
 from dossier.render import page as render
 from dossier.core import schema
-import verify
+from dossier.checks import verify
 
 FIXED_ROW_CARDS = ("io.inputs", "io.outputs")
 

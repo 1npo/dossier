@@ -5,7 +5,7 @@ import pytest
 
 from dossier.findings import candidates
 from dossier import resources
-import checks_v7
+from dossier.checks import v7 as checks_v7
 
 SKILL = Path(__file__).resolve().parents[3]
 RULES = resources.data("rules")

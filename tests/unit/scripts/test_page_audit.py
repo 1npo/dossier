@@ -9,7 +9,7 @@ sys.path.insert(0, str(SKILL / "tests" / "tools"))
 
 import broken_pages  # noqa: E402
 from dossier.core import buildlog  # noqa: E402
-import page_audit  # noqa: E402
+from dossier.checks import page_audit  # noqa: E402
 from dossier.render import page as render  # noqa: E402
 from dossier.core import schema  # noqa: E402
 

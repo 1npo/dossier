@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-import checks  # noqa: E402
+from dossier.checks import reports as checks  # noqa: E402
 
 CODE = "def load_config(path):\n    return parse(path)\n\nclass Store:\n    def save(self):\n        pass\n\nimport os.path\n"
 BLOBS = {"src/app.py": CODE.encode(), "README.md": b"hello"}

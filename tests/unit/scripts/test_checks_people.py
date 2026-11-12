@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-import checks_people  # noqa: E402
+from dossier.checks import people as checks_people  # noqa: E402
 
 COLUMNS = ["ID", "Risk", "Category", "Severity", "Impact", "Recommendation", "Source"]
 

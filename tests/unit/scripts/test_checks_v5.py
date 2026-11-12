@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-import checks  # noqa: E402
+from dossier.checks import reports as checks  # noqa: E402
 
 
 def item(i, group, path="src/a.py", line=3, category="env-var", rule="dossier.python.input.env-var"):
