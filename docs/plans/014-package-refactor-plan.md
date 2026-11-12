@@ -1465,7 +1465,7 @@ Read section 2, D12, section 5.4 and this phase; earlier Results. Load `docs-pro
 
 ### Tasks (Phase G)
 
-- [ ] **G1. Planning material into `docs/plans/`.** Find the highest number in `docs/plans/` (`014` unless a session added more) and `git mv`, in this order, with the next numbers: `docs/plans/process.md` to `NNN-process.md`; `docs/prompts/post-v1.md` to `NNN-post-v1.md`; `docs/prompts/plan-m0.md`, `plan-m1.md`, `plan-m2.md`, `plan-m3-remediation.md`, `plan-m3.md`, `plan-m4.md`, `plan-m5.md`, `plan-m6.md`, `plan-package-refactor.md` to `NNN-prompt-<same name without "plan-">.md` (for example `NNN-prompt-m0.md`); `docs/scratch/000-fixed-cards.md` to `NNN-fixed-cards.md`; `docs/reference/dependency-card.html` to `NNN-dependency-card-reference.html`. Contents unchanged. Record the old-to-new map in Results. Update the links to `process.md` and `post-v1.md` in `docs/developer-guide.md` (the only live doc that links them; H2 rewrites the rest).
+- [x] **G1. Planning material into `docs/plans/`.** Find the highest number in `docs/plans/` (`014` unless a session added more) and `git mv`, in this order, with the next numbers: `docs/plans/process.md` to `NNN-process.md`; `docs/prompts/post-v1.md` to `NNN-post-v1.md`; `docs/prompts/plan-m0.md`, `plan-m1.md`, `plan-m2.md`, `plan-m3-remediation.md`, `plan-m3.md`, `plan-m4.md`, `plan-m5.md`, `plan-m6.md`, `plan-package-refactor.md` to `NNN-prompt-<same name without "plan-">.md` (for example `NNN-prompt-m0.md`); `docs/scratch/000-fixed-cards.md` to `NNN-fixed-cards.md`; `docs/reference/dependency-card.html` to `NNN-dependency-card-reference.html`. Contents unchanged. Record the old-to-new map in Results. Update the links to `process.md` and `post-v1.md` in `docs/developer-guide.md` (the only live doc that links them; H2 rewrites the rest).
   - Done-check: `ls docs` shows `developer-guide.md images plans user-guide.md`; every file in `docs/plans/` starts with three digits and a hyphen; `git diff -M --stat main` shows the moves as 100% renames.
   - Commit: `docs(dossier): number every planning file under docs/plans`
 - [ ] **G2. Folder READMEs.** Write `prompts/README.md` (the three files, that Claude reads them by path from `SKILL.md`, and that the card schemas they mention live in `src/dossier/data/schemas/cards/`), `src/dossier/data/README.md` (D7's table rows for package data: group, reader, how it is loaded, "never edit the vendored bundles; refresh `eol.json` with `tools/refresh_eol.py`"), `tools/README.md` (owner: the author; one line per script with its command, and that none of them is part of `/dossier`). Each is under 40 lines, plain, present tense (`docs-project`).
@@ -1498,6 +1498,10 @@ Next session: **Opus**, `Start Phase H in docs/plans/014-package-refactor-plan.m
 `git revert -m 1 <merge sha>`.
 
 ### Results (Phase G)
+
+Session: Sonnet 5.5, 2026-11-11. Branch `refactor/package-g-layout`.
+
+- **G1.** Old to new (all 100% renames): `docs/plans/process.md` to `015-process.md`; `docs/prompts/post-v1.md` to `016-post-v1.md`; `docs/prompts/plan-m0.md` to `017-prompt-m0.md`, `plan-m1` to `018-prompt-m1`, `plan-m2` to `019-prompt-m2`, `plan-m3-remediation` to `020-prompt-m3-remediation`, `plan-m3` to `021-prompt-m3`, `plan-m4` to `022-prompt-m4`, `plan-m5` to `023-prompt-m5`, `plan-m6` to `024-prompt-m6`, `plan-package-refactor` to `025-prompt-package-refactor`; `docs/scratch/000-fixed-cards.md` to `026-fixed-cards.md`; `docs/reference/dependency-card.html` to `027-dependency-card-reference.html`. The developer guide's links (lines 24 and 60) follow. The empty `docs/prompts`, `docs/scratch` and `docs/reference` folders were removed.
 
 ---
 
