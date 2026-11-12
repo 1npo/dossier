@@ -21,7 +21,7 @@ dossier is a Claude Code skill. A Python CLI (`scripts/dossier.py`) measures a g
 
 Stack: Python 3.11+ run by `uv` (the Python, TypeScript and Semgrep workers keep `>=3.10` because they run under the repository's own Python and import nothing newer), tree-sitter, Semgrep, grimp, vulture and import-linter for Python, scip-python, dependency-cruiser, knip and scip-typescript for JS and TS, scip-dotnet for C#, Mermaid in the page. Linux and macOS. The page works in current Chromium, Firefox and Safari; the page check needs Playwright's Chromium.
 
-What to build is decided in [plans/004-v1-spec.md](plans/004-v1-spec.md). How milestones are planned and reviewed is in [process.md](process.md). What is left after 1.4.0 is in [post-v1.md](post-v1.md). The user-visible behaviour is in the [user guide](user-guide.md).
+What to build is decided in [plans/004-v1-spec.md](plans/004-v1-spec.md). How milestones are planned and reviewed is in [plans/015-process.md](plans/015-process.md). What is left after 1.4.0 is in [plans/016-post-v1.md](plans/016-post-v1.md). The user-visible behaviour is in the [user guide](user-guide.md).
 
 ## Getting started
 
@@ -57,7 +57,7 @@ The skill lives in `configs/user/claude/.claude/skills/dossier/` of the encamp r
 ```
 SKILL.md              what Claude reads when the user types /dossier: the steps of a build
 VERSION               the version (one line)
-README.md, docs/      user-facing docs; docs/plans/ holds plans and handoffs, docs/process.md the workflow
+README.md, docs/      user-facing docs; docs/plans/ holds plans and handoffs, docs/plans/015-process.md the workflow
 scripts/              the CLI and everything it imports (flat folder)
   dossier.py            the CLI: build_parser() and one cmd_* function per subcommand
   stages.py             the prepare stages: pin, tools, copy, measure, extract
