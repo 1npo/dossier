@@ -1244,6 +1244,12 @@ Session 1: Sonnet 5.5, 2026-11-11. Branch `refactor/package-c-moves`, one commit
 - **Deviation 3.** Block GF compared against the stored `$SCR/golden/fa` (base `7f51be9`), as in Phase B. After C5: **`SAME`** in all fast cases; the gatherer review shows no line besides imports; the diffs of `facts/gather.py` and `history/scan.py` are import lines only, `facts/deps.py` unchanged.
 - **Note.** ruff warns about `# noqa` directives with a non-code text at `pipeline/workarea.py:163` and `scripts/stages.py:75`; the warning is cosmetic and does not fail the check.
 
+Session 2: Sonnet 5.5, 2026-11-11. Same branch; C6 to C11 one commit each, not yet merged.
+
+- **Done.** C6 to C11. `scripts/` holds `check_page.py` and `dossier.py`; `bump_version.py` is in `tools/` (docstring usage line and `docs/developer-guide.md` updated); `pythonpath` is `["src", "tools", "tests/support"]`; the TRANSITION lines are gone from both launchers, `conftest.py` and the three `tests/tools` files that had one (the plan said five; only `m3_page`, `layout_probe`, `refresh_eol` did).
+- **Checks after C11.** `--check` with all maps concatenated: exit 0. Default suite 3060 passed, 305 skipped; `ruff check` passes; `dossier version` prints `dossier 1.10.4`; `check_page.py --help` prints the usage. Block GF `SAME` (gatherer review: import lines only); block GX `SAME`; slow suite 2 failed, 3362 passed, 1 skipped, the two failures being exactly the known ones of section 3.
+- **Not done here.** Block FC (clean clone) and the merge to `main`: the branch is unmerged.
+
 ---
 
 ## Phase D: The CLI split
