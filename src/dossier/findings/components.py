@@ -9,6 +9,7 @@ import re
 
 from dossier.facts import gather
 from dossier.core import graphs
+from collections.abc import Collection
 
 __all__ = [
     "catalog_edges", "catalog_rows", "chunk_lines", "component_candidates", "component_of", "file_lines",
@@ -33,7 +34,7 @@ def parse_paths(cell: str) -> list:
     return found
 
 
-def match_score(path: str, pattern: str):
+def match_score(path: str, pattern: str) -> tuple | None:
     """How specifically `pattern` names `path`: None, or a sortable score. A literal file beats a glob, a glob beats a
     directory, and a deeper directory beats a shallower one."""
     if pattern == path:
@@ -109,7 +110,7 @@ def file_lines(facts: dict) -> dict:
     return lines
 
 
-def source_files(tree, extract: dict) -> list:
+def source_files(tree: Collection[str] | None, extract: dict) -> list:
     paths = tree if tree else {i["path"] for items in extract.values() for i in items}
     return sorted(p for p in paths if (gather.lang_of(p) or (None, None))[1] == "code" and not gather.noise_reason(p))
 
@@ -124,7 +125,7 @@ def _package_row(package: str, modules: list) -> dict:
     return row
 
 
-def component_candidates(tree, extract: dict, facts: dict) -> dict:
+def component_candidates(tree: Collection[str] | None, extract: dict, facts: dict) -> dict:
     """Folders, packages and import communities, as suggestions for the components catalog. Never written to a report."""
     lines, files = file_lines(facts), source_files(tree, extract)
     folders: dict = {}

@@ -10,6 +10,11 @@ from collections import Counter
 from datetime import date
 
 from dossier.facts import gather
+from collections.abc import Callable, Iterable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from dossier.history.scan import Commit
 
 __all__ = ["branches", "default_branch", "git", "merge_sizes", "rows", "tags"]
 
@@ -22,7 +27,7 @@ ROWS = ("branch naming and strategy", "merge style", "commit message style", "ty
 STAND_IN = "Git does not record pull requests, so this is a stand-in."
 
 
-def git(run, args, timeout, stage="history"):
+def git(run: Callable, args: list[str], timeout: float, stage: str = "history") -> tuple:
     """Run git through the safe runner. Returns (result, stdout bytes); the stdout file is removed."""
     res = run(["git", *args], stage=stage, timeout=timeout, profile="tool")
     try:
@@ -47,7 +52,7 @@ def _row(convention, observed, evidence, commits=()):
     return {"kind": "workflow", "path": "", "convention": convention, "observed": observed, "evidence": evidence, "commits": list(commits)[:3]}
 
 
-def rows(commits, merge_sizes, tags, default_branch) -> list:
+def rows(commits: list[Commit], merge_sizes: dict, tags: list[tuple], default_branch: str) -> list:
     """The six rows in the spec's order. `commits` is newest first; `tags` is [(name, ISO day)] oldest first."""
     merges = [c for c in commits if len(c.parents) > 1]
     plain = [c for c in commits if len(c.parents) <= 1]
@@ -98,7 +103,7 @@ def rows(commits, merge_sizes, tags, default_branch) -> list:
     return [r1, r2, r3, r4, r5, r6]
 
 
-def merge_sizes(top, sha, run, timeout=600) -> dict:
+def merge_sizes(top: str, sha: str, run: Callable, timeout: float = 600) -> dict:
     """{merge sha: (files, changed lines)} against the first parent."""
     _, data = git(run, ["log", sha, "--merges", "--diff-merges=first-parent", "--numstat", "-z", "--format=%x1e%H"], timeout)
     sizes = {}
@@ -112,7 +117,7 @@ def merge_sizes(top, sha, run, timeout=600) -> dict:
     return sizes
 
 
-def tags(top, sha, run, timeout=60) -> list:
+def tags(top: str, sha: str, run: Callable, timeout: float = 60) -> list:
     """[(name, ISO day)] of tags reachable from `sha`, oldest first."""
     _, data = git(run, ["tag", "--merged", sha, "--sort=creatordate", "--format=%(refname:short)\x1f%(creatordate:short)"], timeout)
     out = []
@@ -123,7 +128,7 @@ def tags(top, sha, run, timeout=60) -> list:
     return out
 
 
-def default_branch(top, sha, run, timeout=60) -> str:
+def default_branch(top: str, sha: str, run: Callable, timeout: float = 60) -> str:
     res, data = git(run, ["symbolic-ref", "--short", "-q", "refs/remotes/origin/HEAD"], timeout)
     name = data.decode().strip()
     if res.returncode == 0 and name:
@@ -137,7 +142,7 @@ def default_branch(top, sha, run, timeout=60) -> str:
     return cur.decode().strip() or "(detached HEAD)"
 
 
-def branches(top, sha, run, default="main", timeout=300) -> list:
+def branches(top: str, sha: str, run: Callable, default: str = "main", timeout: float = 300) -> list:
     """Remote branches other than HEAD and the default branch, with how far each is ahead of and behind `sha`.
     Local branches are listed only when the repository has no remote ones."""
     fmt = "%(refname)\x1f%(objectname)\x1f%(committerdate:short)\x1f%(authorname)"

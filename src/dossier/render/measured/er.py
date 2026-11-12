@@ -14,6 +14,7 @@ from dossier.findings import components
 from dossier.render.measured import graph as measured_graph
 from dossier.render.measured import tables as measured_tables
 from dossier.render import markup
+from typing import Any
 
 __all__ = ["draw", "entities"]
 
@@ -126,7 +127,7 @@ def field_table(cid: str, extract: dict, refs) -> str:
     return markup.render_table(["Entity", "Field", "Type", "Key", "References", "Defined in", "Source"], rows, refs, "t-" + cid.replace(".", "-") + "-fields", plain=True)
 
 
-def draw(cid, ctx, refs):
+def draw(cid: str, ctx: dict, refs: Any) -> str | None:
     extract = ctx.get("extract") or {}
     if "models" not in extract:
         return None

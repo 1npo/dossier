@@ -11,6 +11,7 @@ import re
 import tomllib
 
 from dossier.facts import gather
+from collections.abc import Callable, Collection
 
 __all__ = ["is_library", "items"]
 
@@ -64,7 +65,7 @@ def _packable(project, read) -> bool:
     return bool(_manifest(project, "setup.py") or (cfg_path and _ini(read, cfg_path).has_section("metadata")))
 
 
-def is_library(project, read, tree=()) -> bool:
+def is_library(project: dict, read: Callable, tree: Collection[str] = ()) -> bool:
     """Packable, and either typed (`py.typed`) or declaring no console or GUI scripts. Anything else is an application."""
     if not _packable(project, read):
         return False
@@ -294,7 +295,7 @@ def _entry_point_rows(project, read, package) -> list:
     return rows
 
 
-def items(project, roots, tree, read) -> tuple:
+def items(project: dict, roots: list[dict], tree: Collection[str], read: Callable) -> tuple:
     """(`public-api` symbols, `py-note` items for modules whose `__all__` could not be read) for one Python project."""
     package = distribution_name(project, read)
     pkg, symbols, notes = Package(roots, tree, read), [], []

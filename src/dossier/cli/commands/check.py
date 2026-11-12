@@ -13,11 +13,12 @@ from dossier.findings import candidates
 from dossier.render import page as render
 from dossier.render import summary
 from dossier.cli import common
+import argparse
 
 __all__ = ["browser_check_line", "cmd_check"]
 
 
-def browser_check_line(build) -> str:
+def browser_check_line(build: dict | None) -> str:
     """What the render summary says about the browser check: "not run", or how many problems it found and when."""
     rec = buildlog.latest(build, "check", "browser") if build else None
     if not rec:
@@ -35,7 +36,7 @@ def run_browser_check(html: Path, out: Path):
     return r.returncode, r.stdout + r.stderr
 
 
-def cmd_check(a):
+def cmd_check(a: argparse.Namespace) -> None:
     """The two checks of the written page: V11 (it draws every row and entry of its sources), then V12 (the browser)."""
     top = common.toplevel(a.repo)
     out, name, _ = common.out_dir(top)

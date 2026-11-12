@@ -16,7 +16,7 @@ from dossier.cli.commands import verify
 __all__ = ["build_parser"]
 
 
-def build_parser():
+def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="dossier")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("version").set_defaults(fn=basics.cmd_version)

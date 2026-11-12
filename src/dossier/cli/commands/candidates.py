@@ -10,11 +10,12 @@ from dossier.findings import components
 from dossier.pipeline import stages
 from dossier.render import page as render
 from dossier.cli import common
+import argparse
 
 __all__ = ["cmd_candidates"]
 
 
-def cmd_candidates(a):
+def cmd_candidates(a: argparse.Namespace) -> None:
     top = common.toplevel(a.repo)
     out, _, _ = common.out_dir(top)
     ids = [rid for rid, _, authored in render.REPORTS if authored]

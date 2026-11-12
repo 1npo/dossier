@@ -13,11 +13,12 @@ from dossier.findings import candidates
 from dossier.findings import resolve
 from dossier.render import page as render
 from dossier.cli import common
+import argparse
 
 __all__ = ["cmd_confirm", "cmd_correct"]
 
 
-def cmd_correct(a):
+def cmd_correct(a: argparse.Namespace) -> None:
     top = common.toplevel(a.repo)
     out, _, _ = common.out_dir(top)
     state = common.load_state(out) if (out / "state.json").exists() else None
@@ -53,7 +54,7 @@ def short(t, n=150):
     return t if len(t) <= n else t[: n - 1] + "…"
 
 
-def cmd_confirm(a):
+def cmd_confirm(a: argparse.Namespace) -> None:
     top = common.toplevel(a.repo)
     out, _, _ = common.out_dir(top)
     if not (out / "state.json").exists():

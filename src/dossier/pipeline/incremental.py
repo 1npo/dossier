@@ -11,6 +11,7 @@ import posixpath
 import re
 
 from dossier.render.markup import INLINE_CITE, parse_cite
+from collections.abc import Callable, Collection, Iterable
 
 __all__ = ["MAX_CHANGED", "apply_shifts", "cites_in", "expected_reports", "parse_hunks", "plan"]
 
@@ -42,13 +43,13 @@ def transform(node, fix, key=None):
     return node
 
 
-def cites_in(rep):
+def cites_in(rep: dict) -> list[str]:
     found = []
-    transform(rep, lambda raw: found.append(raw) or raw)
+    transform(rep, lambda raw: found.append(raw) or raw)  # type: ignore[func-returns-value]
     return list(dict.fromkeys(found))
 
 
-def parse_hunks(diff):
+def parse_hunks(diff: str) -> list[tuple]:
     return [(int(a), 1 if b is None or b == "" else int(b), int(c), 1 if d is None or d == "" else int(d))
             for a, b, c, d in HUNK.findall(diff)]
 
@@ -112,12 +113,12 @@ def assess(rep, changed, hunks_of, deps_changed=False, allow_shift=True):
     return list(dict.fromkeys(reasons)), shifts
 
 
-def expected_reports(authored, existing, optional):
+def expected_reports(authored: Iterable[str], existing: Collection[str], optional: Iterable[str]) -> list[str]:
     """The reports an update must have: every authored one, except an optional report nobody has written."""
     return [rid for rid in authored if rid not in optional or rid in existing]
 
 
-def plan(reports, expected, changed, hunks_of, deps_changed, pending_corrections, commits_added, allow_shift=True, digest_changed=frozenset()):
+def plan(reports: dict, expected: list[str], changed: dict[str, str], hunks_of: Callable, deps_changed: bool, pending_corrections: dict[str, list[str]], commits_added: int, allow_shift: bool = True, digest_changed: Collection[str] = frozenset()) -> dict:
     """Decide the stale reports.
 
     reports: {id: report dict} that exist; expected: ids that should exist; changed: {path: status letter};
@@ -147,5 +148,5 @@ def plan(reports, expected, changed, hunks_of, deps_changed, pending_corrections
     return {"stale": stale, "shifts": shifts}
 
 
-def apply_shifts(rep, moves):
+def apply_shifts(rep: dict, moves: dict[str, str]) -> dict:
     return transform(rep, lambda raw: moves.get(raw, raw))

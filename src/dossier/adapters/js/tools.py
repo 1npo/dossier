@@ -15,6 +15,7 @@ from dossier.tooling import toolcheck
 from dossier import resources
 from dossier.tooling import shared_tools
 from dossier.tooling.shared_tools import ToolError
+from collections.abc import Callable
 
 __all__ = ["DepCruiser", "Knip", "NOT_TRUSTED", "ScipTs", "ToolError", "TsFacts", "ensure_installed", "node_problem"]
 
@@ -39,7 +40,7 @@ def install_dir(cache_root, lock_sha: str) -> Path:
     return Path(cache_root) / ".dossier-tools" / "node" / f"js-tools-{lock_sha[:8]}"
 
 
-def ensure_installed(run, cache_root, timeout: float) -> Path:
+def ensure_installed(run: Callable, cache_root: Path, timeout: float) -> Path:
     """Install once per lockfile and script. Returns the install folder, which holds `node_modules` and `ts_facts.mjs`."""
     folder = install_dir(cache_root, _lock_sha())
     marker = folder / ".installed"
@@ -56,7 +57,7 @@ def ensure_installed(run, cache_root, timeout: float) -> Path:
     return folder
 
 
-def node_problem(run) -> str | None:
+def node_problem(run: Callable) -> str | None:
     """None when Node is new enough, else the sentence to record as the reason the Node tools were skipped."""
     result = run(["node", "--version"], stage="node-version", profile="tool", timeout=15)
     found = None if result.timed_out or result.returncode != 0 else re.search(r"v(\d+\.\d+\.\d+)", result.stdout.read_text(errors="replace"))
@@ -72,10 +73,10 @@ def node_problem(run) -> str | None:
 class TsFacts:
     """Client for `ts_facts.mjs`: types, exports, imports, React components and routes, read with the TypeScript compiler API."""
 
-    def __init__(self, run, install: Path, timeout: float):
+    def __init__(self, run: Callable, install: Path, timeout: float) -> None:
         self.run, self.install, self.timeout = run, Path(install), timeout
 
-    def facts(self, project_dir, files: list[str], entries: list | None = None) -> dict:
+    def facts(self, project_dir: Path | str, files: list[str], entries: list | None = None) -> dict:
         """`entries` are [{"entry": file, "subpath": ...}] relative to the project folder; the response then holds `api` and `api_unresolved`."""
         request = json.dumps({"root": ".", "files": list(files), "entries": list(entries or [])}).encode()
         result = self.run(["node", "--max-old-space-size=4096", str(self.install / "ts_facts.mjs")], cwd=Path(project_dir), stage="js-ts-facts",
@@ -96,7 +97,7 @@ CRUISE_EXCLUDE = r"(^|/)(node_modules|dist|build|coverage|\.next|\.nx)/"
 class DepCruiser:
     """Client for dependency-cruiser: the import graph (no repository config) and, separately, the repository's own rules."""
 
-    def __init__(self, run, install: Path, timeout: float):
+    def __init__(self, run: Callable, install: Path, timeout: float) -> None:
         self.run, self.timeout = run, timeout
         self.bin = str(Path(install) / "node_modules" / "dependency-cruiser" / "bin" / "dependency-cruiser.mjs")
 
@@ -110,14 +111,14 @@ class DepCruiser:
             shared_tools.check_result(result, what)  # a failed run explains itself better than a JSON error
             raise ToolError(f"{what} gave output that is not JSON: {e}") from e
 
-    def cruise(self, project_dir, tsconfig: str | None = None) -> dict:
+    def cruise(self, project_dir: Path | str, tsconfig: str | None = None) -> dict:
         cmd = [".", "--no-config", "--output-type", "json", "--ts-pre-compilation-deps", "--no-progress", "--do-not-follow", "node_modules",
                "--exclude", CRUISE_EXCLUDE]
         if tsconfig:
             cmd += ["--ts-config", tsconfig]
         return self._json(cmd, project_dir, "Building the import graph", "js-depcruise")
 
-    def violations(self, project_dir, config_file: str) -> list:
+    def violations(self, project_dir: Path | str, config_file: str) -> list:
         """The repository's own rules. dependency-cruiser exits with the number of errors, so a non-zero exit with JSON is normal."""
         data = self._json([".", "--config", config_file, "--output-type", "json", "--no-progress", "--ts-pre-compilation-deps"], project_dir,
                           "Checking the repository's dependency rules", "js-depcruise-rules", tolerate_exit=True)
@@ -127,11 +128,11 @@ class DepCruiser:
 class Knip:
     """Client for knip (unused files, dependencies, exports and types). knip loads the repository's own config, so it runs restricted."""
 
-    def __init__(self, run, install: Path, timeout: float):
+    def __init__(self, run: Callable, install: Path, timeout: float) -> None:
         self.run, self.timeout = run, timeout
         self.bin = str(Path(install) / "node_modules" / "knip" / "bin" / "knip.js")
 
-    def run_knip(self, project_dir) -> dict:
+    def run_knip(self, project_dir: Path | str) -> dict:
         cmd = ["node", self.bin, "--reporter", "json", "--no-exit-code", "--no-progress", "--no-config-hints", "--include", "files,dependencies,exports,types"]
         result = self.run(cmd, cwd=Path(project_dir), stage="js-knip", profile="restricted", timeout=self.timeout)
         if result.timed_out:
@@ -151,11 +152,11 @@ class Knip:
 class ScipTs:
     """Client for scip-typescript: one index file per project, written outside the checkout."""
 
-    def __init__(self, run, install: Path, timeout: float):
+    def __init__(self, run: Callable, install: Path, timeout: float) -> None:
         self.run, self.timeout = run, timeout
         self.main = str(Path(install) / "node_modules" / "@sourcegraph" / "scip-typescript" / "dist" / "src" / "main.js")
 
-    def index(self, project_dir, area, n: int, has_tsconfig: bool) -> Path:
+    def index(self, project_dir: Path | str, area: Path, n: int, has_tsconfig: bool) -> Path:
         out = Path(area) / "scip"
         out.mkdir(parents=True, exist_ok=True)
         target = out / f"js-{n}.scip"

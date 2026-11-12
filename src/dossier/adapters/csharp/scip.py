@@ -3,6 +3,7 @@
 No `dotnet tool install` and no NuGet feed at run time. The one network call made in-process is the package download,
 which checks a pinned SHA-512 before anything is unpacked. Nothing from the package is run here.
 """
+from __future__ import annotations
 import base64
 import hashlib
 import re
@@ -13,6 +14,7 @@ from pathlib import Path
 from dossier.adapters.csharp import api as cs_api
 from dossier.core import scip_read
 from dossier.tooling.shared_tools import ToolError
+from collections.abc import Callable, Collection
 
 __all__ = [
     "ScipDotnet", "dead_items", "disambiguate", "drop_unrelated", "ensure_installed", "failure", "fallback_defs",
@@ -50,7 +52,7 @@ def _unpack(package: Path, folder: Path) -> None:
         z.extractall(root)
 
 
-def ensure_installed(cache_root, tool: dict, timeout: float, fetch=None) -> Path:
+def ensure_installed(cache_root: Path, tool: dict, timeout: float, fetch: Callable | None = None) -> Path:
     folder = install_dir(cache_root, tool["version"])
     want = tool["nupkg"]["sha512"]
     marker = folder / ".installed"
@@ -80,7 +82,7 @@ def _remove(folder: Path) -> None:
     folder.rmdir()
 
 
-def tool_dll(folder, runtime_majors) -> Path | None:
+def tool_dll(folder: Path, runtime_majors: list[int]) -> Path | None:
     for major in SUPPORTED_MAJORS:
         if major in runtime_majors:
             dll = Path(folder) / "tools" / f"net{major}.0" / "any" / "scip-dotnet.dll"
@@ -102,10 +104,10 @@ def _text(path) -> str:
 class ScipDotnet:
     """Runs scip-dotnet on one solution or project and writes the index outside the checkout (D11)."""
 
-    def __init__(self, run, dll, timeout: float):
+    def __init__(self, run: Callable, dll: Path | str, timeout: float) -> None:
         self.run, self.dll, self.timeout = run, str(dll), timeout
 
-    def index(self, checkout, target: str, area, n: int) -> tuple:
+    def index(self, checkout: Path, target: str, area: Path, n: int) -> tuple:
         """(index path, exit code or None on timeout, the log: stdout then stderr). The caller decides whether it counts as a failure."""
         out = Path(area) / "scip"
         out.mkdir(parents=True, exist_ok=True)
@@ -131,7 +133,7 @@ def soft_failure(log: str) -> str | None:
     return None
 
 
-def unloaded_projects(log: str, checkout) -> set:
+def unloaded_projects(log: str, checkout: Path | str) -> set:
     """Project files (relative to the checkout) that MSBuild could not load, from `Msbuild failed when processing the file '<path>'`.
 
     scip-dotnet logs these after a timestamp and a level, so they are not `Failure:` lines at the start; the run still gives an index for the rest."""
@@ -142,7 +144,7 @@ def unloaded_projects(log: str, checkout) -> set:
     return found
 
 
-def failure(returncode, log: str, index_path) -> str | None:
+def failure(returncode: int | None, log: str, index_path: Path) -> str | None:
     """Why a run produced nothing usable (D11), or None. A run that exits 0 with `Failure:` lines is not a failure here; see `soft_failure`."""
     if returncode is None:
         return "scip-dotnet took too long and was stopped."
@@ -155,7 +157,7 @@ def failure(returncode, log: str, index_path) -> str | None:
     return None
 
 
-def join(indexes: list, tree=None) -> dict:
+def join(indexes: list, tree: Collection[str] | None = None) -> dict:
     """One index from several. A path seen twice keeps its first document. With `tree`, documents for untracked files (obj/, bin/) are dropped."""
     seen, docs = set(), []
     for index in indexes:
@@ -199,7 +201,7 @@ def _flag(flags: list, name: str, line: int) -> bool:
     return min(named, key=lambda f: f[2] - f[1])[3] if named else False
 
 
-def finish_symbols(items: list, decls: dict, generated) -> list:
+def finish_symbols(items: list, decls: dict, generated: Collection[str]) -> list:
     """Drop parameter and type-parameter definitions and definitions in generated files; set `public` from the declarations (D15)."""
     parts = cs_api.partial_parts({p: d for p, d in decls.items() if p not in generated})
     flags: dict = {}
@@ -215,7 +217,7 @@ def finish_symbols(items: list, decls: dict, generated) -> list:
     return out
 
 
-def fallback_defs(decls: dict, generated) -> list:
+def fallback_defs(decls: dict, generated: Collection[str]) -> list:
     """One `def` per declaration when scip-dotnet did not run. Symbols carry no line number, so the digest is stable between such builds."""
     live = {p: d for p, d in decls.items() if p not in generated}
     parts = cs_api.partial_parts(live)
@@ -270,7 +272,7 @@ def drop_unrelated(items: list, projects: list, project_of: dict) -> tuple:
     return kept, dropped
 
 
-def dead_items(symbols: list, decls: dict, entries: list, models: list, blindspots: list, generated, test_files, unloaded=()) -> list:
+def dead_items(symbols: list, decls: dict, entries: list, models: list, blindspots: list, generated: Collection[str], test_files: Collection[str], unloaded: Collection[str] = ()) -> list:
     """`dead` items for internal types that no other file references (D17). Run only when scip-dotnet gave an index.
 
     `refs` counts uses from other files, so a name used again inside its own file also keeps a type off the list.

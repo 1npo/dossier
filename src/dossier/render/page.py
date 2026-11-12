@@ -74,6 +74,8 @@ from dossier.render.markup import (  # noqa: F401  (other modules and the tests 
     _UL_ITEM,
     user_note,
 )
+from collections.abc import Iterable
+from typing import Any
 
 __all__ = [
     "ASSETS", "CUT_CARDS", "Cites", "FAVICON", "GAP_KINDS", "OPTIONAL_REPORTS", "REPORTS", "TITLES", "VENDOR",
@@ -86,7 +88,7 @@ ASSETS, VENDOR = resources.data("assets"), resources.data("vendor")
 CONFLICT_MARKER = re.compile(r"^(<{7}|={7}|>{7})( |$)")
 
 
-def load_asset(path) -> str:
+def load_asset(path: Path) -> str:
     """Read a page asset. A git conflict marker in it would break the whole page, so refuse it."""
     path = Path(path)
     text = path.read_text(encoding="utf-8")
@@ -197,7 +199,17 @@ def gatherer_range(key):
 class Cites:
     """Resolves citations against the pinned commit and builds their links."""
 
-    def __init__(self, facts):
+    status: dict
+    _lines: dict
+    _tree: Any
+    _src: dict
+    ranges: dict
+    windows: Any
+    opens: dict
+    dropped: list
+    _secret: Any
+
+    def __init__(self, facts: dict) -> None:
         self.facts = facts
         self.sha = facts["repo"]["sha"]
         self.repo = Repo(facts["repo"]["path"])
@@ -212,7 +224,7 @@ class Cites:
         self.dropped = []         # files left out of the viewer to keep the page small
         self._secret = None
 
-    def tree(self):
+    def tree(self) -> tuple[set[str], set[str]]:
         """(files, directories) at the pinned commit."""
         if self._tree is None:
             files = set(self.repo.git("ls-tree", "-r", "--name-only", self.sha).splitlines())
@@ -220,7 +232,7 @@ class Cites:
             self._tree = (files, dirs)
         return self._tree
 
-    def path_like(self, text):
+    def path_like(self, text: str) -> bool:
         """True when a table cell is exactly one path, directory or glob that exists at the pinned commit."""
         v = str(text or "").strip()
         if not v or re.search(r"[\s`<>\[\]()|,;]", v) or v.startswith("*"):
@@ -231,7 +243,7 @@ class Cites:
             return any(fnmatch.fnmatchcase(p, core) for p in files)
         return core in files or core in dirs
 
-    def check(self, c):
+    def check(self, c: dict) -> dict:
         k = c["key"]
         if k in self.status:
             return self.status[k]
@@ -260,7 +272,7 @@ class Cites:
         self.status[k] = st
         return st
 
-    def secret_paths(self):
+    def secret_paths(self) -> set[str]:
         """Files the gatherer flagged as holding secrets."""
         if self._secret is None:
             s = self.facts.get("secret_signals") or {}
@@ -268,7 +280,7 @@ class Cites:
             self._secret = set(files) | {h["path"] for h in s.get("hits", [])}
         return self._secret
 
-    def source(self, path):
+    def source(self, path: str) -> tuple:
         """(lines, reason) for a file at the pinned commit. lines is None, and reason says why, when the viewer must not embed it.
         A secret-prone file is never read."""
         if path not in self._src:
@@ -288,7 +300,7 @@ class Cites:
             self._src[path] = (lines, reason)
         return self._src[path]
 
-    def viewable(self, c):
+    def viewable(self, c: dict) -> tuple:
         """(ok, reason): whether a citation may open the code viewer."""
         if c["kind"] != "file":
             return False, "not a file"
@@ -300,13 +312,13 @@ class Cites:
         lines, reason = self.source(c["path"])
         return lines is not None, reason
 
-    def view_attrs(self, c):
+    def view_attrs(self, c: dict) -> str:
         """Attributes that make a citation open the viewer, or "" when it does not. While the first pass runs, it records the range."""
         attrs = self.view_markup(c)
         self.opens[c["key"]] = bool(attrs)
         return attrs
 
-    def view_markup(self, c):
+    def view_markup(self, c: dict) -> str:
         if not self.viewable(c)[0]:
             return ""
         r = (c["a"], c["b"]) if c["a"] else None
@@ -317,17 +329,17 @@ class Cites:
         a, b = viewer.clip(*r) if r else ("", "")
         return f' data-view="{E(c["path"])}" data-a="{a}" data-b="{b}"'
 
-    def gatherer_view(self, c):
+    def gatherer_view(self, c: dict) -> str:
         """Attributes that point a measured-facts citation at the gatherer code that measured it, or "" when that code cannot be found."""
         rng = gatherer_range(c["name"])
         return f' data-view="{gatherer_path(c["name"])}" data-a="{rng[0]}" data-b="{rng[1]}"' if rng else ""
 
-    def view_counts(self):
+    def view_counts(self) -> dict[str, int]:
         """How many distinct citations open the viewer and how many do not, and how many files were left out for size."""
         n = sum(self.opens.values())
         return {"viewable": n, "not_viewable": len(self.opens) - n, "files_dropped_for_size": len(self.dropped)}
 
-    def plan_view(self):
+    def plan_view(self) -> tuple:
         """Pick the windows from the ranges the first pass recorded. Returns (dropped paths, whether any marker must be redrawn)."""
         files = {p: {"lines": self._src[p][0], "ranges": list(rs)} for p, rs in self.ranges.items()}
         self.windows, dropped = viewer.plan(files)
@@ -335,7 +347,7 @@ class Cites:
         stale = bool(dropped) or any(not viewer.covers(self.windows[p], r) for p, rs in self.ranges.items() if p in self.windows for r in rs)
         return dropped, stale
 
-    def url(self, c):
+    def url(self, c: dict) -> str | None:
         if c["kind"] == "facts":
             return "#" + FACT_KEYS.get(c["name"], "")
         base, kind = self.remote.get("web_base"), self.remote.get("kind")
@@ -435,7 +447,7 @@ def local_dt(stamp):
     return None
 
 
-def local_stamp(stamp):
+def local_stamp(stamp: str) -> str:
     """`2026-11-11 12:33 PM` in local time. A stamp that cannot be read is returned unchanged."""
     dt = local_dt(stamp)
     return dt.strftime("%Y-%m-%d %I:%M %p") if dt else str(stamp)
@@ -496,7 +508,7 @@ def claims_of_blocks(rid, blocks, where=None):
     return out
 
 
-def claims_of(rid, rep):
+def claims_of(rid: str, rep: dict) -> list[dict]:
     if rid in UNRENDERED_BLOCKS:
         return []
     if isinstance(rep.get("cards"), list):
@@ -560,8 +572,8 @@ def check_block(tag, b, rid, errors, warnings, schema_card=False):
         errors.append(f"{tag}: a list needs 'items'.")
 
 
-def validate(reports, facts, cites, partial=False):
-    errors, warnings = [], []
+def validate(reports: dict, facts: dict, cites: Cites, partial: bool = False) -> tuple:
+    errors, warnings = [], []  # type: list, list
     words = lambda s: len(str(s or "").split())
     names = [r for r, _, w in REPORTS if w]
     for rid in names:
@@ -719,7 +731,7 @@ def tier_badge(tier):
     return f'<span class="badge tier {cls}" data-variant="outline" tabindex="0" data-tip="{E(tip)}" data-tip-kind="note" aria-label="{E(name + ": " + tip)}">{E(tier)}</span>'
 
 
-def card_counts(reports):
+def card_counts(reports: dict) -> tuple:
     """(filled, pending) over the schema cards written by Claude: content or 'na' is filled, 'pending' or absent is pending."""
     filled = pending = 0
     for rid, sch in schema.load_all().items():
@@ -1421,11 +1433,11 @@ def panel_contributors(f, refs, history=None):
 # --------------------------------------------------------------------------- tracker pages
 
 
-def is_open(g):
+def is_open(g: dict) -> bool:
     return not g.get("res") or g["res"]["action"] == "wrong"
 
 
-def collect_gaps(reports, extra=()):
+def collect_gaps(reports: dict, extra: Iterable[dict] = ()) -> list[dict]:
     """Every open item, plus the ones the user has since confirmed or answered (they carry 'res')."""
     rows, order = [], [r for r, _, _ in REPORTS]
     for rid in order:
@@ -1512,7 +1524,7 @@ def panel_history(entries, refs):
                 group=[("", 4), ("Open items at that build", 3), ("", 2)]), "history", cid="dossier.changelog")
 
 
-def risk_counts(rep):
+def risk_counts(rep: dict) -> tuple:
     """(rows per severity, rows in all, rows that rest on inference) of the register in a risks report."""
     counts = {s: 0 for s in SEVERITIES}
     total = inferred = 0
@@ -1692,7 +1704,7 @@ def cards_body(refs):
     return render_table(["Report", "Card", "Tier", "Written by"], rows, refs, "t-cards", True, True)
 
 
-def measured_ctx(ctx, reports, facts):
+def measured_ctx(ctx: dict, reports: dict, facts: dict) -> dict:
     """What the measured cards draw from: the extractor output, the tracked files, a reader for files at the pinned commit and the component catalog."""
     cites = ctx["cites"]
     try:
@@ -1800,7 +1812,7 @@ def main_manifest(facts):
     return ms[0] if ms else {}
 
 
-def masthead(facts, reports):
+def masthead(facts: dict, reports: dict) -> dict:
     r = facts["repo"]
     m = main_manifest(facts)
     name = real(m.get("name")) or r["name"]
@@ -1811,7 +1823,7 @@ def masthead(facts, reports):
             "remote": link, "date": r["commit_date"]}
 
 
-def render_html(facts, reports, state, history, version, cites, build=None, coverage=None, extract=None, checks=None):
+def render_html(facts: dict, reports: dict, state: dict, history: dict, version: str, cites: Cites, build: Any = None, coverage: Any = None, extract: dict | None = None, checks: dict | None = None) -> tuple:
     """`coverage` is the list cmd_render already gave IDs to; without it the items are rebuilt from `build`."""
     if coverage is None:
         coverage = process.coverage_items(build) if build else ()

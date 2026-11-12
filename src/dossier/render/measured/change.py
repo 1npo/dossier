@@ -21,16 +21,16 @@ HOTSPOT_COMPONENTS = ["Component", "Files", "File changes", "Lines added", "Line
 PERIODS = (("12m", "Past 12 months"), ("all", "All time"))
 
 
-def has_history(ctx):
+def has_history(ctx: dict) -> bool:
     return bool(history_items(ctx, "meta"))
 
 
-def intro(text):
+def intro(text: str) -> str:
     """The sentence under a card's title: the same muted style on every measured card."""
     return f'<p class="muted">{markup.E(text)}</p>'
 
 
-def foot_notes(*lines):
+def foot_notes(*lines: str) -> str:
     """The notes at the bottom of a card, muted. One note is a plain line; several are a bulleted list, one bullet per note."""
     notes = [t for t in lines if t]
     if len(notes) == 1:
@@ -38,7 +38,7 @@ def foot_notes(*lines):
     return '<ul class="muted card-notes">' + "".join(f"<li>{markup.E(t)}</li>" for t in notes) + "</ul>"
 
 
-def none_found(text):
+def none_found(text: str) -> str:
     return f'<p class="muted none-found">{markup.E(text)}</p>'
 
 
@@ -183,7 +183,7 @@ def linked(a, b, extract) -> str:
     return "yes" if (a, b) in edges or (b, a) in edges else "no"
 
 
-def pair_rows(ctx):
+def pair_rows(ctx: dict) -> list[tuple]:
     extract = ctx.get("extract") or {}
     pairs = [p for p in history_items(ctx, "pair") if p["co_commits"] >= COCHANGE_MIN]
     pairs.sort(key=lambda p: (-p["co_commits"], -p["share"], p["a"], p["b"]))
@@ -209,7 +209,7 @@ def cochange(cid, ctx, refs):
 # ------------------------------------------------------------------ change.dead-code
 
 
-def dead_rows(extract, dependencies):
+def dead_rows(extract: dict, dependencies: dict | None) -> list[tuple]:
     """[(item, kind, evidence, path or None, line or None)]: tool findings, unused dependencies, modules nothing imports."""
     rows = [(d["name"], d["type"], d["message"] if d.get("confidence") is None else f'{d["message"]} ({d["confidence"]}% confidence)',
              d["path"], d.get("line")) for d in extract.get("dead", [])]

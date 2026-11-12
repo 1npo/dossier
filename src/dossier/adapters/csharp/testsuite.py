@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import posixpath
 import re
+from collections.abc import Callable, Collection
 
 __all__ = ["module_state", "test_configs", "tests"]
 
@@ -62,7 +63,7 @@ def _counts(d: dict) -> dict:
     return counts
 
 
-def tests(decls: dict, projects: dict, texts, test_files) -> list:
+def tests(decls: dict, projects: dict, texts: Callable, test_files: Collection[str]) -> list:
     """One `test-file` item per file in `test_files`. `texts(path)` gives the file's text (for mock helpers) or None."""
     owner = {f: p for p in projects["projects"] if "language" not in p for f in p["files"]}
     items = []
@@ -81,7 +82,7 @@ def _holds_collection(m: dict) -> bool:
     return bool(MUTABLE_INIT.match(init) or (re.match(r"new\s*\(", init) and re.match(r"(?:Dictionary|List|ConcurrentDictionary|HashSet)\b", m["type"] or "")))
 
 
-def module_state(decls: dict, skip=frozenset()) -> list:
+def module_state(decls: dict, skip: Collection[str] = frozenset()) -> list:
     """Static fields that hold changing data: not `readonly` or `const`, or `static readonly` set to a collection."""
     items = []
     for path in sorted(decls):
@@ -99,7 +100,7 @@ def module_state(decls: dict, skip=frozenset()) -> list:
     return sorted(items, key=lambda i: (i["path"], i["line"]))
 
 
-def test_configs(tree, read, projects: dict) -> list:
+def test_configs(tree: Collection[str], read: Callable, projects: dict) -> list:
     """`config` items: `*.runsettings`, `xunit.runner.json`, and a coverlet `<Threshold>` in a test project."""
     items = []
     test_projects = {p["path"] for p in projects["projects"] if "language" not in p and p["test"]}

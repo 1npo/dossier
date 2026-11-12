@@ -93,7 +93,7 @@ def _agents(entry, ctx):
     return _fill_rows(entry, ("Identity", "Areas touched", "Share of commits"), fill)
 
 
-def fill(entry, cid, ctx):
+def fill(entry: dict, cid: str, ctx: dict) -> dict | None:
     """The measured cells of Knowledge concentration and Agents and bots. Without history the entry is returned as written."""
     if not measured_change.has_history(ctx):
         return entry

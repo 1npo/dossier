@@ -19,7 +19,7 @@ from dossier.adapters.js import reduce as js_reduce
 from dossier.adapters.js import semgrep as js_semgrep
 from dossier.adapters.js import tools as js_tools
 from dossier.core import scip_read
-from dossier.adapters.base import OUTPUTS, Adapter, failure_reason
+from dossier.adapters.base import OUTPUTS, Adapter, Context, failure_reason
 from dossier.facts.gather import TEST_RE
 from dossier import resources
 
@@ -232,7 +232,7 @@ class JsAdapter(Adapter):
         lines = {(i["path"], i["paths"][0]): (i["lines"] or [None])[0] for i in items if i["kind"] == "import"}
         return js_reduce.contract_items(found, declared, full, names, lines)
 
-    def extract(self, ctx) -> dict:
+    def extract(self, ctx: Context) -> dict:
         out = {o: [] for o in OUTPUTS}
         read = ctx.read
         projects = js_project.projects(sorted(ctx.tree), read)

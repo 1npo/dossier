@@ -20,6 +20,8 @@ from dossier.render import summary
 from dossier.render.measured import upgrade as measured_upgrade
 from dossier.cli import common
 from dossier.cli.commands import check
+import argparse
+from typing import Any
 
 __all__ = ["cmd_render"]
 
@@ -45,7 +47,7 @@ def change_summary(facts, state):
     return ", ".join(parts) + "."
 
 
-def cmd_render(a):
+def cmd_render(a: argparse.Namespace) -> Any:
     top = common.toplevel(a.repo)
     out, name, _ = common.out_dir(top)
     facts = common.load(out / "facts.json")
@@ -112,7 +114,7 @@ def cmd_render(a):
                                           cites_checked=len(cites.status), cites_unresolved=unresolved, gap_counts=counts, check_counts=res["counts"], skill=buildlog.skill_state(common.ROOT))[1:]:
             buildlog.append(build_path, rec)
         pending = {"step": "render", "part": "render", "by": "render", "status": "ok"}
-        shown = buildlog.load(build_path)
+        shown: Any = buildlog.load(build_path)
         shown["records"].append(pending)
     else:
         shown = None

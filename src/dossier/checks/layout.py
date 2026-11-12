@@ -17,6 +17,7 @@ Nothing here imports playwright: it is given an open page.
 from __future__ import annotations
 
 from dossier.core import schema
+from typing import Any
 
 __all__ = ["SIZES", "arguments", "check_report"]
 
@@ -148,7 +149,7 @@ def arguments() -> dict:
             "maxEntities": MAX_ENTITIES, "frozen": FROZEN_CARDS, "noteCards": list(NOTE_CARDS), "tableCards": table_cards(), "minOverlap": MIN_OVERLAP_PX2}
 
 
-def check_report(page, args: dict) -> list:
+def check_report(page: Any, args: dict) -> list:
     """The problems of the report that is shown in `page` (it waits for its diagrams to be drawn first)."""
     page.wait_for_function("() => Array.from(document.querySelectorAll('.report:not([hidden]) .mermaid-host')).every(h => h.dataset.done)", timeout=90000)
     page.wait_for_timeout(200)

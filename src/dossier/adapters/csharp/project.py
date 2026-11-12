@@ -3,11 +3,13 @@
 `projects(tree, read)` takes the tracked paths and a `read(path) -> str | None`. Properties come from unconditioned
 `PropertyGroup`s of the project and of every `Directory.Build.props` above it; conditions are not evaluated.
 """
+from __future__ import annotations
 import posixpath
 import re
 import xml.etree.ElementTree as ET
 
 from dossier.facts import gather
+from collections.abc import Callable, Collection
 
 __all__ = ["is_generated", "project_frameworks", "projects", "source_roots"]
 
@@ -115,7 +117,7 @@ def _solution(path: str, read) -> list:
     return [_join(_dir(path), p) for p in found]
 
 
-def projects(tree, read) -> dict:
+def projects(tree: Collection[str], read: Callable) -> dict:
     tracked = set(tree)
     paths = sorted(p for p in tracked if not gather.noise_reason(p) or p.endswith("proj"))
     props_files = {p for p in tracked if p.rsplit("/", 1)[-1] == "Directory.Build.props"}
@@ -139,7 +141,7 @@ def projects(tree, read) -> dict:
             "targets": [s["path"] for s in solutions] + free}
 
 
-def source_roots(result: dict, tree) -> list:
+def source_roots(result: dict, tree: Collection[str]) -> list:
     cs = [p for p in result["projects"] if "language" not in p]
     items = []
     for p in cs:
@@ -159,7 +161,7 @@ def frameworks_named(result: dict) -> list:
     return sorted({n for p in result["projects"] for n in project_frameworks(p)})
 
 
-def is_generated(path: str, read) -> bool:
+def is_generated(path: str, read: Callable) -> bool:
     base = path.rsplit("/", 1)[-1].lower()
     if base.endswith((".designer.cs", ".g.cs", ".g.i.cs")):
         return True

@@ -10,11 +10,11 @@ from dossier.findings import components
 __all__ = ["bus_factor", "component_stats", "history_items", "names_of"]
 
 
-def history_items(ctx, kind):
+def history_items(ctx: dict, kind: str) -> list[dict]:
     return [i for i in (ctx.get("extract") or {}).get("history", []) if i.get("kind") == kind]
 
 
-def names_of(ctx):
+def names_of(ctx: dict) -> dict[str, str]:
     """Identity (or merged alias) -> display name, from the `person` items."""
     names = {}
     for p in history_items(ctx, "person"):
@@ -24,7 +24,7 @@ def names_of(ctx):
     return names
 
 
-def component_stats(ctx):
+def component_stats(ctx: dict) -> dict:
     """{component: {"owned": {id: lines}, "lines": {id: lines}, "commits": {id: n}, "files": n, "approx": bool}} from the `file` items.
 
     `owned` counts lines by the owner of the commit that last changed them, `lines` by author. A file with no blame
@@ -32,7 +32,7 @@ def component_stats(ctx):
     kept per file in `extract/history.json`, so there is no such figure here.
     """
     catalog = ctx.get("catalog") or []
-    stats = {r["name"]: {"owned": {}, "lines": {}, "commits": {}, "files": 0, "approx": False} for r in catalog}
+    stats: dict[str, dict] = {r["name"]: {"owned": {}, "lines": {}, "commits": {}, "files": 0, "approx": False} for r in catalog}
     for f in history_items(ctx, "file"):
         name = components.component_of(f["path"], catalog)[0]
         if name not in stats:
@@ -47,7 +47,7 @@ def component_stats(ctx):
     return stats
 
 
-def bus_factor(ctx):
+def bus_factor(ctx: dict) -> dict:
     """{"bus_factor", "top_owner_share"} over the lines owned by humans. Both are None when no human owns a line."""
     owned = sorted((p.get("owned_lines") or 0 for p in history_items(ctx, "person") if p.get("type") == "human"), reverse=True)
     total = sum(owned)

@@ -336,7 +336,7 @@ def _check_freshness(cards: dict, build) -> list:
     return ["V11: dossier.about: the Freshness tile is not drawn."]
 
 
-def audit(page: str, reports: dict, extract=None, facts=None, whole_page=True, build=None, measured=None) -> list:
+def audit(page: str, reports: dict, extract: dict | None = None, facts: dict | None = None, whole_page: bool = True, build: dict | None = None, measured: dict | None = None) -> list:
     """V11 errors for the page `page` (or any HTML holding the cards): [] when it draws everything its sources hold."""
     root = parse(page)
     cards: dict = {}

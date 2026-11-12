@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import posixpath
 import re
+from collections.abc import Callable, Collection
 
 __all__ = ["entries", "items", "read_tsconfig"]
 
@@ -17,7 +18,7 @@ SOURCE_EXT = (".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs")
 DECL = re.compile(r"\.d\.(m|c)?ts$")
 
 
-def read_tsconfig(read, path: str) -> dict | None:
+def read_tsconfig(read: Callable, path: str) -> dict | None:
     """The `compilerOptions` of a tsconfig, tolerating comments and trailing commas. `extends` is not followed."""
     text = read(path)
     if text is None:
@@ -141,7 +142,7 @@ def _expand(pattern: str, key: str, name: str, folder: str, tracked: set, option
     return results
 
 
-def entries(project: dict, tracked, tsconfig: dict | None) -> list:
+def entries(project: dict, tracked: Collection[str], tsconfig: dict | None) -> list:
     """Rows {package, subpath, file, resolved, audience} for one package. `project` is {"dir", "manifest"}."""
     manifest, folder = project["manifest"], project["dir"]
     tracked, options = set(tracked), tsconfig or {}

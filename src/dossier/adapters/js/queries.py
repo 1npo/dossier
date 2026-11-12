@@ -8,6 +8,11 @@ from __future__ import annotations
 
 import posixpath
 import re
+from collections.abc import Callable, Collection
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from dossier.tooling.shared_tools import TreeSitter
 
 __all__ = ["complexity", "module_state", "runner_of", "test_configs", "tests"]
 
@@ -92,7 +97,7 @@ def assemble_tests(matches_by_file: dict, runner_of) -> list:
     return items
 
 
-def tests(ts, files: list, runner_of) -> list:
+def tests(ts: TreeSitter | None, files: list, runner_of: Callable) -> list:
     if not files:
         return []
     by_file: dict = {p: [] for p in files if posixpath.splitext(p)[1] in GRAMMARS}
@@ -102,7 +107,7 @@ def tests(ts, files: list, runner_of) -> list:
     return assemble_tests(by_file, runner_of)
 
 
-def complexity(ts, files: list) -> dict:
+def complexity(ts: TreeSitter | None, files: list) -> dict:
     """{path: number of branch nodes}. Every file asked for gets a number."""
     counts = {p: 0 for p in files}
     for m in _query_all(ts, files, COMPLEXITY_Q):
@@ -136,7 +141,7 @@ def assemble_state(matches: list) -> list:
     return sorted(items, key=lambda i: (i["path"], i["line"]))
 
 
-def module_state(ts, files: list) -> list:
+def module_state(ts: TreeSitter, files: list) -> list:
     matches = [m for m in _query_all(ts, files, DECLARATION_Q) if m["start_col"] == 0]
     matches += [m for m in _query_all(ts, files, EXPORTED_DECLARATION_Q) if m["start_col"] == 7]
     return assemble_state(matches)
@@ -165,7 +170,7 @@ def _settings(text: str, tool: str) -> dict:
     return out
 
 
-def test_configs(tree, read) -> list:
+def test_configs(tree: Collection[str], read: Callable) -> list:
     """`config` items for the JavaScript test tools: one per configuration file, plus `jest` in package.json and a `test:` block in vite.config."""
     items = []
     for path in sorted(tree):
@@ -186,7 +191,7 @@ def test_configs(tree, read) -> list:
     return sorted(items, key=lambda i: (i["path"], i["tool"]))
 
 
-def runner_of(configs: list):
+def runner_of(configs: list) -> Callable:
     """A function from a test file's path to the runner configured in the nearest folder above it (vitest, then jest, then mocha)."""
     folders: dict = {}
     for c in configs:

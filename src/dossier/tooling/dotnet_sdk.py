@@ -3,6 +3,7 @@
 The roll-forward rules follow https://learn.microsoft.com/dotnet/core/tools/global-json. Dossier never forces a roll-forward:
 it does not edit global.json, set DOTNET_ROLL_FORWARD or pass an SDK version.
 """
+from __future__ import annotations
 import json
 import re
 import shutil
@@ -10,6 +11,7 @@ import subprocess
 from pathlib import Path
 
 from dossier.facts import gather
+from collections.abc import Callable, Iterable
 
 __all__ = ["apply", "list_runtime_majors", "list_sdks", "problem", "problem_for", "requirements"]
 
@@ -83,7 +85,7 @@ def pick(installed: list[str], want: dict | None) -> str | None:
     return None
 
 
-def requirements(paths, read) -> list[dict]:
+def requirements(paths: Iterable[str], read: Callable) -> list[dict]:
     out = []
     for p in sorted(paths):
         if p.rsplit("/", 1)[-1] != "global.json" or gather.noise_reason(p):
@@ -143,7 +145,7 @@ def list_runtime_majors(path: str | None = None) -> list[int]:
     return runtime_majors(_dotnet(["--list-runtimes"], path))
 
 
-def problem_for(checkout, path: str | None = None) -> str | None:
+def problem_for(checkout: Path | str, path: str | None = None) -> str | None:
     """The reason no restore can run in this checkout (no SDK, or none that its global.json accepts), else None."""
     root = Path(checkout)
     listed = subprocess.run(["git", "-C", str(root), "ls-files", "-z", "--", "global.json", "**/global.json"], capture_output=True)

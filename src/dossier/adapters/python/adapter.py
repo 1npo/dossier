@@ -25,7 +25,7 @@ from dossier.tooling import sandbox
 from dossier.core import scip_read
 from dossier.adapters.python import scip as scip_tool
 from dossier.tooling import toolcheck
-from dossier.adapters.base import OUTPUTS, Adapter, failure_reason
+from dossier.adapters.base import OUTPUTS, Adapter, Context, failure_reason
 from dossier.adapters.python.tools import Grimp, Vulture
 from dossier import resources
 
@@ -295,7 +295,7 @@ class PythonAdapter(Adapter):
             out["symbols"] += symbols
             out["graph"] += notes
 
-    def extract(self, ctx) -> dict:
+    def extract(self, ctx: Context) -> dict:
         timeout = config.timeouts()["tool"]
         projects = py_project.projects(ctx.tree)
         owner = {p: proj["dir"] for proj in projects for p in proj["files"]}

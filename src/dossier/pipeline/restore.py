@@ -15,6 +15,7 @@ from dossier.tooling import dotnet_sdk as cs_sdk
 from dossier.facts import gather
 from dossier.adapters.js import tools as js_tools
 from dossier.tooling import sandbox
+from collections.abc import Collection
 
 __all__ = ["decide", "plans", "restored", "run"]
 
@@ -41,7 +42,7 @@ def _is_berry(checkout, folder: str) -> bool:
         return False
 
 
-def plans(tree, tools: dict, checkout=None) -> list[dict]:
+def plans(tree: Collection[str], tools: dict, checkout: Path | None = None) -> list[dict]:
     out = []
     for r in tools["restore"]:
         for folder in _lock_folders(tree, r["lockfile"], bool(r.get("nested"))):
@@ -63,7 +64,7 @@ def restored(results: list[dict]) -> dict:
     return out
 
 
-def decide(plans, *, state, answer, no_restore, trust, allow_ref) -> dict:
+def decide(plans: list[dict], *, state: dict, answer: str | None, no_restore: bool, trust: dict, allow_ref: bool) -> dict:
     def out(action, reason=None, store=None):
         return {"action": action, "reason": reason, "store": store}
 
@@ -85,7 +86,7 @@ def decide(plans, *, state, answer, no_restore, trust, allow_ref) -> dict:
     return out("ask")
 
 
-def run(plans, *, area, checkout, timeout, parent=None) -> list[dict]:
+def run(plans: list[dict], *, area: Path, checkout: Path | str, timeout: float, parent: dict | None = None) -> list[dict]:
     results, tools_folder, sdk_problem, sdk_checked = [], None, None, False
     for p in plans:
         eco, folder = p["ecosystem"], p.get("dir", "")

@@ -62,7 +62,7 @@ def _known(reports, cid):
     return bool(entry) and not entry.get("pending") and ("blocks" in entry or "na" in entry)
 
 
-def people(reports, extract, catalog):
+def people(reports: dict, extract: dict, catalog: list[dict]) -> list[str]:
     """Report 13 names every person, every agent and every component, and nobody who is not in this build (D7)."""
     items = [i for i in (extract or {}).get("history", []) if isinstance(i, dict)]
     persons = [i for i in items if i.get("kind") == "person"]

@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 from dossier.tooling.shared_tools import ToolError, _call  # noqa: F401  (ToolError is re-exported for callers)
+from collections.abc import Callable
 
 __all__ = ["Grimp", "Vulture"]
 
 
 class Grimp:
-    def __init__(self, run, timeout: float):
+    def __init__(self, run: Callable, timeout: float) -> None:
         self.run, self.timeout = run, timeout
 
     def graph(self, roots: list, packages: list, contracts: list) -> dict:
@@ -20,7 +21,7 @@ class Grimp:
 
 
 class Vulture:
-    def __init__(self, run, timeout: float):
+    def __init__(self, run: Callable, timeout: float) -> None:
         self.run, self.timeout = run, timeout
 
     def dead(self, paths: list, config: dict) -> list:

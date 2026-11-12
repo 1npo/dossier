@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 __all__ = ["cache_root", "home", "path", "registry_auth", "timeouts", "update", "verify_per_report"]
 
@@ -30,7 +31,7 @@ def load() -> dict:
     return data
 
 
-def update(**keys) -> dict:
+def update(**keys: Any) -> dict:
     p = path()
     data = {**load(), **keys}
     p.parent.mkdir(parents=True, exist_ok=True)

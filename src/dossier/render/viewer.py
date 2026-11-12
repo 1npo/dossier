@@ -9,6 +9,7 @@ from __future__ import annotations
 import html
 import json
 import sys
+from typing import Any
 from bisect import bisect_right
 from itertools import accumulate
 
@@ -30,7 +31,7 @@ TOKEN_CLASSES = ("c", "k", "s", "m", "nf", "nb", "nt", "na", "no", "gd", "gi", "
 _warned = False
 
 
-def split_lines(data):
+def split_lines(data: bytes) -> list[str]:
     """Lines of a blob, counted the way Cites.check counts them."""
     lines = data.decode("utf-8", "replace").split("\n")
     if lines and lines[-1] == "":
@@ -38,7 +39,7 @@ def split_lines(data):
     return [l.removesuffix("\r") for l in lines]
 
 
-def clip(a, b):
+def clip(a: int, b: int) -> tuple:
     """The part of a cited range the viewer can show: a range longer than MAX_LINES is cut to its first MAX_LINES."""
     return a, min(b, a + MAX_LINES - 1)
 
@@ -47,7 +48,7 @@ def size_of(lines):
     return sum(len(l.encode("utf-8")) + 1 for l in lines)
 
 
-def pick_window(lines, ranges):
+def pick_window(lines: list[str], ranges: list) -> tuple:
     """(first, last) line numbers (1-based, inclusive) of the window to embed for a file.
     `ranges` are the file's cited (a, b) ranges, or None for a citation without line numbers."""
     n = len(lines)
@@ -58,7 +59,7 @@ def pick_window(lines, ranges):
         e = min(n, s + MAX_LINES - 1)
         return min(e, bisect_right(sums, sums[s - 1] + MAX_BYTES) - 1)
 
-    best = None
+    best: Any = None
     for s in sorted({1} | {a for a, _ in numbered}):
         e = fit(s)
         covered = sum(1 for a, b in numbered if s <= a and b <= e)
@@ -67,7 +68,7 @@ def pick_window(lines, ranges):
     return best[1], best[2]
 
 
-def covers(window, r):
+def covers(window: tuple, r: tuple | None) -> bool:
     """True when a citation's range (or None, for no line numbers) can be shown in the window."""
     if r is None:
         return True
@@ -75,7 +76,7 @@ def covers(window, r):
     return window[0] <= a and b <= window[1]
 
 
-def plan(files, budget=BUDGET):
+def plan(files: dict, budget: int = BUDGET) -> tuple:
     """Decide what to embed. `files` maps path -> {"lines": [...], "ranges": [(a, b) | None, ...]}.
     Returns (windows, dropped): windows maps path -> (first, last); dropped lists the paths cut for size."""
     windows = {p: pick_window(f["lines"], f["ranges"]) for p, f in files.items()}
@@ -139,7 +140,7 @@ def highlight(path, lines):
     return out[:len(lines)]
 
 
-def embed(files, windows):
+def embed(files: dict, windows: dict) -> str:
     """The JSON for the page's code-data block: per path, the file's line count, the window's first line and its lines as HTML."""
     data = {p: {"total": len(files[p]["lines"]), "start": w[0], "lines": highlight(p, files[p]["lines"])[w[0] - 1:w[1]]} for p, w in sorted(windows.items())}
     text = json.dumps(data, ensure_ascii=False, separators=(",", ":"))

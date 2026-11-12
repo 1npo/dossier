@@ -6,6 +6,10 @@ by position, so the pairing logic is pure and tested with hand-made capture list
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from dossier.tooling.shared_tools import TreeSitter
 
 __all__ = ["complexity", "imports", "models", "module_state", "tests"]
 
@@ -155,14 +159,14 @@ def migrations(files: list) -> list:
     return items
 
 
-def models(ts, files: list) -> list:
+def models(ts: TreeSitter, files: list) -> list:
     if not files:
         return []
     return assemble_models(ts.query("python", files, CLASS_Q), ts.query("python", files, FIELD_Q),
                            ts.query("python", files, DECORATOR_Q)) + migrations(files)
 
 
-def complexity(ts, files: list) -> dict:
+def complexity(ts: TreeSitter, files: list) -> dict:
     """{path: number of branch nodes}: a rough measure of how many paths run through a file. Every file asked for gets a number."""
     counts = {p: 0 for p in files}
     for m in (ts.query("python", files, COMPLEXITY_Q) if files else []):
@@ -187,7 +191,7 @@ def assemble_state(matches: list) -> list:
     return sorted(items, key=lambda i: (i["path"], i["line"]))
 
 
-def module_state(ts, files: list) -> list:
+def module_state(ts: TreeSitter, files: list) -> list:
     return assemble_state(ts.query("python", files, MODULE_ASSIGN_Q)) if files else []
 
 
@@ -238,7 +242,7 @@ def assemble_imports(matches: list, module_paths: dict) -> list:
              "via": "tree-sitter"} for (path, frm, to), lines in sorted(edges.items())]
 
 
-def imports(ts, files: list, module_paths: dict) -> list:
+def imports(ts: TreeSitter, files: list, module_paths: dict) -> list:
     return assemble_imports(ts.query("python", files, IMPORT_Q), module_paths) if files else []
 
 
@@ -265,7 +269,7 @@ def assemble_tests(matches_by_file: dict, module_paths: dict) -> list:
     return items
 
 
-def tests(ts, test_files: list, module_paths: dict) -> list:
+def tests(ts: TreeSitter, test_files: list, module_paths: dict) -> list:
     if not test_files:
         return []
     by_file: dict = {p: [] for p in test_files}

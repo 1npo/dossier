@@ -1,6 +1,7 @@
 """The tables of the two measured graph cards (D4): the component edge table and the module table."""
 from __future__ import annotations
 from dossier.render import markup
+from typing import Any
 
 __all__ = [
     "API_COLUMNS", "REACT_COLUMNS", "component_edges", "config_keys", "friend_lines", "heading", "module_imports",
@@ -12,7 +13,7 @@ def heading(text: str) -> str:
     return f'<h4 class="graph-heading">{markup.E(text)}</h4>'
 
 
-def component_edges(cid: str, imports: list, group: dict, refs, kind: str) -> str:
+def component_edges(cid: str, imports: list, group: dict, refs: Any, kind: str) -> str:
     """Every edge between components (or areas): imports and the number of importing files, most imports first."""
     pairs: dict = {}
     for a, b in imports:
@@ -25,7 +26,7 @@ def component_edges(cid: str, imports: list, group: dict, refs, kind: str) -> st
     return markup.render_table([f"From {kind}", f"To {kind}", "Imports", "Modules"], rows, refs, "t-" + cid.replace(".", "-") + "-components", plain=True)
 
 
-def module_imports(cid: str, items: list, group: dict, refs, kind: str) -> str:
+def module_imports(cid: str, items: list, group: dict, refs: Any, kind: str) -> str:
     """Every module import, by the component it comes from."""
     rows = []
     for g in sorted(items, key=lambda g: (group.get(g["path"], ""), g["path"], g["to"])):
@@ -43,7 +44,7 @@ def _names(values) -> str:
     return ", ".join(sorted(set(values))) or "-"
 
 
-def react_components(cid: str, extract: dict, refs) -> str:
+def react_components(cid: str, extract: dict, refs: Any) -> str:
     """Every React component with what it renders, what renders it, its hooks and its context, from the `ui-component` and `renders` items."""
     graph = extract.get("graph", [])
     comps = sorted((g for g in graph if g.get("kind") == "ui-component"), key=lambda g: (g["path"], g["name"], g.get("line") or 0))
@@ -89,7 +90,7 @@ def friend_lines(extract: dict) -> list:
     return [f"{p} lets {f} use its internal names (InternalsVisibleTo)." for p, f in sorted(pairs)]
 
 
-def public_api(ctx: dict, refs) -> str:
+def public_api(ctx: dict, refs: Any) -> str:
     """The table of what other packages can import (D17), then the `InternalsVisibleTo` lines (D15).
 
     Empty for a repository with no JavaScript or C#; one line when it declares nothing."""
@@ -126,7 +127,7 @@ def config_key_rows(extract: dict) -> list:
     return [(n, k, sorted(places)) for (n, k), places in sorted(groups.items())]
 
 
-def config_keys(ctx: dict, refs) -> str:
+def config_keys(ctx: dict, refs: Any) -> str:
     """The group under the Inputs card: configuration read by name (C# `IConfiguration`, `GetSection`, `Bind`, `IOptions<T>`). Empty when there are none.
 
     These are not environment variables, so the environment-variable card skips them. Every row is listed; only names are shown."""

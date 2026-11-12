@@ -38,7 +38,7 @@ def similarity(a, b):
     return 0.0
 
 
-def migrate(state):
+def migrate(state: dict) -> dict:
     """Bring state.json from any earlier skill version up to date. Only ever adds."""
     state.setdefault("history", [])
     state.setdefault("corrections", [])
@@ -50,7 +50,7 @@ def migrate(state):
     return state
 
 
-def sync(state, items):
+def sync(state: dict, items: list[dict]) -> list[dict]:
     """Give every open item an ID (reusing the ID of the same item from earlier builds). Sets item['id']."""
     tracked = state["tracked"]
     by_fp = {t["fp"]: t for t in tracked}
@@ -80,7 +80,7 @@ def sync(state, items):
     return items
 
 
-def apply(items, state):
+def apply(items: list[dict], state: dict) -> list[dict]:
     """Mark each item with its ID and the user's decision. A confirmed or answered claim becomes 'confirmed'."""
     res = state.get("resolutions", {})
     for it in items:
@@ -96,7 +96,7 @@ def apply(items, state):
     return items
 
 
-def find(state, key):
+def find(state: dict, key: str) -> dict | None:
     key = key.strip().upper()
     for t in state["tracked"]:
         if t["id"] == key:

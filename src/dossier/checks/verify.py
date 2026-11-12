@@ -1,10 +1,15 @@
 """Sampling for the independent claim check (`--verify`, D8). Pure: no I/O besides reading cited lines through `cites`."""
+from __future__ import annotations
 import hashlib
 import random
 import re
 
 from dossier.render import markup
 from dossier.render import page as render
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from dossier.render.page import Cites
 
 __all__ = ["check_results", "eligible", "keyed", "plain_text", "result_record", "sample", "sample_record"]
 
@@ -25,9 +30,9 @@ def base_key(c):
     return hashlib.sha1(str(c.get("text") or "").encode()).hexdigest()
 
 
-def keyed(claims):
+def keyed(claims: list[dict]) -> list[dict]:
     """`claims` (one report's, in page order) with a unique `key` in each: the base key, and `#2`, `#3` for a repeat of it."""
-    seen, out = {}, []
+    seen, out = {}, []  # type: dict, list
     for c in claims:
         k = base_key(c)
         seen[k] = seen.get(k, 0) + 1
@@ -40,7 +45,7 @@ def claim_key(c):
     return c.get("key") or base_key(c)
 
 
-def plain_text(text):
+def plain_text(text: str | None) -> str:
     """The claim as plain words: citation markers removed."""
     out = re.sub(r"\s*" + markup.INLINE_CITE.pattern, "", str(text or ""))
     return " ".join(out.split())
@@ -63,7 +68,7 @@ def line_cites(cites, c):
     return found
 
 
-def eligible(reports, cites):
+def eligible(reports: dict, cites: Cites) -> dict[str, list[dict]]:
     """{report id: [claim]} for the claims a checker can judge, sorted by (card, key)."""
     out = {}
     for rid, rep in reports.items():
@@ -84,9 +89,9 @@ def excerpt(cites, cite):
     return "\n".join(f"{n}: {lines[n - 1]}" for n in range(lo, min(hi, len(lines)) + 1))
 
 
-def sample(elig, seed, per_report, cites):
+def sample(elig: dict[str, list[dict]], seed: str, per_report: int, cites: Cites) -> list[dict]:
     """The items to check: up to `per_report` claims for each report, chosen from `seed`."""
-    items = []
+    items: list = []
     for rid in sorted(elig):
         pool = elig[rid]
         for c in random.Random(f"{seed}:{rid}").sample(pool, min(per_report, len(pool))):
@@ -101,7 +106,7 @@ def sample(elig, seed, per_report, cites):
     return items
 
 
-def check_results(sample_record, results):
+def check_results(sample_record: dict, results: list[dict]) -> list[str]:
     """Problems in an agent's answers against the recorded sample; an empty list means they can be recorded."""
     ids = [i["id"] for i in (sample_record.get("details") or {}).get("items", [])]
     problems, seen = [], set()
@@ -121,14 +126,14 @@ def check_results(sample_record, results):
     return problems
 
 
-def sample_record(seed, per_report, items):
+def sample_record(seed: str, per_report: int, items: list[dict]) -> dict:
     """The build.json record that fixes which claims were sampled."""
     return {"step": "check", "part": "verify-sample", "by": "verify", "status": "ok",
             "details": {"seed": seed, "per_report": per_report,
                         "items": [{k: i[k] for k in ("id", "report", "card", "key")} for i in items]}}
 
 
-def result_record(sample_record_, results):
+def result_record(sample_record_: dict, results: list[dict]) -> dict:
     """The build.json record of the checker's verdicts, joined to the sampled claims."""
     by_id = {i["id"]: i for i in sample_record_["details"]["items"]}
     rows = [{"id": r["id"], "report": by_id[r["id"]]["report"], "key": by_id[r["id"]]["key"],

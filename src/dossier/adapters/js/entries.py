@@ -8,6 +8,7 @@ import posixpath
 
 from dossier.facts import gather
 from dossier.adapters.js import project as js_project
+from collections.abc import Callable, Collection
 
 __all__ = ["next_routes", "nx_targets", "package_entries"]
 
@@ -49,7 +50,7 @@ def _item(path, line, kind, name, trigger, target, rule, snippet):
             "rule": rule, "snippet": snippet}
 
 
-def package_entries(project: dict, read) -> list:
+def package_entries(project: dict, read: Callable) -> list:
     """Bins, scripts, the prisma seed and main/module/exports of every member package of `project`."""
     out = []
     for folder in project["members"]:
@@ -88,7 +89,7 @@ def package_entries(project: dict, read) -> list:
     return out
 
 
-def nx_targets(tree, read) -> list:
+def nx_targets(tree: Collection[str], read: Callable) -> list:
     out = []
     for path in sorted(p for p in tree if posixpath.basename(p) == "project.json" and gather.noise_reason(p) is None):
         manifest = js_project.read_json(read, path)
@@ -112,7 +113,7 @@ def _route(folders: list, stem: str | None) -> str:
     return "/" + "/".join(parts)
 
 
-def next_routes(files, project: dict) -> list:
+def next_routes(files: list[str], project: dict) -> list:
     """Routes from the file layout of one Next.js package (`project["dir"]`): the app router and the pages router."""
     prefix = project["dir"] + "/" if project["dir"] else ""
     out = []

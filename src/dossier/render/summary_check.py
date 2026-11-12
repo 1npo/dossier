@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from dossier import resources
+from typing import Any
 
 __all__ = ["load_schema", "validate"]
 
@@ -16,7 +17,7 @@ ANNOTATIONS = {"$schema", "title", "description"}
 TYPES = {"object": dict, "array": list, "string": str, "null": type(None), "boolean": bool}
 
 
-def load_schema(path=SCHEMA_PATH) -> dict:
+def load_schema(path: Path = SCHEMA_PATH) -> dict:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
@@ -56,7 +57,7 @@ def _check(value, schema, where, out) -> None:
             _check(item, schema["items"], f"{where}[{n}]", out)
 
 
-def validate(doc, schema=None) -> list:
+def validate(doc: Any, schema: dict | None = None) -> list:
     """Problems of `doc` against the schema, one line each. `$` stands for the whole document."""
     out: list = []
     _check(doc, schema if schema is not None else load_schema(), "$", out)

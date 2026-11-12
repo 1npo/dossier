@@ -18,6 +18,10 @@ from dossier.render import markup
 from dossier.render import page as render
 from dossier.core import schema
 from dossier.checks import verify
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from dossier.render.page import Cites
 
 __all__ = ["gap_extras", "validate"]
 
@@ -368,7 +372,7 @@ def v2_recipes(reports: dict) -> tuple[list, list, int]:
     return warnings, gaps, len(warnings)
 
 
-def validate(reports: dict, extract: dict, cites=None, facts=None, catalog=None) -> dict:
+def validate(reports: dict, extract: dict, cites: Cites | None = None, facts: dict | None = None, catalog: dict | None = None) -> dict:
     """Run every check. {"errors", "warnings", "gaps", "counts", "unbacked"}."""
     result = {"errors": [], "warnings": [], "gaps": [], "counts": {}, "unbacked": {}, "info": []}
     try:
@@ -440,7 +444,7 @@ js_coverage = checks_v7.js_coverage
 cs_coverage = checks_v7.cs_coverage
 
 
-def gap_extras(build, reports, extract, cites=None, facts=None, result=None) -> list:
+def gap_extras(build: dict | None, reports: dict, extract: dict, cites: Cites | None = None, facts: dict | None = None, result: dict | None = None) -> list:
     """The one list `cmd_render` and `cmd_confirm` both pass to `collect_gaps`: the build's coverage items, then the checks' items."""
     result = result if result is not None else validate(reports, extract, cites, facts)
     claims = {(rid, c["key"]): verify.plain_text(c["text"]) for rid, rep in reports.items() for c in verify.keyed(render.claims_of(rid, rep or {}))}
