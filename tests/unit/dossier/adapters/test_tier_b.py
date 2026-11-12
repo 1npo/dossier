@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from dossier.adapters import base as adapters
+from dossier.adapters import registry
 from dossier.adapters import tier_b
 
 
@@ -59,9 +59,9 @@ def ctx(tree, ts):
 
 class TestAdapter:
     def test_it_is_registered_and_runs_only_for_its_languages(self):
-        assert tier_b.TierBAdapter in adapters._registered()
-        assert [a.name for a in adapters.detect(["Python"], (tier_b.TierBAdapter,))] == []
-        assert [a.name for a in adapters.detect(["Shell"], (tier_b.TierBAdapter,))] == ["tier-b"]
+        assert tier_b.TierBAdapter in registry.registered()
+        assert [a.name for a in registry.detect(["Python"], (tier_b.TierBAdapter,))] == []
+        assert [a.name for a in registry.detect(["Shell"], (tier_b.TierBAdapter,))] == ["tier-b"]
 
     def test_symbols_from_every_language_present_and_tool_ok(self):
         ts = FakeTS({"bash": [m("a.sh", "function", "deploy", 3)], "rust": [m("l.rs", "struct", "Config", 2)]})

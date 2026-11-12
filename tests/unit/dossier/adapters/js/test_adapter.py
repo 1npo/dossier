@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from dossier.adapters import base as adapters
+from dossier.adapters import registry
 from dossier.adapters.js import adapter as js_adapter
 from dossier.adapters.js import tools as js_tools
 from dossier.adapters.base import OUTPUTS
@@ -64,14 +64,14 @@ def offline_tools_fixture(monkeypatch, tmp_path):
 
 class TestDetect:
     def test_typescript_and_javascript_include_js(self):
-        assert "js" in [a.name for a in adapters.detect(["TypeScript"])]
-        assert "js" in [a.name for a in adapters.detect(["JavaScript"])]
+        assert "js" in [a.name for a in registry.detect(["TypeScript"])]
+        assert "js" in [a.name for a in registry.detect(["JavaScript"])]
 
     def test_python_alone_does_not(self):
-        assert "js" not in [a.name for a in adapters.detect(["Python"])]
+        assert "js" not in [a.name for a in registry.detect(["Python"])]
 
     def test_js_comes_first_in_the_registered_order(self):
-        assert [a.name for a in adapters.detect(["Python", "TypeScript"])] == ["js", "python", "repo"]
+        assert [a.name for a in registry.detect(["Python", "TypeScript"])] == ["js", "python", "repo"]
 
 
 class TestAdapterShape:

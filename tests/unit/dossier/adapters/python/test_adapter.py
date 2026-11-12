@@ -4,7 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from dossier.adapters import base as adapters
+from dossier.adapters import base
+from dossier.adapters import registry
 from dossier.adapters.python import adapter as py_adapter
 from dossier.core import scip_read
 from dossier.adapters.python import scip as scip_tool
@@ -152,7 +153,7 @@ class TestToolIsolation:
     def test_every_output_key_is_present(self, py_repo, tmp_path):
         out = py_adapter.PythonAdapter().extract(context(py_repo, tmp_path))
 
-        assert set(out) == set(adapters.OUTPUTS)
+        assert set(out) == set(base.OUTPUTS)
 
 
 class TestScip:
@@ -272,12 +273,12 @@ class TestDead:
 
 class TestRegistration:
     def test_both_adapters_are_registered_and_the_repo_one_matches_any_language(self):
-        names = [type(a).__name__ for a in adapters.detect(["Shell"])]
+        names = [type(a).__name__ for a in registry.detect(["Shell"])]
 
         assert names == ["RepoAdapter", "TierBAdapter"]
 
     def test_python_matches_python(self):
-        assert [type(a).__name__ for a in adapters.detect(["Python"])] == ["PythonAdapter", "RepoAdapter"]
+        assert [type(a).__name__ for a in registry.detect(["Python"])] == ["PythonAdapter", "RepoAdapter"]
 
 
 class TestHandlerArgument:

@@ -1379,7 +1379,7 @@ Read section 2, D4, D6, D9 and this phase; every earlier Results. Each task move
 
 ### Tasks (Phase F)
 
-- [ ] **F1. Split `adapters/base.py`; break C-adapters.** (Opus)
+- [x] **F1. Split `adapters/base.py`; break C-adapters.** (Opus)
   - `adapters/base.py` keeps `OUTPUTS`, `ALWAYS_EXPECTED_SEG`, `NO_EXTRACTORS`, `Context`, `Adapter`, `ADAPTERS` (the empty tuple kept for callers that pass their own). New `adapters/registry.py`: top-level imports of the five adapter classes, `REGISTERED` in today's order, `registered()` (today's `_registered()`, returning `REGISTERED`), `detect()`. New `pipeline/extract.py` (start with `git mv src/dossier/adapters/base.py src/dossier/pipeline/extract.py`, then recreate `base.py`, so the long extract code keeps its history): `_is_expected`, `filter_paths`, `_read`, `_write`, `rules_hash`, `PACKAGE`, `code_hash`, `_key`, `_reusable`, `run_extract`. `pipeline/stages.py` uses `registry.detect` and `extract.run_extract`. Give `Adapter`'s attributes `ClassVar` annotations and `extract` the signature `(self, ctx: Context) -> dict[str, list[dict]]`.
   - Tests: split `tests/unit/dossier/adapters/test_base.py`: the `detect`/`_registered` classes to `adapters/test_registry.py`, the `filter_paths`/`run_extract`/`_key`/`_reusable`/`code_hash` classes to `pipeline/test_extract.py`; update `adapters.X` references in the other test files to the module that now holds `X` (16 uses of `detect`, 8 of `_key`, and the rest in section 5.3's importers).
   - Done-check: no function-level `import` in `adapters/` or `pipeline/extract.py`; default suite at the baseline; block GF `SAME` (build-log adapter rows in the same order).

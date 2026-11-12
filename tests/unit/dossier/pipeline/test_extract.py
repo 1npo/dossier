@@ -2,22 +2,18 @@ import json
 
 import pytest
 
-from dossier.adapters import base as adapters
+from dossier.adapters import base
 from dossier.adapters.js import adapter as js_adapter
 from dossier.adapters.python import adapter as py_adapter
 from dossier.adapters import repo as repo_adapter
-
-
-class A1(adapters.Adapter):
-    name = "a1"
-    languages = ("Python",)
+from dossier.pipeline import extract
 
 
 TREE = frozenset({"app.py", "src/a.py"})
 
 
 def filt(outputs, globs=()):
-    return adapters.filter_paths(outputs, TREE, "/checkout", globs)
+    return extract.filter_paths(outputs, TREE, "/checkout", globs)
 
 
 class TestFilterPaths:
@@ -61,34 +57,7 @@ class TestFilterPaths:
             filt({"graph": [{"kind": "x"}]})
 
 
-class TestDetect:
-    def test_matching_language_gives_an_instance(self):
-        got = adapters.detect(["Python"], (A1,))
-
-        assert [type(g) for g in got] == [A1]
-
-    def test_other_language_gives_nothing(self):
-        assert adapters.detect(["Shell"], (A1,)) == []
-
-
-class Wild(adapters.Adapter):
-    name = "wild"
-    languages = ("*",)
-
-
-class TestDetectWildcard:
-    def test_wildcard_adapter_matches_any_language(self):
-        got = adapters.detect(["Shell"], (Wild,))
-
-        assert [type(g) for g in got] == [Wild]
-
-    def test_wildcard_adapter_matches_no_languages(self):
-        got = adapters.detect([], (Wild,))
-
-        assert [type(g) for g in got] == [Wild]
-
-
-class WithRules(adapters.Adapter):
+class WithRules(base.Adapter):
     name = "with-rules"
     tools = ("semgrep",)
 
@@ -98,10 +67,10 @@ class TestKey:
         (tmp_path / "a.yml").write_text("rules: []\n")
         adapter = WithRules()
         adapter.rules = (tmp_path,)
-        before = adapters._key(adapter, "sha", {})
+        before = extract._key(adapter, "sha", {})
 
         (tmp_path / "a.yml").write_text("rules: [x]\n")
-        after = adapters._key(adapter, "sha", {})
+        after = extract._key(adapter, "sha", {})
 
         assert before != after
 
@@ -110,18 +79,18 @@ class TestKey:
         adapter = WithRules()
         adapter.rules = (tmp_path,)
 
-        assert adapters._key(adapter, "sha", {}) == adapters._key(adapter, "sha", {})
+        assert extract._key(adapter, "sha", {}) == extract._key(adapter, "sha", {})
 
     def test_a_build_stored_without_a_rules_hash_is_not_reusable(self, tmp_path):
         (tmp_path / "a.yml").write_text("rules: []\n")
         adapter = WithRules()
         adapter.rules = (tmp_path,)
-        key = adapters._key(adapter, "sha", {})
+        key = extract._key(adapter, "sha", {})
         old = {k: v for k, v in key.items() if k != "rules"}
         (tmp_path / "extract").mkdir()
         (tmp_path / "extract" / "entry_points.json").write_text('{"adapters": {"with-rules": %s}}' % json.dumps(old))
 
-        assert not adapters._reusable(tmp_path, adapter, key)
+        assert not extract._reusable(tmp_path, adapter, key)
 
     def test_a_change_to_the_skills_code_changes_the_key(self, tmp_path, monkeypatch):
         (tmp_path / "a.yml").write_text("rules: []\n")
@@ -130,26 +99,26 @@ class TestKey:
         (code / "x.py").write_text("A = 1\n")
         adapter = WithRules()
         adapter.rules = (tmp_path,)
-        monkeypatch.setattr(adapters, "PACKAGE", code)
-        before = adapters._key(adapter, "sha", {})
+        monkeypatch.setattr(extract, "PACKAGE", code)
+        before = extract._key(adapter, "sha", {})
 
         (code / "x.py").write_text("A = 2\n")
 
-        assert adapters._key(adapter, "sha", {}) != before
+        assert extract._key(adapter, "sha", {}) != before
 
     def test_the_same_code_gives_the_same_key(self, tmp_path):
-        assert adapters.code_hash() == adapters.code_hash()
+        assert extract.code_hash() == extract.code_hash()
 
     def test_a_build_stored_without_a_code_hash_is_not_reusable(self, tmp_path):
         (tmp_path / "a.yml").write_text("rules: []\n")
         adapter = WithRules()
         adapter.rules = (tmp_path,)
-        key = adapters._key(adapter, "sha", {})
+        key = extract._key(adapter, "sha", {})
         old = {k: v for k, v in key.items() if k != "code"}
         (tmp_path / "extract").mkdir()
         (tmp_path / "extract" / "entry_points.json").write_text('{"adapters": {"with-rules": %s}}' % json.dumps(old))
 
-        assert not adapters._reusable(tmp_path, adapter, key)
+        assert not extract._reusable(tmp_path, adapter, key)
 
     def test_shipped_adapters_name_their_rule_folders(self):
         assert [a.rules for a in (js_adapter.JsAdapter, py_adapter.PythonAdapter, repo_adapter.RepoAdapter)] == [

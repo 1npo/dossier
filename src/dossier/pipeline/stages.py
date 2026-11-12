@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
-from dossier.adapters import base as adapters
+from dossier.adapters import registry
 from dossier.core import buildlog
 from dossier.findings import candidates
 from dossier.core import config
@@ -20,6 +20,7 @@ from dossier.pipeline import restore
 from dossier.tooling import sandbox
 from dossier.tooling import shared_tools
 from dossier.tooling import toolcheck
+from dossier.pipeline import extract
 from dossier.pipeline import workarea
 from dossier import resources
 
@@ -154,8 +155,8 @@ def stage_extract(build, top, sha, area, out, langs, trust, opts: Options, resto
     versions = {t["id"]: t["version"] for t in tools["tools"] if t["version"]}
     timeouts = config.timeouts()
     tool_run = functools.partial(sandbox.run, area=area, cwd=checkout, timeout=timeouts["tool"])
-    rec = adapters.run_extract(
-        adapters=adapters.detect(langs), checkout=checkout, sha=sha, tree=tree, area=area, out=out, trusted=trust,
+    rec = extract.run_extract(
+        adapters=registry.detect(langs), checkout=checkout, sha=sha, tree=tree, area=area, out=out, trusted=trust,
         allow_ref=opts.allow_ref, restored=restored, treesitter=shared_tools.TreeSitter(tool_run),
         semgrep=shared_tools.Semgrep(tool_run), tool_versions=versions, timeout=timeouts["extract"])
     rec.setdefault("details", {})["tool_status"] = candidates.tool_status(out)
