@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Rewrite src/dossier/data/eol.json from endoflife.date. Run by hand when the snapshot is stale; the skill never calls the network for this.
 
-    python3 tests/tools/refresh_eol.py                 # every product, and a new as_of date
-    python3 tests/tools/refresh_eol.py --add react     # only these products, added to the file; the others and as_of stay as they are
+    python3 tools/refresh_eol.py                 # every product, and a new as_of date
+    python3 tools/refresh_eol.py --add react     # only these products, added to the file; the others and as_of stay as they are
 """
 import json
 import sys
@@ -10,7 +10,7 @@ import urllib.request
 from datetime import date
 from pathlib import Path
 
-sys.path[:0] = [str(Path(__file__).resolve().parents[2] / "src")]
+sys.path[:0] = [str(Path(__file__).resolve().parents[1] / "src")]
 
 from dossier import resources  # noqa: E402
 

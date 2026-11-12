@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Print the card skeleton of rendered dossier pages and check that they are all the same (spec 11, item 2).
 
-    python3 tests/tools/skeleton.py PAGE [PAGE...]
+    python3 tools/skeleton.py PAGE [PAGE...]
 
 For each page: one line per card, in page order, `report  card id  title  tier`. Exit 1 unless every page has the same list, and then
 say which cards differ. A card's presence depends on the schema alone, so a Python repository, a JavaScript repository and a mixed one

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Score a dossier's reports against a ground truth file (plan 010, D18).
 
-    python3 tests/tools/ground_truth.py TRUTH REPORTS_DIR [--review FILE]
+    python3 tools/ground_truth.py TRUTH REPORTS_DIR [--review FILE]
 
 TRUTH is `{"entry_points": [{"kind", "key", "where"}], "io": [{"direction", "category", "key", "where"}]}`. A truth row matches when a
 row of its home card contains its `key` (backticks ignored). Home cards: `entry.catalog` for entry points, `io.inputs` and `io.outputs`
