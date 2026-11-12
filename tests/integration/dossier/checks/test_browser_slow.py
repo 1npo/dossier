@@ -16,9 +16,9 @@ from dossier.checks import layout as check_layout  # noqa: E402
 from dossier.render.measured import er as measured_er  # noqa: E402
 from paths import CHECK_PAGE, SKILL_ROOT
 
-DIAGRAM_TEXT = SKILL_ROOT / "tests" / "tools" / "diagram_text.py"
-TABLE_FIT = SKILL_ROOT / "tests" / "tools" / "table_fit.py"
-LAYOUT_PROBE = SKILL_ROOT / "tests" / "tools" / "layout_probe.py"
+DIAGRAM_TEXT = SKILL_ROOT / "tests" / "support" / "diagram_text.py"
+TABLE_FIT = SKILL_ROOT / "tests" / "support" / "table_fit.py"
+LAYOUT_PROBE = SKILL_ROOT / "tests" / "support" / "layout_probe.py"
 
 pytestmark = [
     pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs a browser: set DOSSIER_SLOW=1"),

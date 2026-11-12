@@ -1328,7 +1328,7 @@ Read section 2, D10, section 5.3 and this phase; Phases A to D Results. The test
 - [x] **E4. Content tests, tool tests and `tests/tools`.** `git mv` the `tests/content/` and `tests/unit/tools/` rows of section 5.3, plus `test_launcher.py` and `test_no_file_paths.py` from Phases A and B. Move `tests/tools/*` per D10's table: `broken_pages.py`, `m3_page.py` to `m6_page.py`, `layout_probe.py`, `diagram_text.py`, `table_fit.py` to `tests/support/`; `ground_truth.py`, `refresh_eol.py`, `report_section.py`, `skeleton.py` to `tools/`. `tools/golden.py`'s builder lookup accepts `tests/support/`. Remove the empty `tests/tools/` and `tests/unit/scripts/`.
   - Done-check: `find tests -maxdepth 2 -type d | sort` shows `content`, `fixtures`, `integration`, `support`, `unit`; default suite identical counts; block GF `SAME` (it now runs the page builders from `tests/support/` on side b).
   - Commit: `test(dossier): move content tests, tool tests and test tools to their homes`
-- [ ] **E5. `tests/README.md` and the guard.** `tests/README.md`: one table of the five folders (what is in each, who runs it, the slow rule), and the commands for the default and slow suites. Content test `tests/content/test_tests_layout.py`: every `tests/unit/dossier/**/test_*.py` sits in a folder that exists under `src/dossier/`; no test module imports another test module; no `sys.path` use outside the seven standalone helpers named in E1.
+- [x] **E5. `tests/README.md` and the guard.** `tests/README.md`: one table of the five folders (what is in each, who runs it, the slow rule), and the commands for the default and slow suites. Content test `tests/content/test_tests_layout.py`: every `tests/unit/dossier/**/test_*.py` sits in a folder that exists under `src/dossier/`; no test module imports another test module; no `sys.path` use outside the seven standalone helpers named in E1.
   - Done-check: the test passes; default suite at the baseline plus the new tests; the slow suite (block I).
   - Commit: `test(dossier): document the test tree and guard its layout`
 
@@ -1355,6 +1355,17 @@ Next session: **Opus**, `Start Phase F in docs/plans/014-package-refactor-plan.m
 `git revert -m 1 <merge sha>`.
 
 ### Results (Phase E)
+
+Session 1: Sonnet 5.5, 2026-11-11. Branch `refactor/package-e-tests`, one commit per task (E1 to E5).
+
+- **Done.** E1 to E5. `tests/` holds `content`, `fixtures`, `integration`, `support`, `unit`; `tests/unit/scripts`, `tests/integration/scripts` and `tests/tools` are gone. `pytest` runs with `--import-mode=importlib` and `pythonpath = ["src", "tests/support", "tools"]`.
+- **Checks.** Default suite **3065 passed, 305 skipped** (3061 plus the 4 tests of `tests/content/test_tests_layout.py`). The collected count is 3365 before and after E1 to E4, with and without `DOSSIER_SLOW`. `ruff check .` passes. Block GF after E4: `SAME`, gatherer review empty. The slow suite: the full run showed 10 failures and 4 errors, all from `test_browser_slow.py` pointing at `tests/tools/` for `layout_probe.py`, `diagram_text.py` and `table_fit.py`; after fixing the three paths that file gives exactly the 2 known failures of section 3 (the other 3,300 or so slow tests passed in the full run).
+- **Deviations.**
+  - An eighth test-to-test import: `test_page_audit.py` imported `test_render` inside two methods. `facts`, `history` and `Refs` of `TestContributorsOwnerButtons` moved to `tests/support/contributors.py` as base class `ContributorsData`.
+  - Support modules also took the helpers the moved functions need (`FakeTS`, `FakeSemgrep`, `context` in `cs_extract.py`; `LANGS`, `_extract`, `_build` in `js_slow.py`; `ENTRY` stayed in its file).
+  - `test_main_module.py` (from Phase D) went to `tests/unit/dossier/test_main.py`.
+  - `tools/golden.py` already accepted `tests/support/`; no change.
+  - `tests/scripts` done-check grep has one hit by shape, `path.parent.parent` in `test_scip_cs_slow.py`; rewritten with a local variable (it is a tmp path, not a file location).
 
 ---
 
