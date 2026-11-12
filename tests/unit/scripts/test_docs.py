@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[3]
-from dossier.cli import app as dossier  # noqa: E402
+from dossier.cli import parser as dossier  # noqa: E402
 
 PENDING = "docs arrive in M6-35 to M6-38"
 STALE_NAMES = re.compile(

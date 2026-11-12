@@ -4,7 +4,8 @@ __all__ = ["main"]
 
 
 def main() -> None:
-    """Run the command line. For now the whole CLI is `dossier.cli.app`; D1 splits it (plan 014, D8)."""
-    from dossier.cli import app
+    """Run the command line."""
+    from dossier.cli.parser import build_parser
 
-    app.main()
+    a = build_parser().parse_args()
+    a.fn(a)
