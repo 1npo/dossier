@@ -1471,7 +1471,7 @@ Read section 2, D12, section 5.4 and this phase; earlier Results. Load `docs-pro
 - [x] **G2. Folder READMEs.** Write `prompts/README.md` (the three files, that Claude reads them by path from `SKILL.md`, and that the card schemas they mention live in `src/dossier/data/schemas/cards/`), `src/dossier/data/README.md` (D7's table rows for package data: group, reader, how it is loaded, "never edit the vendored bundles; refresh `eol.json` with `tools/refresh_eol.py`"), `tools/README.md` (owner: the author; one line per script with its command, and that none of them is part of `/dossier`). Each is under 40 lines, plain, present tense (`docs-project`).
   - Done-check: `tests/content/test_docs.py`'s link check covers the new files (add them to `CHECKED_FILES`) and passes.
   - Commit: `docs(dossier): say what each top-level folder holds`
-- [ ] **G3. The root.** `ls -A` at the root must show exactly: `.claude-plugin .git .github .gitignore LICENSE README.md SKILL.md VERSION docs prompts pyproject.toml scripts src tests tools uv.lock` (plus ignored caches). Add a content test that asserts the tracked top-level entries (`git ls-files | cut -d/ -f1 | sort -u`) equal that list.
+- [x] **G3. The root.** `ls -A` at the root must show exactly: `.claude-plugin .git .github .gitignore LICENSE README.md SKILL.md VERSION docs prompts pyproject.toml scripts src tests tools uv.lock` (plus ignored caches). Add a content test that asserts the tracked top-level entries (`git ls-files | cut -d/ -f1 | sort -u`) equal that list.
   - Done-check: the test passes; `claude plugin validate . --strict` exits 0 (block M).
   - Commit: `test(dossier): pin the top-level layout`
 
