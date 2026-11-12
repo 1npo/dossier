@@ -1,7 +1,7 @@
 import json
 
 from dossier.facts import env_scan
-from test_gather_env import make_repo
+from repos import make_repo
 
 from dossier.facts import gather
 

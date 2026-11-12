@@ -8,7 +8,7 @@ from dossier.core import buildlog
 from dossier.findings import candidates
 from dossier.pipeline import stages
 from dossier.pipeline import workarea
-from conftest import CSFIX, JSFIX, _commit_fixture
+from repos import CSFIX, JSFIX, _commit_fixture
 
 pytestmark = pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs the network: set DOSSIER_SLOW=1")
 

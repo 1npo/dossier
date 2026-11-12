@@ -8,8 +8,8 @@ import pytest
 
 from dossier.core import buildlog
 from dossier.checks import verify
+from paths import LAUNCHER
 
-SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "dossier.py"
 
 BLOB = b"".join(f"line {i}\n".encode() for i in range(1, 21))
 
@@ -202,7 +202,7 @@ class TestCli:
                 "DOSSIER_CACHE": str(tmp_path / "cache")}
 
         def run(*args):
-            return subprocess.run([sys.executable, str(SCRIPT), *args, ], capture_output=True, text=True, env=denv, cwd=repo)
+            return subprocess.run([sys.executable, str(LAUNCHER), *args, ], capture_output=True, text=True, env=denv, cwd=repo)
 
         return type("W", (), {"run": staticmethod(run), "out": out})
 

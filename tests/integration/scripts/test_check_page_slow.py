@@ -7,8 +7,6 @@ from pathlib import Path
 
 import pytest
 
-SKILL = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(SKILL / "tests" / "tools"))
 
 import broken_pages  # noqa: E402
 import m3_page  # noqa: E402
@@ -16,18 +14,18 @@ import m3_page  # noqa: E402
 
 from dossier.checks import layout as check_layout  # noqa: E402
 from dossier.render.measured import er as measured_er  # noqa: E402
+from paths import CHECK_PAGE, SKILL_ROOT
 
-CHECK = SKILL / "scripts" / "check_page.py"
-DIAGRAM_TEXT = SKILL / "tests" / "tools" / "diagram_text.py"
-TABLE_FIT = SKILL / "tests" / "tools" / "table_fit.py"
-LAYOUT_PROBE = SKILL / "tests" / "tools" / "layout_probe.py"
+DIAGRAM_TEXT = SKILL_ROOT / "tests" / "tools" / "diagram_text.py"
+TABLE_FIT = SKILL_ROOT / "tests" / "tools" / "table_fit.py"
+LAYOUT_PROBE = SKILL_ROOT / "tests" / "tools" / "layout_probe.py"
 
 pytestmark = [
     pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs a browser: set DOSSIER_SLOW=1"),
 ]
 
 
-def run(*args, env, cwd=SKILL):
+def run(*args, env, cwd=SKILL_ROOT):
     return subprocess.run(["uv", "run", *map(str, args)], capture_output=True, text=True, env=env, cwd=cwd)
 
 
@@ -41,7 +39,7 @@ def rendered_page(tmp_path_factory):
 
 
 def check(path, env):
-    return run(CHECK, path, env=env)
+    return run(CHECK_PAGE, path, env=env)
 
 
 class TestCheckPageOnBrokenPages:
@@ -429,7 +427,7 @@ class TestLargeM6Page:
         page, env = large
         shots = Path(os.environ.get("DOSSIER_M6_SHOTS", tmp_path / "shots"))
 
-        done = run(CHECK, page, "--shots", shots, env=env)
+        done = run(CHECK_PAGE, page, "--shots", shots, env=env)
 
         assert done.returncode == 0, done.stdout[-2000:]
         assert '"problems": 0' in done.stdout

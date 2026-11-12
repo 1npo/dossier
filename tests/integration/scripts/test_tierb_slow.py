@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from conftest import PYFIX, _commit_fixture
+from repos import PYFIX, _commit_fixture
+from paths import SKILL_ROOT
 
-SKILL = Path(__file__).resolve().parents[3]
 pytestmark = pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs the network: set DOSSIER_SLOW=1")
 
 
@@ -28,7 +28,7 @@ def page(tmp_path_factory):
            "PYTHONDONTWRITEBYTECODE": "1"}
 
     def run(*args):
-        return subprocess.run([sys.executable, str(SKILL / "scripts" / "dossier.py"), *args, repo.path], capture_output=True, text=True, env=env)
+        return subprocess.run([sys.executable, str(SKILL_ROOT / "scripts" / "dossier.py"), *args, repo.path], capture_output=True, text=True, env=env)
 
     prepared = run("prepare", "--no-restore")
     rendered = run("render", "--allow-errors", "--partial")

@@ -15,7 +15,7 @@ from dossier.core import scip_read
 from dossier.tooling import shared_tools
 from dossier.tooling import toolcheck
 from dossier.pipeline import workarea
-from conftest import build_cs_repo
+from repos import build_cs_repo
 
 pytestmark = [
     pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs the network: set DOSSIER_SLOW=1"),
@@ -47,7 +47,8 @@ def indexed(tmp_path_factory):
 def _reduced(indexed):
     checkout, path, _, _, tracked = indexed
     files = sorted(f for f in tracked if f.endswith(".cs"))
-    ts = shared_tools.TreeSitter(functools.partial(sandbox.run, area=path.parent.parent, cwd=checkout, timeout=600))
+    index_dir = path.parent
+    ts = shared_tools.TreeSitter(functools.partial(sandbox.run, area=index_dir.parent, cwd=checkout, timeout=600))
     decls = cs_queries.declarations(ts, files)
     index = cs_scip.join([scip_read.decode(path.read_bytes())], tracked)
     index, count = cs_scip.disambiguate(index, decls)

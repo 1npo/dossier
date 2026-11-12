@@ -7,11 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from conftest import build_py_repo
+from repos import build_py_repo
+from paths import LAUNCHER
 
 pytestmark = pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="runs the extractors: set DOSSIER_SLOW=1")
 
-SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "dossier.py"
 FAKE_AWS = "AKIA" + "ABCDEFGHIJKLMNOP"
 FAKE_GH = "ghp_" + "a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8"
 
@@ -27,7 +27,7 @@ def built(tmp_path_factory):
         subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True)
     env = {**os.environ, "DOSSIER_HOME": str(base / "home"), "DOSSIER_CONFIG": str(base / "cfg.json"), "DOSSIER_CACHE": str(base / "cache")}
     for step in (["prepare", str(repo)], ["render", str(repo), "--partial", "--allow-errors"]):
-        subprocess.run([sys.executable, str(SCRIPT), *step], check=True, capture_output=True, env=env)
+        subprocess.run([sys.executable, str(LAUNCHER), *step], check=True, capture_output=True, env=env)
     out = base / "home" / repo.name
     return out, (out / f"dossier-{repo.name}.html").read_text()
 
@@ -66,7 +66,7 @@ class TestEnvCard:
     def test_check_finds_nothing_wrong_with_either_card(self, built, tmp_path):
         out, _ = built
         facts = json.loads((out / "facts.json").read_text())
-        r = subprocess.run([sys.executable, str(SCRIPT), "check", facts["repo"]["path"]], capture_output=True, text=True,
+        r = subprocess.run([sys.executable, str(LAUNCHER), "check", facts["repo"]["path"]], capture_output=True, text=True,
                            env={**os.environ, "DOSSIER_HOME": str(out.parent), "DOSSIER_CONFIG": str(tmp_path / "c.json"), "DOSSIER_CACHE": str(tmp_path / "k")})
 
         assert "ops.env-vars" not in r.stdout and "ops.secret-signals" not in r.stdout

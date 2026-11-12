@@ -2,7 +2,7 @@ import re
 
 import pytest
 
-from conftest import PYLIB, build_pylib_repo
+from repos import PYLIB, build_pylib_repo
 
 MARKERS = "api-reexport api-parse api-config api-fast".split()
 

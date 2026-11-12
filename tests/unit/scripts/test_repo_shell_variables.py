@@ -2,7 +2,7 @@ import subprocess
 from types import SimpleNamespace
 
 from dossier.adapters import repo as repo_adapter
-from test_repo_adapter import FakeSemgrep
+from fakes import FakeSemgrep
 
 
 class TestShellVariables:

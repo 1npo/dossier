@@ -4,7 +4,7 @@ import subprocess
 
 import pytest
 
-from conftest import JSFIX, key_line, line_of
+from repos import JSFIX, key_line, line_of
 
 MARKERS = """ci-jest prisma-env model-user
 ep-root io-env ep-listen io-log bs-mount ep-get ep-post bs-route io-error not-route
@@ -46,7 +46,7 @@ class TestJsFixture:
         assert count == "1" and len(js_repo.sha) == 40
 
     def test_node_modules_are_never_copied_into_the_repository(self, tmp_path):
-        from conftest import _commit_fixture
+        from repos import _commit_fixture
         src = tmp_path / "src"
         (src / "node_modules/x").mkdir(parents=True)
         (src / "node_modules/x/index.js").write_text("")

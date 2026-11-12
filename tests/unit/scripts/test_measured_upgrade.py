@@ -7,6 +7,7 @@ import re
 
 from dossier.render.measured import cards as measured
 from dossier.render.measured import upgrade as measured_upgrade
+from paths import FIXTURES
 
 SNAP = {"as_of": "2026-11-05", "source": "x", "products": {
     "python": [{"cycle": "3.14", "eol": "2030-10-31", "latest": "3.14.10"}, {"cycle": "3.10", "eol": "2026-10-31", "latest": "3.10.20"},
@@ -198,7 +199,7 @@ class TestDotnetRows:
         assert [r[0] for r in measured_upgrade.rows(ctx(requires=">=3.10"), SNAP)] == ["Python"]
 
 
-INDEX = Path(__file__).resolve().parents[2] / "fixtures" / "refdata" / "releases-index.json"
+INDEX = FIXTURES / "refdata" / "releases-index.json"
 
 
 class TestDotnetFromReleasesIndex:

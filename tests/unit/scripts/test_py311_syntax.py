@@ -5,8 +5,8 @@ import shutil
 import subprocess
 
 import pytest
+from paths import SKILL_ROOT as ROOT
 
-ROOT = pathlib.Path(__file__).resolve().parents[3]
 CHECK = (
     "import ast,sys\n"
     "bad=0\n"

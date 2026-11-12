@@ -9,10 +9,11 @@ from dossier.render.measured import tables as measured_tables
 from dossier.tooling import sandbox
 from dossier.tooling import shared_tools
 from dossier import resources
+from paths import FIXTURES
 
 pytestmark = pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs the network: set DOSSIER_SLOW=1")
 
-FIXTURE = Path(__file__).resolve().parents[2] / "fixtures" / "cscfg"
+FIXTURE = FIXTURES / "cscfg"
 
 
 @pytest.fixture(scope="module")

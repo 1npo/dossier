@@ -6,8 +6,8 @@ import sys
 from pathlib import Path
 
 import pytest
+from paths import LAUNCHER
 
-SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "dossier.py"
 
 
 def fake(bin_dir, name, out):
@@ -26,7 +26,7 @@ def world(tmp_path, hygiene_repo):
            "DOSSIER_CONFIG": str(tmp_path / "cfg.json"), "DOSSIER_CACHE": str(tmp_path / "cache")}
 
     def prepare(*args):
-        r = subprocess.run([sys.executable, str(SCRIPT), "prepare", hygiene_repo.path, *args], capture_output=True, text=True, env=env)
+        r = subprocess.run([sys.executable, str(LAUNCHER), "prepare", hygiene_repo.path, *args], capture_output=True, text=True, env=env)
         return r.returncode, (json.loads(r.stdout) if r.stdout.strip().startswith("{") else None), r.stderr
 
     out = tmp_path / "home" / "hygiene"

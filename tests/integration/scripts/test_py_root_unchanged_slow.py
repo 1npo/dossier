@@ -4,12 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from conftest import build_py_repo
-from test_py_adapter_slow import Extracted
+from repos import build_py_repo
+from py_slow import Extracted
+from paths import FIXTURES
 
 pytestmark = pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs the network: set DOSSIER_SLOW=1")
 
-SNAPSHOTS = Path(__file__).resolve().parents[2] / "fixtures" / "py_snapshot"
+SNAPSHOTS = FIXTURES / "py_snapshot"
 OUTPUTS = ("entry_points", "graph", "symbols", "io_candidates", "models", "tests", "dead", "blindspots")
 
 

@@ -2,17 +2,7 @@ import os
 import subprocess
 
 from dossier.facts import gather
-
-
-def make_repo(tmp_path, source):
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    (repo / "app.py").write_text(source)
-    env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull, "GIT_AUTHOR_NAME": "A", "GIT_AUTHOR_EMAIL": "a@x.io",
-           "GIT_COMMITTER_NAME": "A", "GIT_COMMITTER_EMAIL": "a@x.io"}
-    for args in (["init", "-b", "main"], ["add", "-A"], ["commit", "-m", "x"]):
-        subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, env=env)
-    return repo
+from repos import make_repo
 
 
 def reads(n):

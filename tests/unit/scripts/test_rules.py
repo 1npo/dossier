@@ -6,10 +6,10 @@ import pytest
 from dossier.findings import candidates
 from dossier import resources
 from dossier.checks import v7 as checks_v7
+from paths import SKILL_ROOT
 
-SKILL = Path(__file__).resolve().parents[3]
 RULES = resources.data("rules")
-TARGETS = SKILL / "tests" / "fixtures" / "semgrep"
+TARGETS = SKILL_ROOT / "tests" / "fixtures" / "semgrep"
 
 IO_CATEGORIES = {"cli-args", "env-var", "config-file", "file-read", "stdin", "message-consume", "db-connect", "db-access",
                  "global-state", "cache", "thread", "async", "process-pool", "lock", "queue", "stdout", "file-write",

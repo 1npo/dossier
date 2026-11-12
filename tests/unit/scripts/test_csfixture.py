@@ -3,7 +3,7 @@ import subprocess
 
 import pytest
 
-from conftest import CSFIX, key_line, line_of
+from repos import CSFIX, key_line, line_of
 
 MARKERS = """ci-test
 ep-sample ep-main io-args io-stdin io-exit ep-cli cc-process

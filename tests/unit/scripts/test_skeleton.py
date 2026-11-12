@@ -1,10 +1,9 @@
 import sys
 from pathlib import Path
 
-SKILL = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(SKILL / "tests" / "tools"))
 
 import skeleton  # noqa: E402
+from paths import SKILL_ROOT
 
 
 def card(cid, title, tier):

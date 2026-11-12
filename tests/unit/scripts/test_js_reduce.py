@@ -5,8 +5,9 @@ from pathlib import Path
 from dossier.adapters.js import reduce as js_reduce
 from dossier.core import scip_read
 import pytest
+from paths import FIXTURES
 
-CRUISE = json.loads((Path(__file__).parents[2] / "fixtures" / "js_tools" / "depcruise.json").read_text())
+CRUISE = json.loads((FIXTURES / "js_tools" / "depcruise.json").read_text())
 TEST_RE = re.compile(r"\.(test|spec)\.[jt]sx?$")
 FILES = ["src/a.ts", "src/b.ts", "src/c.ts", "src/d.ts", "src/lazy.ts", "src/barrel/index.ts", "src/auth.ts", "src/auth.tsx", "src/a.test.ts", "src/types.d.ts"]
 PROJECT = {"dir": "", "files": FILES}
@@ -101,7 +102,7 @@ class TestContractItems:
         assert (items[0]["status"], items[0]["violations"], items[0]["reason"]) == ("kept", [], None)
 
 
-KNIP = json.loads((Path(__file__).parents[2] / "fixtures" / "js_tools" / "knip.json").read_text())
+KNIP = json.loads((FIXTURES / "js_tools" / "knip.json").read_text())
 
 
 class TestDeadItems:

@@ -1,5 +1,5 @@
 from dossier.adapters.csharp import entries as cs_entries
-from test_cs_adapter import extract
+from cs_extract import extract
 
 
 def tasks(files):

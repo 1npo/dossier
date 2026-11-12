@@ -5,18 +5,18 @@ from pathlib import Path
 
 import pytest
 
-SKILL = Path(__file__).resolve().parents[3]
 import bump_version  # noqa: E402
+from paths import SKILL_ROOT
 
 
 def test_plugin_manifest_version_matches_version_file():
-    manifest = json.loads((SKILL / ".claude-plugin" / "plugin.json").read_text())
-    assert manifest["version"] == (SKILL / "VERSION").read_text().strip()
+    manifest = json.loads((SKILL_ROOT / ".claude-plugin" / "plugin.json").read_text())
+    assert manifest["version"] == (SKILL_ROOT / "VERSION").read_text().strip()
 
 
 def test_marketplace_entry_names_the_plugin_and_points_at_the_root():
-    plugin = json.loads((SKILL / ".claude-plugin" / "plugin.json").read_text())
-    market = json.loads((SKILL / ".claude-plugin" / "marketplace.json").read_text())
+    plugin = json.loads((SKILL_ROOT / ".claude-plugin" / "plugin.json").read_text())
+    market = json.loads((SKILL_ROOT / ".claude-plugin" / "marketplace.json").read_text())
     (entry,) = market["plugins"]
     assert entry["name"] == plugin["name"] == "dossier"
     assert entry["source"] == "./"

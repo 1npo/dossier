@@ -4,7 +4,6 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "tools"))  # until E1 puts tools/ on pytest's pythonpath
 
 import golden  # noqa: E402
 

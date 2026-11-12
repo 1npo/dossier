@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "tools"))  # until E1 puts tools/ on pytest's pythonpath
 
 import move_modules as mm  # noqa: E402
 

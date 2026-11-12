@@ -7,9 +7,9 @@ import pytest
 from dossier.tooling import sandbox
 from dossier.tooling import shared_tools
 from dossier import resources
+from paths import FIXTURES, SKILL_ROOT
 
-SKILL = Path(__file__).resolve().parents[2].parent
-FIXTURE_RULES = Path(__file__).resolve().parents[2] / "fixtures" / "rules"
+FIXTURE_RULES = FIXTURES / "rules"
 
 pytestmark = pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs the network: set DOSSIER_SLOW=1")
 
@@ -38,7 +38,7 @@ class TestSharedLayer:
 
 class TestSemgrepRules:
     def test_every_shipped_rule_passes_its_semgrep_test_file(self, project):
-        got = shared_tools.Semgrep(project).test(resources.data("rules"), SKILL / "tests" / "fixtures" / "semgrep")
+        got = shared_tools.Semgrep(project).test(resources.data("rules"), SKILL_ROOT / "tests" / "fixtures" / "semgrep")
 
         assert got["returncode"] == 0, got["output"]
 

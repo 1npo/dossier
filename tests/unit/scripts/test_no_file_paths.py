@@ -1,7 +1,7 @@
 import re
 from pathlib import Path
+from paths import SKILL_ROOT as ROOT
 
-ROOT = Path(__file__).resolve().parents[3]
 # tools/bump_version.py is a maintainer tool, outside this scan.
 ALLOWED = {"src/dossier/resources.py", "scripts/dossier.py", "scripts/check_page.py"}
 FILE_NAME = re.compile(r"(?<![\w.])__file__\b")

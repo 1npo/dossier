@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from dossier.adapters.python import packages as py_packages
-from conftest import PYFIX, line_of
+from repos import PYFIX, line_of
 
 
 @pytest.fixture

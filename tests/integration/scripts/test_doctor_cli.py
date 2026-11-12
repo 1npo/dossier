@@ -7,8 +7,8 @@ import sys
 from pathlib import Path
 
 import pytest
+from paths import LAUNCHER
 
-SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "dossier.py"
 
 
 def fake(bin_dir, name, out):
@@ -39,7 +39,7 @@ def bin_dir(tmp_path):
 
 def doctor(repo, bin_dir):
     env = {"PATH": str(bin_dir), "DOSSIER_CONFIG": str(bin_dir / "none.json")}
-    return subprocess.run([sys.executable, str(SCRIPT), "doctor", str(repo), "--json"], capture_output=True, text=True, env=env)
+    return subprocess.run([sys.executable, str(LAUNCHER), "doctor", str(repo), "--json"], capture_output=True, text=True, env=env)
 
 
 class TestDoctorCli:
@@ -74,7 +74,7 @@ class TestDoctorCliDotnetSdk:
         fake(bin_dir, "dotnet", "10.0.114 [/x]")
         env = {"PATH": str(bin_dir), "DOSSIER_CONFIG": str(bin_dir / "none.json")}
 
-        r = subprocess.run([sys.executable, str(SCRIPT), "doctor", str(self.cs_repo(tmp_path))], capture_output=True, text=True, env=env)
+        r = subprocess.run([sys.executable, str(LAUNCHER), "doctor", str(self.cs_repo(tmp_path))], capture_output=True, text=True, env=env)
 
         assert r.returncode == 1
         assert "TOO OLD  dotnet 10.0.114" in r.stdout

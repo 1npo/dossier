@@ -7,10 +7,11 @@ import pytest
 from dossier.tooling import sandbox
 from dossier.tooling import shared_tools
 from dossier.adapters import tier_b
+from paths import FIXTURES
 
 pytestmark = pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs the network: set DOSSIER_SLOW=1")
 
-FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "tierb"
+FIXTURES = FIXTURES / "tierb"
 EXPECTED = {
     "Shell": ("deploy.sh", [(5, "build", "function"), (10, "deploy", "function"), (14, "rollback", "function")]),
     "Rust": ("lib.rs", [(2, "net", "module"), (6, "Config", "struct"), (10, "Mode", "enum"), (15, "Runner", "trait"), (19, "Alias", "type"), (25, "main", "function")]),

@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 
 from dossier.findings import candidates
+from paths import LAUNCHER
 
-SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "dossier.py"
 
 
 @pytest.fixture
@@ -22,7 +22,7 @@ def world(tmp_path, hygiene_repo):
            "DOSSIER_CACHE": str(tmp_path / "cache")}
 
     def run(*args):
-        r = subprocess.run([sys.executable, str(SCRIPT), "candidates", hygiene_repo.path, *args], capture_output=True, text=True, env=env)
+        r = subprocess.run([sys.executable, str(LAUNCHER), "candidates", hygiene_repo.path, *args], capture_output=True, text=True, env=env)
         return r.returncode, r.stdout, r.stderr
 
     run.out, run.items = out, items
@@ -66,6 +66,6 @@ class TestCandidatesCommand:
         env = {"PATH": "/usr/bin:/bin", "DOSSIER_HOME": str(tmp_path / "empty"), "DOSSIER_CONFIG": str(tmp_path / "c.json"),
                "DOSSIER_CACHE": str(tmp_path / "k")}
 
-        r = subprocess.run([sys.executable, str(SCRIPT), "candidates", hygiene_repo.path, "--report", "io"], capture_output=True, text=True, env=env)
+        r = subprocess.run([sys.executable, str(LAUNCHER), "candidates", hygiene_repo.path, "--report", "io"], capture_output=True, text=True, env=env)
 
         assert r.returncode != 0 and "Run prepare first" in r.stderr

@@ -1312,7 +1312,7 @@ Read section 2, D10, section 5.3 and this phase; Phases A to D Results. The test
 
 ### Tasks (Phase E)
 
-- [ ] **E1. Support modules, paths and the import mode.**
+- [x] **E1. Support modules, paths and the import mode.**
   1. Create `tests/support/repos.py` from `tests/conftest.py`'s helpers (D10's list); `conftest.py` keeps the fixtures and imports the builders from `repos`. Every `from conftest import X` becomes `from repos import X`.
   2. Create `tests/support/paths.py` (`SKILL_ROOT` from `resources.skill_root()`, `FIXTURES = SKILL_ROOT / "tests" / "fixtures"`, `LAUNCHER`, `CHECK_PAGE`) and rewrite every `Path(__file__)...parents[n]` and `SCRIPT`/`CHECK`/`SKILL` constant in `tests/` to use it (section 6, "Tests and tools").
   3. Move `tests/scip_fake.py` to `tests/support/scip_fake.py` and the seven test-to-test imports to the `tests/support/` modules of section 5.3's last table (move the named functions, classes and constants; the importing and the imported test both import from support).

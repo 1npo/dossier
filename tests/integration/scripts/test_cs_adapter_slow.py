@@ -17,8 +17,8 @@ from dossier.core import buildlog
 from dossier.pipeline import stages
 from dossier.pipeline import workarea
 from dossier.adapters.base import OUTPUTS
-from conftest import build_cs_repo
-from test_cs_semgrep_slow import BLIND, IO
+from repos import build_cs_repo
+from cs_slow import BLIND, IO
 
 pytestmark = pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs the network: set DOSSIER_SLOW=1")
 

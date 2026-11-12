@@ -9,7 +9,7 @@ import pytest
 from dossier.adapters.js import api as js_api
 from dossier.adapters.js import tools as js_tools
 from dossier.tooling import sandbox
-from conftest import build_js_repo, line_of
+from repos import build_js_repo, line_of
 
 pytestmark = pytest.mark.skipif(os.environ.get("DOSSIER_SLOW") != "1", reason="needs the network: set DOSSIER_SLOW=1")
 

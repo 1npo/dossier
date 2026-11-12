@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import PYFIX, line_of
+from repos import PYFIX, line_of
 
 MARKERS = """ep-script ep-main-module ep-guard ep-route ep-route2 ep-docker ep-make ep-cron ep-shebang
 io-cli io-print io-exit io-log-get io-log io-env io-db-connect io-file-write io-file-read io-outbound

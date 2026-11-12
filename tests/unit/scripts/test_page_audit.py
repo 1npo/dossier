@@ -4,14 +4,14 @@ from pathlib import Path
 
 import pytest
 
-SKILL = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(SKILL / "tests" / "tools"))
 
 import broken_pages  # noqa: E402
 from dossier.core import buildlog  # noqa: E402
 from dossier.checks import page_audit  # noqa: E402
 from dossier.render import page as render  # noqa: E402
 from dossier.core import schema  # noqa: E402
+from contributors import ContributorsData
+from paths import SKILL_ROOT
 
 
 def card_of(cid):
@@ -322,15 +322,11 @@ class TestNotYetGenerated:
 
 class TestOwnerTable:
     def build(self, history):
-        import test_render
-
-        t = test_render.TestContributorsOwnerButtons()
+        t = ContributorsData()
         return f'<div data-card="overview.contributors">{render.panel_contributors(t.facts(), t.Refs(), history)}</div>'
 
     def history(self, extra=()):
-        import test_render
-
-        return test_render.TestContributorsOwnerButtons().history() + list(extra)
+        return ContributorsData().history() + list(extra)
 
     def errors(self, page, history):
         cards = {}

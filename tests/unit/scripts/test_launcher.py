@@ -8,9 +8,9 @@ from pathlib import Path
 import pytest
 
 from dossier import resources
+from paths import SKILL_ROOT
 
-SKILL = Path(__file__).resolve().parents[3]
-LAUNCHER = SKILL / "scripts" / "dossier.py"
+LAUNCHER = SKILL_ROOT / "scripts" / "dossier.py"
 HEADER = re.compile(r"^# /// script\n(?P<body>(?:#.*\n)*?)# ///$", re.M)
 
 
@@ -31,14 +31,14 @@ def load_copy(dest: Path):
 
 class TestLauncherHeader:
     def test_dependencies_match_the_project(self):
-        project = tomllib.loads((SKILL / "pyproject.toml").read_text())["project"]
+        project = tomllib.loads((SKILL_ROOT / "pyproject.toml").read_text())["project"]
 
         header = pep723(LAUNCHER)
 
         assert header["dependencies"] == project["dependencies"]
 
     def test_python_floor_matches_the_project(self):
-        project = tomllib.loads((SKILL / "pyproject.toml").read_text())["project"]
+        project = tomllib.loads((SKILL_ROOT / "pyproject.toml").read_text())["project"]
 
         header = pep723(LAUNCHER)
 
@@ -50,10 +50,10 @@ class TestData:
         root = resources.data()
 
         assert isinstance(root, Path)
-        assert root == SKILL / "src" / "dossier" / "data"
+        assert root == SKILL_ROOT / "src" / "dossier" / "data"
 
     def test_joins_its_parts(self):
-        assert resources.data("schemas", "cards") == SKILL / "src" / "dossier" / "data" / "schemas" / "cards"
+        assert resources.data("schemas", "cards") == SKILL_ROOT / "src" / "dossier" / "data" / "schemas" / "cards"
 
     def test_data_not_on_disk_raises(self, monkeypatch):
         class NotAPath:
@@ -70,7 +70,7 @@ class TestSkillRoot:
     def test_holds_skill_md_and_version(self):
         root = resources.skill_root()
 
-        assert root == SKILL
+        assert root == SKILL_ROOT
         assert (root / "SKILL.md").is_file() and (root / "VERSION").is_file()
 
     def test_missing_skill_md_raises_with_the_folder(self, tmp_path):
@@ -82,7 +82,7 @@ class TestSkillRoot:
 
 class TestVersion:
     def test_equals_the_version_file(self):
-        assert resources.version() == (SKILL / "VERSION").read_text().strip()
+        assert resources.version() == (SKILL_ROOT / "VERSION").read_text().strip()
 
     def test_strips_the_newline(self, tmp_path):
         (tmp_path / "SKILL.md").write_text("")

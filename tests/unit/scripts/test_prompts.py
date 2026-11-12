@@ -7,8 +7,9 @@ import pytest
 
 from dossier.core import schema  # noqa: E402
 from dossier import resources
+from paths import SKILL_ROOT
 
-PROMPTS = Path(__file__).resolve().parents[3] / "prompts"
+PROMPTS = SKILL_ROOT / "prompts"
 RETIRED = re.compile(r"capabilities|code-tour|domain-logic|delivery|interfaces\b|architecture\b")
 
 
@@ -204,7 +205,7 @@ class TestJavaScriptGuidance:
 class TestCSharpGuidance:
     guide = (PROMPTS / "reports.md").read_text(encoding="utf-8")
     method = (PROMPTS / "method.md").read_text(encoding="utf-8")
-    skill = (Path(__file__).resolve().parents[3] / "SKILL.md").read_text(encoding="utf-8")
+    skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
 
     def section(self, card_id):
         return self.guide.split(f"(`{card_id}`)", 1)[1].split("###", 1)[0]
@@ -255,7 +256,7 @@ class TestCSharpGuidance:
         assert ".NET SDK" in section and "C#" in section
 
 
-SKILL_MD = (Path(__file__).resolve().parents[3] / "SKILL.md").read_text(encoding="utf-8")
+SKILL_MD = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
 
 
 class TestVerifyPrompt:
