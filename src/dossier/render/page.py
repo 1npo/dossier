@@ -1805,21 +1805,28 @@ def cards_body(refs):
     return render_table(["Report", "Card", "Tier", "Written by"], rows, refs, "t-cards", True, True)
 
 
-PARTIAL_COLUMNS = ["Card", "Report", "Why it is partial", "What to do to clear it"]
+BADGE_COLUMNS = ["Card", "Report", "Badge", "Why it has it", "What to do about it"]
+NOGRAPH_ACTION = "Nothing to do. Expected for Tier B languages, and not a fault."
 
 
-def partial_body(ctx, refs):
-    """One row for each card that carries a `partial` pill, from the same data that draws the pills."""
+def badges_body(ctx, refs):
+    """One row for each `partial` or `no static graph` badge on a card, from the same data that draws the badges (the tier badge is on every card and is in Cards in this dossier)."""
     build = (ctx or {}).get("build")
     by_id = schema_cards_by_id()
+    order = {c: i for i, c in enumerate(by_id)}
+    found = [(cid, "partial", why, action) for cid, why, action in process.partial_rows(build)]
+    found += [(cid, "no static graph", tip, NOGRAPH_ACTION) for cid, tip in ((ctx or {}).get("nograph") or {}).items()]
+    found.sort(key=lambda r: (order.get(r[0], len(order)), r[1] != "partial"))
     rows = []
-    for cid, why, action in process.partial_rows(build):
+    for cid, kind, why, action in found:
         rid = cid.split(".")[0]
         c = by_id.get(cid) or {"title": cid}
-        rows.append([f'<a href="#{card_anchor(cid)}">{E(c["title"])}</a>', f'<a href="#{rid}">{E(TITLES.get(rid, rid))}</a>', E(why), E(action)])
+        cls = "partial" if kind == "partial" else "nograph"
+        rows.append([f'<a href="#{card_anchor(cid)}">{E(c["title"])}</a>', f'<a href="#{rid}">{E(TITLES.get(rid, rid))}</a>',
+                     f'<span class="badge {cls}" data-variant="outline">{E(kind)}</span>', E(why), E(action)])
     if not rows:
-        return empty_table("t-partial", PARTIAL_COLUMNS, "No card is partial")
-    return render_table(PARTIAL_COLUMNS, rows, refs, "t-partial", True, True)
+        return empty_table("t-badges", BADGE_COLUMNS, "No card has a partial or no static graph badge")
+    return render_table(BADGE_COLUMNS, rows, refs, "t-badges", True, True)
 
 
 def measured_ctx(ctx: dict, reports: dict, facts: dict) -> dict:
@@ -1866,7 +1873,7 @@ def build_page(rid, reports, facts, state, ctx):
                      group=[("", 2), ("Statements by basis", 3)],
                      foot=["<strong>Total</strong>", f'<span class="muted">{sum(tot.values())} statements in all</span>', *[count_pill(tot[k], k) for k in CONF]]), "report-index", cid="dossier.reports"))
         parts.append(card("Cards in this dossier", process.tier_stats() + cards_body(refs), "card-index", cid="dossier.cards"))
-        parts.append(card("Partial cards", partial_body(ctx, refs), "partial-cards", cid="dossier.partial"))
+        parts.append(card("Badges on cards", badges_body(ctx, refs), "card-badges-list", cid="dossier.badges"))
         parts.append(panel_history(ctx["history"], refs))
     elif rid == "corrections":
         headline = "Everything the user has corrected, and whether the correction has been applied."

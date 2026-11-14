@@ -42,7 +42,7 @@ The reports, in page order:
 Two badges can appear in a card's title bar:
 
 - `partial`: a tool that feeds the card did not run in this build. Install it (see `/dossier doctor`) and build again.
-- `no static graph`: the repository has Tier B languages, and this version of dossier makes no import or call graph for them. Their files are in the tables but have no links. Hover the badge to see which languages.
+- `no static graph`: the repository has Tier B languages, and this version of dossier makes no import or call graph for them. Their files are in the tables but have no links. Hover the badge to see which languages. The **Badges on cards** card in This dossier lists every card that has either badge, with why and what to do (the tier badge is on every card and is listed in **Cards in this dossier**).
 
 ## Installation
 
@@ -176,7 +176,7 @@ Click a column heading to sort (a third click restores the written order). Drag 
 
 ### Read the tool findings of a card
 
-A card that tool findings were fed to (for example Inputs or Entry points) numbers its rows in a first column, `#`, in the order they were written. The **Show** buttons at the top right of the card pick **All**, **Kept** (rows that cite a finding), **Dismissed** (the findings Claude set aside, each with where it is, what it matched and why it was dismissed) or **Added by Claude** (rows no tool found). Components a card does not cover are listed in a note box under its table.
+A card that tool findings were fed to (for example Inputs or Entry points) numbers its rows in a first column, `#`, in the order they were written. The **Show** buttons at the top left of the card, above the table, pick **All**, **Kept** (rows that cite a finding), **Dismissed** (the findings Claude set aside, each with where it is, what it matched and why it was dismissed) or **Added by Claude** (rows no tool found). Components a card does not cover are listed in a note box under its table.
 
 ### Read who knows what
 
@@ -360,8 +360,8 @@ A bad value stops the command with a message that names the key.
 | `MISSING <tool>` in `doctor`, or `build` stops with `missing_tools` | Install the tool with the command shown, or build with `--allow-missing`. The cards that need it are marked `partial`. |
 | `TOO OLD <tool>` | The tool is older than the minimum shown. Upgrade it. |
 | `build` asks whether to install dependencies | See [The restore question](#the-restore-question). |
-| A card has the `partial` badge | A tool that feeds it did not run, or the history was cut short. The **Partial cards** card in This dossier lists every such card with why and what to do. Fix it and build again. |
-| A card has the `no static graph` badge | Expected for Tier B languages. Not a fault. |
+| A card has the `partial` badge | A tool that feeds it did not run, or the history was cut short. The **Badges on cards** card in This dossier lists every such card with why and what to do. Fix it and build again. |
+| A card has the `no static graph` badge | Expected for Tier B languages. Not a fault. The **Badges on cards** card in This dossier lists these cards too. |
 | The Freshness tile says `Not known` | The repository has no remote, or the remote cannot be reached and has not been fetched. Run `git fetch` and build again. |
 | `render` prints `V4:`, `V5:` or `V13:` lines | Files in no component, tool findings with no decision, or a component missing from a hand-written card. Claude fixes the reports; never pass `--allow-errors` to skip them. |
 | `check` prints `FAIL` lines | A diagram, table or layout problem. Claude fixes it from the reports. A `FAIL` in the page assets or scripts is a bug in dossier. |

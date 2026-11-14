@@ -52,8 +52,8 @@
       "fixed": null
     },
     {
-      "id": "dossier.partial",
-      "title": "Partial cards",
+      "id": "dossier.badges",
+      "title": "Badges on cards",
       "tier": "M",
       "priority": "P0",
       "writer": "script",
