@@ -86,7 +86,7 @@ def parse(page: str) -> Node:
 
 def _rows(table: Node) -> list:
     body = next((k for k in table.kids if k.tag == "tbody"), None)
-    return [r for r in (body.kids if body else []) if r.tag == "tr"]
+    return [r for r in (body.kids if body else []) if r.tag == "tr" and not r.has("empty-row")]
 
 
 def _head(table: Node) -> list:
@@ -253,10 +253,10 @@ def _check_measured(cards: dict, m, page: str) -> list:
         for tid, rows, cols in tables:
             found = card.find("table", id=tid)
             if rows == 0:
-                if found:
-                    errs.append(f"V11: {cid}: the table {tid} is drawn although the source has nothing to list.")
-                if not card.find(cls="none-found"):
-                    errs.append(f"V11: {cid}: the source has nothing to list for {tid}, and the card does not say so.")
+                if not found:
+                    errs.append(f"V11: {cid}: the source has nothing to list for {tid}, and the card draws no table with a message in it.")
+                elif not found[0].find(cls="none-found"):
+                    errs.append(f"V11: {cid}: the source has nothing to list for {tid}, and the card does not say so in the table.")
                 continue
             if not found:
                 errs.append(f"V11: {cid}: the table {tid} is not drawn.")

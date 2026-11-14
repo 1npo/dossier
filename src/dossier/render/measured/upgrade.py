@@ -178,6 +178,9 @@ def rows(ctx: dict, snapshot: dict | None = None) -> list[tuple]:
     return out
 
 
+COLUMNS = ["Runtime or package", "Pinned", "Latest or supported", "Gap", "Source"]
+
+
 def card(cid, ctx, refs):
     if not measured_change.has_history(ctx) and not (ctx.get("facts") or {}).get("manifests"):
         return None
@@ -188,9 +191,9 @@ def card(cid, ctx, refs):
         text += f" .NET {dotnet_note}."
     caption = measured_change.foot_notes(text)
     if not found:
-        return measured_change.none_found("No runtime or package with end-of-life data was found.") + caption
+        return markup.empty_table("t-change-upgrade-burden", COLUMNS, "No runtime or package with end-of-life data was found.") + caption
     cells = [[markup.E(n), markup.E(p), markup.E(l), markup.E(g), markup.source_cell(refs, (s, None)) if s else ""] for n, p, l, g, s in found]
-    return markup.render_table(["Runtime or package", "Pinned", "Latest or supported", "Gap", "Source"], cells, refs, "t-change-upgrade-burden", plain=True) + caption
+    return markup.render_table(COLUMNS, cells, refs, "t-change-upgrade-burden", plain=True) + caption
 
 
 DRAWN = {"change.upgrade-burden": card}

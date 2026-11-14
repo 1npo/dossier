@@ -994,7 +994,7 @@
       var files = b.dataset.v === "files";
       $("#km-pane-people").hidden = files; $("#km-pane-files").hidden = !files;
       setPressed("#km-vw", b.dataset.v);
-      $("#km-metric-ctl").hidden = !files;
+      $("#km-metric-ctl").hidden = !files; $("#km-zoom-ctl").hidden = !files; $("#km-view-ctl").hidden = !files;
       if (files) render();   // the minimap needs its size, which a hidden pane does not have
     });
 

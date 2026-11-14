@@ -1116,12 +1116,15 @@ def panel_git(f, refs, ctx):
         if i + 1 >= len(tags): return "·"
         d = (datetime.strptime(tags[i]["date"], "%Y-%m-%d") - datetime.strptime(tags[i + 1]["date"], "%Y-%m-%d")).days
         return f"{d} days"
-    rel = ""
+    release_columns = ["Tag", "Date", "Gap"]
     if tags:
         rows = "".join(f'<tr><td><code>{E(t["name"])}</code></td><td>{E(t["date"])}</td><td class="muted">{gap(i)}</td></tr>' for i, t in enumerate(tags[:10]))
-        rel = f'<div class="activity solo"><div class="activity-side"><h3>Recent releases</h3><div class="table-container"><table class="table"><thead><tr><th>Tag</th><th>Date</th><th>Gap</th></tr></thead><tbody>{rows}</tbody></table></div></div></div>'
+        rel_table = f'<div class="table-container"><table class="table" id="t-releases"><thead><tr>{"".join(f"<th>{c}</th>" for c in release_columns)}</tr></thead><tbody>{rows}</tbody></table></div>'
+    else:
+        rel_table = empty_table("t-releases", release_columns, "No releases")
+    rel = f'<div class="activity solo"><div class="activity-side">{rel_table}</div></div>'
     notes = "".join(alert(E(w)) for w in f["repo"]["warnings"])
-    return card("Overview", notes + stats + boxes + rel + languages_block(f, refs), "facts-git", refs=refs, cite="facts:git", cid="overview.repository")
+    return card("Overview", notes + stats + languages_block(f, refs) + boxes + rel, "facts-git", refs=refs, cite="facts:git", cid="overview.repository")
 
 
 def languages_block(f, refs):
@@ -1133,8 +1136,8 @@ def languages_block(f, refs):
     legend = "".join(f'<li><b class="lang-{k + 1}"></b>{E(n)} <span class="muted">{100 * v / total:.0f}%</span></li>' for k, (n, v) in enumerate(items))
     ex = f["files"]["excluded"]
     note = ("Not counted: " + ", ".join(f"{fmt(v)} {k}" for k, v in ex.items()) + " files. ") if ex else ""
-    return (f'<div class="langs" id="facts-languages"><h3>Languages, by share of non-blank lines {refs.mark(["facts:languages"])}</h3><div class="lbar">{segs}</div>'
-            f'<ul class="llegend">{legend}</ul>' + (f'<p class="muted">{E(note)}</p>' if note else "") + "</div>")
+    return (f'<div class="langs" id="facts-languages"><div class="lbar" role="img" aria-label="Languages, by share of non-blank lines">{segs}</div>'
+            f'<ul class="llegend">{legend}</ul>' + (f'<p class="muted">{E(note)}</p>' if note else "") + f'<p class="muted lang-src">Share of non-blank lines {refs.mark(["facts:languages"])}</p></div>')
 
 
 
@@ -1402,7 +1405,6 @@ def knowledge_card(f, people_html=""):
                        'For those files the gatherer used lines added minus lines deleted in each person\'s commits instead.', "Estimated line shares")
     if k["trimmed"]:
         notes += alert(f'To keep the page small, {fmt(k["trimmed"])} of the smallest and least changed files are left out of this map.', "Some files are not shown")
-    controls = '<div class="km-controls">' + km_group("zoom", "Zoom", KM_ZOOMS) + km_group("view", "Show", KM_VIEWS) + "</div>"
     months = k["departed_months"]
     legend = (f'<div class="km-note"><span id="km-formula"></span><span><i class="km-hz"></i>Hatched = no longer active</span>'
               f'<span>{badge("at risk", "basis-inferred")} top contributor has left and holds 50% or more</span></div>')
@@ -1413,8 +1415,10 @@ def knowledge_card(f, people_html=""):
             '<div class="km-thead" role="presentation"><span>Path</span><span>Who knows it</span><span id="km-th3">Top contributor</span></div>'
             '<div class="km-rows" id="km-rows"></div></div>'
             '<div class="km-mini" id="km-mini-wrap" title="Minimap: click or drag to scroll"><canvas id="km-mini" aria-hidden="true"></canvas></div></div>')
-    views = '<div class="km-controls">' + km_group("vw", "View", KM_VWS) + km_group("metric", "Measure", KM_MEASURES) + "</div>"   # Measure only applies to the Files view
-    return (f'<div class="km" id="km-root">{views}<div id="km-pane-files">{notes}{controls}'
+    # one toolbar row: View and Measure, then Zoom and Show. The last three only apply to the Files view, and the script hides them in the other one.
+    views = ('<div class="km-controls">' + km_group("vw", "View", KM_VWS) + km_group("metric", "Measure", KM_MEASURES)
+             + km_group("zoom", "Zoom", KM_ZOOMS) + km_group("view", "Show", KM_VIEWS) + "</div>")
+    return (f'<div class="km" id="km-root">{views}<div id="km-pane-files">{notes}'
             f'<div class="km-chips" id="km-chips" role="group" aria-label="Contributor"></div>{tree}{legend}{infer}</div>'
             f'<div id="km-pane-people" hidden>{people_html}</div></div>'
             f'<script type="application/json" id="km-data">{jsn}</script>')
@@ -1440,7 +1444,7 @@ def owner_view(f, pal, history):
     rows = [[f'<b class="own-dot {pal.get(p["person"]) or pal.get(p["name"]) or "own-other"}"></b>{E(p["name"])}', type_badge(p["type"]),
              (fmt(p["owned_commits"]), p["owned_commits"]), (fmt(p["commits"]), p["commits"]), (fmt(p["owned_lines"]), p["owned_lines"])] for p in owners]
     table = (render_table(["Name", "Type", "Commits owned", "Commits authored", "Lines owned"], rows, None, "t-people-owner", True, True) if rows
-             else '<p class="muted none-found">Nobody owns a commit or a line.</p>')
+             else empty_table("t-people-owner", ["Name", "Type", "Commits owned", "Commits authored", "Lines owned"], "Nobody owns a commit or a line."))
     if meta.get("owner_rule") == "one-human":
         sole = next((p["name"] for p in people if p["type"] == "human"), "The only human")
         rule = f"{sole} is the only person on this project, so they own every commit."
@@ -1496,15 +1500,13 @@ def panel_contributors(f, refs, history=None):
                           "Lines added", "Lines deleted", "Net lines"],
                          rows, refs, "t-people", True, True)
     when = calendar_html(g, names, pal, g.get("tags") or [])
-    know = ('<p class="muted">Which parts of the repository each person knows best, based on surviving lines, commit history and recent activity.</p>'
-            + knowledge_card(f, table + more))
+    know = knowledge_card(f, table + more)
     cites = ["facts:contributors", "facts:git", "facts:knowledge"] + (["facts:ownership"] if o else [])
     if history and any(i.get("kind") == "person" for i in history):
         note, o_tiles, o_bar, o_table = owner_view(f, pal, history)
         by_author = lambda html: f'<div data-who="author">{html}</div>'
         by_owner = lambda html: f'<div data-who="owner" hidden>{html}</div>'
-        know = ('<p class="muted">Which parts of the repository each person knows best, based on surviving lines, commit history and recent activity.</p>'
-                + knowledge_card(f, by_author(table + more) + by_owner(o_table)))
+        know = knowledge_card(f, by_author(table + more) + by_owner(o_table))
         # One notes block under the buttons. The author and owner notes sit in the same grid cell, so the block is as tall as the longer one
         # and nothing below it moves when the button changes; the note for the mode that is not showing is only made invisible.
         notes = ('<div class="who-notes"><div class="who-swap">'

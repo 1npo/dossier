@@ -356,6 +356,12 @@ class TestKnowledgeCard:
         assert html.index('id="km-pane-files"') < html.index('id="km-pane-people" hidden') < html.index("<table id=people>")
         assert re.findall(r'data-v="(people|files)" aria-pressed="(\w+)"', html) == [("files", "true"), ("people", "false")]
 
+    def test_view_measure_zoom_and_show_share_one_toolbar_row(self):
+        html = render.knowledge_card(self.facts())
+        bars = re.findall(r'<div class="km-controls">(.*?)</div></div></div>', html, re.S)
+        assert html.count('class="km-controls"') == 1
+        assert [m for m in re.findall(r'id="km-(\w+)-ctl"', html)] == ["vw", "metric", "zoom", "view"]
+
     def test_card_has_the_three_labelled_control_groups(self):
         html = render.knowledge_card(self.facts())
 
@@ -490,6 +496,26 @@ class TestAssetSentinels:
         lines = [ln for ln in (render.ASSETS / "dossier.js").read_text().splitlines() if ln.strip()]
 
         assert 'dataset.dossierJs = "ok"' in lines[-1]
+
+
+class TestRemovedPageText:
+    def test_the_scroll_hint_is_gone_from_the_scripts_and_styles(self):
+        for name in ("dossier.js", "dossier.css"):
+            text = (render.ASSETS / name).read_text()
+            assert "Scroll sideways for more columns" not in text and "table-hint" not in text
+
+
+class TestOverviewLanguagesAndReleases:
+    LANGS = [{"name": "Python", "kind": "code", "lines": 90}, {"name": "SQL", "kind": "code", "lines": 10}]
+    F = {"languages": LANGS, "files": {"excluded": {}}}
+
+    def test_the_languages_bar_has_no_title(self):
+        h = render.languages_block(self.F, render.Refs("x", None) if False else type("R", (), {"mark": lambda self, c: ""})())
+        assert "Languages, by share of non-blank lines</h3>" not in h and "<h3" not in h and 'class="lbar"' in h
+
+    def test_no_releases_draws_the_table_with_a_message(self):
+        h = render.empty_table("t-releases", ["Tag", "Date", "Gap"], "No releases")
+        assert "<th>Tag</th><th>Date</th><th>Gap</th>" in h and ">No releases<" in h
 
 
 class TestContributorsOwnerButtons(ContributorsData):

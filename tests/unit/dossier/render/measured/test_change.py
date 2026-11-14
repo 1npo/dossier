@@ -169,7 +169,7 @@ class TestCochange:
     def test_no_pair_says_none_found(self):
         html = draw("change.cochange", ctx(hist(pairs_total=1) + [pair("a.py", "b.py", 2)], ["a.py"]))
 
-        assert "none-found" in html and "<table" not in html
+        assert "none-found" in html and "<th>Co-commits</th>" in html and '<tr class="empty-row">' in html
 
 
 class TestDeadRows:

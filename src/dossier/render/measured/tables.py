@@ -99,7 +99,7 @@ def public_api(ctx: dict, refs: Any) -> str:
     lines = "".join(f'<p class="muted">{markup.E(x)}</p>' for x in friend_lines(extract))
     if not found:
         has_code = any(g.get("kind") == "module" for g in extract.get("graph", []))  # Python, JavaScript or C#
-        return (f'<p class="muted">{NO_API}</p>' if has_code else "") + lines
+        return (heading("Public API of each package") + markup.empty_table("t-io-contracts-api", API_COLUMNS, NO_API) if has_code else "") + lines
     rows = []
     for s in found:
         if s["subpath"].startswith("."):  # JavaScript: the subpath is relative to the package
@@ -131,8 +131,11 @@ def config_keys(ctx: dict, refs: Any) -> str:
     """The group under the Inputs card: configuration read by name (C# `IConfiguration`, `GetSection`, `Bind`, `IOptions<T>`). Empty when there are none.
 
     These are not environment variables, so the environment-variable card skips them. Every row is listed; only names are shown."""
-    rows = config_key_rows(ctx.get("extract") or {})
+    extract = ctx.get("extract") or {}
+    rows = config_key_rows(extract)
     if not rows:
+        if any(g.get("kind") == "module" and g.get("language") == "csharp" for g in extract.get("graph", [])):   # only C# reads configuration by name
+            return heading("Configuration keys") + markup.empty_table("t-io-inputs-config", CONFIG_COLUMNS, "No configuration keys are read by name.")
         return ""
     body = [[(f"<code>{markup.E(n)}</code>", n), markup.E(k), "<br>".join(f"{markup.path_code(p)}:{ln}" for p, ln in places), markup.source_cell(refs, *places)] for n, k, places in rows]
     note = ('<p class="muted">Configuration read by name, as a key or through an options class. These are not environment variables. '

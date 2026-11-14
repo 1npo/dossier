@@ -46,6 +46,11 @@ def complexity_of(ctx):
     return {g["path"]: g["complexity"] for g in (ctx.get("extract") or {}).get("graph", []) if g.get("kind") == "module" and "complexity" in g}
 
 
+def empty(cid, suffix, columns, text):
+    """A table with no rows: its headers and one centered message, never nothing."""
+    return markup.empty_table("t-" + cid.replace(".", "-") + suffix, columns, text)
+
+
 def _table(cid, suffix, columns, rows, refs):
     return markup.render_table(columns, rows, refs, "t-" + cid.replace(".", "-") + suffix, plain=True)
 
@@ -168,6 +173,7 @@ def hotspots(cid, ctx, refs):
 # ------------------------------------------------------------------ change.cochange
 
 COCHANGE_MIN = 3
+COCHANGE_COLUMNS = ["A", "B", "Co-commits", "Share", "Linked in code?", "Source"]
 
 
 def _covered(extract):
@@ -204,13 +210,16 @@ def cochange(cid, ctx, refs):
                       "Share is the co-commits as a percentage of the commits of the less-changed file. At 100%, every time "
                       "the less-changed file changed, the other file changed in the same commit.")
     if not shown:
-        return none_found(f"No pair of files changed together in {COCHANGE_MIN} or more commits.") + foot
+        return empty(cid, "", COCHANGE_COLUMNS, f"No pair of files changed together in {COCHANGE_MIN} or more commits.") + foot
     rows = [[markup.path_code(p["a"]), markup.path_code(p["b"]), _num(p["co_commits"]), (f'{p["share"]}%', p["share"]), markup.E(link),
              markup.source_cell(refs, (p["a"], None), (p["b"], None))] for p, link in shown]
-    return _table(cid, "", ["A", "B", "Co-commits", "Share", "Linked in code?", "Source"], rows, refs) + foot
+    return _table(cid, "", COCHANGE_COLUMNS, rows, refs) + foot
 
 
 # ------------------------------------------------------------------ change.dead-code
+
+
+DEAD_COLUMNS = ["Item", "Kind", "Evidence", "Source"]
 
 
 def dead_rows(extract: dict, dependencies: dict | None) -> list[tuple]:
@@ -241,12 +250,15 @@ def dead_code(cid, ctx, refs):
     found = dead_rows(extract, deps)
     foot = foot_notes("Tool output, not checked by a person: some of these may be used in ways the tools cannot see.")
     if not found:
-        return none_found("The tools found nothing unused.") + foot
+        return empty(cid, "", DEAD_COLUMNS, "The tools found nothing unused.") + foot
     rows = [[markup.E(item), markup.E(kind), markup.E(ev), markup.source_cell(refs, (path, line)) if path else ""] for item, kind, ev, path, line in found]
-    return _table(cid, "", ["Item", "Kind", "Evidence", "Source"], rows, refs) + foot
+    return _table(cid, "", DEAD_COLUMNS, rows, refs) + foot
 
 
 # ------------------------------------------------------------------ change.in-flight
+
+
+BRANCH_COLUMNS = ["Branch", "Last commit", "Ahead/behind", "Author", "Source"]
 
 
 def in_flight(cid, ctx, refs):
@@ -258,10 +270,10 @@ def in_flight(cid, ctx, refs):
         notes.append("This repository has no remote branches, so these are local branches.")
     foot = foot_notes(*notes)
     if not branches:
-        return none_found("There are no branches other than the default branch.") + foot
+        return empty(cid, "", BRANCH_COLUMNS, "There are no branches other than the default branch.") + foot
     rows = [[markup.E(b["ref"]), markup.E(f'{b["date"]} {b["sha"][:7]}'), markup.E(f'{b["ahead"]} ahead, {b["behind"]} behind'), markup.E(b["author"]),
              refs.mark(["commit:" + b["sha"]])] for b in branches]
-    return _table(cid, "", ["Branch", "Last commit", "Ahead/behind", "Author", "Source"], rows, refs) + foot
+    return _table(cid, "", BRANCH_COLUMNS, rows, refs) + foot
 
 
 DRAWN = {"change.hotspots": hotspots, "change.cochange": cochange, "change.dead-code": dead_code, "change.in-flight": in_flight}
