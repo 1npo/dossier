@@ -361,7 +361,7 @@ def hover_cite(page, rid):
     for a in page.query_selector_all(f"#{rid} .cite a[data-tip]"):
         if not a.is_visible():
             continue
-        a.evaluate("e => e.scrollIntoView({ block: 'center', inline: 'nearest' })")
+        a.evaluate("e => e.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' })")
         state = a.evaluate(PROBE_JS)
         if not state["covered"]:
             a.hover()
