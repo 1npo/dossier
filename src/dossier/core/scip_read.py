@@ -138,7 +138,7 @@ def reduce(index: dict) -> list:
     """D2 'def' and 'ref-edge' items. Local symbols are skipped; lines are 1-based."""
     defined: dict = {}
     names = {s["symbol"]: s["display_name"] for d in index["documents"] for s in d["symbols"] if s["display_name"]}
-    items = []
+    items: list[dict] = []
     for d in index["documents"]:
         for o in d["occurrences"]:
             if o["roles"] & DEFINITION and o["range"] and not o["symbol"].startswith("local ") and o["symbol"] not in defined:

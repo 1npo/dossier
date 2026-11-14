@@ -16,7 +16,7 @@ def history_items(ctx: dict, kind: str) -> list[dict]:
 
 def names_of(ctx: dict) -> dict[str, str]:
     """Identity (or merged alias) -> display name, from the `person` items."""
-    names = {}
+    names: dict[str, str] = {}
     for p in history_items(ctx, "person"):
         names[p["person"]] = p["name"]
         for alias in p.get("aliases") or []:
