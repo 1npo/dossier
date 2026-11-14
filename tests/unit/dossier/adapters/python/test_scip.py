@@ -192,3 +192,41 @@ class TestProjectFolders:
 
         call = run.calls[0]
         assert call["cwd"] == checkout / "backend" and call["cmd"][call["cmd"].index("--project-name") + 1] == "repo-backend"
+
+
+from dossier.adapters.python import scip as scip_tool
+
+
+def test_patch_windows_bundle_escapes_the_separator():
+    text = f'a;var r={scip_tool.BUGGY_SEP};b'
+    out = scip_tool.patch_windows_bundle(text)
+    assert out == f'a;var r={scip_tool.FIXED_SEP};b'
+    assert scip_tool.FIXED_SEP == 'new RegExp(o.sep.replace(/[.*+?^${}()|[\\]\\\\]/g,"\\\\$&"),"g")'
+
+
+def test_patch_windows_bundle_leaves_other_text_alone():
+    patched = f'x{scip_tool.FIXED_SEP}y'
+    assert scip_tool.patch_windows_bundle(patched) is None
+    assert scip_tool.patch_windows_bundle("nothing here") is None
+    assert scip_tool.patch_windows_bundle(scip_tool.BUGGY_SEP * 2) is None
+
+
+def test_patch_install_patches_once_and_keeps_the_original(tmp_path, monkeypatch):
+    monkeypatch.setattr(scip_tool, "WINDOWS", True)
+    bundle = tmp_path / scip_tool.BUNDLE
+    bundle.parent.mkdir(parents=True)
+    bundle.write_text(f"x{scip_tool.BUGGY_SEP}y", encoding="utf-8")
+    with pytest.warns(UserWarning, match="Windows patch"):
+        assert scip_tool._patch_install(tmp_path) is True
+    assert scip_tool.FIXED_SEP in bundle.read_text(encoding="utf-8")
+    assert scip_tool.BUGGY_SEP in bundle.with_name("scip-python.js.orig").read_text(encoding="utf-8")
+    assert scip_tool._patch_install(tmp_path) is False
+
+
+def test_patch_install_does_nothing_off_windows(tmp_path, monkeypatch):
+    monkeypatch.setattr(scip_tool, "WINDOWS", False)
+    bundle = tmp_path / scip_tool.BUNDLE
+    bundle.parent.mkdir(parents=True)
+    bundle.write_text(scip_tool.BUGGY_SEP, encoding="utf-8")
+    assert scip_tool._patch_install(tmp_path) is False
+    assert bundle.read_text(encoding="utf-8") == scip_tool.BUGGY_SEP

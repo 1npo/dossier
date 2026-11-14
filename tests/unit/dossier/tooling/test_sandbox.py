@@ -218,3 +218,41 @@ class TestWindows:
         monkeypatch.setattr(sandbox, "WINDOWS", False)
 
         assert sandbox._safe_path({}) == sandbox.SAFE_PATH
+
+
+def test_resolve_is_a_noop_off_windows(monkeypatch):
+    monkeypatch.setattr(sandbox, "WINDOWS", False)
+    assert sandbox._resolve(["npm", "ci"], {"PATH": "/x"}) == ["npm", "ci"]
+
+
+def test_resolve_finds_a_script_on_the_child_path(monkeypatch, tmp_path):
+    monkeypatch.setattr(sandbox, "WINDOWS", True)
+    script = tmp_path / "npm.cmd"
+    script.write_text("")
+    script.chmod(0o755)
+    monkeypatch.setenv("PATHEXT", ".CMD")
+    seen = {}
+    monkeypatch.setattr(sandbox.shutil, "which", lambda name, path=None: seen.update(name=name, path=path) or str(script))
+    assert sandbox._resolve(["npm", "--version"], {"PATH": str(tmp_path)}) == [str(script), "--version"]
+    assert seen == {"name": "npm", "path": str(tmp_path)}
+
+
+def test_resolve_keeps_the_command_when_nothing_is_found(monkeypatch):
+    monkeypatch.setattr(sandbox, "WINDOWS", True)
+    assert sandbox._resolve(["no-such-tool-xyz", "a"], {"PATH": ""}) == ["no-such-tool-xyz", "a"]
+
+
+@pytest.mark.skipif(os.name != "nt", reason="a .cmd script needs Windows")
+def test_run_starts_npm_cmd_from_path(tmp_path, monkeypatch):
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "npm.cmd").write_text("@echo 10.0.0\r\n@exit /b 0\r\n")
+    monkeypatch.setattr(sandbox, "build_env", lambda *a, **k: {"PATH": str(bin_dir), **{k: v for k, v in os.environ.items() if k in ("SYSTEMROOT", "COMSPEC", "PATHEXT")}})
+    res = sandbox.run(["npm", "--version"], area=tmp_path / "area", cwd=tmp_path, stage="t", timeout=30)
+    assert res.returncode == 0 and "10.0.0" in res.stdout.read_text()
+
+
+def test_run_reports_a_command_that_does_not_exist(tmp_path):
+    res = sandbox.run(["no-such-tool-xyz"], area=tmp_path / "area", cwd=tmp_path, stage="t", timeout=30)
+    assert res.returncode == 127
+    assert "Could not start no-such-tool-xyz" in res.stderr.read_text()
