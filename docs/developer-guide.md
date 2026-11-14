@@ -19,7 +19,7 @@
 
 dossier is a Claude Code skill. A Python package (`src/dossier/`, started by the launcher `scripts/dossier.py`) measures a git repository at one pinned commit, runs language tools over it and renders a single HTML page; Claude reads the code and writes the cards that need judgement. The standard library plus Pygments is all the CLI imports at run time; every other tool is started through `uv` or `npm` with pinned versions.
 
-Stack: Python 3.11+ run by `uv`, as a `src/`-layout project (`pyproject.toml`, `uv.lock`; ruff, mypy and pytest in the `dev` group). The Python, TypeScript and Semgrep workers keep `>=3.10` because they run under the analysed repository's own Python and import nothing newer. Tools: tree-sitter, Semgrep, grimp, vulture and import-linter for Python, scip-python, dependency-cruiser, knip and scip-typescript for JS and TS, scip-dotnet for C#, Mermaid in the page. Linux and macOS. The page works in current Chromium, Firefox and Safari; the page check needs Playwright's Chromium.
+Stack: Python 3.11+ run by `uv`, as a `src/`-layout project (`pyproject.toml`, `uv.lock`; ruff, ty and pytest in the `dev` group). The Python, TypeScript and Semgrep workers keep `>=3.10` because they run under the analysed repository's own Python and import nothing newer. Tools: tree-sitter, Semgrep, grimp, vulture and import-linter for Python, scip-python, dependency-cruiser, knip and scip-typescript for JS and TS, scip-dotnet for C#, Mermaid in the page. Linux and macOS. The page works in current Chromium, Firefox and Safari; the page check needs Playwright's Chromium.
 
 What to build is decided in [plans/004-v1-spec.md](plans/004-v1-spec.md). How milestones are planned and reviewed is in [plans/015-process.md](plans/015-process.md). The backlog is [plans/016-post-v1.md](plans/016-post-v1.md). The package layout was set by [plans/014-package-refactor-plan.md](plans/014-package-refactor-plan.md). The user-visible behaviour is in the [user guide](user-guide.md).
 
@@ -49,7 +49,7 @@ Lint and types, both of which must exit 0:
 
 ```sh
 uv run ruff check
-uv run mypy
+uv run ty check
 ```
 
 To try the skill, copy or link the folder to `~/.claude/skills/dossier` and type `/dossier doctor` in Claude Code, or run the CLI directly with a scratch home:
@@ -68,7 +68,7 @@ uv run scripts/dossier.py doctor .
 SKILL.md                  Claude's instructions for /dossier (frontmatter: name, arguments, allowed tools)
 README.md                 what dossier is, install, usage, map of the repository
 LICENSE  VERSION          VERSION is the one source of the version
-pyproject.toml  uv.lock   the Python project: dependencies, ruff, mypy, pytest
+pyproject.toml  uv.lock   the Python project: dependencies, ruff, ty, pytest
 .claude-plugin/           marketplace.json and plugin.json (the repository is its own marketplace)
 .github/workflows/        release.yaml: lint, types, tests, then tag and zip on a version bump
 scripts/                  what Claude runs: two launchers, nothing else
@@ -286,7 +286,7 @@ To test the skill by hand, build a small repository: set the three `DOSSIER_*` v
 ## Code conventions
 
 - Python 3.11+ (3.10+ in the three worker scripts), `from __future__ import annotations`, standard library only in anything the CLI imports (plus Pygments).
-- `uv run ruff check` and `uv run mypy` must exit 0; CI runs both. Ruff uses `E F UP B SIM I` at line length 120 with `E501` off; the other ignored codes in `pyproject.toml` are the lint baseline of the code before the package refactor, each with its count. Formatting is not enforced. mypy runs in its default mode on `src/dossier`; the modules in `pyproject.toml`'s `ignore_errors` override list still fail it. Never add a new module to that list.
+- `uv run ruff check` and `uv run ty check` must exit 0; CI runs both. Ruff uses `E F UP B SIM I` at line length 120 with `E501` off; the other ignored codes in `pyproject.toml` are the lint baseline of the code before the package refactor, each with its count. Formatting is not enforced. ty runs on `src/dossier`; the modules in `pyproject.toml`'s `[[tool.ty.overrides]]` list still fail it and have every rule ignored. Fix a module and remove it from the list; never add a new module to it.
 - Every module has a docstring and an `__all__` after its imports; names in `__all__` carry annotations (except in the [embedded modules](#embedded-modules)).
 - Import package modules by their full name and keep the bound name the code uses: `from dossier.render import page as render`, `from dossier.adapters.python import api as py_api`. Many modules still use the flat names they had before the package existed; follow the file you are in.
 - No `__file__` outside `dossier/resources.py` and the two launchers: read data with `resources.data(...)`, the skill folder with `resources.skill_root()`.
@@ -321,7 +321,7 @@ A release:
 4. `uv run pytest -q tests/content/test_release_metadata.py`.
 5. Commit as `Bump version to X.Y.Z`, merge to `main` with `git merge --no-ff`, push `main`.
 
-The workflow `.github/workflows/release.yaml` runs when a push to `main` changes `VERSION`, or by hand from the Actions tab (checks only). Its `test` job sets up uv, Node 22 and .NET 10, then runs `uv run --locked ruff check`, `uv run --locked mypy` and `uv run --locked pytest -q` against the committed `uv.lock`, and validates the plugin and marketplace manifests. The `release` job then checks that `VERSION` and `plugin.json` agree, tags `vX.Y.Z` if the tag is new, and makes a GitHub release with a `git archive` zip of the repository. Nobody tags by hand. The repository is its own plugin marketplace (`.claude-plugin/marketplace.json`, `"source": "./"`), so pushing to `main` is what publishes it. Set `PUBLISH_RELEASES` to `'false'` in the workflow to stop releases.
+The workflow `.github/workflows/release.yaml` runs when a push to `main` changes `VERSION`, or by hand from the Actions tab (checks only). Its `test` job sets up uv, Node 22 and .NET 10, then runs `uv run --locked ruff check`, `uv run --locked ty check` and `uv run --locked pytest -q` against the committed `uv.lock`, and validates the plugin and marketplace manifests. The `release` job then checks that `VERSION` and `plugin.json` agree, tags `vX.Y.Z` if the tag is new, and makes a GitHub release with a `git archive` zip of the repository. Nobody tags by hand. The repository is its own plugin marketplace (`.claude-plugin/marketplace.json`, `"source": "./"`), so pushing to `main` is what publishes it. Set `PUBLISH_RELEASES` to `'false'` in the workflow to stop releases.
 
 A new minor or major version makes `update_plan` rebuild every dossier in full the next time it is built, so a change that does not alter output is a patch. `summary.json` carries its own `schema_version`, which changes only when a field is added or removed.
 
@@ -340,7 +340,7 @@ To install a released version, see the README. In the author's setup it is insta
 | `render` refuses to write | Read the `V*` lines; fix the reports. `--allow-errors` is for debugging only. |
 | The page differs from yesterday's | Compare `build.json` with `build.prev.json`; the skill's commit is on the process card. |
 | A page check fails in one theme only | Open `.check-shots/` in the dossier folder: it keeps screenshots from the last check (one per diagram, and others by page). |
-| Every build says `skill: ... (dirty)` | An untracked file in the skill folder. `.venv/`, `__pycache__/` and `.mypy_cache/` are ignored; commit `uv.lock`. |
+| Every build says `skill: ... (dirty)` | An untracked file in the skill folder. `.venv/`, `__pycache__/` and `.ruff_cache/` are ignored; commit `uv.lock`. |
 
 Useful commands: `uv run scripts/dossier.py doctor <repo> --json`, `uv run scripts/dossier.py candidates <repo> --report ID --json`, `uv run tests/support/layout_probe.py PAGE.html --width 400 --scheme dark` (prints, as JSON, the V12 layout problems of one page at one width in one theme).
 
@@ -366,7 +366,7 @@ Each prompt assumes a fresh session in a clone of this repository. Replace the p
 
 **A failing test or build.**
 
-> Read `docs/developer-guide.md` (Testing and Gotchas) and the failing test. Run only that test file with `uv run pytest <file> -q`. Find the cause before changing anything. Fix the code, not the test, unless the test is wrong, and say which. Run `uv run pytest -q`, `uv run ruff check` and `uv run mypy` at the end and report the results.
+> Read `docs/developer-guide.md` (Testing and Gotchas) and the failing test. Run only that test file with `uv run pytest <file> -q`. Find the cause before changing anything. Fix the code, not the test, unless the test is wrong, and say which. Run `uv run pytest -q`, `uv run ruff check` and `uv run ty check` at the end and report the results.
 
 **Add a feature in the project's style.**
 
