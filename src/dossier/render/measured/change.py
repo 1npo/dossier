@@ -144,6 +144,11 @@ def _by_period(make):
     return "".join(f'<div data-hotperiod="{v}"{"" if i == 0 else " hidden"}>{make(v)}</div>' for i, (v, _) in enumerate(PERIODS))
 
 
+def _mode_row(groups):
+    """The button groups side by side on one row (they wrap on a narrow page), above the tables and their filter."""
+    return '<div class="mode-row">' + "".join(groups) + "</div>"
+
+
 def hotspots(cid, ctx, refs):
     if not has_history(ctx):
         return None
@@ -154,11 +159,10 @@ def hotspots(cid, ctx, refs):
     catalog = ctx.get("catalog") or []
     files = _by_period(lambda p: _file_table(cid, rows, refs, p))
     if not catalog:
-        return "".join(out) + f'<div class="hot-table">{files}</div>' + none_found("There is no components catalog yet, so files are not grouped by component.")
+        return _mode_row(out) + f'<div class="hot-table">{files}</div>' + none_found("There is no components catalog yet, so files are not grouped by component.")
     out.append(mode_buttons("hot", "Show hotspots by", (("files", "File"), ("components", "Component"))))
-    out.append(f'<div class="hot-table" data-hot="files">{files}</div>'
-               f'<div class="hot-table" data-hot="components" hidden>{_by_period(lambda p: _component_table(cid, rows, catalog, refs, p))}</div>')
-    return "".join(out)
+    return (_mode_row(out) + f'<div class="hot-table" data-hot="files">{files}</div>'
+            f'<div class="hot-table" data-hot="components" hidden>{_by_period(lambda p: _component_table(cid, rows, catalog, refs, p))}</div>')
 
 
 # ------------------------------------------------------------------ change.cochange
