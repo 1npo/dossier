@@ -55,7 +55,7 @@ def _patch_install(folder: Path) -> bool:
     if not orig.exists():
         shutil.copyfile(bundle, orig)
     bundle.write_text(patched, encoding="utf-8", newline="")
-    warnings.warn("Applied a Windows patch to scip-python (escaped the path separator in its regular expression); the original is kept as scip-python.js.orig.")
+    warnings.warn("Applied a Windows patch to scip-python (escaped the path separator in its regular expression); the original is kept as scip-python.js.orig.", stacklevel=2)
     return True
 
 
