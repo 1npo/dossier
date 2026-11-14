@@ -280,7 +280,7 @@ class TestRenderTable:
         assert '<td class="src-cell">' in html
 
 
-CATALOG = card("components.catalog", slots=[{"type": "table", "columns": ["Component", "Paths", "Responsibility", "Public surface", "Depends on", "Used by", "Size"]}])
+CATALOG = card("components.catalog", slots=[{"type": "table", "columns": ["Component", "Paths", "Responsibility", "Public surface", "Depends on", "Used by", "Lines"]}])
 
 
 def catalog_entry(*rows):
@@ -322,7 +322,7 @@ class TestCatalogMeasuredColumns:
 
         rows = catalog_rows_html(html)
 
-        assert [rows[n][6] for n in ("Api", "Core", "Db")] == ["40 lines", "30 lines", "12 lines"]
+        assert [rows[n][6] for n in ("Api", "Core", "Db")] == ["40", "30", "12"]
 
     def test_the_written_columns_are_left_as_written(self, make_cites):
         html = render.render_card(CATALOG, catalog_entry(), refs(make_cites), "x", CATALOG_CTX)
@@ -505,3 +505,15 @@ def test_contents_card_comes_before_the_executive_summary():
 def test_contents_names_the_executive_summary_first_and_it_has_that_anchor():
     body, toc = render.with_contents("entry", '<div class="card panel llm"><header><h2>A</h2></header></div>', [("entry-summary", "Executive summary")])
     assert toc.index('href="#entry-summary">Executive summary') < toc.index(">A<")
+
+
+class TestSplitList:
+    def test_a_comma_list_of_files_becomes_bullets(self):
+        assert render.split_list("`a.py`, `src/b.py`, c.py") == "- `a.py`\n- `src/b.py`\n- c.py"
+
+    def test_a_comma_inside_backticks_or_parentheses_does_not_split(self):
+        assert render.split_list("`f(a, b)`, `g`") == "- `f(a, b)`\n- `g`"
+
+    def test_one_file_and_prose_are_left_alone(self):
+        assert render.split_list("`a.py`") == "`a.py`"
+        assert render.split_list("Offers the API, and more") == "Offers the API, and more"

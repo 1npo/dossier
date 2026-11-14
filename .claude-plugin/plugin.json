@@ -7,7 +7,7 @@
   },
   "homepage": "https://github.com/1npo/dossier",
   "repository": "https://github.com/1npo/dossier",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "keywords": [
     "codebase",
     "documentation",

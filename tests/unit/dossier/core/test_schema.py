@@ -126,11 +126,11 @@ class TestNowDrawnCards:
         assert any("drawn by code since 0.7.1" in w and "data.relationships" in w for w in warns)
 
     def test_a_script_card_that_was_always_drawn_still_rejects_a_written_entry(self):
-        sch = schema.load("components")
+        sch = schema.load("interactions")
 
-        errs, _ = schema.validate("components", {"cards": [{"card": "components.map", "blocks": []}]}, sch, allow_pending=True)
+        errs, _ = schema.validate("interactions", {"cards": [{"card": "interactions.graph", "blocks": []}]}, sch, allow_pending=True)
 
-        assert any("components.map" in e and "produced by a script" in e for e in errs)
+        assert any("interactions.graph" in e and "produced by a script" in e for e in errs)
 
     def test_relationships_is_a_script_card_with_no_slots(self):
         card = next(c for c in schema.load("data")["cards"] if c["id"] == "data.relationships")

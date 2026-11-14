@@ -121,7 +121,6 @@
       "category": "shape",
       "question": "What are the main components?",
       "answers": [
-        "components.map",
         "components.catalog"
       ]
     },

@@ -717,8 +717,8 @@ class TestNoGraphCards:
     def test_a_tier_b_language_badges_the_eight_graph_cards_and_the_tip_names_it(self):
         got = process.nograph_cards(langs(("Python", "A"), ("Shell", "B"), ("SQL", "B")), facts_of(Python=9, Shell=4, SQL=2))
 
-        assert set(got) == set(process.NOGRAPH_CARDS) and len(got) == 8
-        tip = got["components.map"]
+        assert set(got) == set(process.NOGRAPH_CARDS) and len(got) == 7
+        tip = got["components.catalog"]
         assert tip == "No import or call graph was made for Shell (4 files). Their files are in the tables but have no links."
 
     def test_languages_are_listed_by_file_count_then_name_with_one_file_singular(self):

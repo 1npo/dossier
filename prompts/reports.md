@@ -40,15 +40,11 @@ Shape: diagram blocks (at most 1), each followed by one text block of numbered l
 
 Report 05: Components. Question: *What are the main parts, what does each do, and how does it work?*
 
-### Component map (`components.map`)
-
-Drawn by code from the tool findings: a table, and above it diagrams of the areas. **Do not write this card:** leave it out of the file, and never describe the diagrams or their boxes in any card you write. A component made of files in a language with no static graph (the `no static graph` badge) has no links in it: say so in that component's detail entry.
-
 ### Component catalog (`components.catalog`)
 
-One row per component, drafted from the component candidates (see "Components" in `method.md`). `Paths` lists the component's folders, files or globs in backticks. `Depends on`, `Used by` and `Size` are measured and drawn by code: write `-` in those three cells. List files that belong to no component in the entry's `unassigned` list. A repository of several apps gets one component per folder with a clear job; do not merge apps into one component. In C#, a project is a natural boundary: one component may hold one project or a folder of one, and never put two projects' files in one component unless one references the other. `Public surface` names what the component offers to other packages, or says that it is internal.
+One row per component, drafted from the component candidates (see "Components" in `method.md`). `Paths` lists the component's folders, files or globs in backticks. `Depends on`, `Used by` and `Lines` are measured and drawn by code: write `-` in those three cells. List files that belong to no component in the entry's `unassigned` list. A repository of several apps gets one component per folder with a clear job; do not merge apps into one component. In C#, a project is a natural boundary: one component may hold one project or a folder of one, and never put two projects' files in one component unless one references the other. `Public surface` names what the component offers to other packages, or says that it is internal.
 
-Shape: a table with columns Component, Paths, Responsibility, Public surface, Depends on, Used by, Size.
+Shape: a table with columns Component, Paths, Responsibility, Public surface, Depends on, Used by, Lines.
 
 ### Component details (`components.detail`)
 

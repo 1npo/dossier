@@ -856,12 +856,38 @@ def split_steps(text):
     return "\n".join(pieces)
 
 
+LIST_FIELDS = {"components.detail": ("public_surface", "key_files")}
+
+
+def split_list(text):
+    """"`a.py`, `b.py`" becomes one "- " item per line when the text is a comma list of two or more files or names. Prose is returned as it is."""
+    t = str(text or "").strip()
+    if "\n" in t or "," not in t:
+        return str(text or "")
+    parts, depth, tick, start = [], 0, False, 0
+    for i, ch in enumerate(t):
+        if ch == "`":
+            tick = not tick
+        elif not tick and ch in "([{":
+            depth += 1
+        elif not tick and ch in ")]}":
+            depth = max(0, depth - 1)
+        elif not tick and not depth and ch == ",":
+            parts.append(t[start:i].strip())
+            start = i + 1
+    parts.append(t[start:].strip().rstrip("."))
+    if len(parts) < 2 or any(not x or len(re.sub(r"`|\([^)]*\)", "", x).split()) != 1 for x in parts):
+        return str(text or "")
+    return "\n".join(f"- {x}" for x in parts)
+
+
 def entries_body(card, entries, refs, tid):
     labels = card["fields"]
+    listed = LIST_FIELDS.get(card["id"], ())
     out = []
     for n, e in enumerate(entries, 1):
         fl = e["fields"]
-        rows = "".join(f'<tr><th scope="row">{E(f["label"])}</th><td>{md(split_steps(fl[f["id"]]), refs)}</td></tr>' for f in labels)
+        rows = "".join(f'<tr><th scope="row">{E(f["label"])}</th><td>{md(split_list(fl[f["id"]]) if f["id"] in listed else split_steps(fl[f["id"]]), refs)}</td></tr>' for f in labels)
         out.append(f'<details class="entry" id="{card_dom_id(card["id"])}-e{n}" open><summary>{E(e[card["key"]])}</summary>'
                    f'<div class="table-container"><table class="table kv" data-nosort><tbody>{rows}</tbody></table></div>'
                    f'{added_tag(e)}{provenance(e, refs, " ".join(fl.values()))}</details>')

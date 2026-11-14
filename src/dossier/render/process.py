@@ -390,7 +390,7 @@ OWNER_CARDS = ("contributors.ask", "contributors.concentration")
 
 
 REPO_LANGUAGES = ("Dockerfile", "Makefile", "SQL")  # read by the repo adapter and have no imports to graph
-NOGRAPH_CARDS = ("reading.order", "components.map", "components.catalog", "interactions.graph", "interactions.violations", "interactions.flows",
+NOGRAPH_CARDS = ("reading.order", "components.catalog", "interactions.graph", "interactions.violations", "interactions.flows",
                  "change.blast-radius", "change.dead-code")
 
 

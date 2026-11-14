@@ -124,7 +124,7 @@ The first tile of the "This dossier" report, `Freshness`, compares the pinned co
 
 ### Use the graphs
 
-The Component map (report 05) and Interactions graph (report 06) cards open on a collapsed view of areas. Each box stands for an area, a component or a group of them, and a number on a link is how many imports it stands for.
+The Interactions graph (report 06) card opens on a collapsed view of areas. Each box stands for an area, a component or a group of them, and a number on a link is how many imports it stands for.
 
 - Click a box that has a view, or press Enter on it, or press its `Open ...` button below the graph, to open it.
 - `Up` goes back one level. The breadcrumb and the `View` list jump to any view.

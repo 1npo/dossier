@@ -316,22 +316,6 @@ def table_html(html, tid):
     return re.search(r'<table class="table[^"]*" id="%s".*?</table>' % re.escape(tid), html, re.S).group(0)
 
 
-class TestComponentMap:
-    def test_draws_no_diagram_of_which_component_imports_which(self):
-        html = measured.body("components.map", MAP_CTX, Refs())
-
-        assert "mermaid-host" not in html and "flowchart" not in html
-
-    def test_table_has_files_lines_and_neighbours(self):
-        rows = {r[0]: r for r in rows_of(table_html(measured.body("components.map", MAP_CTX, Refs()), "t-components-map"))}
-
-        assert rows["Api"][1:] == ["api", "1", "10", "Core, Db", "-"]
-        assert rows["Core"][5] == "Api, Db"
-
-    def test_without_a_catalog_the_placeholder_is_used(self):
-        assert measured.body("components.map", {"extract": MAP_EXTRACT}, Refs()) is None
-
-
 class TestDependencyGraph:
     def test_table_has_one_row_per_import(self):
         html = measured.body("interactions.graph", MAP_CTX, Refs())
@@ -609,20 +593,6 @@ class TestComponentArea:
         assert measured_graph.component_area(paths, self.ROOTS) == "db"
 
 
-class TestComponentMapAreas:
-    def test_area_column_names_folders_not_files(self):
-        extract = {"graph": [
-            {"kind": "module", "path": "src/app/__init__.py", "module": "app", "package": "app", "is_package": True},
-            imp("src/app/cli.py", "src/app/models.py"),
-        ]}
-        ctx = {"extract": extract, "tree": {"src/app/cli.py", "src/app/models.py"},
-               "catalog": [{"name": "Cli", "paths": ["src/app/cli.py"]}, {"name": "Models", "paths": ["src/app/models.py"]}]}
-
-        rows = rows_of(table_html(measured.body("components.map", ctx, Refs()), "t-components-map"))
-
-        assert {r[1] for r in rows} == {"app (top-level modules)"}
-
-
 def big_graph(components=16, areas=6, edges=71):
     names = [f"C{i:02d}" for i in range(components)]
     area = {n: f"area{i % areas}" for i, n in enumerate(names)}
@@ -674,3 +644,11 @@ class TestComponentTables:
 
         assert headers[:2] == ["From component", "To component"]
         assert len(rows) == sum(1 for g in ctx["extract"]["graph"] if g["kind"] == "import")
+
+
+class TestRelationshipTitles:
+    def test_each_entity_box_names_its_file(self):
+        from dossier.render.measured import er
+        ents = [{"name": "User", "path": "src/app/models/user.py", "kind": "dataclass", "fields": []}]
+
+        assert 'User (user.py)' in er._source(ents, ents, lambda e: "app")

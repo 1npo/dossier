@@ -205,7 +205,7 @@ def _violations(cid, ctx, refs):
 DRAWN = {"reading.map": _reading_map, "conventions.tooling": _tooling, "interactions.violations": _violations, "data.relationships": measured_er.draw, **measured_graph.DRAWN, **measured_change.DRAWN, **measured_blast.DRAWN, **measured_people.DRAWN, **measured_upgrade.DRAWN, **measured_env.DRAWN}
 
 
-CATALOG_MEASURED = ("Depends on", "Used by", "Size")
+CATALOG_MEASURED = ("Depends on", "Used by", "Lines")
 
 
 def fill_people(entry: dict, cid: str, ctx: dict) -> dict:
@@ -214,7 +214,7 @@ def fill_people(entry: dict, cid: str, ctx: dict) -> dict:
 
 
 def fill_catalog(entry: dict, ctx: dict) -> dict:
-    """A copy of the `components.catalog` entry whose Depends on, Used by and Size cells are the measured ones (plan 008, A4).
+    """A copy of the `components.catalog` entry whose Depends on, Used by and Lines cells are the measured ones (plan 008, A4).
 
     Without extractor output (an older dossier) the cells stay as they were written.
     """
@@ -239,7 +239,7 @@ def fill_catalog(entry: dict, ctx: dict) -> dict:
                 cells, name = list(row["cells"]), str(row["cells"][0]).strip("`").strip()
                 cells[at["Depends on"]] = ", ".join(sorted(uses[name])) or "-"
                 cells[at["Used by"]] = ", ".join(sorted(used[name])) or "-"
-                cells[at["Size"]] = f"{size[name]} lines"
+                cells[at["Lines"]] = str(size[name])
                 new_rows.append({**row, "cells": cells})
             block = {**block, "rows": new_rows}
         blocks.append(block)
