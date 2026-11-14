@@ -1865,7 +1865,7 @@ def masthead(facts: dict, reports: dict) -> dict:
             "remote": link, "date": r["commit_date"]}
 
 
-def render_html(facts: dict, reports: dict, state: dict, history: dict, version: str, cites: Cites, build: Any = None, coverage: Any = None, extract: dict | None = None, checks: dict | None = None) -> tuple:
+def render_html(facts: dict, reports: dict, state: dict, history: list, version: str, cites: Cites, build: Any = None, coverage: Any = None, extract: dict | None = None, checks: dict | None = None) -> tuple:
     """`coverage` is the list cmd_render already gave IDs to; without it the items are rebuilt from `build`."""
     if coverage is None:
         coverage = process.coverage_items(build) if build else ()

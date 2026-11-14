@@ -144,6 +144,7 @@ def cmd_render(a: argparse.Namespace) -> Any:
         audit = {"step": "check", "part": "audit", "by": "render", "status": "failed" if v11 else "ok",
                  "reason": f"{len(v11)} problems in the page." if v11 else None, "counts": {"v11": len(v11)}}
         buildlog.append(build_path, audit)
+        assert shown is not None
         shown["records"].append(audit)
         page = draw(shown)  # the process card now says how many problems the page audit found
     if v11 and not a.allow_errors:
@@ -158,6 +159,7 @@ def cmd_render(a: argparse.Namespace) -> Any:
         record = {"step": "check", "part": "summary", "by": "render", "status": "failed" if v8 else "ok",
                   "reason": f"{len(v8)} problems in summary.json." if v8 else None, "counts": {"v8": len(v8)}}
         buildlog.append(build_path, record)
+        assert shown is not None
         shown["records"].append(record)
         page = draw(shown)  # the process card now says what summary.json came to
     if v8 and not a.allow_errors:

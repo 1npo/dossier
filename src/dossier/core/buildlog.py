@@ -11,7 +11,7 @@ import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from collections.abc import Iterator
+from collections.abc import Generator
 from typing import Any
 
 __all__ = [
@@ -113,7 +113,7 @@ def append(path: Path, rec: dict) -> dict:
 
 
 @contextmanager
-def step(path: Path, step: str, part: str | None = None, by: str = "prepare") -> Iterator[dict]:
+def step(path: Path, step: str, part: str | None = None, by: str = "prepare") -> Generator[dict]:
     rec: dict = {"step": step, "by": by, "status": "ok", "started": now()}
     if part:
         rec["part"] = part
