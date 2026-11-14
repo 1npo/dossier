@@ -182,6 +182,7 @@ sup.cite { vertical-align: baseline !important; position: static !important; top
 .table th.sortable button { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: .3rem; width: 100%; padding: .5rem .5rem; cursor: pointer; color: inherit; font: inherit; white-space: normal; }
 .table th.sortable button:hover, .table th.sortable button:focus-visible { color: var(--foreground); background: var(--muted); }
 .table th.sortable button::after { content: "\2195"; opacity: .35; font-size: .8em; flex: none; }
+.table th.row-no.sortable { padding: 0; } .table th.row-no.sortable button { gap: .15rem; padding-inline: .4rem; }
 .table th[aria-sort="ascending"] button::after { content: "\25B2"; opacity: 1; } .table th[aria-sort="descending"] button::after { content: "\25BC"; opacity: 1; }
 #t-index th.sortable button, #t-hist th.sortable button { justify-content: inherit; }
 .table tfoot td { border-top: 2px solid var(--border); font-weight: 600; background: var(--muted); }
@@ -579,7 +580,7 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 /* by role: a citation column is small and fixed and its markers wrap inside it; short label columns keep a minimum; long text shares the rest */
 .card[data-card]:not([data-card^="overview."]) .table td.src-cell, .card[data-card]:not([data-card^="overview."]) .table th.src-cell { min-width: 4.5rem; width: 6.5rem; max-width: 8rem; white-space: normal; overflow-wrap: anywhere; word-break: break-all; }
 .card[data-card]:not([data-card^="overview."]) .table td.src-cell sup.cite { display: inline; }
-.table td.row-no, .table th.row-no { min-width: 2.5rem; width: 2.5rem; max-width: 3.5rem; white-space: nowrap; text-align: right; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+.table td.row-no, .table th.row-no, .card[data-card]:not([data-card^="overview."]) .table td.row-no, .card[data-card]:not([data-card^="overview."]) .table th.row-no { min-width: 0; width: 1%; max-width: none; padding-inline: .4rem; white-space: nowrap; text-align: right; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
 .card[data-card]:not([data-card^="overview."]) .table code { overflow-wrap: anywhere; }
 .table-container.scrolls { background: linear-gradient(to right, var(--card) 30%, transparent) left / 2rem 100% no-repeat local, linear-gradient(to left, var(--card) 30%, transparent) right / 2rem 100% no-repeat local, linear-gradient(to left, rgb(0 0 0 / .12), transparent) right / .75rem 100% no-repeat scroll; }
 .table-container.tall { max-height: 70vh; overflow: auto; }
@@ -688,9 +689,9 @@ html.rail .sidebar nav > section { overflow-y: auto; }
 html:not(.rail) #rail-toggle { padding-right: .5rem; }
 .search kbd { right: .5rem; }
 html.rail .side-link { justify-content: center; margin: 0 0 .5rem; }
-/* tool findings: the All / Kept / Dismissed / Added by Claude toggle, the same component as the hotspots toggles, top right above the table */
-.cand-bar { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: .5rem 1.5rem; margin: 0 0 .75rem; }
-.cand-card:not([data-cand-view="dismissed"]) > section > .table-container:has(> .cand-dismissed) { display: none; }
+/* tool findings: the All / Kept / Dismissed / Added by Claude toggle, the same component as the hotspots toggles, left-aligned above the table like every other card's toggle */
+.cand-bar { display: flex; flex-wrap: wrap; justify-content: flex-start; align-items: center; gap: .5rem 1.5rem; margin: 0 0 .75rem; }
+.cand-card:not([data-cand-view="dismissed"]) > section > :is(.tbl-bar, .table-container:has(> .cand-dismissed)) { display: none; }
 .cand-card[data-cand-view="dismissed"] > section > .cand-main { display: none; }
 .cand-card[data-cand-view="kept"] [data-kind]:not([data-kind~="kept"]), .cand-card[data-cand-view="added"] [data-kind]:not([data-kind~="added"]) { display: none; }
 

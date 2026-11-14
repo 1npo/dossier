@@ -579,11 +579,16 @@ class TestSplitList:
         assert render.split_list("Offers the API, and more") == "Offers the API, and more"
 
 
-def test_the_partial_cards_card_shows_the_empty_state_without_partial_cards(make_cites):
-    h = render.partial_body({}, refs(make_cites))
-    assert "No card is partial" in h and "<th>What to do to clear it</th>" in h
+def test_the_badges_card_shows_the_empty_state_without_badges(make_cites):
+    h = render.badges_body({}, refs(make_cites))
+    assert "No card has a partial or no static graph badge" in h and "<th>What to do about it</th>" in h
 
 
-def test_the_partial_cards_card_comes_after_the_cards_listing():
+def test_the_badges_card_lists_no_static_graph_cards_too(make_cites):
+    h = render.badges_body({"nograph": {"reading.order": "No graph was made for Go."}}, refs(make_cites))
+    assert "no static graph" in h and "No graph was made for Go." in h
+
+
+def test_the_badges_card_comes_after_the_cards_listing():
     ids = [c["id"] for c in schema.load("dossier")["cards"]]
-    assert ids.index("dossier.partial") == ids.index("dossier.cards") + 1
+    assert ids.index("dossier.badges") == ids.index("dossier.cards") + 1
