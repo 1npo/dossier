@@ -52,18 +52,12 @@
       host.parentNode.insertBefore(hint, host);
     } else if (!on && hint) hint.remove();
   }
-  // a schema table wider than its card scrolls inside it and says so (report 02's tables are left as they were)
+  // a schema table wider than its card scrolls inside it (report 02's tables are left as they were)
   function markTables(root) {
     $$(".card[data-card] .table-container", root).forEach(function (c) {
       if (c.closest(".card[data-card]").dataset.card.indexOf("overview.") === 0) return;
       var on = c.scrollWidth > c.clientWidth + 1;
       c.classList.toggle("scrolls", on);
-      var prev = c.previousElementSibling, hint = prev && prev.classList.contains("table-hint") ? prev : null;
-      if (c.closest(".card[data-card]").dataset.card === "components.catalog") return;  // the catalog scrolls without the hint
-      if (on && !hint) {
-        hint = doc.createElement("p"); hint.className = "table-hint"; hint.textContent = "Scroll sideways for more columns.";
-        c.parentNode.insertBefore(hint, c);
-      } else if (!on && hint) hint.remove();
     });
   }
   window.addEventListener("resize", function () { $$(".report:not([hidden]) .mermaid-host").forEach(markScroll); $$(".report:not([hidden])").forEach(markTables); });
@@ -122,6 +116,7 @@
         if (!card.id) card.id = "s-" + rep.id + "-" + (++n);
         index.push({ id: card.id, report: rtitle, section: title, text: textOf(card, true), row: false });
         $$("tbody tr", card).forEach(function (tr) {
+          if (tr.closest(".cand-dismissed") && card.dataset.candView !== "dismissed") return;   // dismissed findings are searchable only while shown
           if (!tr.id) tr.id = "r-" + rep.id + "-" + (++n);
           var cells = $$("td", tr).map(function (td) { return textOf(td); });
           index.push({ id: tr.id, report: rtitle, section: title, label: cells.filter(Boolean).slice(0, 2).join(" · "), text: cells.join(" | "), row: true });
@@ -1552,6 +1547,14 @@
   initModes("who");
   initModes("hot");
   initModes("hotperiod");
+  // Cards that tool findings were fed to: All, Kept, Dismissed or Added by Claude. The card carries data-cand-view; the stylesheet does the hiding.
+  doc.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-cand-set]"); if (!b) return;
+    var card = b.closest(".cand-card"), mode = b.getAttribute("data-cand-set");
+    if (!card) return;
+    card.dataset.candView = mode; index = null;   // the search index is rebuilt, so dismissed findings are in it only while shown
+    $$("[data-cand-set]", card).forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+  });
   // Hotspots card: Top 15 or All files. The top 15 rows carry class hot-top; the stylesheet hides the others while the card says "top".
   (function () {
     var card = $('.card[data-card="change.hotspots"]'), group = doc.getElementById("hotshow-mode");

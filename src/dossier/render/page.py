@@ -44,6 +44,7 @@ from dossier.render.markup import (  # noqa: F401  (other modules and the tests 
     CLAUSE_WORD,
     code_files,
     E,
+    empty_table,
     EXPAND_ICONS,
     FREE_TEXT_WORDS,
     gid_tag,
@@ -474,6 +475,25 @@ def alert(text, title="Heads up", kind="warn", variant=None):
             f'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{ICONS[kind]}</svg><h2>{E(title)}</h2><section>{text}</section></div>')
 
 
+CALLOUT_VARIANTS = {
+    "note": ("Note", '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>'),
+    "tip": ("Tip", '<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/>'),
+    "important": ("Important", '<path d="M12 8v4"/><path d="M12 16h.01"/><rect width="18" height="18" x="3" y="3" rx="2"/>'),
+    "warning": ("Warning", ICONS["warn"]),
+}
+
+
+def callout(body, variant="note", label=True):
+    """An alert box for a block of text that stands beside a table or diagram: an icon, a bold label (unless `label` is False)
+    and a coloured left border. `variant` is note, tip, important or warning; an unknown one is drawn as a note."""
+    variant = variant if variant in CALLOUT_VARIANTS else "note"
+    name, icon = CALLOUT_VARIANTS[variant]
+    lbl = f'<strong class="callout-label">{E(name)}</strong>' if label else ""
+    return (f'<div class="callout" data-variant="{variant}" role="note"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" '
+            f'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{icon}</svg>'
+            f'<div class="callout-body">{lbl}{body}</div></div>')
+
+
 def fmt(n):
     return f"{n:,}" if isinstance(n, int) else str(n)
 
@@ -565,6 +585,8 @@ def check_block(tag, b, rid, errors, warnings, schema_card=False):
         for j, r in enumerate(b.get("rows", [])):
             if not isinstance(r, dict) or len(r.get("cells", [])) != len(cols):
                 errors.append(f"{tag}, row {j + 1}: each row must be an object whose 'cells' has {len(cols)} entries.")
+    elif b["type"] == "text" and b.get("variant") not in (None, *CALLOUT_VARIANTS):
+        errors.append(f"{tag}: 'variant' must be one of {', '.join(CALLOUT_VARIANTS)}.")
     elif b["type"] == "diagram":
         if not DIAGRAM_START.match(b.get("mermaid", "")):
             errors.append(f"{tag}: 'mermaid' must start with a Mermaid diagram keyword such as flowchart, sequenceDiagram or erDiagram.")
@@ -779,7 +801,7 @@ def placeholder_body(card):
 
 
 def na_body(entry, refs):
-    return f'<p>Not applicable: {inline(entry["na"], refs)}</p>' + provenance({"conf": "confirmed", "cite": entry["cite"]}, refs, entry["na"])
+    return callout(f'<p>Not applicable: {inline(entry["na"], refs)}</p>' + provenance({"conf": "confirmed", "cite": entry["cite"]}, refs, entry["na"]), "note", label=False)
 
 
 def list_html(items, refs, ordered=False):
@@ -790,15 +812,16 @@ def list_html(items, refs, ordered=False):
     return f'<{tag} class="claims">{lis}</{tag}>'
 
 
-def block_body(b, refs, tid, ordered=False):
+def block_body(b, refs, tid, ordered=False, findings=False, standalone=False):
     t = b["type"]
     if t == "table":
         cap = f'<p class="muted">{inline(b["caption"], refs)}</p>' if b.get("caption") else ""
-        return cap + render_table(b["columns"], b["rows"], refs, tid)
+        return cap + render_table(b["columns"], b["rows"], refs, tid, findings=findings)
     if t == "list":
         return list_html(b["items"], refs, ordered)
     if t == "text":
-        return md(b["text"], refs) + provenance(b, refs, b["text"])
+        body = md(b["text"], refs) + provenance(b, refs, b["text"])
+        return callout(body, b.get("variant") or "note") if standalone else body
     src = b["mermaid"].strip()
     title = f'<h4>{E(b["title"])}</h4>' if b.get("title") else "<h4>Diagram</h4>"
     return (f'<div class="diagram flow"><div class="flow-bar">{title}<div class="card-action"><button class="btn" data-variant="ghost" data-size="sm" type="button" data-expand title="Expand" aria-label="Expand diagram">{EXPAND_ICONS}</button></div></div>'
@@ -810,14 +833,15 @@ def unbacked_note(arrows):
     return f'<p class="muted">Arrows with no import or call behind them, so treat them as inferred: {E(", ".join(arrows))}.</p>'
 
 
-def blocks_body(card, blocks, refs, tid, unbacked=None):
+def blocks_body(card, blocks, refs, tid, unbacked=None, findings=False):
     """A card's blocks, without a card around each. A text or list block right after a diagram is that diagram's notes.
     `unbacked` maps "card id#n" to the arrows of the card's n-th diagram that V3 found no import or call behind."""
     out = []
     drawn = 0
+    standalone = any(b["type"] != "text" for b in blocks)   # text beside a table or diagram is an alert box; text that is the whole card is not
     ordered = any(s.get("ordered") for s in card.get("slots") or [] if s["type"] == "list")
     for i, b in enumerate(blocks):
-        h = block_body(b, refs, f"{tid}-{i}", ordered)
+        h = block_body(b, refs, f"{tid}-{i}", ordered, findings, standalone and not (i and blocks[i - 1]["type"] == "diagram" and card["shape"] == "flows"))
         if b["type"] == "diagram":
             drawn += 1
             arrows = (unbacked or {}).get(f"{card['id']}#{drawn}")
@@ -881,14 +905,21 @@ def split_list(text):
     return "\n".join(f"- {x}" for x in parts)
 
 
-def entries_body(card, entries, refs, tid):
+def entry_kind(e):
+    """`data-kind` of a row or entry of a card that tool findings were fed to: what it does with them."""
+    kinds = [k for k, on in (("kept", e.get("cand")), ("added", e.get("added"))) if on]
+    return " ".join(kinds) or "own"
+
+
+def entries_body(card, entries, refs, tid, findings=False):
     labels = card["fields"]
     listed = LIST_FIELDS.get(card["id"], ())
     out = []
     for n, e in enumerate(entries, 1):
         fl = e["fields"]
         rows = "".join(f'<tr><th scope="row">{E(f["label"])}</th><td>{md(split_list(fl[f["id"]]) if f["id"] in listed else split_steps(fl[f["id"]]), refs)}</td></tr>' for f in labels)
-        out.append(f'<details class="entry" id="{card_dom_id(card["id"])}-e{n}" open><summary>{E(e[card["key"]])}</summary>'
+        kind = f' data-kind="{entry_kind(e)}"' if findings else ""
+        out.append(f'<details class="entry" id="{card_dom_id(card["id"])}-e{n}"{kind} open><summary>{E(e[card["key"]])}</summary>'
                    f'<div class="table-container"><table class="table kv" data-nosort><tbody>{rows}</tbody></table></div>'
                    f'{added_tag(e)}{provenance(e, refs, " ".join(fl.values()))}</details>')
     return "".join(out)
@@ -900,25 +931,46 @@ def _cand_nodes(entry):
     return nodes + [e for e in entry.get("entries", []) if isinstance(e, dict)]
 
 
-def candidate_footer(card, entry, fed):
-    """A line under a card that tool findings were fed to: how many were kept, merged into rows, dismissed or added."""
-    if not fed or not isinstance(entry, dict):
-        return ""
-    nodes = _cand_nodes(entry)
-    kept = sum(len(n["cand"]) for n in nodes if isinstance(n.get("cand"), list))
-    rows = sum(1 for n in nodes if n.get("cand"))
-    added = sum(1 for n in nodes if n.get("added"))
-    dismissed = [d for d in entry.get("dismissed", []) if isinstance(d, dict)]
-    count = sum(len(d["cand"]) for d in dismissed if isinstance(d.get("cand"), list))
-    tail = f", {added} rows added by Claude" if added else ""
-    out = f'<p class="muted cand-foot">Tool findings: {fed} found, {kept} kept in {rows} rows, {count} dismissed{tail}.</p>'
-    if dismissed:
-        lis = "".join(f'<li>{" ".join("<code>" + E(c) + "</code>" for c in d.get("cand", []))} {E(d.get("reason", ""))}</li>' for d in dismissed)
-        out += f"<details><summary>Dismissed findings</summary><ul>{lis}</ul></details>"
-    return out
+CAND_VIEWS = (("all", "All"), ("kept", "Kept"), ("dismissed", "Dismissed"), ("added", "Added by Claude"))
+DISMISSED_COLUMNS = ["Finding", "Location", "What it matched"]
+
+
+def cand_toggle(cid):
+    """The All / Kept / Dismissed / Added by Claude buttons of a card that tool findings were fed to, in the markup the other card toggles use."""
+    gid = "cand-" + card_dom_id(cid)[2:]
+    btns = "".join(f'<button type="button" class="btn" data-variant="outline" data-size="sm" data-cand-set="{v}" aria-pressed="{"true" if i == 0 else "false"}">{E(t)}</button>'
+                   for i, (v, t) in enumerate(CAND_VIEWS))
+    return (f'<div class="mode-row cand-bar"><div class="km-ctl mode-ctl"><span class="muted" id="{gid}-l">Show</span>'
+            f'<div class="button-group" id="{gid}" role="group" aria-labelledby="{gid}-l">{btns}</div></div></div>')
+
+
+def _finding_row(i, found):
+    """The cells of a dismissed finding: its id, where it is and what it matched."""
+    it = (found or {}).get(i) or {}
+    where = it.get("path") or ""
+    line = it.get("line")
+    loc = f"{where}:{line}" if where and line else where
+    what = it.get("display") or it.get("snippet") or it.get("name") or it.get("rule") or it.get("kind") or ""
+    return it, loc, str(what)
+
+
+def dismissed_table(card, entry, refs, found):
+    """One row for each tool finding the card dismissed, with the reason. It stays hidden until Dismissed is chosen."""
+    rows = []
+    for d in entry.get("dismissed", []):
+        if not isinstance(d, dict):
+            continue
+        for i in d.get("cand", []) if isinstance(d.get("cand"), list) else []:
+            _, loc, what = _finding_row(i, found)
+            rows.append([f"<code>{E(i)}</code>", f"<code>{E(loc)}</code>" if loc else "", E(what), E(str(d.get("reason", "")))])
+    tid = "t-" + card_dom_id(card["id"])[2:] + "-dismissed"
+    if not rows:
+        return empty_table(tid, DISMISSED_COLUMNS + ["Why it was dismissed"], "No findings were dismissed", cls="cand-dismissed")
+    return render_table(DISMISSED_COLUMNS + ["Why it was dismissed"], rows, refs, tid, plain=True, cls="cand-dismissed")
 
 
 def render_card(card, entry, refs, rid, ctx=None):
+    fed = bool((ctx or {}).get("fed", {}).get(card["id"], 0)) and isinstance(entry, dict) and "na" not in entry
     tid = "t-" + card_dom_id(card["id"])[2:]
     partial = ((ctx or {}).get("partial") or {}).get(card["id"])
     nograph = ((ctx or {}).get("nograph") or {}).get(card["id"])
@@ -935,11 +987,11 @@ def render_card(card, entry, refs, rid, ctx=None):
                 entry = measured.fill_catalog(entry, ctx or {})
             elif card["id"] in ("contributors.concentration", "contributors.agents"):
                 entry = measured.fill_people(entry, card["id"], ctx or {})
-            body = blocks_body(card, entry["blocks"], refs, tid, ((ctx or {}).get("checks") or {}).get("unbacked"))
+            body = blocks_body(card, entry["blocks"], refs, tid, ((ctx or {}).get("checks") or {}).get("unbacked"), fed)
             if card["id"] == "risks.tracker":
                 body = source_key() + body
         elif "entries" in entry:
-            body = entries_body(card, entry["entries"], refs, tid)
+            body = entries_body(card, entry["entries"], refs, tid, fed)
         else:
             body = placeholder_body(card)
     except (KeyError, TypeError, IndexError, AttributeError):
@@ -949,14 +1001,19 @@ def render_card(card, entry, refs, rid, ctx=None):
     if card["id"] == "io.inputs":
         body += measured_tables.config_keys(ctx or {}, refs)  # configuration keys read by name, measured; never their values
     if isinstance(entry.get("not_applicable"), list) and entry["not_applicable"]:
-        lis = "".join(f'<li><strong>{E(str(n.get("component", "")))}</strong>: {E(str(n.get("reason", "")))}</li>'
-                      for n in entry["not_applicable"] if isinstance(n, dict))
-        body += f'<details class="not-applicable"><summary>Not applicable</summary><ul>{lis}</ul></details>'
-    try:
-        body += candidate_footer(card, entry, (ctx or {}).get("fed", {}).get(card["id"], 0))
-    except (KeyError, TypeError, AttributeError):
-        pass  # V6 and V5 report the real error
-    return schema_card(card, body, partial=partial, nograph=nograph)
+        rows = [[f"<strong>{E(str(n.get('component', '')))}</strong>", E(str(n.get("reason", "")))] for n in entry["not_applicable"] if isinstance(n, dict)]
+        table = render_table(["Component", "Reason"], rows, refs, "t-" + card_dom_id(card["id"])[2:] + "-na", filterable=False, plain=True, sort=False)
+        body += callout("<p>This card does not cover these components.</p>" + table, "note", label=False)
+    extra = ""
+    if fed:
+        try:
+            found = candidates.by_id((ctx or {}).get("extract") or {})
+            body = f'<div class="cand-main">{body}</div>' + dismissed_table(card, entry, refs, found)
+            body = cand_toggle(card["id"]) + body
+            extra = " cand-card"
+        except (KeyError, TypeError, AttributeError):
+            pass  # V6 and V5 report the real error
+    return schema_card(card, body, extra=extra, partial=partial, nograph=nograph)
 
 
 RISK_SOURCE_KEY = (("extractor", "A tool found it: static analysis, the dependency scan or the git history. Tool output is not checked by a person."),

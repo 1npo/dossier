@@ -96,18 +96,78 @@ def test_added_row_gets_a_badge(make_cites):
     assert "added by Claude" in h
 
 
-def test_candidate_footer_counts_kept_dismissed_and_added(make_cites):
+def fed_entry(make_cites):
     t = tbl()
-    t["rows"] = [dict(t["rows"][0], cand=["io-1", "io-2"]), dict(t["rows"][0], added=True)]
-    entry = {"card": "x.tab", "blocks": [t], "dismissed": [{"cand": ["io-3"], "reason": "Not [[x]] needed."}]}
-    h = render.render_card(SCH["cards"][0], entry, refs(make_cites), "x", {"fed": {"x.tab": 3}})
-    assert "Tool findings: 3 found, 2 kept in 1 rows, 1 dismissed, 1 rows added by Claude." in h
-    assert "<code>io-3</code>" in h and "Not [[x]] needed." in h
+    t["rows"] = [dict(t["rows"][0], cand=["io-1", "io-2"]), dict(t["rows"][0], added=True), dict(t["rows"][0])]
+    entry = {"card": "x.tab", "blocks": [t], "dismissed": [{"cand": ["io-3"], "reason": "Not needed."}]}
+    extract = {"io_candidates": [{"id": "io-3", "group": "g", "path": "a.py", "line": 7, "snippet": "os.environ[X]"}]}
+    return render.render_card(SCH["cards"][0], entry, refs(make_cites), "x", {"fed": {"x.tab": 3}, "extract": extract})
 
 
-def test_candidate_footer_is_empty_when_nothing_was_fed(make_cites):
+def test_a_fed_card_has_no_tool_findings_line(make_cites):
+    h = fed_entry(make_cites)
+    assert "Tool findings" not in h and "cand-foot" not in h and "Dismissed findings" not in h
+
+
+def test_a_fed_card_numbers_its_rows_in_a_first_column(make_cites):
+    h = fed_entry(make_cites)
+    assert '<th class="row-no">#</th><th>A</th>' in h
+    assert re.findall(r'<td class="row-no" data-sort="(\d+)">\1</td>', h) == ["1", "2", "3"]
+    assert re.findall(r'<tr data-kind="([a-z ]+)">', h) == ["kept", "added", "own"]
+
+
+def test_a_card_that_was_not_fed_has_no_number_column_or_toggle(make_cites):
     h = render.render_card(SCH["cards"][0], {"card": "x.tab", "blocks": [tbl()]}, refs(make_cites), "x", {"fed": {}})
-    assert "cand-foot" not in h
+    assert "row-no" not in h and "data-cand-set" not in h and "cand-card" not in h
+
+
+def test_a_fed_card_has_the_four_way_toggle_and_a_dismissed_table(make_cites):
+    h = fed_entry(make_cites)
+    assert re.findall(r'data-cand-set="(\w+)" aria-pressed="(\w+)"', h) == [("all", "true"), ("kept", "false"), ("dismissed", "false"), ("added", "false")]
+    assert "Added by Claude</button>" in h
+    d = h[h.index("cand-dismissed"):]
+    assert "io-3" in d and "a.py:7" in d and "os.environ[X]" in d and "Not needed." in d
+
+
+def test_a_fed_card_with_nothing_dismissed_still_draws_the_dismissed_table(make_cites):
+    t = tbl()
+    t["rows"][0]["cand"] = ["io-1"]
+    h = render.render_card(SCH["cards"][0], {"card": "x.tab", "blocks": [t]}, refs(make_cites), "x", {"fed": {"x.tab": 1}})
+    assert "No findings were dismissed" in h
+
+
+def test_not_applicable_components_are_shown_in_a_note_box_without_a_heading(make_cites):
+    entry = {"card": "x.tab", "blocks": [tbl()], "not_applicable": [{"component": "db", "reason": "No tables."}]}
+    h = render.render_card(SCH["cards"][0], entry, refs(make_cites), "x", {})
+    assert "<details" not in h and "<summary" not in h
+    box = h[h.index('class="callout"'):]
+    assert 'data-variant="note"' in box and "<h" not in box.replace("<header", "").replace("<hr", "")
+    assert "does not cover these components" in box and "<strong>db</strong>" in box and "No tables." in box
+    assert "callout-label" not in box
+
+
+def test_text_beside_a_table_is_an_alert_box_with_its_variant(make_cites):
+    text = {"type": "text", "text": "Mind the gap.", "variant": "warning", "conf": "confirmed", "cite": ["a.py:1"]}
+    h = render.render_card(SCH["cards"][0], {"card": "x.tab", "blocks": [tbl(), text]}, refs(make_cites), "x", {})
+    assert 'class="callout" data-variant="warning"' in h and '<strong class="callout-label">Warning</strong>' in h and "Mind the gap." in h
+
+
+def test_text_that_is_the_whole_card_is_not_boxed_and_the_default_variant_is_note(make_cites):
+    text = {"type": "text", "text": "Alone.", "conf": "confirmed", "cite": ["a.py:1"]}
+    assert "callout" not in render.render_card(SCH["cards"][0], {"card": "x.tab", "blocks": [text]}, refs(make_cites), "x", {})
+    h = render.render_card(SCH["cards"][0], {"card": "x.tab", "blocks": [tbl(), text]}, refs(make_cites), "x", {})
+    assert 'data-variant="note"' in h
+
+
+def test_an_unknown_text_variant_is_an_error():
+    errors, warnings = [], []
+    render.check_block("t", {"type": "text", "text": "x", "variant": "loud"}, "x", errors, warnings, True)
+    assert any("variant" in e for e in errors)
+
+
+def test_empty_table_keeps_its_headers_and_centres_one_message():
+    h = render.empty_table("t-x", ["A", "B"], "No releases")
+    assert "<th>A</th><th>B</th>" in h and 'colspan="2"' in h and "No releases" in h and "none-found" in h
 
 
 def test_partial_badge_follows_the_tier_badge(make_cites):

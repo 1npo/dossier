@@ -96,12 +96,15 @@ def _head(table: Node) -> list:
 
 
 def _plain_tables(card: Node) -> list:
-    return [t for t in card.find("table") if not t.has("kv")]
+    """The tables the card's blocks drew, not the dismissed findings or the not-applicable list that follow them."""
+    return [t for t in card.find("table") if not t.has("kv") and not t.has("cand-dismissed") and not t.attrs.get("id", "").endswith("-na")]
 
 
 def _check_table(cid: str, n: int, table: Node, columns: list, rows: int, authored: bool) -> list:
     errs, want = [], list(columns) + (list(render.auto_columns(columns)) if authored else [])
     have = _head(table)
+    if have and have[0] == "#":     # the row-number column of a card that tool findings were fed to
+        have = have[1:]
     for col in want:
         if col not in have:
             errs.append(f"V11: {cid}: table {n} is missing the column '{col}'.")
