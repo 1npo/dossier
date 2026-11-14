@@ -607,12 +607,13 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 /* hotspots: room around the ranked bars, the toggles and the table */
 .card[data-card="change.hotspots"] .mode-ctl { margin: 0 0 .75rem; }
 .card[data-card="change.hotspots"] .mode-ctl + .mode-ctl { margin-top: -.25rem; }
-.card[data-card="change.hotspots"] .tbl-bar .mode-ctl { margin: 0 0 0 .5rem; }
 .card[data-card="change.hotspots"] :is(.hot-table, [data-hotperiod])[hidden] { display: none; }
 
 /* blast radius: the picker, three labelled boxes the lists fill, then the table set apart from them */
 .card[data-card="change.blast-radius"] .blast-picker { margin: .5rem 0 1rem; }
 .card[data-card="change.blast-radius"] .blast-lists { margin: 0 0 1.75rem; }
+/* Edge draws a select's option list from the options' own colours: the transparent, inherited ones left the text unreadable until hovered */
+#blast-pick option, #blast-pick optgroup { background-color: var(--popover, var(--background)); color: var(--popover-foreground, var(--foreground)); }
 .blast-col { border: 1px solid var(--border); border-radius: var(--radius); background: var(--muted); padding: .75rem .9rem; min-width: 0; display: flex; flex-direction: column; }
 .blast-col h4 { margin: 0 0 .6rem; padding-bottom: .5rem; border-bottom: 1px solid var(--border); font-size: .9375rem; font-weight: 600; }
 .blast-col .blast-list { list-style: none; padding-left: 0; min-height: 5rem; flex: 1; }
@@ -667,6 +668,15 @@ table.happened { width: 100%; border-collapse: collapse; font-size: .8125rem; }
 .legend-list dt { margin: 0; padding-top: .1rem; } .legend-list dd { margin: 0; }
 .cp-empty { padding: 1.5rem .9rem; font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif); color: var(--muted-foreground); } .cp-empty[hidden] { display: none; }
 .code-panel.empty .cp-nav, .code-panel.empty #cp-goto, .code-panel.empty .cp-title { display: none; } .code-panel.empty .cp-body { flex: 0; }
+/* the sidebar's scrollbar starts at the first group label (ORIENTATION), so the Portfolio link above it keeps its key hint aligned with the two above it */
+.sidebar nav > section { overflow-y: hidden; }
+.side-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+html.rail .sidebar nav > section { overflow-y: auto; }
+/* a card's title and badge stay frozen beneath the report's title bar while the card scrolls past, until the next card's title takes the spot.
+   overflow: clip (not hidden) keeps the card's rounded corners without making the card a scroll container, which would stop a sticky header. */
+.report > .card { overflow: clip; }
+.report > .card > header { position: sticky; top: calc(var(--mh-h, 4.5rem) + var(--rh-h, 0px)); z-index: 5; background: var(--card); margin-top: -1rem; padding-top: 1rem; padding-bottom: .6rem; }
+@media print { .report > .card > header { position: static; } }
 /* the link from a dossier back to the portfolio */
 .side-link { display: flex; align-items: center; gap: .5rem; margin: 0 .5rem .5rem; padding: .4rem .5rem; border-radius: var(--radius-md, .375rem); font-size: .875rem; color: var(--foreground); text-decoration: none; }
 .side-link:hover { background: var(--accent); }

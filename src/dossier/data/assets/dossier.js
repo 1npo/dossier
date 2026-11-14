@@ -59,6 +59,7 @@
       var on = c.scrollWidth > c.clientWidth + 1;
       c.classList.toggle("scrolls", on);
       var prev = c.previousElementSibling, hint = prev && prev.classList.contains("table-hint") ? prev : null;
+      if (c.closest(".card[data-card]").dataset.card === "components.catalog") return;  // the catalog scrolls without the hint
       if (on && !hint) {
         hint = doc.createElement("p"); hint.className = "table-hint"; hint.textContent = "Scroll sideways for more columns.";
         c.parentNode.insertBefore(hint, c);
@@ -1479,6 +1480,7 @@
     var h = $(".masthead"), t = $(".report:not([hidden]) .report-head");
     if (!h) return;
     root.style.setProperty("--mh-h", h.offsetHeight + "px");
+    root.style.setProperty("--rh-h", (t ? t.offsetHeight : 0) + "px");
     root.style.setProperty("--header-h", (h.offsetHeight + (t ? t.offsetHeight : 0) + 12) + "px");
   }
   window.addEventListener("resize", syncHeader); syncHeader();
@@ -1562,23 +1564,6 @@
       $$("[data-hotshow-set]", group).forEach(function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
     });
   })();
-  // Hotspots card: the two button groups sit in the filter bar of the table on show, beside the filter box and the Columns menu.
-  (function () {
-    var card = $('.card[data-card="change.hotspots"]'), ctls = card ? $$(".mode-ctl", card) : [];
-    if (!ctls.length) return;
-    function dock() {
-      var vis = $$(".hot-table", card).filter(function (e) { return !e.hidden; })[0];
-      var per = vis && $$("[data-hotperiod]", vis).filter(function (e) { return !e.hidden; })[0];
-      var bar = per && $(".tbl-bar", per);
-      if (bar) ctls.forEach(function (c) { bar.appendChild(c); });
-    }
-    ["hot", "hotperiod", "hotshow"].forEach(function (k) {
-      var g = doc.getElementById(k + "-mode");
-      if (g) g.addEventListener("click", function () { setTimeout(dock, 0); });
-    });
-    dock();
-  })();
-
   applyTheme(); show();
 })();
 document.documentElement.dataset.dossierJs = "ok";

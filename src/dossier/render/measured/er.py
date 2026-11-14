@@ -70,6 +70,10 @@ def _relations(group: list, everything: list, idents: dict) -> list:
     return out
 
 
+def _filename(e: dict) -> str:
+    return str(e.get("path") or "").rsplit("/", 1)[-1] or "?"
+
+
 def _source(group: list, everything: list, owner_of) -> str:
     taken: dict = {}
     count = Counter(e["name"] for e in everything)
@@ -79,7 +83,7 @@ def _source(group: list, everything: list, owner_of) -> str:
     outside = {id(t): t for _, t, _ in rels if id(t) not in inside}
     lines = ["erDiagram"]
     for e in group:
-        label = measured_graph._label(e["name"])
+        label = measured_graph._label(f"{e['name']} ({_filename(e)})")
         fields = e.get("fields") or []
         if not fields:
             lines.append(f'  {idents[id(e)]}["{label}"]')
@@ -88,7 +92,7 @@ def _source(group: list, everything: list, owner_of) -> str:
         lines += [f"    {safe_type(f.get('type'))} {safe_name(f['name'])}{' ' + _keys(f) if _keys(f) else ''}" for f in fields]
         lines.append("  }")
     for t in outside.values():
-        lines.append(f'  {idents[id(t)]}["{measured_graph._label(t["name"])} (in {measured_graph._label(owner_of(t))})"]')
+        lines.append(f'  {idents[id(t)]}["{measured_graph._label(t["name"] + " (" + _filename(t) + ")")} (in {measured_graph._label(owner_of(t))})"]')
     for owner, target, field in rels:
         if owner["kind"] == SQL:
             lines.append(f'  {idents[id(target)]} ||--o{{ {idents[id(owner)]} : "{measured_graph._label(field)}"')

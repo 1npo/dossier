@@ -4,15 +4,6 @@
   "question": "What are the main parts, what does each do, and how does it work?",
   "cards": [
     {
-      "id": "components.map",
-      "title": "Component map",
-      "tier": "M+A",
-      "priority": "P0",
-      "writer": "script",
-      "shape": "computed",
-      "fixed": null
-    },
-    {
       "id": "components.catalog",
       "title": "Component catalog",
       "tier": "A",
@@ -29,7 +20,7 @@
             "Public surface",
             "Depends on",
             "Used by",
-            "Size"
+            "Lines"
           ]
         }
       ],

@@ -87,4 +87,4 @@ For contributors, in the [developer guide](docs/developer-guide.md):
 
 ## License
 
-MIT. See [LICENSE](LICENSE). Bundled third-party libraries in `src/dossier/data/vendor/` keep their own licenses (`LICENSE.md`, `LICENSE-mermaid`).
+Apache License 2.0. See [LICENSE](LICENSE). Bundled third-party libraries in `src/dossier/data/vendor/` keep their own licenses (`LICENSE.md`, `LICENSE-mermaid`).

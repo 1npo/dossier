@@ -1,6 +1,6 @@
-"""The two measured graph cards (D8): `components.map` and `interactions.graph`.
+"""The measured graph card (D8): `interactions.graph`.
 
-Both are tables that hold every fact, so nothing is dropped: the component table, the component edge table and
+It is made of tables that hold every fact, so nothing is dropped: the component edge table and
 the module table. They draw no diagram: a picture of which module imports which is noise, and the tables say it exactly.
 (`_diagram` stays for the entity-relationship diagrams of `measured_er`.)
 """
@@ -126,28 +126,5 @@ def _graph(cid, ctx, refs):
             + react)
 
 
-def _map(cid, ctx, refs):
-    rows, extract = ctx.get("catalog") or [], ctx.get("extract") or {}
-    if not rows or "graph" not in extract:
-        return None
-    roots = package_roots(extract)
-    area = _area_map(rows, roots)
-    group = _group_of(extract, rows, roots)
-    edges = graphs.aggregate([(g["path"], g["paths"][0]) for g in _imports(extract)], group)
-    files = components.source_files(ctx.get("tree"), extract)
-    lines = components.file_lines(ctx.get("facts") or {})
-    owner = {p: components.component_of(p, rows)[0] for p in files}
-    uses, used = {}, {}
-    for (a, b) in edges:
-        uses.setdefault(a, []).append(b)
-        used.setdefault(b, []).append(a)
-    table = []
-    for row in rows:
-        name = row["name"]
-        mine = [p for p in files if owner[p] == name]
-        table.append([markup.E(name), markup.E(area[name]), (str(len(mine)), len(mine)), (str(sum(lines.get(p, 0) for p in mine)), sum(lines.get(p, 0) for p in mine)),
-                      markup.E(", ".join(sorted(uses.get(name, [])))) or "-", markup.E(", ".join(sorted(used.get(name, [])))) or "-"])
-    return markup.render_table(["Component", "Area", "Files", "Lines", "Depends on", "Used by"], table, refs, "t-" + cid.replace(".", "-"), plain=True)
 
-
-DRAWN = {"interactions.graph": _graph, "components.map": _map}
+DRAWN = {"interactions.graph": _graph}

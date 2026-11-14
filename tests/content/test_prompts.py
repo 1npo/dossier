@@ -297,7 +297,7 @@ class TestGraphsAreDrawnByCode:
     guide = (PROMPTS / "reports.md").read_text(encoding="utf-8")
     method = (PROMPTS / "method.md").read_text(encoding="utf-8")
 
-    @pytest.mark.parametrize("card_id", ["components.map", "interactions.graph"])
+    @pytest.mark.parametrize("card_id", ["interactions.graph"])
     def test_graph_card_says_the_diagrams_are_never_described(self, card_id):
         section = card_section(self.guide, card_id)
 

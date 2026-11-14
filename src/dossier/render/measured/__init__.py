@@ -8,7 +8,7 @@ May import (besides itself and the standard library): what dossier.render may, a
   cs       What `reading.map` and `conventions.tooling` know about C# repositories (M5-23).
   env      The environment-variable and secret-signal cards of report `ops` (post-v1 items 17 and 18), drawn from the gatherer's facts.
   er       The `data.relationships` card, drawn from the extracted models (D9): every entity with every field, every relation.
-  graph    The two measured graph cards (D8): `components.map` and `interactions.graph`.
+  graph    The measured graph card (D8): `interactions.graph`.
   js       What `reading.map` and `conventions.tooling` know about JavaScript and TypeScript repositories (M4-20).
   people   Measured cards of report 13 (contributors) drawn from `extract/history.json` alone (D3, D4).
   tables   The tables of the two measured graph cards (D4): the component edge table and the module table.
