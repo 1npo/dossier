@@ -73,7 +73,9 @@ def _not_applicable(entry: dict) -> dict:
 
 def v13(reports: dict, extract: dict, tree, facts: dict | None) -> tuple[list, list, list, dict]:
     """(errors, warnings, gap items, counts)."""
-    errors, warnings, gaps = [], [], []
+    errors: list = []
+    warnings: list = []
+    gaps: list = []
     rows = components.catalog_rows(reports.get("components") or {})
     counts = {"v13": 0, "v13_not_applicable": 0}
     if not rows:
