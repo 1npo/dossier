@@ -50,7 +50,7 @@ Shape: a table with columns Component, Paths, Responsibility, Public surface, De
 
 One entry for every row of the catalog, with the component's name as the `component` key. A repository with more than 12 components gives this card to one subagent per area.
 
-Shape: `entries`, keyed by `component`, each with the fields: `purpose` (Purpose), `how_it_works` (How it works), `public_surface` (Public surface), `state_owned` (State owned), `key_files` (Key files), `gotchas` (Gotchas).
+Shape: `entries`, keyed by `component`, each with the fields: `purpose` (Purpose), `how_it_works` (How it works), `public_surface` (Public surface: every function, class and variable cited with its whole definition as `[[path:start-end|name]]`, line numbers verified; V14 fails the render on a backticked name with no citation), `state_owned` (State owned), `key_files` (Key files), `gotchas` (Gotchas).
 
 ### Cross-cutting concerns (`components.cross-cutting`)
 

@@ -330,6 +330,47 @@ def check_search(page, scheme):
     return [] if opened else bad("the entry did not open and show after Enter")
 
 
+COLUMNS_JS = """(rid) => Array.from(document.querySelectorAll(`#${rid} table.table`)).filter(t => t.getBoundingClientRect().width > 0 && !t.classList.contains('empty-table')).flatMap(t => {
+  const hr = t.tHead && t.tHead.rows[t.tHead.rows.length - 1];
+  if (!hr || hr.cells.length < 3) return [];
+  const cells = Array.from(hr.cells), widths = cells.map(c => c.getBoundingClientRect().width), W = t.getBoundingClientRect().width;
+  const src = cells.map(c => c.classList.contains('src-cell') || /^(sources?|citations?)$/i.test(c.textContent.trim()));
+  const text = widths.filter((w, i) => !src[i] && !cells[i].classList.contains('basis-cell') && !cells[i].classList.contains('row-no'));
+  const widest = Math.max(0, ...text);
+  return cells.flatMap((c, i) => src[i] && (widths[i] > W / 3 || (widest && widths[i] > Math.max(widest, 160)))
+    ? [{ id: t.id || '(no id)', col: c.textContent.trim(), w: Math.round(widths[i]), W: Math.round(W), widest: Math.round(widest) }] : []);
+})"""
+
+PHRASE_JS = "() => document.body.innerText.includes('Scroll sideways for more columns')"
+
+# Why the citation tooltip might not show: what is on top of the link, and whether the code panel is in the way.
+PROBE_JS = """(a) => {
+  const r = a.getBoundingClientRect(), x = r.x + r.width / 2, y = r.y + r.height / 2, top = document.elementFromPoint(x, y), p = document.getElementById('code-panel');
+  return { covered: !(top === a || a.contains(top)), by: top ? (top.id || (typeof top.className === 'string' && top.className) || top.tagName) : null,
+           panelOpen: !!p && !p.classList.contains('shut') && p.getBoundingClientRect().width > 0, x: Math.round(x), y: Math.round(y), scrollY: Math.round(scrollY), width: innerWidth };
+}"""
+PANEL_OPEN_JS = "() => { const p = document.getElementById('code-panel'); return !!p && !p.classList.contains('shut') && p.getBoundingClientRect().width > 0; }"
+
+
+def hover_cite(page, rid):
+    """Hover the first citation of report `rid` that nothing covers. Returns (shown, state before the hover). The code panel is closed first,
+    and the link is scrolled to the middle of the window, so a sticky table header or the panel cannot sit on top of it."""
+    if page.evaluate(PANEL_OPEN_JS):
+        page.keyboard.press("Escape")
+    state = None
+    for a in page.query_selector_all(f"#{rid} .cite a[data-tip]"):
+        if not a.is_visible():
+            continue
+        a.evaluate("e => e.scrollIntoView({ block: 'center', inline: 'nearest' })")
+        state = a.evaluate(PROBE_JS)
+        if not state["covered"]:
+            a.hover()
+            shown = page.evaluate("() => { const t = document.getElementById('cite-tip'); return !!t && !t.hidden && t.textContent.length > 0; }")
+            page.mouse.move(0, 0)
+            return shown, state
+    return None, state
+
+
 ASSETS_JS = """() => ({
   css: getComputedStyle(document.documentElement).getPropertyValue('--dossier-css-end').trim() === '1',
   js: document.documentElement.dataset.dossierJs === 'ok' })"""
@@ -380,12 +421,15 @@ def check_report(page, scheme, rid, shots, counter):
                 problems.append(f"{rid}: the gap ID tooltip did not appear on hover")
             page.mouse.move(0, 0)
         if a:
-            a.scroll_into_view_if_needed()
-            a.hover()
-            shown = page.evaluate("() => { const t = document.getElementById('cite-tip'); return !!t && !t.hidden && t.textContent.length > 0; }")
-            if not shown:
-                problems.append(f"{rid}: the citation tooltip did not appear on hover")
-            page.mouse.move(0, 0)
+            shown, state = hover_cite(page, rid)
+            if shown is False:
+                problems.append(f"{rid}: the citation tooltip did not appear on hover (state before the hover: {json.dumps(state)})")
+            elif shown is None and state:
+                problems.append(f"{rid}: every visible citation is covered by another element, so the tooltip cannot be tried (last: {json.dumps(state)})")
+    # a citation or source column must not take the table over
+    if scheme == "light":
+        for c in page.evaluate(COLUMNS_JS, rid):
+            problems.append(f"{rid} / table {c['id']}: the column '{c['col']}' is {c['w']}px wide in a {c['W']}px table (widest text column {c['widest']}px); citation columns must stay narrow")
     return problems
 
 
@@ -456,6 +500,8 @@ def check_theme(browser, path, scheme, shots):
         ctx.close()
         return [f"[{scheme}] the page's {' and '.join(missing)} did not load completely; "
                 "look for a git conflict marker in the skill's assets, then render again"], 0
+    if safe(scheme, "scroll hint", page.evaluate, PHRASE_JS) is True:
+        problems.append(f"[{scheme}] the page says 'Scroll sideways for more columns'; no card may carry that hint")
     reports = page.eval_on_selector_all(".report", "els => els.map(e => e.id)")
     for rid in reports:
         problems += safe(scheme, f"report {rid}", check_report, page, scheme, rid, shots, counter)

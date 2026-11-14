@@ -28,7 +28,7 @@ One `<report>.json` file per report, listing its cards in page order. A report f
   - `computed`: filled by a script.
 - `fixed` / `fixed2`: `{"on": "<column or entry key>", "values": [...]}`. A missing value is a warning, not an error. `fixed` applies to the first table slot, `fixed2` to the second.
 - Not applicable, with evidence: `{"card": "<id>", "na": "reason", "cite": ["path:1-30"]}`.
-- Not applicable for one component: on the cards Source of truth, Lifecycle and sensitive fields, Business rules and invariants, Key flows and Extension points, an entry may carry `"not_applicable": [{"component": "<catalog name>", "reason": "..."}]`. A reason is required. Check V13 (`checks/v13.py`) wants every component touched by the card or listed here; the page prints the list under the card and Gaps lists each as an assumption.
+- Not applicable for one component: on the cards Source of truth, Lifecycle and sensitive fields, Business rules and invariants, Key flows and Extension points, an entry may carry `"not_applicable": [{"component": "<catalog name>", "reason": "..."}]`. A reason is required. Check V13 (`checks/v13.py`) wants every component touched by the card or listed here; the page shows the list in a note box under the card, with no heading, and Gaps lists each as an assumption.
 - Not yet generated: `{"card": "<id>", "pending": true}` (accepted while `schema.ALLOW_PENDING` is true).
 
 ## Columns the page adds

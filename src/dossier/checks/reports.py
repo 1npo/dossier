@@ -13,6 +13,7 @@ from dossier.checks import people as checks_people
 from dossier.checks import v3 as checks_v3
 from dossier.checks import v7 as checks_v7
 from dossier.checks import v13 as checks_v13
+from dossier.checks import v14 as checks_v14
 from dossier.findings import components
 from dossier.render import process
 from dossier.render import markup
@@ -447,6 +448,10 @@ def validate(reports: dict, extract: dict, cites: Cites | None = None, facts: di
             result["counts"].update(c)
         except (AttributeError, TypeError, KeyError):
             pass  # a malformed card: V6 reports it
+    try:
+        result["errors"] += checks_v14.v14(reports)
+    except (AttributeError, TypeError, KeyError):
+        pass  # a malformed card: V6 reports it
     return result
 
 
