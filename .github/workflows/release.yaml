@@ -32,7 +32,7 @@ jobs:
       - name: Lint
         run: uv run --locked ruff check
       - name: Types
-        run: uv run --locked mypy
+        run: uv run --locked ty check
       - name: Tests
         run: uv run --locked pytest -q
       - name: Validate the plugin and marketplace manifests

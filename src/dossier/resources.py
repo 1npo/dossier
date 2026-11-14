@@ -19,8 +19,9 @@ def ensure_utf8() -> None:
     an arrow then raises UnicodeEncodeError. Child Python processes inherit PYTHONUTF8."""
     os.environ.setdefault("PYTHONUTF8", "1")
     for stream in (sys.stdout, sys.stderr):
-        if hasattr(stream, "reconfigure"):
-            stream.reconfigure(encoding="utf-8", errors="replace")
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure:
+            reconfigure(encoding="utf-8", errors="replace")
 
 
 def data(*parts: str) -> Path:
