@@ -101,7 +101,7 @@ def decode(data: bytes) -> dict:
         doc: dict = {"path": "", "occurrences": [], "symbols": []}
         for n, w, v in _fields(value):
             if n == 1:
-                doc["path"] = v.decode("utf-8", "replace")
+                doc["path"] = v.decode("utf-8", "replace").replace("\\", "/")
             elif n == 2:
                 doc["occurrences"].append(_occurrence(v))
             elif n == 3:

@@ -51,7 +51,7 @@ def cmd_doctor(a: argparse.Namespace) -> None:
         report = toolcheck.preflight([], all_scopes=True)
     else:
         top = common.toplevel(a.repo)
-        sha = subprocess.run(["git", "-C", top, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+        sha = subprocess.run(["git", "-C", top, "rev-parse", "HEAD"], capture_output=True, text=True, encoding="utf-8", errors="replace").stdout.strip()
         report = toolcheck.preflight_at(top, sha)
     skill = buildlog.skill_state(common.ROOT)
     if a.json:

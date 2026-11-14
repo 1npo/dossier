@@ -40,6 +40,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--allow-missing", action="store_true", help="carry on when tools are missing, in reduced mode")
     p.add_argument("--no-restore", action="store_true", help="do not install the repository's locked dependencies")
     p.add_argument("--allow-ref", action="store_true", help="install dependencies and run repository code even when the ref is not a tag or the default branch")
+    p.add_argument("--allow-dropped", action="store_true", help="go on when the extract path filter dropped more than 2%% of the extracted paths (otherwise prepare stops with exit code 4)")
+    p.add_argument("--include-test-reports", action=argparse.BooleanOptionalAction, default=None, help="read coverage and test-result files too (they are ignored by default); the choice is remembered for the repository")
     p.add_argument("--submodules", action="store_true", help="also check out and analyse submodules")
     p.add_argument("--restore", choices=["yes", "no"], help="answer the question about installing dependencies (stored per repository)")
     p.add_argument("--verify", action="store_true", help="have an independent checker test a sample of cited claims after the reports are written")

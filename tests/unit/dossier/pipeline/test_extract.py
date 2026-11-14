@@ -52,6 +52,26 @@ class TestFilterPaths:
 
         assert kept["graph"][0]["paths"] == ["src/a.py"]
 
+    def test_backslash_paths_are_normalized_and_kept(self):
+        kept, stats = filt({"graph": [{"path": "src\\a.py"}, {"path": ".\\app.py"}]})
+
+        assert [i["path"] for i in kept["graph"]] == ["src/a.py", "app.py"] and stats["paths_dropped"] == 0
+
+    def test_backslash_entries_of_paths_are_normalized(self):
+        kept, _ = filt({"graph": [{"path": "app.py", "paths": ["src\\a.py"]}]})
+
+        assert kept["graph"][0]["paths"] == ["src/a.py"]
+
+    def test_mixed_list_keeps_only_tracked_paths(self):
+        kept, stats = filt({"graph": [{"path": "src\\a.py"}, {"path": "src/a.py"}, {"path": "ghost\\x.py"}]})
+
+        assert len(kept["graph"]) == 2 and stats["dropped_unexpected"] == 1 and stats["unexpected"] == ["ghost/x.py"]
+
+    def test_windows_absolute_path_outside_the_checkout_is_dropped_as_outside(self):
+        _, stats = filt({"graph": [{"path": "C:\\elsewhere\\a.py"}]})
+
+        assert stats["dropped_outside"] == 1 and stats["dropped_unexpected"] == 0
+
     def test_item_without_path_raises(self):
         with pytest.raises(ValueError):
             filt({"graph": [{"kind": "x"}]})

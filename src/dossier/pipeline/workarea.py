@@ -25,7 +25,7 @@ class CheckoutError(RuntimeError):
 
 def git(cwd, *args, check=True) -> str:
     env = {k: v for k, v in os.environ.items() if k not in DROP_ENV}
-    r = subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True, env=env)
+    r = subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
     if check and r.returncode:
         last = ((r.stderr or r.stdout).strip().splitlines() or [""])[-1]
         raise CheckoutError(f"git {' '.join(args[:2])} failed: {last}"[:300])

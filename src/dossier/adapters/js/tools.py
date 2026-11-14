@@ -44,7 +44,7 @@ def ensure_installed(run: Callable, cache_root: Path, timeout: float) -> Path:
     """Install once per lockfile and script. Returns the install folder, which holds `node_modules` and `ts_facts.mjs`."""
     folder = install_dir(cache_root, _lock_sha())
     marker = folder / ".installed"
-    if marker.exists() and marker.read_text().strip() == _marker_text() and (folder / PROBE).exists():
+    if marker.exists() and marker.read_text(encoding="utf-8").strip() == _marker_text() and (folder / PROBE).exists():
         return folder
     folder.mkdir(parents=True, exist_ok=True)
     for name in FILES:
@@ -53,14 +53,14 @@ def ensure_installed(run: Callable, cache_root: Path, timeout: float) -> Path:
                timeout=timeout), "Installing the JavaScript tools")
     if not (folder / PROBE).exists():
         raise ToolError("Installing the JavaScript tools finished, but their program files are missing.")
-    marker.write_text(_marker_text() + "\n")
+    marker.write_text(_marker_text() + "\n", encoding="utf-8")
     return folder
 
 
 def node_problem(run: Callable) -> str | None:
     """None when Node is new enough, else the sentence to record as the reason the Node tools were skipped."""
     result = run(["node", "--version"], stage="node-version", profile="tool", timeout=15)
-    found = None if result.timed_out or result.returncode != 0 else re.search(r"v(\d+\.\d+\.\d+)", result.stdout.read_text(errors="replace"))
+    found = None if result.timed_out or result.returncode != 0 else re.search(r"v(\d+\.\d+\.\d+)", result.stdout.read_text(encoding="utf-8", errors="replace"))
     if not found:
         return "Node is not installed."
     node = next(h for h in toolcheck.load_tools()["host"] if h["id"] == "node")
@@ -83,7 +83,7 @@ class TsFacts:
                           profile="restricted", timeout=self.timeout, input=request)
         shared_tools.check_result(result, "Reading the TypeScript facts")
         try:
-            data = json.loads(result.stdout.read_text(errors="replace"))
+            data = json.loads(result.stdout.read_text(encoding="utf-8", errors="replace"))
         except ValueError as e:
             raise ToolError(f"Reading the TypeScript facts gave output that is not JSON: {e}") from e
         if not isinstance(data, dict):
@@ -106,7 +106,7 @@ class DepCruiser:
         if result.timed_out or (result.returncode != 0 and not tolerate_exit):
             shared_tools.check_result(result, what)
         try:
-            return json.loads(result.stdout.read_text(errors="replace"))
+            return json.loads(result.stdout.read_text(encoding="utf-8", errors="replace"))
         except ValueError as e:
             shared_tools.check_result(result, what)  # a failed run explains itself better than a JSON error
             raise ToolError(f"{what} gave output that is not JSON: {e}") from e
@@ -138,10 +138,10 @@ class Knip:
         if result.timed_out:
             raise ToolError("knip took too long and was stopped.")
         if result.returncode != 0:
-            first = next((l.strip() for l in result.stderr.read_text(errors="replace").splitlines() if l.strip()), "no message")
+            first = next((l.strip() for l in result.stderr.read_text(encoding="utf-8", errors="replace").splitlines() if l.strip()), "no message")
             raise ToolError(f"knip failed (exit {result.returncode}): {first}")
         try:
-            data = json.loads(result.stdout.read_text(errors="replace"))
+            data = json.loads(result.stdout.read_text(encoding="utf-8", errors="replace"))
         except ValueError as e:
             raise ToolError(f"knip printed something that is not JSON ({e}).") from e
         if not isinstance(data, dict):

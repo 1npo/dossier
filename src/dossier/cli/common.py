@@ -41,7 +41,7 @@ def now() -> str:
 
 def load(path: Path | str, default: Any = None) -> Any:
     try:
-        return json.loads(Path(path).read_text())
+        return json.loads(Path(path).read_text(encoding="utf-8"))
     except FileNotFoundError:
         return default
     except json.JSONDecodeError as exc:
@@ -51,7 +51,7 @@ def load(path: Path | str, default: Any = None) -> Any:
 def save(path: Path | str, data: Any) -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     tmp = Path(str(path) + ".tmp")
-    tmp.write_text(json.dumps(data, indent=1, ensure_ascii=False))
+    tmp.write_text(json.dumps(data, indent=1, ensure_ascii=False), encoding="utf-8")
     tmp.replace(path)
 
 
@@ -66,7 +66,7 @@ def save_state(out: Path, state: dict) -> None:
     if old.exists() and prev and prev != VERSION:
         keep = out / f"state.backup-v{prev}.json"
         if not keep.exists():
-            keep.write_text(old.read_text())
+            keep.write_text(old.read_text(), encoding="utf-8")
     state["skill_version"] = VERSION
     save(old, state)
 
@@ -80,14 +80,14 @@ def get_home() -> Path:
 
 def toplevel(repo_arg: str | None) -> str:
     p = Path(repo_arg or ".").expanduser().resolve()
-    r = subprocess.run(["git", "-C", str(p), "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    r = subprocess.run(["git", "-C", str(p), "rev-parse", "--show-toplevel"], capture_output=True, text=True, encoding="utf-8", errors="replace")
     if r.returncode:
         die(f"'{p}' is not inside a git repository.")
     return r.stdout.strip()
 
 
 def root_commit(top):
-    out = subprocess.run(["git", "-C", top, "rev-list", "--max-parents=0", "HEAD"], capture_output=True, text=True).stdout.split()
+    out = subprocess.run(["git", "-C", top, "rev-list", "--max-parents=0", "HEAD"], capture_output=True, text=True, encoding="utf-8", errors="replace").stdout.split()
     return sorted(out)[0] if out else ""
 
 

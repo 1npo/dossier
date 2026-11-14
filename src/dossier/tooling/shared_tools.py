@@ -26,7 +26,7 @@ def check_result(result: Any, what: str) -> None:
     if result.timed_out:
         raise ToolError(f"{what} took too long and was stopped.")
     if result.returncode != 0:
-        tail = "\n".join(result.stderr.read_text(errors="replace").splitlines()[-20:])
+        tail = "\n".join(result.stderr.read_text(encoding="utf-8", errors="replace").splitlines()[-20:])
         raise ToolError(f"{what} failed (exit {result.returncode}):\n{tail}")
 
 
@@ -38,10 +38,10 @@ def _call(run: Callable, tool: str, worker: str, request: dict, timeout: float |
     if result.timed_out:
         raise ToolError(f"{tool} took too long and was stopped.")
     if result.returncode != 0:
-        tail = "\n".join(result.stderr.read_text(errors="replace").splitlines()[-20:])
+        tail = "\n".join(result.stderr.read_text(encoding="utf-8", errors="replace").splitlines()[-20:])
         raise ToolError(f"{tool} failed (exit {result.returncode}):\n{tail}")
     try:
-        return json.loads(result.stdout.read_text())
+        return json.loads(result.stdout.read_text(encoding="utf-8"))
     except ValueError as e:
         raise ToolError(f"{tool} printed something that is not JSON ({e}).")
 

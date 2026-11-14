@@ -33,7 +33,8 @@ __all__ = ["PythonAdapter"]
 
 RULES = resources.data("rules", "python")
 NO_PACKAGE = "No Python package was found, so imports were read from the files directly."
-NOT_TRUSTED = "The ref is not trusted, so Node tools did not run. Use --allow-ref to run them."
+NOT_TRUSTED = ("The ref is not trusted, so scip-python did not run (it starts the repository's Python interpreter, which would "
+               "load files from the checkout). Use --allow-ref to run it.")
 NO_NODE = "Node is not installed."
 CALL_COMMAND_RULES = {"dossier.python.entry.argparse-subcommand", "dossier.python.entry.cli-helper-command"}
 HANDLER_ARG = re.compile(r"""\(\s*[rf]?["'][^"']*["']\s*,\s*([A-Za-z_]\w*)""")

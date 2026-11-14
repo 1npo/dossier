@@ -18,7 +18,7 @@ QUESTIONS_FILE = "questions.json"  # question list for the dossier.questions car
 TIERS = ("M", "A", "R", "M+A")
 SHAPES = ("blocks", "flows", "entries", "computed")
 SLOT_TYPES = ("table", "text", "list", "diagram")
-ENTRY_KEYS = {"card", "title", "blocks", "entries", "na", "cite", "pending", "dismissed", "unassigned"}
+ENTRY_KEYS = {"card", "title", "blocks", "entries", "na", "cite", "pending", "dismissed", "unassigned", "not_applicable"}
 
 
 def load(rid: str, schema_dir: Path = SCHEMA_DIR) -> dict | None:
@@ -245,6 +245,11 @@ def validate(rid: str, rep: dict, sch: dict, allow_pending: bool | None = None, 
         extra = set(entry) - ENTRY_KEYS
         if extra:
             errs.append(f"V6: {w}: unknown keys {sorted(extra)}")
+        if "not_applicable" in entry:
+            na = entry["not_applicable"]
+            if not (isinstance(na, list) and all(isinstance(n, dict) and isinstance(n.get("component"), str) and n["component"].strip()
+                                                  and set(n) <= {"component", "reason"} for n in na)):
+                errs.append(f"V6: {w}: 'not_applicable' must be a list of {{\"component\": \"...\", \"reason\": \"...\"}}")
         if "title" in entry and entry["title"] != card["title"]:
             errs.append(f"V6: {w}: title must be '{card['title']}'")
         content = {k for k in ("blocks", "entries", "na", "pending") if k in entry}

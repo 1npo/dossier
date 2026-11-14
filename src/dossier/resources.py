@@ -6,10 +6,21 @@ builds a path from `__file__`; tests/content/test_layers.py enforces that.
 """
 from __future__ import annotations
 
+import os
+import sys
 from importlib.resources import files
 from pathlib import Path
 
-__all__ = ["data", "skill_root", "version"]
+__all__ = ["data", "ensure_utf8", "skill_root", "version"]
+
+
+def ensure_utf8() -> None:
+    """Make output UTF-8 whatever the console is. On Windows a piped stdout is cp1252, and printing a character such as
+    an arrow then raises UnicodeEncodeError. Child Python processes inherit PYTHONUTF8."""
+    os.environ.setdefault("PYTHONUTF8", "1")
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
 
 
 def data(*parts: str) -> Path:
@@ -34,4 +45,4 @@ def skill_root() -> Path:
 
 def version() -> str:
     """The skill's version, from VERSION at the skill root."""
-    return (skill_root() / "VERSION").read_text().strip()
+    return (skill_root() / "VERSION").read_text(encoding="utf-8").strip()

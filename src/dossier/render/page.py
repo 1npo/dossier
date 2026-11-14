@@ -948,6 +948,10 @@ def render_card(card, entry, refs, rid, ctx=None):
         body += measured_tables.public_api(ctx or {}, refs)  # what other packages can import, measured; the authored rows are about contracts
     if card["id"] == "io.inputs":
         body += measured_tables.config_keys(ctx or {}, refs)  # configuration keys read by name, measured; never their values
+    if isinstance(entry.get("not_applicable"), list) and entry["not_applicable"]:
+        lis = "".join(f'<li><strong>{E(str(n.get("component", "")))}</strong>: {E(str(n.get("reason", "")))}</li>'
+                      for n in entry["not_applicable"] if isinstance(n, dict))
+        body += f'<details class="not-applicable"><summary>Not applicable</summary><ul>{lis}</ul></details>'
     try:
         body += candidate_footer(card, entry, (ctx or {}).get("fed", {}).get(card["id"], 0))
     except (KeyError, TypeError, AttributeError):
@@ -1598,7 +1602,7 @@ def panel_dossier(facts, reports, state, ctx, refs):
                         ("Inferred", fmt(n["inferred"]), f"{100 * n['inferred'] / total:.0f}% reasoned from context"),
                         ("Unknown", fmt(n["unknown"]), f"{100 * n['unknown'] / total:.0f}% not found"),
                         ("Citations", fmt(len(st)), f"{sum(1 for v in st.values() if not v['ok'])} unresolved"),
-                        ("Files analyzed / not counted", f"{fmt(c['files'])} / {fmt(skipped)}", "excluded by the gatherer: generated, vendored, lock and binary files" if skipped else "nothing was left out"),
+                        ("Files analyzed / not counted", f"{fmt(c['files'])} / {fmt(skipped)}", _not_counted_note(facts, skipped)),
                         ("Reading mode / chunks", f"{c['mode'].capitalize()} / {fmt(c['chunk_count'])}", "read in one pass" if c["mode"] == "single" else f"each holds up to {fmt(c['budget'])} tokens"),
                         ("Size", f"~{compact(c['total_tokens'])} tokens", "file bytes divided by 3.5")])
     this = fact_box("Build", [("Built", E(ctx["built"])), ("Skill version", "dossier " + E(ctx["version"]))])
@@ -1620,6 +1624,18 @@ def flags_html(rid, reports, state, ctx=None):
     inf, unk = sum(1 for c in cl if c["conf"] == "inferred"), sum(1 for c in cl if c["conf"] == "unknown")
     out = (f'<span class="flag inf" title="{inf} inferred statement(s)">{inf}</span>' if inf else "") + (f'<span class="flag unk" title="{unk} unknown">{unk}</span>' if unk else "")
     return f'<span class="flags">{out}</span>' if out else ok
+
+
+def _not_counted_note(facts: dict, skipped: int) -> str:
+    """The small print of the 'Files analyzed / not counted' tile; it names the coverage and test-result files that were ignored."""
+    if not skipped:
+        return "nothing was left out"
+    note = "excluded by the gatherer: generated, vendored, lock, binary and test-report files"
+    ignored = (facts["files"].get("ignored_reports") or [])
+    if ignored:
+        names = ", ".join(r["path"] for r in ignored[:4]) + (f" and {len(ignored) - 4} more" if len(ignored) > 4 else "")
+        note += f". Ignored coverage or test results: {names}"
+    return note
 
 
 CARD_HEAD = re.compile(r'<div class="card (panel|block)([^"]*)"( id="[^"]*")?( data-card="[^"]*")?><header><h([23])>(.*?)</h\5>')
@@ -1863,7 +1879,13 @@ def render_html(facts: dict, reports: dict, state: dict, history: dict, version:
     build = lambda: "".join(build_page(rid, reports, facts, state, ctx) for rid, _, _ in REPORTS)
     pages = build()
     dropped, stale = cites.plan_view()      # the first pass recorded which files and ranges are cited
-    if stale:
+    if dropped:
+        # a size cap on the embedded source is a gap: name every file that could not be opened in the viewer
+        listed = ", ".join(sorted(dropped))
+        left_out = [process._item(f"The code viewer does not embed {len(dropped)} cited file(s), to keep the page small. Their citations still show the path "
+                                  f"and lines but do not open the code: {listed}.", "Read the files in the repository, or cite a smaller range.")]
+        ctx["gaps"] = collect_gaps(reports, list(coverage) + left_out)
+    if stale or dropped:
         pages = build()
     if dropped:
         print(f"warning: {len(dropped)} cited file(s) are not embedded in the code viewer, to keep the page small: {', '.join(dropped[:5])}{' ...' if len(dropped) > 5 else ''}")

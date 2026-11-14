@@ -201,3 +201,26 @@ class TestSkillState:
         state = buildlog.skill_state(tmp_path)
 
         assert state == {"path": str(tmp_path), "commit": None, "dirty": None, "unmerged": None}
+
+
+class TestToolsNotRun:
+    def build(self, **kw):
+        return {"records": [
+            {"step": "tools", "details": {"missing": ["semgrep"]}},
+            {"step": "extract", "status": "ok", "details": {
+                "adapters": [{"name": "python", "status": "ok", "tools": {"grimp": {"status": "ok"},
+                                                                          "scip-python": {"status": "skipped", "reason": "not trusted"}}},
+                             {"name": "js", "status": "skipped", "reason": "no node"}],
+                "tool_status": {"scip-python": {"status": "skipped", "reason": "not trusted"}, "vulture": {"status": "failed", "reason": "boom"}}}}]}
+
+    def test_lists_missing_skipped_and_failed_tools_once_each(self):
+        got = buildlog.tools_not_run(self.build())
+
+        assert [(t["adapter"], t["tool"], t["status"]) for t in got] == [
+            ("", "semgrep", "missing"), ("python", "scip-python", "skipped"), ("js", "(whole adapter)", "skipped"), ("", "vulture", "failed")]
+
+    def test_a_tool_that_ran_is_not_listed(self):
+        assert all(t["tool"] != "grimp" for t in buildlog.tools_not_run(self.build()))
+
+    def test_no_build_means_nothing_to_report(self):
+        assert buildlog.tools_not_run(None) == []

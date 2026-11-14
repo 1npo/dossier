@@ -31,6 +31,7 @@ import re
 import sys
 from pathlib import Path
 
+from dossier import resources
 from dossier.core import buildlog
 from dossier.checks import layout as check_layout
 
@@ -489,6 +490,7 @@ def check_layouts(browser, path, scheme):
 
 
 def main() -> None:
+    resources.ensure_utf8()
     ap = argparse.ArgumentParser()
     ap.add_argument("html")
     ap.add_argument("--shots", help="directory for one screenshot per diagram and theme")
@@ -509,9 +511,13 @@ def main() -> None:
             problems += got
             n = max(n, n_theme)
         browser.close()
+    advice = sorted({line.split(" / ", 1)[-1] for line in problems if ": advice: " in line})
+    problems = [line for line in problems if ": advice: " not in line]
     print(json.dumps({"diagrams_checked": n, "problems": len(problems)}))
     for line in problems:
         print("FAIL", line)
+    for line in advice:
+        print("advice:", line.replace(": advice: ", ": ", 1))
     if a.record:
         buildlog.record_browser(a.record, len(problems), n)
     sys.exit(1 if problems else 0)

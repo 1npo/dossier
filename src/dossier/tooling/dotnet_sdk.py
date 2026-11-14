@@ -132,7 +132,7 @@ def _dotnet(args: list[str], path: str | None) -> str:
     if not exe:
         return ""
     try:
-        return subprocess.run([exe, *args], capture_output=True, text=True, timeout=15, env=None if path is None else {"PATH": path}).stdout
+        return subprocess.run([exe, *args], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15, env=None if path is None else {"PATH": path}).stdout
     except (OSError, subprocess.TimeoutExpired):
         return ""
 

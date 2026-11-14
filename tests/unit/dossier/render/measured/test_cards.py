@@ -602,15 +602,6 @@ def big_graph(components=16, areas=6, edges=71):
     return chosen, area
 
 
-class TestHostBudgetMark:
-    def test_budget_is_set_on_the_host_only_when_given(self):
-        marked = measured_graph._diagram("T", "flowchart TB\n  a --> b", "area")
-        plain = measured_graph._diagram("T", "flowchart TB\n  a --> b")
-
-        assert 'data-budget="area"' in marked
-        assert "data-budget" not in plain
-
-
 def big_ctx():
     edges, area = big_graph()
     names = sorted(area)

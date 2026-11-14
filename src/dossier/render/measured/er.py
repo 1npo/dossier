@@ -2,8 +2,9 @@
 
 SQL tables come from CREATE TABLE statements (columns, primary keys, foreign keys); Python classes come from the model
 extractor, and a field whose `ref` names another entity is a relation. A set of more than 12 entities is split into one
-diagram per owner component (or per area without a catalog) plus one for the SQL tables. A table under the diagrams lists every
-field, so nothing is left out of the card even where the picture is split.
+diagram per owner component (or per area without a catalog) plus one for the SQL tables; that is presentation only. Nothing
+is omitted: every entity is drawn in the diagram of its owner, and a table under the diagrams lists every field. The page
+check puts no limit on the number of entities.
 """
 from __future__ import annotations
 
@@ -102,7 +103,7 @@ def _source(group: list, everything: list, owner_of) -> str:
 
 
 def diagrams(extract: dict, catalog: list) -> list:
-    """[(title, mermaid source, budget)]: one diagram, or one per owner component plus one for the SQL tables."""
+    """[(title, mermaid source)]: one diagram, or one per owner component plus one for the SQL tables."""
     ents = entities(extract)
     roots = measured_graph.package_roots(extract)
 
@@ -114,12 +115,12 @@ def diagrams(extract: dict, catalog: list) -> list:
         return measured_graph.component_area([e["path"]], roots)
 
     if len(ents) <= MAX_ENTITIES:
-        return [("Entities and their relations", _source(ents, ents, owner_of), "")]
+        return [("Entities and their relations", _source(ents, ents, owner_of))]
     groups: dict = {}
     for e in ents:
         groups.setdefault(owner_of(e), []).append(e)
     ordered = sorted(groups, key=lambda g: (g == "SQL tables", g))
-    return [(g, _source(groups[g], ents, owner_of), "" if len(groups[g]) <= MAX_ENTITIES else "area") for g in ordered]
+    return [(g, _source(groups[g], ents, owner_of)) for g in ordered]
 
 
 def field_table(cid: str, extract: dict, refs) -> str:
@@ -137,5 +138,5 @@ def draw(cid: str, ctx: dict, refs: Any) -> str | None:
         return None
     if not entities(extract):
         return '<p class="muted">No entities were found.</p>'
-    charts = "".join(measured_graph._diagram(t, src, budget) for t, src, budget in diagrams(extract, ctx.get("catalog") or []))
+    charts = "".join(measured_graph._diagram(t, src) for t, src in diagrams(extract, ctx.get("catalog") or []))
     return charts + measured_tables.heading("Every field") + field_table(cid, extract, refs)

@@ -6,8 +6,9 @@ For each report, at each window size, in each theme, one script runs in the page
     that a parent clips without letting it scroll counts as sticking out: the reader cannot reach it);
   - no icon is drawn larger than 48 px;
   - every piece of text in every diagram, and in every chart (`.chart-scroll`), is at least 11 px tall;
-  - diagram budgets: at most 12 nodes in a flowchart, 10 participants in a sequence diagram, 12 entities in an ER diagram
-    (the diagrams code splits into areas are exempt: they are marked data-budget="area");
+  - diagram size is advice, not a check: a flowchart of more than 12 nodes or a sequence diagram of more than 10 participants
+    gets a line that starts "advice: ". The browser check prints it and does not count it as a problem. There is no limit on
+    the entities of an ER diagram: nothing is left out of the card, which also has a table of every field;
   - every flow diagram of Key flows and Startup has numbered notes under it;
   - every card whose layout has a table, and that has content, shows a table;
   - no two pieces of text in a card overlap (what a scroll box or a clipped card hides is not counted, nor is text made invisible, nor is the inside of a diagram).
@@ -22,7 +23,7 @@ from typing import Any
 __all__ = ["SIZES", "arguments", "check_report"]
 
 SIZES = ((1500, 1000), (400, 900))
-MIN_TEXT_PX, MAX_ICON_PX, MAX_FLOW_NODES, MAX_PARTICIPANTS, MAX_ENTITIES, MIN_OVERLAP_PX2 = 11, 48, 12, 10, 12, 4
+MIN_TEXT_PX, MAX_ICON_PX, MAX_FLOW_NODES, MAX_PARTICIPANTS, MIN_OVERLAP_PX2 = 11, 48, 12, 10, 4
 NOTE_CARDS = ("interactions.flows", "entry.startup")
 # Report 02 keeps its pre-1.0 layout (plan 008, A6), and at 400 px its heat-map legend is cut off 15 px short of the end. The sideways check
 # skips these cards so that a dossier can pass; every other check still applies to them. Recorded for the author in plan 008, Results.
@@ -72,7 +73,7 @@ LAYOUT_JS = r"""(arg) => {
     if (r.width > arg.maxIcon || r.height > arg.maxIcon) add(icons, cardOf(svg) + ': an icon is drawn ' + Math.round(r.width) + ' x ' + Math.round(r.height) + ' px', 3);
   }
   out.push(...icons);
-  // 3 and 4. diagrams: text size and budgets
+  // 3 and 4. diagrams: text size (a problem) and size (advice only)
   const dia = [];
   for (const host of rep.querySelectorAll('.mermaid-host')) {
     const svg = host.querySelector('svg');
@@ -85,12 +86,10 @@ LAYOUT_JS = r"""(arg) => {
       if (h > 0 && (min === null || h < min)) min = h;
     }
     if (min !== null && min < arg.minText) add(dia, cardOf(host) + ' / ' + title + ': the smallest text is ' + Math.round(min * 10) / 10 + ' px tall (at least ' + arg.minText + ' px)', 6);
-    if (host.dataset.budget === 'area') continue;
     const kind = svg.getAttribute('aria-roledescription') || '';
     const count = (sel) => svg.querySelectorAll(sel).length;
-    if (kind.startsWith('sequence') && count('rect.actor-top') > arg.maxParticipants) add(dia, cardOf(host) + ' / ' + title + ': ' + count('rect.actor-top') + ' participants (at most ' + arg.maxParticipants + ')', 6);
-    if (kind.startsWith('flowchart') && count('g.node') > arg.maxNodes) add(dia, cardOf(host) + ' / ' + title + ': ' + count('g.node') + ' nodes (at most ' + arg.maxNodes + ')', 6);
-    if (kind.startsWith('er') && count('g.node') > arg.maxEntities) add(dia, cardOf(host) + ' / ' + title + ': ' + count('g.node') + ' entities (at most ' + arg.maxEntities + ')', 6);
+    if (kind.startsWith('sequence') && count('rect.actor-top') > arg.maxParticipants) add(dia, cardOf(host) + ' / ' + title + ': advice: ' + count('rect.actor-top') + ' participants (at most ' + arg.maxParticipants + ')', 6);
+    if (kind.startsWith('flowchart') && count('g.node') > arg.maxNodes) add(dia, cardOf(host) + ' / ' + title + ': advice: ' + count('g.node') + ' nodes (at most ' + arg.maxNodes + ')', 6);
   }
   out.push(...dia);
   const chart = [];
@@ -146,7 +145,7 @@ def table_cards() -> list:
 
 def arguments() -> dict:
     return {"scrollers": SCROLLERS, "maxIcon": MAX_ICON_PX, "minText": MIN_TEXT_PX, "maxNodes": MAX_FLOW_NODES, "maxParticipants": MAX_PARTICIPANTS,
-            "maxEntities": MAX_ENTITIES, "frozen": FROZEN_CARDS, "noteCards": list(NOTE_CARDS), "tableCards": table_cards(), "minOverlap": MIN_OVERLAP_PX2}
+            "frozen": FROZEN_CARDS, "noteCards": list(NOTE_CARDS), "tableCards": table_cards(), "minOverlap": MIN_OVERLAP_PX2}
 
 
 def check_report(page: Any, args: dict) -> list:

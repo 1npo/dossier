@@ -226,7 +226,7 @@ class JsAdapter(Adapter):
         declared = []
         if config_file.endswith(".json"):
             try:
-                declared = [r["name"] for r in json.loads((ctx.checkout / full).read_text()).get("forbidden", []) if "name" in r]
+                declared = [r["name"] for r in json.loads((ctx.checkout / full).read_text(encoding="utf-8")).get("forbidden", []) if "name" in r]
             except (OSError, ValueError, AttributeError):
                 declared = []
         lines = {(i["path"], i["paths"][0]): (i["lines"] or [None])[0] for i in items if i["kind"] == "import"}

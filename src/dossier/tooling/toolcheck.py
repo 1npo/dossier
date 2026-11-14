@@ -78,7 +78,7 @@ def check_host(tool: dict, scopes: set[str], path: str | None = None) -> dict:
     res["path"] = exe
     env = {**os.environ, "PATH": path} if path is not None else None
     try:
-        r = subprocess.run([exe, *tool["command"][1:]], capture_output=True, text=True, timeout=15, env=env)
+        r = subprocess.run([exe, *tool["command"][1:]], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15, env=env)
         found = re.findall(tool["pattern"], r.stdout + "\n" + r.stderr)
     except (OSError, subprocess.TimeoutExpired):
         found = []

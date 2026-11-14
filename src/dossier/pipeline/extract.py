@@ -10,11 +10,12 @@ import functools
 import hashlib
 import json
 import os
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from dossier import resources
 from dossier.adapters.base import ALWAYS_EXPECTED_SEG, NO_EXTRACTORS, OUTPUTS, Adapter, Context
 from dossier.facts import gather
+from dossier.facts import resources as resource_files
 from dossier.findings import candidates
 from dossier.pipeline import workarea
 from dossier.tooling import sandbox
@@ -24,7 +25,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from dossier.tooling.shared_tools import Semgrep, TreeSitter
 
-__all__ = ["run_extract"]
+__all__ = ["run_extract", "write_resources"]
 
 
 # ------------------------------------------------------------------ path filter
@@ -46,13 +47,15 @@ def filter_paths(outputs: dict, tree, checkout, expected_globs=()) -> tuple:
     def check(p):
         """Return the repository-relative path, or None when dropped (and count why)."""
         stats["paths_seen"] += 1
-        if os.path.isabs(p):
+        if os.path.isabs(p) or PureWindowsPath(p).is_absolute():
             try:
                 p = PurePosixPath(Path(p).resolve().relative_to(root)).as_posix()
             except ValueError:
                 stats["paths_dropped"] += 1
                 stats["dropped_outside"] += 1
                 return None
+        else:
+            p = p.replace("\\", "/")  # tool adapters on Windows report backslash paths; the tree uses "/"
         p = p[2:] if p.startswith("./") else p
         if p in tree:
             return p
@@ -79,7 +82,32 @@ def filter_paths(outputs: dict, tree, checkout, expected_globs=()) -> tuple:
             out.append(it)
         kept[name] = out
     stats["unexpected"] = sorted(set(stats["unexpected"]))
+    for name, items in kept.items():  # invariant: a kept path is a tracked path with "/" separators
+        for it in items:
+            for q in [it["path"], *it.get("paths", [])]:
+                if q not in tree or "\\" in q:
+                    raise AssertionError(f"kept path {q!r} in '{name}' is not a tracked, normalized path")
     return kept, stats
+
+
+# ------------------------------------------------------------------ resources: non-code files the code reads
+
+
+def write_resources(out: Path, sha: str, tree, checkout) -> dict:
+    """Find the non-code files that code reads (`facts.resources`), give each group a finding id, and save `extract/resources.json`.
+
+    Not an adapter: it looks at every language at once, and runs on every prepare because it is cheap. Returns counts for build.json."""
+    root = Path(checkout)
+
+    def read(path):
+        try:
+            return (root / path).read_text(encoding="utf-8")
+        except (OSError, ValueError):
+            return None
+
+    items = candidates.assign_ids("resources", resource_files.detect(tree, read))
+    _write(out, "resources", {"schema": 1, "sha": sha, "adapters": {"resources": {"sha": sha, "items": items}}})
+    return {"groups": len(items), "files": sum(i["count"] for i in items), "unreferenced": sum(1 for i in items if not i["referenced_by"])}
 
 
 # ------------------------------------------------------------------ extract stage

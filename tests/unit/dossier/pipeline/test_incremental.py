@@ -206,3 +206,24 @@ class TestChangeAndContributorsAreExpected:
         res = incremental.plan({"entry": report("src/a.py:1")}, ["entry", "change", "contributors"], {}, hunks_of({}), False, {}, 0)
 
         assert res["stale"] == {"change": ["it has not been written yet"], "contributors": ["it has not been written yet"]}
+
+
+class TestArchiveReports:
+    def test_reports_move_to_a_timestamped_archive_and_the_folder_is_left_empty(self, tmp_path):
+        (tmp_path / "reports").mkdir()
+        (tmp_path / "reports" / "overview.json").write_text("{}")
+        (tmp_path / "reports" / "io.json").write_text("{}")
+        (tmp_path / "state.json").write_text("{}")
+
+        from datetime import datetime
+        moved = incremental.archive_reports(tmp_path, datetime(2026, 1, 2, 3, 4, 5))
+
+        assert moved == ["io", "overview"]
+        assert list((tmp_path / "reports").glob("*.json")) == []
+        assert sorted(p.name for p in (tmp_path / "reports.prev" / "20260102-030405").iterdir()) == ["io.json", "overview.json"]
+        assert (tmp_path / "state.json").exists()
+
+    def test_no_reports_means_no_archive_folder(self, tmp_path):
+        (tmp_path / "reports").mkdir()
+
+        assert incremental.archive_reports(tmp_path) == [] and not (tmp_path / "reports.prev").exists()

@@ -226,3 +226,12 @@ class TestKeys:
         assert measured_er._keys({"name": "id", "pk": True}) == "PK"
         assert measured_er._keys({"name": "id", "pk": True, "ref": "User"}) == "PK, FK"
         assert measured_er._keys({"name": "id", "pk": True, "ref": "User", "many": True}) == "PK"
+
+
+def test_a_fifteen_entity_set_is_split_but_every_entity_is_drawn():
+    models = [{"kind": "class", "name": f"E{i}", "path": f"pkg{i % 3}/m.py", "line": 1, "fields": []} for i in range(15)]
+
+    shown = measured_er.diagrams({"models": models, "graph": []}, [])
+
+    assert len(shown) > 1 and all(len(d) == 2 for d in shown)
+    assert all(any(f"E{i}" in src for _, src in shown) for i in range(15))
