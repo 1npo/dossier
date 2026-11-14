@@ -1805,6 +1805,23 @@ def cards_body(refs):
     return render_table(["Report", "Card", "Tier", "Written by"], rows, refs, "t-cards", True, True)
 
 
+PARTIAL_COLUMNS = ["Card", "Report", "Why it is partial", "What to do to clear it"]
+
+
+def partial_body(ctx, refs):
+    """One row for each card that carries a `partial` pill, from the same data that draws the pills."""
+    build = (ctx or {}).get("build")
+    by_id = schema_cards_by_id()
+    rows = []
+    for cid, why, action in process.partial_rows(build):
+        rid = cid.split(".")[0]
+        c = by_id.get(cid) or {"title": cid}
+        rows.append([f'<a href="#{card_anchor(cid)}">{E(c["title"])}</a>', f'<a href="#{rid}">{E(TITLES.get(rid, rid))}</a>', E(why), E(action)])
+    if not rows:
+        return empty_table("t-partial", PARTIAL_COLUMNS, "No card is partial")
+    return render_table(PARTIAL_COLUMNS, rows, refs, "t-partial", True, True)
+
+
 def measured_ctx(ctx: dict, reports: dict, facts: dict) -> dict:
     """What the measured cards draw from: the extractor output, the tracked files, a reader for files at the pinned commit and the component catalog."""
     cites = ctx["cites"]
@@ -1849,6 +1866,7 @@ def build_page(rid, reports, facts, state, ctx):
                      group=[("", 2), ("Statements by basis", 3)],
                      foot=["<strong>Total</strong>", f'<span class="muted">{sum(tot.values())} statements in all</span>', *[count_pill(tot[k], k) for k in CONF]]), "report-index", cid="dossier.reports"))
         parts.append(card("Cards in this dossier", process.tier_stats() + cards_body(refs), "card-index", cid="dossier.cards"))
+        parts.append(card("Partial cards", partial_body(ctx, refs), "partial-cards", cid="dossier.partial"))
         parts.append(panel_history(ctx["history"], refs))
     elif rid == "corrections":
         headline = "Everything the user has corrected, and whether the correction has been applied."

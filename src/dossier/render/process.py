@@ -5,6 +5,7 @@ Everything here is drawn from build.json. It never imports render at module leve
 from __future__ import annotations
 
 import html
+import re
 from datetime import datetime, timezone
 
 from dossier.core import buildlog
@@ -366,6 +367,7 @@ def coverage_items(build: dict | None) -> list[dict]:
             items.append(_item(f"The extract filter dropped {lost} paths that are not files of the commit, so findings for them are missing.",
                                "Look at the paths in build.json (extract, details, unexpected), fix the cause and build again."))
     items += history_items(((mine.get(("measure", None)) or {}).get("details") or {}).get("history"))
+    items += unmapped_partial_items(build)
     for (step, part), r in mine.items():
         if r["status"] == "failed" and (step, part) not in {("tools", None), ("copy", "checkout"), ("copy", "restore"), ("extract", None)}:
             items.append(_item(f"Step '{step}' failed: {r['reason']}", "Fix the problem and build again."))
@@ -419,7 +421,59 @@ def nograph_cards(build: dict | None, facts: dict) -> dict:
 
 
 def partial_cards(build: dict | None, tools: dict | None = None) -> dict:
-    """Card id -> why it was made without one of its tools (D7). Empty without a build record."""
+    """Card id -> why it was made without one of its tools (D7), as the text of its `partial` pill. Empty without a build record."""
+    return {card: " ".join(r) for card, r in partial_reasons(build, tools).items()}
+
+
+# What to do about each reason a card can be partial. The key is a regular expression on one reason sentence of `partial_cards`; `{1}` is its first group.
+# The sentences come from partial_cards above, history/scan.py (REASON_*, "git could not read the history") and history/ownership.py (MESSAGES, and the
+# errors of history/github_owners.py). A reason that no key matches is shown as "See the reason" and becomes an item in Gaps, so the table gets completed.
+PARTIAL_ACTIONS = (
+    (r"^Made without (.+?): it is not installed\.?$", "Install {1} and build again."),
+    (r"^Made from incomplete history: this is a shallow clone\.?$", "Fetch the full history (git fetch --unshallow), or build from a full clone, and build again."),
+    (r"^Made from incomplete history: reading the history took too long\.?$", "Raise timeouts.history in the dossier config and build again."),
+    (r"^Made from incomplete history: git blame ran out of time for some files\.?$", "Build again on a faster machine, or raise timeouts.history in the dossier config."),
+    (r"^Made from incomplete history: git could not read the history\.?$", "Check that the checkout is a working git repository (git log must run in it) and build again."),
+    (r"^Made without pull request approvals: the repository is not on GitHub\.?$", "Pull request approvals are read from GitHub only. If the project is hosted there, add the GitHub remote and build again; otherwise nothing to do."),
+    (r"^Made without pull request approvals: gh is not installed or not logged in\.?$", "Install gh and run gh auth login, then build again."),
+    (r"^Made without pull request approvals: the time for reading pull requests ran out\.?$", "Raise timeouts.github in the dossier config and build again."),
+)
+SEE_REASON = "See the reason"
+TOOL_REASON = re.compile(r"^Made without (?!pull request approvals)")
+
+
+def partial_action(reason: str) -> str | None:
+    for pattern, action in PARTIAL_ACTIONS:
+        m = re.match(pattern, reason)
+        if m:
+            return action.format("", *m.groups())
+    return None
+
+
+def partial_rows(build: dict | None, tools: dict | None = None) -> list[tuple]:
+    """[(card id, why (the pill's text), what to do)] for every card with a `partial` pill, in schema order."""
+    reasons = partial_reasons(build, tools)
+    rows = []
+    for card, why in reasons.items():
+        actions = [partial_action(r) for r in why]
+        rows.append((card, " ".join(why), " ".join(dict.fromkeys(a or SEE_REASON for a in actions))))
+    return rows
+
+
+def unmapped_partial_items(build: dict | None) -> list[dict]:
+    """Gaps items for partial reasons that have no entry in PARTIAL_ACTIONS."""
+    seen, items = set(), []
+    for why in partial_reasons(build).values():
+        for r in why:
+            if partial_action(r) is None and r not in seen and not TOOL_REASON.match(r):   # a tool that did not run already has its own item above
+                seen.add(r)
+                items.append(_item(f"A card is marked partial for a reason the dossier has no action for: {r}",
+                                   "Add the reason and what to do about it to PARTIAL_ACTIONS in render/process.py."))
+    return items
+
+
+def partial_reasons(build: dict | None, tools: dict | None = None) -> dict:
+    """Card id -> the reason sentences behind its `partial` pill. Empty without a build record."""
     if not build:
         return {}
     from dossier.tooling import toolcheck  # late: toolcheck does not import this module, but keeps process light for the page
@@ -457,7 +511,7 @@ def partial_cards(build: dict | None, tools: dict | None = None) -> dict:
     if meta.get("owner_status") == "partial":
         for card in OWNER_CARDS:
             reasons.setdefault(card, []).append(f"Made without pull request approvals: {meta.get('owner_reason')}.")
-    return {card: " ".join(r) for card, r in reasons.items()}
+    return reasons
 
 
 # ------------------------------------------------------------------ V9 and V10
