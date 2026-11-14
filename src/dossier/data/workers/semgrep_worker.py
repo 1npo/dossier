@@ -70,7 +70,7 @@ def detail_of(text: str, pattern) -> "str | None":
 def run_test(req: dict) -> None:
     cmd = [str(Path(sys.executable).parent / "semgrep"), "--test", "--config", req["config"], "--metrics=off",
            "--disable-version-check", req["targets"]]
-    r = subprocess.run(cmd, capture_output=True, text=True)
+    r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     json.dump({"returncode": r.returncode, "output": r.stdout + r.stderr}, sys.stdout)
 
 
@@ -79,7 +79,7 @@ def scan(req: dict) -> dict:
     for batch in chunked(req.get("paths")):
         cmd = [str(Path(sys.executable).parent / "semgrep"), "scan", "--config", req["config"], "--json", "--metrics=off",
                "--disable-version-check", "--oss-only", "--quiet", "--timeout", str(req.get("timeout", 30)), *batch]
-        r = subprocess.run(cmd, capture_output=True, text=True)
+        r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
         if r.returncode not in (0, 1):
             sys.stderr.write(r.stderr)
             sys.exit(r.returncode)

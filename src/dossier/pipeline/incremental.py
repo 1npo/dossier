@@ -9,11 +9,14 @@ from __future__ import annotations
 
 import posixpath
 import re
+import shutil
+from datetime import datetime
+from pathlib import Path
 
 from dossier.render.markup import INLINE_CITE, parse_cite
 from collections.abc import Callable, Collection, Iterable
 
-__all__ = ["MAX_CHANGED", "apply_shifts", "cites_in", "expected_reports", "parse_hunks", "plan"]
+__all__ = ["MAX_CHANGED", "apply_shifts", "archive_reports", "cites_in", "expected_reports", "parse_hunks", "plan"]
 
 HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", re.M)
 REPO_WIDE = ("overview", "contributors")   # restate things that move with every commit
@@ -116,6 +119,21 @@ def assess(rep, changed, hunks_of, deps_changed=False, allow_shift=True):
 def expected_reports(authored: Iterable[str], existing: Collection[str], optional: Iterable[str]) -> list[str]:
     """The reports an update must have: every authored one, except an optional report nobody has written."""
     return [rid for rid in authored if rid not in optional or rid in existing]
+
+
+def archive_reports(out: Path, now: datetime | None = None) -> list[str]:
+    """Move `reports/*.json` to `reports.prev/<timestamp>/` (never delete) so a full build starts from empty reports.
+
+    Returns the names moved. The archive is for the user: it must not be read as a source of text, or the thin cards of
+    the older build come back. `state.json` (corrections and decisions) is not touched."""
+    found = sorted(Path(out, "reports").glob("*.json"))
+    if not found:
+        return []
+    dest = Path(out, "reports.prev", (now or datetime.now()).strftime("%Y%m%d-%H%M%S"))
+    dest.mkdir(parents=True, exist_ok=True)
+    for f in found:
+        shutil.move(str(f), str(dest / f.name))
+    return [f.stem for f in found]
 
 
 def plan(reports: dict, expected: list[str], changed: dict[str, str], hunks_of: Callable, deps_changed: bool, pending_corrections: dict[str, list[str]], commits_added: int, allow_shift: bool = True, digest_changed: Collection[str] = frozenset()) -> dict:

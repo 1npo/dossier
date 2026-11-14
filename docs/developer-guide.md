@@ -204,6 +204,18 @@ Deliberately not abstracted: the per-language `project`, `queries`, `semgrep`, `
 
 **Freshness.** `pipeline/workarea.freshness` runs `git ls-remote` through `sandbox.run`, falls back to the remote-tracking branch, and `stage_pin` stores the result in the pin record of `build.json`. `render/page.py` draws it as the first tile of the `dossier.about` card.
 
+### Windows, UTF-8 and paths
+
+Adapters on Windows report backslash paths. `pipeline.extract.filter_paths` turns them into `/` paths and ends with an assertion that every kept path is tracked and has no `\`. `resources.ensure_utf8()` (called by the launchers' `main`) makes stdout and stderr UTF-8 and sets `PYTHONUTF8` for child processes; every `subprocess` call with `text=True` and every `read_text`/`write_text` names `encoding="utf-8"`.
+
+### Prepare reports what it lost
+
+`core.buildlog.tools_not_run` builds the list of tools that did not run; `prepare` prints it as `tool_report`, `render` and `check` repeat it. `pipeline.stages.stage_extract` stops with exit 4 when the dropped share is above `MAX_DROPPED_SHARE` (2%). `facts.gather.noise_reason` returns `test-report` for coverage and test-result files and `facts.files.ignored_reports` names them. A full build archives `reports/*.json` with `pipeline.incremental.archive_reports`. `scip-python` stays gated on a trusted ref: it starts the repository's Python interpreter.
+
+### Checks V13 and resource findings
+
+`checks/v13.py` holds the coverage check for five hand-written cards (card entries may carry `not_applicable`). `facts/resources.py` groups non-code files by (folder, extension) and finds the code that reads them; `pipeline.extract.write_resources` writes `extract/resources.json` (ids `rs-`, group `rsg-`, home card `io.inputs`).
+
 ### Embedded modules
 
 The page ships the source of three modules, `facts/gather.py`, `facts/deps.py` and `history/scan.py`, under the names `dossier-gatherer/*.py`, so the code viewer can show how a measured fact was counted (`render.page.gatherer_source`), and `data-a`/`data-b` attributes point at line numbers inside them. Any edit to those files changes every page, and moving a function can break a `FACT_INFO` line range (two end on `^def noise_reason\(`). Treat them as output: change them only when you mean to change the page, and never reformat them.

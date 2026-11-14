@@ -56,7 +56,7 @@ def ensure_installed(cache_root: Path, tool: dict, timeout: float, fetch: Callab
     folder = install_dir(cache_root, tool["version"])
     want = tool["nupkg"]["sha512"]
     marker = folder / ".installed"
-    if marker.exists() and marker.read_text().strip() == want and any(folder.glob("tools/net*/any/scip-dotnet.dll")):
+    if marker.exists() and marker.read_text(encoding="utf-8").strip() == want and any(folder.glob("tools/net*/any/scip-dotnet.dll")):
         return folder
     folder.parent.mkdir(parents=True, exist_ok=True)
     part = folder.parent / f"scip-dotnet.{tool['version']}.nupkg.part"
@@ -65,7 +65,7 @@ def ensure_installed(cache_root: Path, tool: dict, timeout: float, fetch: Callab
         if _digest(part) != want:
             raise ToolError("The scip-dotnet package did not match its pinned checksum, so it was not used.")
         _unpack(part, folder)
-        marker.write_text(want + "\n")
+        marker.write_text(want + "\n", encoding="utf-8")
     except Exception:
         _remove(folder)
         raise

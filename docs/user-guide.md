@@ -99,14 +99,20 @@ The first build of a medium repository takes several minutes. The page check at 
 ### Build or update a dossier
 
 ```
-/dossier build [repo-path] [--ref <branch-or-sha>] [--full] [--allow-missing] [--no-restore] [--allow-ref] [--submodules] [--verify]
+/dossier build [repo-path] [--ref <branch-or-sha>] [--full] [--allow-missing] [--no-restore] [--allow-ref] [--submodules] [--verify] [--allow-dropped] [--include-test-reports]
 ```
 
 `build` always starts by printing the skill version (`dossier <version>`), before it asks or does anything else, so a pasted session shows which version ran. The repository defaults to the current directory and the ref to the checked-out commit. Run `build` again after the code changes. It compares the pinned commit with the last render and works out which reports cite code that changed: a cited file was edited at the cited lines, was deleted, or lost or gained a neighbour; a cited directory changed; or a correction is pending. Only those reports are re-read and rewritten. Citations whose lines did not move are renumbered to the new commit by script. If nothing is stale, `build` only re-renders. The Overview and Contributors reports are refreshed whenever the commit changes, and Gaps whenever another report is.
 
 `--full` rebuilds every report. So does a new minor version of the skill or a rewritten history.
 
-Your confirmations and corrections survive every rebuild.
+A full build starts from empty reports. `prepare` moves the old `reports/*.json` to `reports.prev/<timestamp>/` (it never deletes them) and the reports are written from scratch. Your confirmations and corrections survive every rebuild.
+
+`build` tells you, every time, what it could not do. After `prepare` it lists each tool that was skipped, failed or missing, with the reason; it says how many extracted paths the path filter dropped, and it stops with exit code 4 when that is more than 2% (use `--allow-dropped` to go on); and it names the coverage and test-result files it ignored (about how many tokens), because CI writes them and their numbers go stale. The final message ends with a paragraph "Tools that did not run" (or "All tools ran"). The same lists are in the render summary (`tools_not_run`, `filtered_out`), the process card and Gaps.
+
+Diagram size is advice, not a check: the page check prints an `advice:` line for a long flow and never fails on it, and the data model has no limit on entities.
+
+The Source of truth, Lifecycle, Business rules, Key flows and Extension points cards must cover every component, or list it as not applicable with a reason (check V13). Non-code files that code reads (email templates, JSON reference data, CSV mappings) are listed as findings for the Inputs card.
 
 ### Read how fresh a dossier is
 
@@ -269,6 +275,8 @@ Installing a repository's locked dependencies (so that tools can see its librari
 | `--full` | off | Rebuild every report. |
 | `--allow-missing` | off | Carry on without missing tools, in reduced mode. |
 | `--no-restore` | off | Install no dependencies. |
+| `--allow-dropped` | off | Go on when the extract path filter dropped more than 2% of the extracted paths. Without it `prepare` stops with exit code 4 and lists the first 20 dropped paths. |
+| `--include-test-reports` | off | Read coverage and test-result files (`coverage.xml`, `junit.xml`, a CI-written `TESTS.md`, ...), which are ignored by default. The choice is remembered for the repository; `--no-include-test-reports` undoes it. |
 | `--allow-ref` | off | Install dependencies and run repository code even when the ref is not a tag or the default branch. |
 | `--submodules` | off | Also check out and analyse submodules. |
 | `--verify` | off | Have an independent checker test a sample of cited claims. |
@@ -284,7 +292,7 @@ Claude runs these; you can too: `uv run ~/.claude/skills/dossier/scripts/dossier
 | `portfolio` | none (rewrites `<home>/index.html`, the page that lists every dossier, without building anything) |
 | `doctor [repo]` | `--all` (check the tools for every supported language), `--json` |
 | `clean [repo]` | none |
-| `prepare [repo]` | `--ref REF` (default `HEAD`), `--chunk-tokens N` (default 400000), `--full`, `--allow-missing`, `--no-restore`, `--allow-ref`, `--submodules`, `--restore yes\|no` (answer the restore question), `--verify` |
+| `prepare [repo]` | `--ref REF` (default `HEAD`), `--chunk-tokens N` (default 400000), `--full`, `--allow-missing`, `--no-restore`, `--allow-ref`, `--submodules`, `--restore yes\|no` (answer the restore question), `--verify`, `--allow-dropped`, `--include-test-reports` |
 | `render [repo]` | `--readers N` (parallel readers Claude used, shown on the process card), `--partial` (allow missing reports), `--allow-errors` (write the HTML even if validation fails), `--apply-corrections` (mark pending corrections as applied), `--refresh-refdata` (fetch the .NET release data again; see below) |
 | `check [repo]` | none |
 | `candidates [repo]` | `--report ID` (required), `--open` (only findings no report has decided), `--catalog FILE`, `--json` |
@@ -351,10 +359,11 @@ A bad value stops the command with a message that names the key.
 | A card has the `partial` badge | A tool that feeds it did not run. `/dossier doctor` shows which. Fix it and build again. |
 | A card has the `no static graph` badge | Expected for Tier B languages. Not a fault. |
 | The Freshness tile says `Not known` | The repository has no remote, or the remote cannot be reached and has not been fetched. Run `git fetch` and build again. |
-| `render` prints `V4:` or `V5:` lines | Files in no component, or tool findings with no decision. Claude fixes the reports; never pass `--allow-errors` to skip them. |
+| `render` prints `V4:`, `V5:` or `V13:` lines | Files in no component, tool findings with no decision, or a component missing from a hand-written card. Claude fixes the reports; never pass `--allow-errors` to skip them. |
 | `check` prints `FAIL` lines | A diagram, table or layout problem. Claude fixes it from the reports. A `FAIL` in the page assets or scripts is a bug in dossier. |
 | `check` says no browser is installed | Run `uv run --with playwright python -m playwright install chromium` once. |
 | `V10: the verifier sampled claims but no results were recorded` | A `--verify` build stopped early. Run `dossier verify-record`, or build again without `--verify`. |
+| `prepare` stops with `"stopped": "extract_filter"` (exit code 4) | The path filter dropped more than 2% of the extracted paths, so findings are lost. Read the paths it lists, fix the cause, or pass `--allow-dropped`. |
 | The page looks out of date | Run `/dossier build`. The page shows the pinned commit; it does not follow the repository. |
 
 ## Limitations

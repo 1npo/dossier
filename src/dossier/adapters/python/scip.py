@@ -34,7 +34,7 @@ def ensure_installed(run: Callable, cache_root: Path, version: str, timeout: flo
     """Run `npm ci` once per lockfile (a marker file holds the lock's sha1). Returns the path of index.js."""
     folder = install_dir(cache_root, version)
     marker, index = folder / ".installed", folder / INDEX_JS
-    if marker.exists() and marker.read_text().strip() == _lock_sha() and index.exists():
+    if marker.exists() and marker.read_text(encoding="utf-8").strip() == _lock_sha() and index.exists():
         return index
     folder.mkdir(parents=True, exist_ok=True)
     for name in ("package.json", "package-lock.json"):
@@ -43,7 +43,7 @@ def ensure_installed(run: Callable, cache_root: Path, version: str, timeout: flo
                timeout=timeout), "Installing scip-python")
     if not index.exists():
         raise ToolError("Installing scip-python finished, but its program file is missing.")
-    marker.write_text(_lock_sha() + "\n")
+    marker.write_text(_lock_sha() + "\n", encoding="utf-8")
     return index
 
 
@@ -55,12 +55,12 @@ def environment(checkout, venv=None) -> list:
         meta = (dist / "METADATA")
         if not meta.is_file():
             continue
-        text = meta.read_text(errors="replace")
+        text = meta.read_text(encoding="utf-8", errors="replace")
         name, version = re.search(r"^Name:\s*(\S+)", text, re.M), re.search(r"^Version:\s*(\S+)", text, re.M)
         if not (name and version):
             continue
         record = dist / "RECORD"
-        files = [line.split(",")[0] for line in record.read_text(errors="replace").splitlines() if line] if record.is_file() else []
+        files = [line.split(",")[0] for line in record.read_text(encoding="utf-8", errors="replace").splitlines() if line] if record.is_file() else []
         found.append({"name": name.group(1), "version": version.group(1), "files": files})
     return found
 
@@ -71,7 +71,7 @@ def run_index(run: Callable, index_js: str, checkout: Path, area: Path, repo_nam
     out.mkdir(parents=True, exist_ok=True)
     index, env_file = out / "index.scip", out / "env.json"
     index.unlink(missing_ok=True)
-    env_file.write_text(json.dumps(environment(checkout, venv)))
+    env_file.write_text(json.dumps(environment(checkout, venv)), encoding="utf-8")
     cmd = ["node", str(index_js), "index", ".", "--project-name", project_name or repo_name, "--project-version", sha, "--output", str(index),
            "--quiet", "--environment", str(env_file)]
     extra = {"cwd": cwd} if cwd else {}

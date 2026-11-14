@@ -15,6 +15,22 @@ import argparse
 __all__ = ["cmd_candidates"]
 
 
+EMPTY_GUARD_FILES = 20  # a repository with more source files than this is not expected to have no findings for a report
+TOOL_REPORTS = ("entry", "io", "data", "behavior", "ops")
+
+
+def _empty_guard(rid, extract, tree):
+    """A sentence when a tool-fed report has no findings although the repository has code, else None."""
+    if rid not in TOOL_REPORTS or not tree or candidates.for_report(rid, extract):
+        return None
+    n = len(components.source_files(tree, extract))
+    if n <= EMPTY_GUARD_FILES:
+        return None
+    return (f"There are no tool findings for the '{rid}' report, but the repository has {n} source files. The tools may not "
+            "have run or their output may have been discarded (look at tool_report and the extract filter in the prepare output, "
+            "and at build.json). Do not take this empty list as proof that the code has none of these.")
+
+
 def cmd_candidates(a: argparse.Namespace) -> None:
     top = common.toplevel(a.repo)
     out, _, _ = common.out_dir(top)
@@ -30,7 +46,12 @@ def cmd_candidates(a: argparse.Namespace) -> None:
     catalog = common.load(a.catalog) if a.catalog else None
     sha = facts.get("repo", {}).get("sha")
     tree = stages.tree_at(top, sha) if sha else None
+    warning = _empty_guard(a.report, extract, tree)
+    if warning:
+        print(f"warning: {warning}", file=sys.stderr)
     if a.json:
         print(json.dumps(candidates.report_data(a.report, extract, reports, facts, only_open=a.open, catalog=catalog, tree=tree), indent=1))
     else:
+        if warning:
+            sys.stdout.write(f"!! {warning}\n\n")
         sys.stdout.write(candidates.text(a.report, extract, reports, facts, only_open=a.open, catalog=catalog, tree=tree))

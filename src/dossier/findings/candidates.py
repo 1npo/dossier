@@ -20,7 +20,8 @@ __all__ = [
     "home_card", "load", "report_data", "sort_items", "text", "tool_list", "tool_status",
 ]
 
-ID_OUTPUTS = {"entry_points": "ep", "io_candidates": "io", "models": "md", "dead": "dd", "blindspots": "bs", "history": "mk"}
+ID_OUTPUTS = {"entry_points": "ep", "io_candidates": "io", "models": "md", "dead": "dd", "blindspots": "bs", "history": "mk",
+              "resources": "rs"}
 
 
 def norm(s: str) -> str:
@@ -138,7 +139,7 @@ CATEGORY_CARD = {
     "timeout": "behavior.failures", "catch-all": "behavior.failures", "transaction": "behavior.failures",
 }
 DRAWN_CATEGORIES = ("config-key",)  # findings the page draws itself (a group under the Inputs card): no home card, the writer does not decide about them
-DECIDED_OUTPUTS = ("entry_points", "io_candidates", "models", "history")
+DECIDED_OUTPUTS = ("entry_points", "io_candidates", "models", "history", "resources")
 
 
 def card_titles() -> dict:
@@ -161,6 +162,8 @@ def home_card(output: str, item: dict) -> str | None:
         return CATEGORY_CARD.get(item.get("category"))
     if output == "models" and item.get("kind") != "migration":
         return "data.entities"
+    if output == "resources":
+        return "io.inputs"  # `data` may cite the same id for a lookup table or source of truth: one decision serves both
     if output == "history" and item.get("kind") == "marker":
         return "change.decisions"
     return None
@@ -213,8 +216,8 @@ FEEDS = {
     "entry": ("entry_points",),
     "components": ("modules", "imports", "defs", "projects"),
     "interactions": ("modules", "imports", "cycles", "contracts", "ref_edges", "ui", "cand:interactions"),
-    "io": ("cand:io", "entry_points", "public_api"),
-    "data": ("models", "cand:data"),
+    "io": ("cand:io", "entry_points", "public_api", "resources"),
+    "data": ("models", "cand:data", "resources"),
     "behavior": ("test_files", "cand:behavior"),
     "conventions": ("cand:all", "modules"),
     "ops": ("entry_points", "test_configs"),
@@ -261,7 +264,7 @@ def _feed(name, extract):
         return [["doc", i["path"]] for i in extract.get("history", []) if i.get("kind") == "decision-doc"]
     if name == "people":
         return [["person", i["person"], i["type"]] for i in extract.get("history", []) if i.get("kind") == "person"]
-    if name in ("entry_points", "models"):
+    if name in ("entry_points", "models", "resources"):
         return [[name, i["id"]] for i in extract.get(name, []) if "id" in i]
     if name.startswith("cand:"):
         scope = name[5:]
@@ -288,7 +291,7 @@ def _group(items: list) -> list:
     for it in items:
         groups.setdefault(it["group"], []).append(it)
     return [{"group": g, "rule": v[0].get("rule") or v[0].get("kind"), "path": v[0]["path"],
-             "hits": [{"id": i["id"], "line": i.get("line"), "end_line": i.get("end_line"), "snippet": i.get("snippet") or i.get("name", ""), "name": i.get("name", "")}
+             "hits": [{"id": i["id"], "line": i.get("line"), "end_line": i.get("end_line"), "snippet": i.get("display") or i.get("snippet") or i.get("name", ""), "name": i.get("name", "")}
                       for i in sorted(v, key=lambda i: i.get("line") or 0)]}
             for g, v in sorted(groups.items(), key=lambda kv: (kv[1][0]["path"], kv[1][0].get("rule") or "", kv[0]))]
 
@@ -302,6 +305,12 @@ def report_data(rid: str, extract: dict, reports: dict, facts: dict, *, only_ope
         shown = [i for i in items if not only_open or i["id"] in open_ids]
         if shown:
             data["cards"].append({"card": card, "title": titles.get(card, card), "findings": len(shown), "groups": _group(shown)})
+    if rid == "data" and extract.get("resources"):
+        decided = dispositions(reports)
+        shared = [i for i in extract["resources"] if "id" in i and not (only_open and (i["id"] in decided or i["group"] in decided))]
+        if shared:  # the Inputs card owns these findings; one decision there or here serves both
+            data["cards"].append({"card": "data.truth", "title": "Files the code reads: possible lookup tables, templates or sources of truth (decided in io.inputs, or cite the id here)",
+                                  "findings": len(shared), "groups": _group(shared)})
     if rid == "components":
         data["components"] = component_candidates(tree, extract, facts)
         if catalog is not None:

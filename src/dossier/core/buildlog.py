@@ -16,6 +16,7 @@ from typing import Any
 
 __all__ = [
     "FILE", "STATUSES", "STEPS", "append", "latest", "load", "now", "record_browser", "skill_state", "start", "step",
+    "tools_not_run",
 ]
 
 FILE, PREV = "build.json", "build.prev.json"
@@ -76,10 +77,10 @@ def skill_state(root: Path | str) -> dict:
     """
     root = str(root)
     git = ["git", "-C", root]
-    head = subprocess.run(git + ["rev-parse", "HEAD"], capture_output=True, text=True)
+    head = subprocess.run(git + ["rev-parse", "HEAD"], capture_output=True, text=True, encoding="utf-8", errors="replace")
     if head.returncode != 0:
         return {"path": root, "commit": None, "dirty": None, "unmerged": None}
-    status = subprocess.run(git + ["status", "--porcelain", "--", "."], capture_output=True, text=True).stdout.splitlines()
+    status = subprocess.run(git + ["status", "--porcelain", "--", "."], capture_output=True, text=True, encoding="utf-8", errors="replace").stdout.splitlines()
     return {"path": root, "commit": head.stdout.strip(), "dirty": bool(status),
             "unmerged": any(line[:2] in UNMERGED_CODES for line in status)}
 
@@ -141,6 +142,38 @@ def latest(build: dict, step: str, part: Any = _ANY) -> dict | None:
 
 def records(build: dict, step: str) -> list[dict]:
     return [r for r in build["records"] if r["step"] == step]
+
+
+def tools_not_run(build: dict | None) -> list[dict]:
+    """[{adapter, tool, status: skipped|failed|missing, reason}]: every tool that did not run in this build.
+
+    Read from the `tools` record (tools missing but allowed) and the `extract` record (an adapter skipped or failed
+    as a whole, and each tool of an adapter that did not run). A tool that ran is not listed."""
+    if not build:
+        return []
+    found: list[dict] = []
+    seen: set = set()
+
+    def add(adapter, tool, status, reason):
+        if (adapter, tool) not in seen:
+            seen.add((adapter, tool))
+            found.append({"adapter": adapter, "tool": tool, "status": status, "reason": reason or "no reason was recorded"})
+
+    tools = latest(build, "tools")
+    for name in ((tools or {}).get("details") or {}).get("missing") or []:
+        add("", name, "missing", "It is not installed.")
+    ex = latest(build, "extract")
+    details = (ex or {}).get("details") or {}
+    for ad in details.get("adapters") or []:
+        if ad.get("status") in ("skipped", "failed"):
+            add(ad["name"], "(whole adapter)", ad["status"], ad.get("reason"))
+        for tool, st in (ad.get("tools") or {}).items():
+            if st.get("status") in ("skipped", "failed"):
+                add(ad["name"], tool, st["status"], st.get("reason"))
+    for tool, st in (details.get("tool_status") or {}).items():  # also covers an adapter whose saved result was reused
+        if st.get("status") in ("skipped", "failed") and not any(t == tool for _, t in seen):
+            add("", tool, st["status"], st.get("reason"))
+    return found
 
 
 def record_browser(path: Path, problems: int, diagrams_checked: int) -> dict:

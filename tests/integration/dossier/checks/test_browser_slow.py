@@ -131,13 +131,27 @@ class TestRelationshipDiagramsDraw:
         ]
         shown = measured_er.diagrams({"models": models, "graph": []}, [])
         broken = tmp_path / "er.html"
-        broken.write_text(broken_pages.inject_diagrams(page.read_text(), [("Injected " + t, src) for t, src, _ in shown]))
+        broken.write_text(broken_pages.inject_diagrams(page.read_text(), [("Injected " + t, src) for t, src in shown]))
 
         done = run(DIAGRAM_TEXT, broken, "--widths", "1500", env=env)
 
         rows = [r for r in json.loads(done.stdout) if r["title"].startswith("Injected")]
         assert len(rows) == len(shown) >= 1
         assert not [r for r in rows if r["failed"]], rows
+
+
+class TestDiagramSizeIsNotAProblem:
+    def test_an_er_diagram_of_fifteen_entities_and_a_sequence_of_fifteen_participants_pass_the_check(self, rendered_page, tmp_path):
+        page, env = rendered_page
+        er = "erDiagram\n" + "".join(f"  E{i} {{\n    int id PK\n  }}\n" for i in range(15))
+        seq = "sequenceDiagram\n" + "".join(f"  participant P{i}\n" for i in range(15)) + "  P0->>P1: hello\n"
+        injected = tmp_path / "big.html"
+        injected.write_text(broken_pages.inject_diagrams(page.read_text(), [("Injected er", er), ("Injected seq", seq)]))
+
+        done = check(injected, env)
+
+        assert not [ln for ln in done.stdout.splitlines() if ln.startswith("FAIL") and "entities" in ln]
+        assert not [ln for ln in done.stdout.splitlines() if ln.startswith("FAIL") and "participants" in ln]
 
 
 class TestSequenceActors:

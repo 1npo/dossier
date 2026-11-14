@@ -4,7 +4,7 @@
   dossier.py home [DIR]
   dossier.py doctor [REPO] [--all] [--json]                   list the tools a repository needs, which are installed and how to install the rest
   dossier.py clean [REPO]                                     remove the working area (clean copy, scratch home, caches) of a repository
-  dossier.py prepare [REPO] [--ref REF] [--chunk-tokens N] [--full] [--allow-missing] [--no-restore] [--allow-ref] [--submodules] [--restore yes|no] [--verify]
+  dossier.py prepare [REPO] [--ref REF] [--chunk-tokens N] [--full] [--allow-missing] [--no-restore] [--allow-ref] [--submodules] [--restore yes|no] [--verify] [--allow-dropped] [--include-test-reports]
                                                               check tools, make a clean copy, install locked dependencies if allowed, measure the repo, write facts, a reading plan and an update plan
   dossier.py render  [REPO] [--partial] [--allow-errors] [--readers N]      validate the reports and write the HTML
   dossier.py candidates [REPO] --report ID [--open] [--catalog FILE] [--json]
@@ -23,7 +23,10 @@ __all__ = ["main"]
 
 def main() -> None:
     """Run the command line."""
+    from dossier import resources
     from dossier.cli.parser import build_parser
+
+    resources.ensure_utf8()
 
     a = build_parser().parse_args()
     a.fn(a)

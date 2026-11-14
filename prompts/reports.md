@@ -66,6 +66,9 @@ Where and how a developer plugs something in (registries, base classes, hooks, p
 
 Shape: a table with columns Point, How to extend, Example.
 
+Coverage: every component of the catalog must be touched by at least one row or diagram of this card (a citation of a file inside the component's `Paths`, or its name in the text), or be listed in the card's `not_applicable` with a reason: `"not_applicable": [{"component": "billing", "reason": "It stores nothing of its own."}]`. `render` fails (V13) when a component of more than 300 source lines is missing, and warns for a smaller one. Where several similar workflows exist, write one row per workflow when they differ, and one shared row that lists them all (each cited) when they do not.
+
+
 ## interactions
 
 Report 06: Interactions. Question: *How do the parts talk to each other, and where does state live?*
@@ -83,6 +86,9 @@ Drawn by code from the tool findings. **Do not write this card:** leave it out o
 One sequence diagram for each kind of entry point, each followed by numbered notes (one per step of the diagram), and more wherever a flow teaches something the others do not. Name each participant after a real module or component. `render` checks that every arrow has an import or a call behind it (V3). In C#, dependency injection, mediator handlers, filters and conventions decide what runs, and the tools cannot follow them. When a flow passes through one, say so in the step's note and mark the arrow `inferred`.
 
 Shape: diagram blocks, each followed by one text block of numbered lines (`1. ...`, `2. ...`) or one list block, with at least two steps.
+
+Coverage: every component of the catalog must be touched by at least one row or diagram of this card (a citation of a file inside the component's `Paths`, or its name in the text), or be listed in the card's `not_applicable` with a reason: `"not_applicable": [{"component": "billing", "reason": "It stores nothing of its own."}]`. `render` fails (V13) when a component of more than 300 source lines is missing, and warns for a smaller one. Where several similar workflows exist, write one row per workflow when they differ, and one shared row that lists them all (each cited) when they do not.
+
 
 ### State ownership (`interactions.state`)
 
@@ -108,7 +114,7 @@ Report 07: Inputs and outputs. Question: *What goes in and what comes out?*
 
 Everything the program takes in. Decide about every finding. One row per CLI command's arguments. The `environment variables` row says how the program reads them in one line and points to the `ops.env-vars` card, which the page draws with every variable; do not list the variables here. The page also draws a **Configuration keys** group under this card (C# keys and options classes read through `IConfiguration`); do not list those keys here either, and do not mention it in the `config files` row beyond the files themselves. The fixed categories stay as rows; a category that does not apply is a row whose input is `none`, with evidence. Network routes are one row per route group.
 
-Shape: a table with columns Category, Input, Format, Validation, Where read.
+Shape: a table with columns Category, Input, Format, Validation, Where read. Every `rs-` finding (a group of non-code files the code reads, such as email templates, JSON reference data or CSV mappings) is a row in the `files read` category, or is dismissed with a reason. `candidates` shows which code reads each group.
 
 Fixed rows (column Category): CLI arguments; environment variables; config files; files read; stdin; network requests; messages consumed; database reads; scheduled triggers.
 
@@ -158,13 +164,19 @@ Tool findings that arrive here (home card): db-connect. Decide about each (see "
 
 For each kind of data, which store is the source of truth and which copies are derived.
 
-Shape: a table with columns Data, Source of truth, Derived copies.
+Shape: a table with columns Data, Source of truth, Derived copies. Lookup tables, reference data and templates the code reads (the `rs-` findings of `candidates --report data`) are candidates for rows: cite the finding id in `cand` to decide it here and in the Inputs card at once.
+
+Coverage: every component of the catalog must be touched by at least one row or diagram of this card (a citation of a file inside the component's `Paths`, or its name in the text), or be listed in the card's `not_applicable` with a reason: `"not_applicable": [{"component": "billing", "reason": "It stores nothing of its own."}]`. `render` fails (V13) when a component of more than 300 source lines is missing, and warns for a smaller one. Where several similar workflows exist, write one row per workflow when they differ, and one shared row that lists them all (each cited) when they do not.
+
 
 ### Lifecycle and sensitive fields (`data.lifecycle`)
 
 When data is created, changed, retained and deleted, and which fields look sensitive (identification only, not an audit).
 
 Shape: a table with columns Data, Created, Changed, Retained, Deleted, Sensitive?.
+
+Coverage: every component of the catalog must be touched by at least one row or diagram of this card (a citation of a file inside the component's `Paths`, or its name in the text), or be listed in the card's `not_applicable` with a reason: `"not_applicable": [{"component": "billing", "reason": "It stores nothing of its own."}]`. `render` fails (V13) when a component of more than 300 source lines is missing, and warns for a smaller one. Where several similar workflows exist, write one row per workflow when they differ, and one shared row that lists them all (each cited) when they do not.
+
 
 ## behavior
 
@@ -176,13 +188,16 @@ The business rules and invariants that make this program this program, with wher
 
 Shape: a table with columns Rule, What it does, Where decided, Edge cases.
 
+Coverage: every component of the catalog must be touched by at least one row or diagram of this card (a citation of a file inside the component's `Paths`, or its name in the text), or be listed in the card's `not_applicable` with a reason: `"not_applicable": [{"component": "billing", "reason": "It stores nothing of its own."}]`. `render` fails (V13) when a component of more than 300 source lines is missing, and warns for a smaller one. Where several similar workflows exist, write one row per workflow when they differ, and one shared row that lists them all (each cited) when they do not.
+
+
 ### Test landscape (`behavior.tests`)
 
 The test landscape. The first table is measured: use the test findings for counts by kind, frameworks, skips, mocks and coverage settings, and add what only reading tells (what is untested that matters). The second table asks whether a green run can be trusted. No test is executed.
 
 Shape: a table with columns Measure, Value, Where; then a table with columns Question, Assessment, Evidence.
 
-Fixed rows (column Measure): test counts by kind; test counts by area; framework; skipped and xfail counts; mock density; test-to-source mapping; coverage configuration and thresholds; CI test commands.
+Fixed rows (column Measure): test counts by kind; test counts by area; framework; skipped and xfail counts; mock density; test-to-source mapping; coverage configuration and thresholds; CI test commands. Counts of tests come from the test findings and the CI configuration, and coverage thresholds from `pyproject.toml` or the CI files. Never cite a generated coverage or test-result report (`coverage.xml`, `.coverage-report.xml`, a CI-written `TESTS.md`): `prepare` ignores those files, and a citation to one is unresolved.
 
 Second table, fixed rows (column Question): What important code is untested?; Can a green run be trusted?.
 
@@ -420,7 +435,7 @@ Items not already listed by the page. The page already collects every `inferred`
 {"items": [{"kind": "assumption|unknown|inference|coverage", "statement": "...", "how_to_confirm": "...", "report": "overview", "cite": []}]}
 ```
 
-- `coverage`: what you did not read or only sampled, and why. Always disclose excluded files (see `facts.files.excluded`), large files read only in part, and chunks you could not finish.
+- `coverage`: what you did not read or only sampled, and why. Always disclose excluded files (see `facts.files.excluded`, and `facts.files.ignored_reports` for coverage and test-result files that were ignored; the page adds an item for each of those itself), large files read only in part, and chunks you could not finish.
 - `assumption`: something you took as true to proceed (for example that the default branch is the released state).
 - `unknown` or `inference`: only for items that did not fit in another report's rows.
 

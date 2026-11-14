@@ -207,3 +207,24 @@ class TestMarkerDecisions:
         errors, *_ = checks.v5(reports(decisions), extract)
 
         assert not any("have no decision" in e for e in errors)
+
+
+class TestResourceFindings:
+    RES = {"resources": [{"id": "rs-1", "group": "rsg-1", "path": "app/t/a.mjml", "kind": "resource-group", "rule": "resources.mjml",
+                          "name": "app/t/*.mjml", "snippet": "app/t/*.mjml", "members": ["app/t/a.mjml"], "referenced_by": []}]}
+
+    def test_an_undecided_resource_group_is_an_error_on_the_inputs_card(self):
+        errors, _, gaps, counts = checks.v5({}, self.RES)
+
+        assert any("tool findings for" in e and "rs-1 (app/t/a.mjml, resources.mjml)" in e for e in errors) and counts["v5_open"] == 1 and gaps
+
+    def test_keeping_or_dismissing_it_decides_it(self):
+        kept = reports(card("io.inputs", [row("templates", "x", cand=["rs-1"])]))
+        gone = reports(card("io.inputs", dismissed=[{"cand": ["rs-1"], "reason": "Unused."}]))
+
+        assert checks.v5(kept, self.RES)[0] == [] and checks.v5(gone, self.RES)[0] == []
+
+    def test_the_data_report_may_decide_it_by_citing_the_id(self):
+        reps = reports(card("data.truth", [row("templates", "files", "none", cand=["rs-1"])]))
+
+        assert checks.v5(reps, self.RES)[0] == []

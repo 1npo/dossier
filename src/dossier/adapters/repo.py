@@ -310,7 +310,7 @@ def _read(checkout: Path, rel: str):
 
 
 def _executable_files(checkout: Path, sha: str) -> list:
-    r = subprocess.run(["git", "-C", str(checkout), "ls-tree", "-r", sha], capture_output=True, text=True)
+    r = subprocess.run(["git", "-C", str(checkout), "ls-tree", "-r", sha], capture_output=True, text=True, encoding="utf-8", errors="replace")
     if r.returncode != 0:
         return []
     return [line.split("\t", 1)[1] for line in r.stdout.splitlines() if line.startswith("100755 ")]

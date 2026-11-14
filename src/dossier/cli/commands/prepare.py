@@ -88,14 +88,28 @@ def _cited_path(raw):
     return c["path"].rstrip("/") if c["kind"] == "file" else ""
 
 
+def ignored_sentence(ignored: list) -> str:
+    """The plain sentence prepare, SKILL.md step 1 and the final message give about ignored coverage and test-result files."""
+    if not ignored:
+        return "No coverage or test-result files were found to ignore."
+    names = ", ".join(f"{r['path']} (about {r['tokens']:,} tokens)" for r in ignored)
+    total = sum(r["tokens"] for r in ignored)
+    return (f"Ignoring {len(ignored)} coverage or test-result file{'s' if len(ignored) != 1 else ''}, about {total:,} tokens: {names}. "
+            "Pass --include-test-reports to read them.")
+
+
 def cmd_prepare(a: argparse.Namespace) -> None:
     top = common.toplevel(a.repo)
     out, name, root = common.out_dir(top)
     state = common.load_state(out)
     prev_version = state.get("skill_version")
     state["repo"] = {"name": name, "root_commit": root}
+    if a.include_test_reports is not None:            # the choice is remembered for the repository
+        state["include_test_reports"] = a.include_test_reports
+    gather.include_test_reports(bool(state.get("include_test_reports")))
     opts = stages.Options(ref=a.ref, allow_missing=a.allow_missing, no_restore=a.no_restore, allow_ref=a.allow_ref,
-                          submodules=a.submodules, restore=a.restore, full=a.full, verify=a.verify)
+                          submodules=a.submodules, restore=a.restore, full=a.full, verify=a.verify,
+                          allow_dropped=a.allow_dropped)
     try:
         sha = stages.resolve_ref(top, a.ref)
         area = workarea.area_for(out.name, top, root)
@@ -133,6 +147,9 @@ def cmd_prepare(a: argparse.Namespace) -> None:
             meta = historyscan.meta_of(past)
             facts["history"] = {k: meta[k] for k in ("status", "reasons", "commits_seen", "commits_total", "shallow", "as_of")}
             plan = update_plan(top, out, state, facts, prev_version, a.full, candidates.digests(candidates.load(out)))
+            archived = []
+            if plan["mode"] == "full" and (a.full or state.get("last_sha")):   # not the reports of a first build still being written
+                archived = incremental.archive_reports(out)
             cached = 0
             for c in chunks["chunks"]:
                 c["cached"] = (out / "notes" / f"{c['fingerprint']}.json").exists()
@@ -147,9 +164,21 @@ def cmd_prepare(a: argparse.Namespace) -> None:
         common.die(str(e))
     (out / "reports").mkdir(parents=True, exist_ok=True)
     (out / "notes").mkdir(parents=True, exist_ok=True)
-    (out / "activity.json").write_text(json.dumps(facts.pop("file_activity", None), separators=(",", ":")))
-    (out / "knowledge.json").write_text(json.dumps(facts.pop("knowledge", None), separators=(",", ":")))
-    (out / "dependencies.json").write_text(json.dumps(facts.pop("dependencies", None), separators=(",", ":")))
+    (out / "activity.json").write_text(json.dumps(facts.pop("file_activity", None), separators=(",", ":")), encoding="utf-8")
+    (out / "knowledge.json").write_text(json.dumps(facts.pop("knowledge", None), separators=(",", ":")), encoding="utf-8")
+    (out / "dependencies.json").write_text(json.dumps(facts.pop("dependencies", None), separators=(",", ":")), encoding="utf-8")
+    ignored = facts["files"].get("ignored_reports") or []
+    ignored_note = ignored_sentence(ignored)
+    if ignored:
+        print(f"warning: {ignored_note}", file=sys.stderr)
+    tool_report = buildlog.tools_not_run(buildlog.load(out))
+    for t in tool_report:
+        who = f"{t['adapter']}: " if t["adapter"] else ""
+        print(f"warning: {who}{t['tool']} {t['status']}. {t['reason']}", file=sys.stderr)
+    ec = extract.get("counts") or {}
+    if ec.get("paths_seen"):
+        print(f"info: extract filter kept {ec['paths_seen'] - ec['paths_dropped']} of {ec['paths_seen']} paths "
+              f"({ec.get('dropped_unexpected', 0)} dropped without a reason).", file=sys.stderr)
     common.save(out / "facts.json", facts)
     common.save(out / "chunks.json", chunks)
     common.save(out / "refdata.json", measured_upgrade.fetch_refdata())
@@ -166,12 +195,18 @@ def cmd_prepare(a: argparse.Namespace) -> None:
                             "commits_added": (d or {}).get("commits_added"), "files_changed": (d or {}).get("files_changed"),
                             "note": (d or {}).get("note")} if state.get("last_sha") else None),
         "update_plan": plan,
-        "existing_reports": existing, "pending_corrections": pending,
+        "existing_reports": existing, "archived_reports": archived,
+        "archived_reports_note": (f"This is a full build, so the {len(archived)} reports of the earlier build were moved to {out / 'reports.prev'}. "
+                                  "Write every report from scratch; do not read the archive as a source of text.") if archived else None,
+        "pending_corrections": pending,
         "user_decisions": [{"id": i, "decision": r["action"], "report": r.get("report"), "statement": r.get("statement"), "note": r.get("text")} for i, r in sorted(state["resolutions"].items())], "warnings": facts["repo"]["warnings"],
         "files": {"facts": str(out / "facts.json"), "chunks": str(out / "chunks.json"), "notes_dir": str(out / "notes"),
                   "reports_dir": str(out / "reports"), "state": str(out / "state.json")},
         "build": str(build), "working_area": str(area), "checkout": copy["checkout"], "trust": pin["trust"],
         "preflight": {"languages": report["languages"], "missing": report["missing"]},
         "restore": copy["restore"],
-        "extract": {"status": extract["status"], "reason": extract["reason"]},
+        "extract": {"status": extract["status"], "reason": extract["reason"],
+                    "filter": {k: ec.get(k) for k in ("paths_seen", "paths_dropped", "dropped_expected", "dropped_outside", "dropped_unexpected")}},
+        "tool_report": tool_report,
+        "ignored_reports": ignored, "ignored_reports_note": ignored_note,
     }, indent=1))

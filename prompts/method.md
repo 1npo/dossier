@@ -400,16 +400,17 @@ The report `components` is written around a catalog of components, and `render` 
 - **V5, people and components (error).** Report 13 names every person, agent and component, nobody who is not in the build, and an owner of the only human on a one-human project. `Status` is one of three words. Each Risks row has a `Source` of `extractor` or `read`.
 - **V6, card layout (error).** Cards, columns, fields, `na` reasons and the rules above. Pending cards are not allowed.
 - **V8, `summary.json` (error).** `render` writes the machine-readable summary and checks it against its schema. A contract's Direction must be exactly `offered` or `consumed`.
+- **V13, coverage of the hand-written cards (error, or warning for a component of up to 300 source lines).** Source of truth, Lifecycle and sensitive fields, Business rules and invariants, Key flows and Extension points must each touch every component of the catalog, or list it in `not_applicable` with a reason. Each `not_applicable` entry becomes an assumption in Gaps. In Key flows, every component that holds an entry point also needs a flow.
 - **V7, blind spots (never fails).** Places where static analysis may miss something (dynamic imports, registries, generated code, feature flags) are listed in Gaps. Read the code there before you rely on a report.
 
-Do not use `--allow-errors` to get past a V4 or V5 error: fix the reports.
+Do not use `--allow-errors` to get past a V4, V5 or V13 error: fix the reports. A citation to a file that `prepare` ignored (a coverage or test-result report) is unresolved.
 
 ## Diagrams (Mermaid)
 
 - Keep fills pastel and text dark. When you use `classDef`, always set an explicit dark `color` (for example `classDef ext fill:#fde8c8,stroke:#b7791f,color:#111`), because the page can be in light or dark mode.
 - Use `flowchart` for context, container, component and data-flow views, `sequenceDiagram` for execution paths, `erDiagram` for entities, `classDiagram` or `stateDiagram-v2` where they fit.
 - C4 style: use a flowchart. Label each box `Name<br/>[kind]<br/>short purpose`. Use `subgraph` for boundaries. Use `classDef person|system|container|ext` so kinds look different.
-- A sequence diagram has at most 10 participants and a flowchart at most 12 nodes. When a flow needs more, split it into several diagrams, each with its own numbered notes; never leave a step out. Each node is a real module, function, table or service name plus at most one short line (a few words). Put detail in the table next to the diagram, not in the boxes.
+- Advice, not a check: a sequence diagram reads best with at most 10 participants and a flowchart with at most 12 nodes (the page check prints an `advice:` line above that, and never fails on it). When a flow needs more, split it into several diagrams, each with its own numbered notes; never leave a step out. Each node is a real module, function, table or service name plus at most one short line (a few words). Put detail in the table next to the diagram, not in the boxes.
 - In `entry.startup` and `interactions.flows`, name each box or participant after a real module, file or component (`cannalerts.cli`, `src/cannalerts/store.py`, a component from the catalog), so `render` can check that each arrow has an import or a call behind it. Boxes for users and outside services are not checked.
 - Show the main path and at most one or two failure or alternative branches. If more is needed, draw a second diagram.
 - Label an arrow only when what moves is not obvious, in two or three words.
@@ -451,6 +452,10 @@ Chunk note shape (`notes/<fingerprint>.json`):
 
 Large repositories are read with Sonnet subagents (1M context window) on chunks of the default size. No model switch is needed.
 
+## Coverage
+
+The cards no tool feeds (Source of truth, Lifecycle and sensitive fields, Business rules and invariants, Key flows, Extension points) are easy to write from the two or three components you read best. V13 holds you to the whole catalog. While you read, record for every component its integration targets (the services, APIs and files it talks to), its lookup tables and reference data, and the state it keeps, so the writer of those cards has them. Non-code files that code reads are listed as `rs-` findings for the Inputs card.
+
 ## Corrections and updates
 
 - Read `state.json` first. Every entry in `corrections` is a fact supplied by the user. It overrides anything you or the gatherer inferred. Apply it everywhere it matters and never contradict it.
@@ -458,5 +463,6 @@ Large repositories are read with Sonnet subagents (1M context window) on chunks 
 - **Updating.** `prepare` prints an `update_plan`. When its `mode` is `incremental`, rewrite only the reports in `stale` and leave every other report file untouched: do not open, re-save or reword them. Each stale report comes with reasons (a cited file changed, was deleted, gained a neighbour, a correction is pending, or the tool findings it is built from changed). When the reason is the tool findings, run `DOSSIER candidates <repo> --report <id> --open` first: it shows what is new. Start from the existing report: read it and the files in `update_plan.read`, keep every statement that still holds, change what the code now contradicts, add what is new, and fix citations. Do not re-read parts of the repository that no stale report touches. `prepare` already moved the line numbers of fresh reports; it never edits a stale one.
 - A stale `overview` needs its `headline`, `summary` and its one card `overview.summary` refreshed (size, activity, what changed). Set `update_note` in `overview.json`. A stale `gaps` needs its items rebuilt from the other reports' current unknowns, inferences and assumptions.
 - If an update leaves a fresh report wrong (a change elsewhere made it untrue), rewrite that report too and say so to the user. `--full` rebuilds everything.
+- A full build starts from empty reports: `prepare` moves the old `reports/*.json` to `reports.prev/<timestamp>/` and prints `archived_reports`. Write every report from scratch. Never read the archive as a source of text: it carries the thin cards of the older build. `state.json` (corrections and decisions) is untouched.
 - Chunk notes are only for full builds of chunked repositories. Chunks with cached notes need no re-reading.
 - In `overview.json` you may set `update_note`: one plain sentence on what changed in the analysis this time. It appears in the history table.

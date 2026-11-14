@@ -37,7 +37,7 @@ def _is_berry(checkout, folder: str) -> bool:
     if checkout is None:
         return False
     try:
-        return "__metadata:" in (Path(checkout) / folder / "yarn.lock").read_text(errors="replace")
+        return "__metadata:" in (Path(checkout) / folder / "yarn.lock").read_text(encoding="utf-8", errors="replace")
     except OSError:
         return False
 
@@ -131,7 +131,7 @@ def run(plans: list[dict], *, area: Path, checkout: Path | str, timeout: float, 
         elif r.returncode == 0:
             results.append({**base, "status": "ok", "reason": None})
         else:
-            err = r.stderr.read_text(errors="replace") if r.stderr.exists() else ""
+            err = r.stderr.read_text(encoding="utf-8", errors="replace") if r.stderr.exists() else ""
             if project and WORKLOAD_FAILURE.search(err):
                 reason = f"Restoring {project} needs a .NET workload, and dossier does not install workloads.{where}"
             elif AUTH_FAILURE.search(err):

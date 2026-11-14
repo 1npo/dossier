@@ -32,7 +32,7 @@ def run_browser_check(html: Path, out: Path):
     cmd = ["uv", "run", str(common.ROOT / "scripts" / "check_page.py"), str(html), "--shots", str(out / ".check-shots")]
     if (out / buildlog.FILE).exists():
         cmd += ["--record", str(out / buildlog.FILE)]
-    r = subprocess.run(cmd, capture_output=True, text=True)
+    r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     return r.returncode, r.stdout + r.stderr
 
 
@@ -62,5 +62,9 @@ def cmd_check(a: argparse.Namespace) -> None:
     print(text.rstrip())
     browser = sum(1 for line in text.splitlines() if line.startswith("FAIL"))
     problems = len(audit) + len(v8) + (browser or (1 if code else 0))
+    not_run = buildlog.tools_not_run(buildlog.load(out))
+    if not_run:
+        print("Tools that did not run in this build: " + "; ".join(
+            f"{t['tool']} ({t['status']}: {t['reason'].rstrip('.')})" for t in not_run))
     print(f"problems: {problems}")
     sys.exit(1 if problems else 0)

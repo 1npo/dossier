@@ -111,8 +111,11 @@ def _ok_rows(step, build) -> list:
         return [("Files", c.get("files")), ("Languages", c.get("languages")), ("Commits", c.get("commits")), ("Contributors", c.get("contributors"))]
     if step == "extract":
         names = ", ".join(a["name"] for a in d.get("adapters", []) if a["status"] == "ok") or "none"
+        not_run = buildlog.tools_not_run(build)
         return [("Extractors run", f"{c.get('ran', 0)} ({names})"), ("Reused", c.get("reused", 0)),
-                ("Paths filtered out", f"{c.get('paths_dropped', 0)} of {c.get('paths_seen', 0)} ({c.get('dropped_unexpected', 0)} unexpected)")]
+                ("Paths filtered out", f"{c.get('paths_dropped', 0)} of {c.get('paths_seen', 0)} ({c.get('dropped_unexpected', 0)} unexpected)"),
+                ("Tools that did not run", "all tools ran" if not not_run else "; ".join(
+                    f"{t['tool']} ({t['status']}: {t['reason'].rstrip('.')})" for t in not_run))]
     if step == "read":
         mode = "Single read" if c.get("mode") == "single" else _plural(c.get("chunks") or 0, "chunk")
         readers = f"{c['readers']}, as reported by Claude" if c.get("readers") else "not recorded"
@@ -357,6 +360,11 @@ def coverage_items(build: dict | None) -> list[dict]:
                         if st.get("status") in ("failed", "skipped"):
                             items.append(_item(f"The tool {tool} did not finish, so the cards that use it are marked partial: {st.get('reason') or 'it did not run'}",
                                                "Fix the problem and build again."))
+    if ex and ex["status"] not in ("skipped", "failed"):
+        lost = (ex.get("counts") or {}).get("dropped_unexpected", 0)
+        if lost:
+            items.append(_item(f"The extract filter dropped {lost} paths that are not files of the commit, so findings for them are missing.",
+                               "Look at the paths in build.json (extract, details, unexpected), fix the cause and build again."))
     items += history_items(((mine.get(("measure", None)) or {}).get("details") or {}).get("history"))
     for (step, part), r in mine.items():
         if r["status"] == "failed" and (step, part) not in {("tools", None), ("copy", "checkout"), ("copy", "restore"), ("extract", None)}:
@@ -456,7 +464,7 @@ def partial_cards(build: dict | None, tools: dict | None = None) -> dict:
 
 
 def validate_build(build: dict | None, pending: Iterable[dict] = ()) -> tuple[list[str], list[str]]:
-    """V10 (errors): every fixed step has a record, and a skipped or failed one says why. V9 (info): the path filter."""
+    """V10 (errors): every fixed step has a record, and a skipped or failed one says why. V9 (warning): the path filter."""
     if build is None:
         return ["V10: there is no build.json. Run prepare first."], []
     recs = list(build["records"]) + list(pending)

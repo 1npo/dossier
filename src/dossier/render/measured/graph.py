@@ -92,11 +92,10 @@ def _group_of(extract: dict, rows: list, roots: list) -> dict:
     return out
 
 
-def _diagram(title: str, source: str, budget: str = "") -> str:
-    mark = f' data-budget="{budget}"' if budget else ""
+def _diagram(title: str, source: str) -> str:
     return (f'<div class="diagram flow"><div class="flow-bar"><h4>{markup.E(title)}</h4><div class="card-action"><button class="btn" data-variant="ghost" data-size="sm" '
             f'type="button" data-expand title="Expand" aria-label="Expand diagram">{markup.EXPAND_ICONS}</button></div></div>'
-            f'<div class="mermaid-host"{mark} data-src="{markup.E(source)}"><pre class="muted">Diagram loads when this report is opened.</pre></div>'
+            f'<div class="mermaid-host" data-src="{markup.E(source)}"><pre class="muted">Diagram loads when this report is opened.</pre></div>'
             f'<details><summary class="muted">Diagram source</summary><pre>{markup.E(source)}</pre></details></div>')
 
 

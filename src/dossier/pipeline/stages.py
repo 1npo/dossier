@@ -40,6 +40,10 @@ class Options:
     restore: str | None = None
     full: bool = False
     verify: bool = False
+    allow_dropped: bool = False
+
+
+MAX_DROPPED_SHARE = 0.02  # prepare stops when more than this share of extracted paths was dropped without a reason
 
 
 class Stop(Exception):
@@ -61,7 +65,7 @@ def record(build, t0, step, part=None, status="ok", reason=None, **extra) -> dic
 
 
 def resolve_ref(top: str, ref: str) -> str:
-    r = subprocess.run(["git", "-C", top, "rev-parse", "--verify", "--quiet", ref + "^{commit}"], capture_output=True, text=True)
+    r = subprocess.run(["git", "-C", top, "rev-parse", "--verify", "--quiet", ref + "^{commit}"], capture_output=True, text=True, encoding="utf-8", errors="replace")
     if r.returncode:
         raise PrepareError(f"'{ref}' is not a commit in this repository.")
     return r.stdout.strip()
@@ -165,5 +169,16 @@ def stage_extract(build: Path, top: str, sha: str, area: Path, out: Path, langs:
         allow_ref=opts.allow_ref, restored=restored, treesitter=shared_tools.TreeSitter(tool_run),
         semgrep=shared_tools.Semgrep(tool_run), tool_versions=versions, timeout=timeouts["extract"])
     rec.setdefault("details", {})["tool_status"] = candidates.tool_status(out)
+    if rec["status"] != "failed":
+        rec["details"]["resources"] = extract.write_resources(out, sha, tree, checkout)
     record(build, t0, "extract", **rec)
+    counts, seen = rec.get("counts") or {}, (rec.get("counts") or {}).get("paths_seen") or 0
+    dropped = counts.get("dropped_unexpected", 0)
+    if seen and dropped / seen > MAX_DROPPED_SHARE and not opts.allow_dropped:
+        unexpected = (rec.get("details") or {}).get("unexpected") or []
+        raise Stop(4, {"stopped": "extract_filter",
+                       "text": f"The path filter dropped {dropped} of {seen} extracted paths ({dropped / seen:.0%}) because they are not "
+                               "files of the commit. Findings for those files are lost, so the dossier would be silently incomplete.",
+                       "dropped_unexpected": dropped, "paths_seen": seen, "first_dropped_paths": unexpected[:20],
+                       "how_to_continue": "Fix the cause (see build.json), or run prepare again with --allow-dropped to accept the loss."})
     return rec

@@ -12,6 +12,7 @@ from dossier.findings import candidates
 from dossier.checks import people as checks_people
 from dossier.checks import v3 as checks_v3
 from dossier.checks import v7 as checks_v7
+from dossier.checks import v13 as checks_v13
 from dossier.findings import components
 from dossier.render import process
 from dossier.render import markup
@@ -437,6 +438,15 @@ def validate(reports: dict, extract: dict, cites: Cites | None = None, facts: di
             result["counts"].update(c)
         except (AttributeError, TypeError, KeyError):
             pass
+    if tree and extract:
+        try:
+            e, w, g, c = checks_v13.v13(reports, extract, tree, facts)
+            result["errors"] += e
+            result["warnings"] += w
+            result["gaps"] += g
+            result["counts"].update(c)
+        except (AttributeError, TypeError, KeyError):
+            pass  # a malformed card: V6 reports it
     return result
 
 
@@ -448,4 +458,8 @@ def gap_extras(build: dict | None, reports: dict, extract: dict, cites: Cites | 
     """The one list `cmd_render` and `cmd_confirm` both pass to `collect_gaps`: the build's coverage items, then the checks' items."""
     result = result if result is not None else validate(reports, extract, cites, facts)
     claims = {(rid, c["key"]): verify.plain_text(c["text"]) for rid, rep in reports.items() for c in verify.keyed(render.claims_of(rid, rep or {}))}
-    return process.coverage_items(build) + process.verifier_items(build, claims) + result["gaps"]
+    ignored = [process._item(f"The file {r['path']} is a coverage or test-result report written by CI, so it was not read (about {r['tokens']:,} tokens). "
+                             "Numbers in it, such as test counts and coverage, are not in this dossier.",
+                             "Build again with --include-test-reports to read it.", "dossier")
+               for r in ((facts or {}).get("files") or {}).get("ignored_reports") or []]
+    return process.coverage_items(build) + ignored + process.verifier_items(build, claims) + result["gaps"]

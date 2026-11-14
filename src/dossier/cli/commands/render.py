@@ -47,6 +47,12 @@ def change_summary(facts, state):
     return ", ".join(parts) + "."
 
 
+def _filtered_out(build) -> dict:
+    """What the extract path filter removed, for the summary line."""
+    c = (buildlog.latest(build, "extract") or {}).get("counts") or {} if build else {}
+    return {k: c.get(k, 0) for k in ("paths_seen", "paths_dropped", "dropped_expected", "dropped_outside", "dropped_unexpected")}
+
+
 def cmd_render(a: argparse.Namespace) -> Any:
     top = common.toplevel(a.repo)
     out, name, _ = common.out_dir(top)
@@ -120,7 +126,7 @@ def cmd_render(a: argparse.Namespace) -> Any:
         shown = None
     v_errors, v_infos = process.validate_build(shown, [])
     for line in v_infos:
-        print(f"info: {line}")
+        print(f"{'warning' if line.startswith('V9') else 'info'}: {line}")
     for line in v_errors:
         print(f"error: {line}")
     if v_errors and not a.allow_errors:
@@ -176,4 +182,6 @@ def cmd_render(a: argparse.Namespace) -> Any:
                       "unresolved_citations": sum(1 for s in cites.status.values() if not s["ok"]),
                       "code_viewer": cites.view_counts(),
                       "tracker": counts, "resolved_by_user": len(gaps) - sum(1 for g in gaps if render.is_open(g)), "warnings": len(warnings),
+                      "tools_not_run": buildlog.tools_not_run(buildlog.load(build_path) if build else None),
+                      "filtered_out": _filtered_out(buildlog.load(build_path) if build else None),
                       "browser_check": check.browser_check_line(buildlog.load(build_path) if build else None)}, indent=1))
