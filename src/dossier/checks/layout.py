@@ -116,6 +116,12 @@ LAYOUT_JS = r"""(arg) => {
     const t = card.querySelector('table.table:not(.kv)');
     if (!t || !ok(t)) out.push(id + ': the card shows no table');
   }
+  // 6b. a measured card with no data still draws something: a table with a message, a chart, or text
+  for (const card of rep.querySelectorAll('[data-card].fact')) {
+    if (/Not yet generated/.test(card.textContent)) continue;
+    const sec = card.querySelector(':scope > section');
+    if (sec && !sec.textContent.trim() && !sec.querySelector('table, svg, canvas, img, .mermaid-host, .stats')) out.push(card.dataset.card + ': the card draws nothing');
+  }
   // 7. overlapping text
   const seen = [];
   for (const card of rep.querySelectorAll('[data-card]')) {

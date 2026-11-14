@@ -350,7 +350,7 @@ html:not(.rail) #rail-toggle { width: auto; padding-inline: .6rem; gap: .5rem; }
 .entry > .prov { margin-top: .7rem; }
 .diagram details[open] > summary, details.areas[open] > summary { margin-bottom: .6rem; }
 .flow-bar { margin-bottom: .75rem; }
-.table-container + .tbl-bar, .table-container + .table-hint + .tbl-bar { margin-top: 1.25rem; }
+.table-container + .tbl-bar { margin-top: 1.25rem; }
 .basis-cell .badge + .badge { margin-top: .35rem; }
 .basis-cell .badge { vertical-align: top; }
 
@@ -576,9 +576,11 @@ details.areas { margin-top: 1.25rem; } details.areas > summary { cursor: pointer
 /* schema tables (not report 02's, which keeps its look): narrower cells, a compact Basis and Sources, long paths break */
 .card[data-card]:not([data-card^="overview."]) .table td, .card[data-card]:not([data-card^="overview."]) .table th { min-width: 6rem; }
 .card[data-card]:not([data-card^="overview."]) .table td.basis-cell, .card[data-card]:not([data-card^="overview."]) .table th.basis-cell { min-width: 7rem; max-width: 14rem; width: 1%; }
-.card[data-card]:not([data-card^="overview."]) .table td.src-cell, .card[data-card]:not([data-card^="overview."]) .table th.src-cell { min-width: 0; width: 1%; white-space: nowrap; }
+/* by role: a citation column is small and fixed and its markers wrap inside it; short label columns keep a minimum; long text shares the rest */
+.card[data-card]:not([data-card^="overview."]) .table td.src-cell, .card[data-card]:not([data-card^="overview."]) .table th.src-cell { min-width: 4.5rem; width: 6.5rem; max-width: 8rem; white-space: normal; overflow-wrap: anywhere; word-break: break-all; }
+.card[data-card]:not([data-card^="overview."]) .table td.src-cell sup.cite { display: inline; }
+.table td.row-no, .table th.row-no { min-width: 2.5rem; width: 2.5rem; max-width: 3.5rem; white-space: nowrap; text-align: right; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
 .card[data-card]:not([data-card^="overview."]) .table code { overflow-wrap: anywhere; }
-.table-hint { margin: .25rem 0 0; font-size: .8125rem; color: var(--muted-foreground); }
 .table-container.scrolls { background: linear-gradient(to right, var(--card) 30%, transparent) left / 2rem 100% no-repeat local, linear-gradient(to left, var(--card) 30%, transparent) right / 2rem 100% no-repeat local, linear-gradient(to left, rgb(0 0 0 / .12), transparent) right / .75rem 100% no-repeat scroll; }
 .table-container.tall { max-height: 70vh; overflow: auto; }
 .table-container.tall thead th { position: sticky; top: 0; z-index: 2; background: var(--card); }
@@ -686,4 +688,21 @@ html.rail .sidebar nav > section { overflow-y: auto; }
 html:not(.rail) #rail-toggle { padding-right: .5rem; }
 .search kbd { right: .5rem; }
 html.rail .side-link { justify-content: center; margin: 0 0 .5rem; }
+/* tool findings: the All / Kept / Dismissed / Added by Claude toggle, the same component as the hotspots toggles, top right above the table */
+.cand-bar { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: .5rem 1.5rem; margin: 0 0 .75rem; }
+.cand-card:not([data-cand-view="dismissed"]) > section > .table-container:has(> .cand-dismissed) { display: none; }
+.cand-card[data-cand-view="dismissed"] > section > .cand-main { display: none; }
+.cand-card[data-cand-view="kept"] [data-kind]:not([data-kind~="kept"]), .cand-card[data-cand-view="added"] [data-kind]:not([data-kind~="added"]) { display: none; }
+
+/* an alert box: standalone text beside a table or diagram, and the components a card does not cover */
+.callout { --c: var(--pend); display: flex; gap: .75rem; align-items: flex-start; margin: 1rem 0 0; padding: .75rem 1rem; border: 1px solid var(--border); border-left: 4px solid var(--c); border-radius: var(--radius); background: color-mix(in oklab, var(--c) 7%, var(--card)); color: var(--foreground); }
+.callout[data-variant="tip"] { --c: var(--ok); } .callout[data-variant="warning"] { --c: var(--warn); } .callout[data-variant="important"] { --c: oklch(.55 .2 305); }
+html.dark .callout[data-variant="important"] { --c: oklch(.75 .15 305); }
+.callout > svg { flex: none; margin-top: .15rem; color: var(--c); }
+.callout-body { min-width: 0; flex: 1; } .callout-body > :first-child { margin-top: 0; } .callout-body > :last-child { margin-bottom: 0; }
+.callout-label { display: block; font-weight: 700; margin-bottom: .25rem; }
+.callout .table-container { margin-top: .6rem; background: transparent; }
+
+/* a table with no data keeps its headers and says so in one centered row */
+.empty-table .empty-row td { text-align: center; padding: 1.25rem .75rem; }
 :root { --dossier-css-end: 1; }

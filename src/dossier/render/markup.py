@@ -10,7 +10,7 @@ import re
 from typing import Any
 
 __all__ = [
-    "AFTER_PREP", "BARE_FILE", "CLAUSE_WORD", "E", "EXPAND_ICONS", "FREE_TEXT_WORDS", "INLINE_CITE", "Raw",
+    "AFTER_PREP", "BARE_FILE", "CLAUSE_WORD", "E", "EXPAND_ICONS", "empty_table", "FREE_TEXT_WORDS", "INLINE_CITE", "Raw",
     "SEE_TAIL", "SENTENCE_START", "SEV_TONE", "STATUS_STYLE", "TALL_ROWS", "_NW", "_OL_ITEM", "_UL_ITEM", "added_tag",
     "auto_columns", "badge", "basis", "basis_for", "cell_html", "code_files", "gid_tag", "inline", "inline_cites",
     "keep_whole", "lift_cites", "md", "new_cites", "parse_cite", "path_code", "render_table", "sev_badge",
@@ -214,16 +214,19 @@ def auto_columns(columns: list[str]) -> tuple:
     return ("Confidence" if "basis" in have else "Basis", "Citations" if "source" in have else "Source")
 
 
-def render_table(columns: list[str], rows: list, refs: Any, tid: str, filterable: bool = True, plain: bool = False, group: list[tuple] | None = None, foot: list | None = None, sort: bool = True, cls: str = "") -> str:
-    """rows are dicts with cells/conf/cite/note (authored) or plain lists of ready HTML (measured)."""
-    head = "".join(f"<th>{E(c)}</th>" for c in columns)
+def render_table(columns: list[str], rows: list, refs: Any, tid: str, filterable: bool = True, plain: bool = False, group: list[tuple] | None = None, foot: list | None = None, sort: bool = True, cls: str = "", findings: bool = False) -> str:
+    """rows are dicts with cells/conf/cite/note (authored) or plain lists of ready HTML (measured).
+    With `findings` the table belongs to a card that tool findings were fed to: a `#` column of row numbers comes first,
+    and each row says in `data-kind` whether it keeps findings (`kept`), was added by Claude (`added`) or is neither (`own`)."""
+    num = findings and not plain
+    head = ("<th class=\"row-no\">#</th>" if num else "") + "".join(f"<th>{E(c)}</th>" for c in columns)
     if not plain:
         basis_h, cite_h = auto_columns(columns)
         head += f'<th class="basis-cell">{basis_h}</th><th class="src-cell">{cite_h}</th>'
-    body = []
+    body, n = [], 0
     for r in rows:
         if isinstance(r, dict) and "band" in r:      # a full-width heading row that groups the rows after it
-            body.append(f'<tr class="band-row"><td colspan="{len(columns)}">{r["band"]}</td></tr>')
+            body.append(f'<tr class="band-row"><td colspan="{len(columns) + num}">{r["band"]}</td></tr>')
             continue
         if plain:
             body.append("<tr>" + "".join(f'<td data-sort="{E(c[1])}">{keep_whole(str(c[0]))}</td>' if isinstance(c, tuple) else f"<td>{keep_whole(str(c))}</td>" for c in r) + "</tr>")
@@ -238,12 +241,25 @@ def render_table(columns: list[str], rows: list, refs: Any, tid: str, filterable
             tds.append(f"<td>{sev_badge(cell)}</td>" if kind == "severity" else f"<td>{status_badge(cell)}</td>" if kind == "status" else f"<td>{cell_html(cell, refs)}</td>")
         note = f'<div class="muted">{inline(r.get("note"), refs)}</div>' if r.get("note") and r.get("conf") != "confirmed" else ""
         cites_ = new_cites(list(r.get("cite") or []) + lifted, *cells)
-        body.append("<tr>" + "".join(tds) + f'<td class="basis-cell">{basis_for(r)}{added_tag(r)}{gid_tag(r)}{note}{user_note(r.get("user"))}</td><td class="src-cell">{refs.mark(cites_)}</td></tr>')
+        kind = ""
+        if num:
+            n += 1
+            kinds = [k for k, on in (("kept", r.get("cand")), ("added", r.get("added"))) if on]
+            kind = f' data-kind="{" ".join(kinds) or "own"}"'
+            tds.insert(0, f'<td class="row-no" data-sort="{n}">{n}</td>')
+        body.append(f"<tr{kind}>" + "".join(tds) + f'<td class="basis-cell">{basis_for(r)}{added_tag(r)}{gid_tag(r)}{note}{user_note(r.get("user"))}</td><td class="src-cell">{refs.mark(cites_)}</td></tr>')
     flt = f'<input class="input tbl-filter" type="search" data-target="{tid}" placeholder="Filter rows" aria-label="Filter rows">' if filterable and len(rows) > 6 else ""
     grp_attr = ' class="grp"'
     top = ('<tr class="group-row">' + "".join(f'<th colspan="{n}"{grp_attr if lbl else ""}>{E(lbl)}</th>' for lbl, n in group) + "</tr>") if group else ""
     tf = f'<tfoot><tr class="total-row">{"".join(f"<td>{c}</td>" for c in foot)}</tr></tfoot>' if foot else ""
     return f'{flt}<div class="table-container{" tall" if len(rows) > TALL_ROWS else ""}"><table class="table{" " + cls if cls else ""}" id="{tid}"{"" if sort else " data-nosort"}><thead>{top}<tr>{head}</tr></thead><tbody>{"".join(body)}</tbody>{tf}</table></div>'
+
+
+def empty_table(tid: str, columns: list[str], message: str, cls: str = "") -> str:
+    """A table with no data: its headers and one centered row with `message`, so the card never just goes missing."""
+    head = "".join(f"<th>{E(c)}</th>" for c in columns)
+    return (f'<div class="table-container"><table class="table empty-table{" " + cls if cls else ""}" id="{tid}" data-nosort><thead><tr>{head}</tr></thead>'
+            f'<tbody><tr class="empty-row"><td class="none-found muted" colspan="{max(len(columns), 1)}">{E(message)}</td></tr></tbody></table></div>')
 
 
 EXPAND_ICONS = ('<svg class="ic-max" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/></svg>'

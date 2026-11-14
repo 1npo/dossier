@@ -40,7 +40,7 @@ def env_vars(cid, ctx, refs):
                                       "A default is shown only when the call gives a literal one; a default that may be a credential is withheld.")
     head = measured_change.intro("Every environment variable the code reads: where, the default the call gives, and whether a Dockerfile, compose file, CI workflow or .env file also names it.")
     if not rows:
-        return head + _table(cid, ENV_COLUMNS, [], refs) + measured_change.none_found("No environment variable reads were found.") + foot
+        return head + markup.empty_table("t-" + cid.replace(".", "-"), ENV_COLUMNS, "No environment variable reads were found.") + foot
     return head + _table(cid, ENV_COLUMNS, rows, refs) + foot
 
 
@@ -56,7 +56,7 @@ def secret_signals(cid, ctx, refs):
     head = measured_change.intro("This lists pattern matches for human review. It is not a security scanner: a match may be a test value, and a secret in another shape is missed. "
                                  "The matched text is never printed or stored here.")
     if not rows:
-        return head + _table(cid, SECRET_COLUMNS, [], refs) + measured_change.none_found("No credential-shaped strings or secret-prone files were found.")
+        return head + markup.empty_table("t-" + cid.replace(".", "-"), SECRET_COLUMNS, "No credential-shaped strings or secret-prone files were found.")
     return head + _table(cid, SECRET_COLUMNS, rows, refs)
 
 

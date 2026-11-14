@@ -166,6 +166,15 @@ def _kill_group(pid: int, sig: int | None = None) -> None:
         pass
 
 
+def _resolve(cmd: list[str], env: Mapping[str, str]) -> list[str]:
+    """On Windows, npm and similar tools are scripts (`npm.cmd`) that Popen cannot find by bare name: resolve the
+    program with the child's PATH and PATHEXT. Unchanged elsewhere, and when nothing is found (the error path reports it)."""
+    if not WINDOWS or not cmd:
+        return cmd
+    exe = shutil.which(cmd[0], path=env.get("PATH") or os.environ.get("PATH"))
+    return [exe, *cmd[1:]] if exe else cmd
+
+
 def run(cmd: list[str], *, area: Path, cwd: Path, stage: str, timeout: float, profile: str = "restricted",
         ecosystem: str | None = None, input: bytes | None = None, parent: Mapping[str, str] | None = None) -> Result:
     area = Path(area)
@@ -185,7 +194,7 @@ def run(cmd: list[str], *, area: Path, cwd: Path, stage: str, timeout: float, pr
     timed_out = False
     with open(out_p, "wb") as fo, open(err_p, "wb") as fe:
         try:
-            p = subprocess.Popen(cmd, cwd=cwd, env=env, stdin=stdin, stdout=fo, stderr=fe, start_new_session=not WINDOWS)
+            p = subprocess.Popen(_resolve(cmd, env), cwd=cwd, env=env, stdin=stdin, stdout=fo, stderr=fe, start_new_session=not WINDOWS)
         except OSError as e:
             fe.write(f"Could not start {cmd[0]}: {e}\n".encode())
             return Result(list(cmd), 127, False, 0.0, out_p, err_p, sorted(env))

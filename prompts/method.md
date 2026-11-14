@@ -61,11 +61,13 @@ Every card of the reports you write must be filled. `pending` is not allowed. Do
 Blocks inside a card are:
 
 ```text
-{"type": "text", "text": "paragraphs, - bullets, `code`, **bold**, [[path:1-9]]", "conf": "confirmed", "cite": [], "note": ""}
+{"type": "text", "text": "paragraphs, - bullets, `code`, **bold**, [[path:1-9]]", "variant": "note", "conf": "confirmed", "cite": [], "note": ""}
 {"type": "list", "items": [{"text": "...", "conf": "confirmed", "cite": ["path:3"], "note": ""}]}
 {"type": "table", "columns": ["A", "B"], "rows": [{"cells": ["a1", "b1"], "conf": "confirmed", "cite": ["path:3"], "note": ""}]}
 {"type": "diagram", "title": "what it shows", "mermaid": "flowchart LR\n ...", "conf": "confirmed", "cite": ["path:3"], "note": ""}
 ```
+
+A `text` block that stands in a card next to a table or a diagram is drawn as an alert box with an icon and a label. `variant` (optional, default `note`) picks which: `note`, `tip`, `important` or `warning`. Choose it from what the text means, never from a keyword: `warning` for something that can bite the reader, `important` for what they must not miss, `tip` for a shortcut, `note` for everything else. A text block that is the whole card is not boxed. Do not give a card an extra heading for a text block.
 
 A `flows` card is one or more diagram blocks, each optionally followed by one `text` or `list` block that explains it. Table rows must have exactly as many `cells` as `columns`. The page adds the Basis and Sources columns itself, so do not add a "Where" column of your own for citations: a short cell (a file name, a symbol) takes its `[[...]]` citation and the page moves it to the Source column; citations stay inline only inside long free text.
 
@@ -159,7 +161,7 @@ Here is a complete report file with a table card, an `entries` card, a second ta
      "fields": {
       "purpose": "Keeps alerts and prices in the database.",
       "how_it_works": "A `Store` object wraps one connection and runs one query per method [[src/shop/store.py:10-60|store.py]].",
-      "public_surface": "`Store`, `Store.save_alert`.",
+      "public_surface": "[[src/shop/store.py:10-60|Store]], [[src/shop/store.py:30-45|Store.save_alert]].",
       "state_owned": "The `alerts` table.",
       "key_files": "[[src/shop/store.py:1-80|store.py]]",
       "gotchas": "The connection is opened when the module is imported."
@@ -400,6 +402,7 @@ The report `components` is written around a catalog of components, and `render` 
 - **V5, people and components (error).** Report 13 names every person, agent and component, nobody who is not in the build, and an owner of the only human on a one-human project. `Status` is one of three words. Each Risks row has a `Source` of `extractor` or `read`.
 - **V6, card layout (error).** Cards, columns, fields, `na` reasons and the rules above. Pending cards are not allowed.
 - **V8, `summary.json` (error).** `render` writes the machine-readable summary and checks it against its schema. A contract's Direction must be exactly `offered` or `consumed`.
+- **V14, a citation for every name in a component's Public surface (error).** Each function, class or variable in the `public_surface` field of Component details is written as `[[path:start-end|name]]`, with the range of its whole definition and the line numbers checked at the pinned commit. A name left in backticks with no citation fails `render`.
 - **V13, coverage of the hand-written cards (error, or warning for a component of up to 300 source lines).** Source of truth, Lifecycle and sensitive fields, Business rules and invariants, Key flows and Extension points must each touch every component of the catalog, or list it in `not_applicable` with a reason. Each `not_applicable` entry becomes an assumption in Gaps. In Key flows, every component that holds an entry point also needs a flow.
 - **V7, blind spots (never fails).** Places where static analysis may miss something (dynamic imports, registries, generated code, feature flags) are listed in Gaps. Read the code there before you rely on a report.
 

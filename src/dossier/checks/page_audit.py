@@ -86,7 +86,7 @@ def parse(page: str) -> Node:
 
 def _rows(table: Node) -> list:
     body = next((k for k in table.kids if k.tag == "tbody"), None)
-    return [r for r in (body.kids if body else []) if r.tag == "tr"]
+    return [r for r in (body.kids if body else []) if r.tag == "tr" and not r.has("empty-row")]
 
 
 def _head(table: Node) -> list:
@@ -96,12 +96,15 @@ def _head(table: Node) -> list:
 
 
 def _plain_tables(card: Node) -> list:
-    return [t for t in card.find("table") if not t.has("kv")]
+    """The tables the card's blocks drew, not the dismissed findings or the not-applicable list that follow them."""
+    return [t for t in card.find("table") if not t.has("kv") and not t.has("cand-dismissed") and not t.attrs.get("id", "").endswith("-na")]
 
 
 def _check_table(cid: str, n: int, table: Node, columns: list, rows: int, authored: bool) -> list:
     errs, want = [], list(columns) + (list(render.auto_columns(columns)) if authored else [])
     have = _head(table)
+    if have and have[0] == "#":     # the row-number column of a card that tool findings were fed to
+        have = have[1:]
     for col in want:
         if col not in have:
             errs.append(f"V11: {cid}: table {n} is missing the column '{col}'.")
@@ -250,10 +253,10 @@ def _check_measured(cards: dict, m, page: str) -> list:
         for tid, rows, cols in tables:
             found = card.find("table", id=tid)
             if rows == 0:
-                if found:
-                    errs.append(f"V11: {cid}: the table {tid} is drawn although the source has nothing to list.")
-                if not card.find(cls="none-found"):
-                    errs.append(f"V11: {cid}: the source has nothing to list for {tid}, and the card does not say so.")
+                if not found:
+                    errs.append(f"V11: {cid}: the source has nothing to list for {tid}, and the card draws no table with a message in it.")
+                elif not found[0].find(cls="none-found"):
+                    errs.append(f"V11: {cid}: the source has nothing to list for {tid}, and the card does not say so in the table.")
                 continue
             if not found:
                 errs.append(f"V11: {cid}: the table {tid} is not drawn.")

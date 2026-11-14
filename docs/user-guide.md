@@ -174,6 +174,10 @@ A C# program reads much of its input through `IConfiguration`, and those keys ar
 
 Click a column heading to sort (a third click restores the written order). Drag the right edge of a heading to resize it; double-click the edge, or use the arrow keys on it, to undo or nudge. The **Columns** menu above a table hides and shows columns. **Reset columns** brings back every column. The filter box above a table keeps the rows that contain what you type.
 
+### Read the tool findings of a card
+
+A card that tool findings were fed to (for example Inputs or Entry points) numbers its rows in a first column, `#`, in the order they were written. The **Show** buttons at the top right of the card pick **All**, **Kept** (rows that cite a finding), **Dismissed** (the findings Claude set aside, each with where it is, what it matched and why it was dismissed) or **Added by Claude** (rows no tool found). Components a card does not cover are listed in a note box under its table.
+
 ### Read who knows what
 
 Report 13 (Contributors) shows who the people are, who to ask about each component, how concentrated the knowledge is (with the bus factor), which commits came from agents and bots, and how the team works. A commit counts as an agent's when its author is a known agent, or its message has an `Agent-Logs-Url:` line or a `Co-authored-by:` trailer from an agent account such as Claude or Copilot. A commit belongs to the person who wrote it. When an agent or a bot wrote it, it belongs to the person who approved its pull request, and on a project with one person, to that person. The Contributors card in report 02 has **Owner** and **Author** buttons to switch between the two views.
@@ -243,7 +247,7 @@ Checks that every row, column and entry of the reports is drawn (V11), then open
 /dossier clean ~/dev/projects/foo
 ```
 
-Deletes the working copy, the scratch home and the package caches dossier keeps for that repository under `~/.local/cache/dossier/`. The dossier itself is not touched.
+Deletes the working copy, the scratch home and the package caches dossier keeps for that repository under `~/.local/cache/dossier/`. The dossier itself is not touched. A build keeps the working copy and the tool cache until you run this. A build puts none of its own scratch files in the dossier home: at the end, Claude lists the home, removes only what it made itself that does not belong there, and says what it removed.
 
 ### The restore question
 
@@ -356,7 +360,7 @@ A bad value stops the command with a message that names the key.
 | `MISSING <tool>` in `doctor`, or `build` stops with `missing_tools` | Install the tool with the command shown, or build with `--allow-missing`. The cards that need it are marked `partial`. |
 | `TOO OLD <tool>` | The tool is older than the minimum shown. Upgrade it. |
 | `build` asks whether to install dependencies | See [The restore question](#the-restore-question). |
-| A card has the `partial` badge | A tool that feeds it did not run. `/dossier doctor` shows which. Fix it and build again. |
+| A card has the `partial` badge | A tool that feeds it did not run, or the history was cut short. The **Partial cards** card in This dossier lists every such card with why and what to do. Fix it and build again. |
 | A card has the `no static graph` badge | Expected for Tier B languages. Not a fault. |
 | The Freshness tile says `Not known` | The repository has no remote, or the remote cannot be reached and has not been fetched. Run `git fetch` and build again. |
 | `render` prints `V4:`, `V5:` or `V13:` lines | Files in no component, tool findings with no decision, or a component missing from a hand-written card. Claude fixes the reports; never pass `--allow-errors` to skip them. |

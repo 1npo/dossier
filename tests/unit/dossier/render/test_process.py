@@ -800,3 +800,38 @@ class TestV10Verifier:
         errors, infos = process.validate_build(build_with(*FULL))
 
         assert not [x for x in errors + infos if "verif" in x]
+
+
+class TestPartialCardsTable:
+    def build(self, meta):
+        return {"records": [{"by": "prepare", "step": "measure", "part": None, "status": "ok", "details": {"history": meta}},
+                            {"by": "prepare", "step": "tools", "part": None, "status": "ok", "details": {"self_installing": [], "missing": []}}]}
+
+    def test_every_known_reason_has_an_action(self):
+        for reason in ("this is a shallow clone", "reading the history took too long", "git blame ran out of time for some files", "git could not read the history"):
+            assert process.partial_action(f"Made from incomplete history: {reason}.")
+        for reason in ("the repository is not on GitHub", "gh is not installed or not logged in", "the time for reading pull requests ran out"):
+            assert process.partial_action(f"Made without pull request approvals: {reason}.")
+        assert process.partial_action("Made without vulture: it is not installed.") == "Install vulture and build again."
+
+    def test_the_reason_strings_are_the_ones_the_scanner_and_ownership_write(self):
+        from dossier.history import ownership, scan
+        assert process.partial_action(f"Made from incomplete history: {scan.REASON_SHALLOW}.")
+        assert process.partial_action(f"Made from incomplete history: {scan.REASON_STOPPED}.")
+        assert process.partial_action(f"Made from incomplete history: {scan.REASON_BLAME}.")
+        for message in ownership.MESSAGES.values():
+            assert process.partial_action(f"Made without pull request approvals: {message}.")
+
+    def test_rows_use_the_text_of_the_pills(self):
+        b = self.build({"status": "partial", "reasons": ["this is a shallow clone"]})
+        pills, rows = process.partial_cards(b), process.partial_rows(b)
+        assert pills and [(c, why) for c, why, _ in rows] == list(pills.items())
+        assert all("unshallow" in action for _, _, action in rows)
+
+    def test_an_unknown_reason_says_see_the_reason_and_becomes_a_gaps_item(self):
+        b = self.build({"status": "partial", "reasons": ["the moon is full"]})
+        assert {a for _, _, a in process.partial_rows(b)} == {"See the reason"}
+        assert any("the moon is full" in i["statement"] for i in process.coverage_items(b))
+
+    def test_no_partial_cards_no_rows(self):
+        assert process.partial_rows(self.build({"status": "ok"})) == []

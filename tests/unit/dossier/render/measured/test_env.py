@@ -62,6 +62,7 @@ class TestSecretCard:
         html = measured.body("ops.secret-signals", ctx({"env_vars": [], "secret_signals": {"hits": [], "sensitive_files": []}}), Refs())
 
         assert "none-found" in html and not rows(html)
+        assert '<tr class="empty-row"><td class="none-found muted" colspan="5">No credential-shaped strings' in html   # the message is in the table
 
 
 class TestAudit:
